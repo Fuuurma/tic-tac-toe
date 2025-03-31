@@ -8,6 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { GameMode } from "@/app/types/types";
 
 const LoginForm = ({
   username,
