@@ -17,39 +17,6 @@ export const initialGameState: GameState = {
   gameMode: "human",
 };
 
-// Make a move and handle the 3-active-pieces rule
-export const makeMove = (gameState: GameState, index: number): GameState => {
-  if (gameState.board[index] !== null || gameState.winner) {
-    return gameState;
-  }
-
-  const newGameState = { ...gameState };
-  const player = newGameState.currentPlayer;
-  const playerMoves = [...newGameState.moves[player]];
-
-  // Check if player already has 3 pieces on board
-  if (playerMoves.length >= 3) {
-    // Remove the oldest piece
-    const oldestMoveIndex = playerMoves.shift() as number;
-    newGameState.board[oldestMoveIndex] = null;
-  }
-
-  // Add new move
-  playerMoves.push(index);
-  newGameState.moves[player] = playerMoves;
-  newGameState.board[index] = player;
-
-  // Check for winner
-  newGameState.winner = checkWinner(newGameState.board);
-
-  // Switch player if no winner
-  if (!newGameState.winner) {
-    newGameState.currentPlayer = player === "X" ? "O" : "X";
-  }
-
-  return newGameState;
-};
-
 // Helper function to find a winning move for a player
 export const findWinningMove = (
   gameState: GameState,
