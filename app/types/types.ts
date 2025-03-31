@@ -1,6 +1,7 @@
 export type CellValue = "X" | "O" | null;
 export type GameBoard = CellValue[];
 export type PlayerType = "X" | "O";
+export type GameMode = "human" | "computer";
 
 export interface GameState {
   board: GameBoard;
@@ -14,6 +15,7 @@ export interface GameState {
     X: number[];
     O: number[];
   };
+  gameMode: GameMode;
 }
 
 export interface ServerToClientEvents {
@@ -24,7 +26,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  login: (username: string) => void;
+  login: (username: string, gameMode: GameMode) => void;
   move: (index: number) => void;
   resetGame: () => void;
 }

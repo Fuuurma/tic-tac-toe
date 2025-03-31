@@ -150,12 +150,7 @@ export default function Home() {
             </div>
           )}
 
-          <button
-            onClick={resetGame}
-            className="bg-gray-500 text-white px-4 py-2 rounded"
-          >
-            Reset Game
-          </button>
+          <Button onClick={resetGame}>Reset Game</Button>
         </>
       )}
     </div>
