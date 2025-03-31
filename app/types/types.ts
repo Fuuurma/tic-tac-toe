@@ -18,6 +18,21 @@ export interface GameState {
   gameMode: GameMode;
 }
 
+export const initialGameState: GameState = {
+  board: Array(9).fill(null),
+  currentPlayer: "X",
+  winner: null,
+  players: {
+    X: null,
+    O: null,
+  },
+  moves: {
+    X: [],
+    O: [],
+  },
+  gameMode: "human",
+};
+
 export interface ServerToClientEvents {
   updateGame: (gameState: GameState) => void;
   playerJoined: (playerInfo: { username: string; type: PlayerType }) => void;

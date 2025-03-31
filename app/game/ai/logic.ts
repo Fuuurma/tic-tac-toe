@@ -1,3 +1,7 @@
+import { GameState } from "@/app/types/types";
+import { findWinningMove } from "../logic/findWinningMove";
+import { makeMove } from "../logic/makeMove";
+
 // AI logic for computer opponent
 export const computerMove = (gameState: GameState): GameState => {
   if (gameState.winner || gameState.currentPlayer !== "O") {
