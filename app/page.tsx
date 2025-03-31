@@ -1,54 +1,155 @@
-import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
-
 export default function Home() {
-  const [socket, setSocket] = useState(null);
-  const [board, setBoard] = useState(Array(9).fill(null)); // 3x3 board
-  const [player, setPlayer] = useState("X");
+  const [socket, setSocket] = useState<Socket<
+    ServerToClientEvents,
+    ClientToServerEvents
+  > | null>(null);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [username, setUsername] = useState<string>("");
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [playerType, setPlayerType] = useState<PlayerType | null>(null);
+  const [message, setMessage] = useState<string>("");
 
   useEffect(() => {
-    const newSocket = io();
+    const newSocket = io() as Socket<
+      ServerToClientEvents,
+      ClientToServerEvents
+    >;
     setSocket(newSocket);
 
-    newSocket.on("updateBoard", (newBoard) => {
-      setBoard(newBoard);
+    // Listen for game updates
+    newSocket.on("updateGame", (newGameState) => {
+      setGameState(newGameState);
     });
 
-    return () => newSocket.disconnect();
+    // Listen for player join events
+    newSocket.on("playerJoined", (playerInfo) => {
+      setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
+      setTimeout(() => setMessage(""), 3000);
+    });
+
+    // Listen for game reset
+    newSocket.on("gameReset", () => {
+      setMessage("Game has been reset");
+      setTimeout(() => setMessage(""), 3000);
+    });
+
+    // Listen for errors
+    newSocket.on("error", (errorMessage) => {
+      setMessage(errorMessage);
+      setTimeout(() => setMessage(""), 3000);
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
 
-  const handleClick = (index) => {
-    if (!board[index]) {
-      const newBoard = [...board];
+  const handleLogin = () => {
+    if (username.trim() && socket) {
+      socket.emit("login", username);
+      setLoggedIn(true);
+    }
+  };
 
-      // Count how many pieces the current player has
-      const playerPieces = newBoard.filter((cell) => cell === player);
-      if (playerPieces.length >= 3) {
-        // Remove the oldest piece (first occurrence)
-        const firstIndex = newBoard.indexOf(player);
-        newBoard[firstIndex] = null;
-      }
+  const handleCellClick = (index: number) => {
+    if (!loggedIn || !socket || gameState.winner) return;
 
-      newBoard[index] = player;
-      setBoard(newBoard);
-      socket.emit("move", newBoard);
+    // Only allow moves if it's your turn
+    if (playerType === gameState.currentPlayer) {
+      socket.emit("move", index);
+    } else {
+      setMessage("It's not your turn");
+      setTimeout(() => setMessage(""), 2000);
+    }
+  };
+
+  const resetGame = () => {
+    if (socket) {
+      socket.emit("resetGame");
     }
   };
 
   return (
-    <div className="flex flex-col items-center mt-10">
-      <h1 className="text-2xl mb-4">Tic Tac Toe</h1>
-      <div className="grid grid-cols-3 gap-2">
-        {board.map((cell, i) => (
+    <div className="flex flex-col items-center mt-10 p-4">
+      <h1 className="text-3xl font-bold mb-6">Tic Tac Toe</h1>
+
+      {!loggedIn ? (
+        <div className="mb-6 p-4 border rounded shadow-sm">
+          <h2 className="text-xl mb-2">Login</h2>
+          <div className="flex">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
+              className="border p-2 mr-2 rounded"
+            />
+            <button
+              onClick={handleLogin}
+              className="bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Join Game
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 text-lg">
+            <span>
+              Playing as: <b>{playerType || "Spectator"}</b>
+            </span>
+          </div>
+
+          {message && (
+            <div className="mb-4 p-2 bg-gray-100 rounded">{message}</div>
+          )}
+
+          <div className="mb-4">
+            <div className="flex justify-between w-full">
+              <div className="mx-4">
+                Player X: {gameState.players.X || "Waiting..."}
+              </div>
+              <div className="mx-4">
+                Player O: {gameState.players.O || "Waiting..."}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 mb-6">
+            {gameState.board.map((cell, i) => (
+              <button
+                key={i}
+                className={`w-20 h-20 border text-3xl flex items-center justify-center
+                  ${gameState.moves.X.includes(i) ? "bg-blue-100" : ""}
+                  ${gameState.moves.O.includes(i) ? "bg-red-100" : ""}
+                  ${
+                    gameState.currentPlayer === playerType && !cell
+                      ? "hover:bg-gray-100"
+                      : ""
+                  }`}
+                onClick={() => handleCellClick(i)}
+              >
+                {cell}
+              </button>
+            ))}
+          </div>
+
+          {gameState.winner && (
+            <div className="mb-4 text-xl">
+              {gameState.winner === "draw"
+                ? "It's a draw!"
+                : `Player ${gameState.winner} wins!`}
+            </div>
+          )}
+
           <button
-            key={i}
-            className="w-20 h-20 border text-2xl flex items-center justify-center"
-            onClick={() => handleClick(i)}
+            onClick={resetGame}
+            className="bg-gray-500 text-white px-4 py-2 rounded"
           >
-            {cell}
+            Reset Game
           </button>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }
