@@ -16,32 +16,6 @@ export const initialGameState: GameState = {
 };
 
 // Check for a winner
-export const checkWinner = (board: GameBoard): PlayerType | "draw" | null => {
-  const winningCombinations = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8], // Rows
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8], // Columns
-    [0, 4, 8],
-    [2, 4, 6], // Diagonals
-  ];
-
-  for (const combination of winningCombinations) {
-    const [a, b, c] = combination;
-    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-      return board[a] as PlayerType;
-    }
-  }
-
-  // Check for draw
-  if (board.every((cell) => cell !== null)) {
-    return "draw";
-  }
-
-  return null;
-};
 
 // Make a move and handle the 3-active-pieces rule
 export const makeMove = (gameState: GameState, index: number): GameState => {
@@ -76,69 +50,11 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
   return newGameState;
 };
 
-// AI logic for computer opponent
-export const computerMove = (gameState: GameState): GameState => {
-  if (gameState.winner || gameState.currentPlayer !== "O") {
-    return gameState;
-  }
-
-  // Create a copy of the game state
-  const newGameState = { ...gameState };
-
-  // Priority 1: Check if computer can win with next move
-  const winningMove = findWinningMove(newGameState, "O");
-  if (winningMove !== -1) {
-    return makeMove(newGameState, winningMove);
-  }
-
-  // Priority 2: Block player from winning
-  const blockingMove = findWinningMove(newGameState, "X");
-  if (blockingMove !== -1) {
-    return makeMove(newGameState, blockingMove);
-  }
-
-  // Priority 3: Take center if available
-  if (newGameState.board[4] === null) {
-    return makeMove(newGameState, 4);
-  }
-
-  // Priority 4: Take any available corner
-  const corners = [0, 2, 6, 8];
-  const availableCorners = corners.filter(
-    (index) => newGameState.board[index] === null
-  );
-  if (availableCorners.length > 0) {
-    const randomCorner =
-      availableCorners[Math.floor(Math.random() * availableCorners.length)];
-    return makeMove(newGameState, randomCorner);
-  }
-
-  // Priority 5: Take any available side
-  const sides = [1, 3, 5, 7];
-  const availableSides = sides.filter(
-    (index) => newGameState.board[index] === null
-  );
-  if (availableSides.length > 0) {
-    const randomSide =
-      availableSides[Math.floor(Math.random() * availableSides.length)];
-    return makeMove(newGameState, randomSide);
-  }
-
-  // Fallback: Choose first available move (should rarely happen)
-  const availableMoves = newGameState.board
-    .map((cell, index) => (cell === null ? index : -1))
-    .filter((index) => index !== -1);
-
-  if (availableMoves.length > 0) {
-    return makeMove(newGameState, availableMoves[0]);
-  }
-
-  // No moves available - return unchanged state
-  return newGameState;
-};
-
 // Helper function to find a winning move for a player
-const findWinningMove = (gameState: GameState, player: PlayerType): number => {
+export const findWinningMove = (
+  gameState: GameState,
+  player: PlayerType
+): number => {
   const winningCombinations = [
     [0, 1, 2],
     [3, 4, 5],
