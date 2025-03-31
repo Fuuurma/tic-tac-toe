@@ -1,10 +1,15 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import {
   ClientToServerEvents,
+  GameState,
   PlayerType,
   ServerToClientEvents,
 } from "./types/types";
 import { io, Socket } from "socket.io-client";
+import { initialGameState } from "./game/logic/logic";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -92,12 +97,7 @@ export default function Home() {
               placeholder="Enter your username"
               className="border p-2 mr-2 rounded"
             />
-            <button
-              onClick={handleLogin}
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-              Join Game
-            </button>
+            <Button onClick={handleLogin}>Join Game</Button>
           </div>
         </div>
       ) : (
