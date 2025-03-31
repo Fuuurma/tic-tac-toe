@@ -20,9 +20,18 @@ export default function Home() {
   const handleClick = (index) => {
     if (!board[index]) {
       const newBoard = [...board];
+
+      // Count how many pieces the current player has
+      const playerPieces = newBoard.filter((cell) => cell === player);
+      if (playerPieces.length >= 3) {
+        // Remove the oldest piece (first occurrence)
+        const firstIndex = newBoard.indexOf(player);
+        newBoard[firstIndex] = null;
+      }
+
       newBoard[index] = player;
       setBoard(newBoard);
-      socket.emit("move", newBoard); // Send move to server
+      socket.emit("move", newBoard);
     }
   };
 
