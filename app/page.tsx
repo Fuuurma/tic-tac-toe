@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
