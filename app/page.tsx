@@ -148,75 +148,136 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center mt-10 p-4">
-      <h1 className="text-3xl font-bold mb-6">Tic Tac Toe</h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-cyan-50 flex flex-col items-center justify-center p-4">
+      <h1 className="text-4xl font-bold text-indigo-800 mb-8">Tic Tac Toe</h1>
 
       {!loggedIn ? (
-        <div className="mb-6 p-4 border rounded shadow-sm">
-          <h2 className="text-xl mb-2">Login</h2>
-          <div className="flex">
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              className="border p-2 mr-2 rounded"
-            />
-            <Button onClick={handleLogin}>Join Game</Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="mb-4 text-lg">
-            <span>
-              Playing as: <b>{playerType || "Spectator"}</b>
-            </span>
-          </div>
-
-          {message && (
-            <div className="mb-4 p-2 bg-gray-100 rounded">{message}</div>
-          )}
-
-          <div className="mb-4">
-            <div className="flex justify-between w-full">
-              <div className="mx-4">
-                Player X: {gameState.players.X || "Waiting..."}
-              </div>
-              <div className="mx-4">
-                Player O: {gameState.players.O || "Waiting..."}
-              </div>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Welcome to Tic Tac Toe</CardTitle>
+            <CardDescription>
+              Enter your username and select game mode to start playing
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                className="w-full p-2 border rounded-md"
+              />
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-2 mb-6">
-            {gameState.board.map((cell, i) => (
-              <button
-                key={i}
-                className={`w-20 h-20 border text-3xl flex items-center justify-center
-                  ${gameState.moves.X.includes(i) ? "bg-blue-100" : ""}
-                  ${gameState.moves.O.includes(i) ? "bg-red-100" : ""}
-                  ${
-                    gameState.currentPlayer === playerType && !cell
-                      ? "hover:bg-gray-100"
-                      : ""
-                  }`}
-                onClick={() => handleCellClick(i)}
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Game Mode</div>
+              <RadioGroup
+                defaultValue="human"
+                onValueChange={(value) => setGameMode(value as GameMode)}
+                className="flex flex-col space-y-2"
               >
-                {cell}
-              </button>
-            ))}
-          </div>
-
-          {gameState.winner && (
-            <div className="mb-4 text-xl">
-              {gameState.winner === "draw"
-                ? "It's a draw!"
-                : `Player ${gameState.winner} wins!`}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="human" id="human" />
+                  <Label htmlFor="human">Play against another player</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="computer" id="computer" />
+                  <Label htmlFor="computer">Play against computer</Label>
+                </div>
+              </RadioGroup>
             </div>
-          )}
+          </CardContent>
+          <CardFooter>
+            <Button onClick={handleLogin} className="w-full">
+              Start Game
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>
+              {gameMode === "computer"
+                ? "Playing vs Computer"
+                : "Multiplayer Game"}
+            </CardTitle>
+            <CardDescription>
+              Playing as:{" "}
+              <span className="font-bold">{playerType || "Spectator"}</span>
+            </CardDescription>
+          </CardHeader>
 
-          <Button onClick={resetGame}>Reset Game</Button>
-        </>
+          <CardContent className="space-y-4">
+            {message && (
+              <div className="p-2 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+                {message}
+              </div>
+            )}
+
+            <div className="flex justify-between text-sm">
+              <div className="px-3 py-1 bg-blue-100 rounded-full">
+                X: {gameState.players.X || "Waiting..."}
+              </div>
+              <div className="px-3 py-1 bg-red-100 rounded-full">
+                O: {gameState.players.O || "Waiting..."}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-6 aspect-square">
+              {gameState.board.map((cell, i) => (
+                <button
+                  key={i}
+                  className={`h-full w-full rounded-md border-2 flex items-center justify-center text-3xl font-bold transition-all duration-200 ${
+                    cell === "X"
+                      ? "bg-blue-100 border-blue-300 text-blue-600"
+                      : cell === "O"
+                      ? "bg-red-100 border-red-300 text-red-600"
+                      : "bg-white border-gray-200 hover:bg-gray-50"
+                  } ${gameState.moves.X.includes(i) ? "shadow-md" : ""} ${
+                    gameState.moves.O.includes(i) ? "shadow-md" : ""
+                  } ${
+                    gameState.currentPlayer === playerType &&
+                    !cell &&
+                    !gameState.winner
+                      ? "cursor-pointer hover:border-gray-400"
+                      : "cursor-default"
+                  }`}
+                  onClick={() => handleCellClick(i)}
+                  disabled={!!cell || !!gameState.winner}
+                >
+                  {cell}
+                </button>
+              ))}
+            </div>
+
+            {gameState.winner && (
+              <div className="text-center p-3 bg-green-100 text-green-800 rounded-md font-medium">
+                {gameState.winner === "draw"
+                  ? "It's a draw!"
+                  : `Player ${gameState.winner} wins!`}
+              </div>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex justify-between">
+            <Button onClick={resetGame} variant="outline">
+              Reset Game
+            </Button>
+            <Button
+              onClick={() => {
+                setLoggedIn(false);
+                setGameState(initialGameState);
+                setPlayerType(null);
+              }}
+              variant="ghost"
+            >
+              Exit Game
+            </Button>
+          </CardFooter>
+        </Card>
       )}
     </div>
   );
