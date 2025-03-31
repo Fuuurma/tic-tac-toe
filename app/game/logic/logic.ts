@@ -137,29 +137,35 @@ export const computerMove = (gameState: GameState): GameState => {
   return newGameState;
 };
 
-
-
-/ Helper function to find a winning move for a player
+// Helper function to find a winning move for a player
 const findWinningMove = (gameState: GameState, player: PlayerType): number => {
   const winningCombinations = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-    [0, 4, 8], [2, 4, 6]             // Diagonals
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8], // Rows
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8], // Columns
+    [0, 4, 8],
+    [2, 4, 6], // Diagonals
   ];
-  
+
   // Check each winning combination
   for (const combination of winningCombinations) {
     const [a, b, c] = combination;
     const values = [gameState.board[a], gameState.board[b], gameState.board[c]];
-    
+
     // Check if we can win in this combination
-    if (values.filter(v => v === player).length === 2 && values.includes(null)) {
+    if (
+      values.filter((v) => v === player).length === 2 &&
+      values.includes(null)
+    ) {
       // Find the empty position
       if (gameState.board[a] === null) return a;
       if (gameState.board[b] === null) return b;
       if (gameState.board[c] === null) return c;
     }
   }
-  
+
   return -1; // No winning move found
 };
