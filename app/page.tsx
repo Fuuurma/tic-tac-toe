@@ -1,3 +1,11 @@
+import { useEffect, useState } from "react";
+import {
+  ClientToServerEvents,
+  PlayerType,
+  ServerToClientEvents,
+} from "./types/types";
+import { io, Socket } from "socket.io-client";
+
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
     ServerToClientEvents,
