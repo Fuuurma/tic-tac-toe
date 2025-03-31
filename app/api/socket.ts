@@ -1,10 +1,11 @@
 import { Server } from "socket.io";
-import { initialGameState, makeMove } from "../game/logic/logic";
 import {
   ClientToServerEvents,
   GameState,
+  initialGameState,
   ServerToClientEvents,
 } from "../types/types";
+import { makeMove } from "../game/logic/makeMove";
 
 export default function handler(req: any, res: any) {
   if (!res.socket.server.io) {
