@@ -11,6 +11,14 @@ import {
 import { io, Socket } from "socket.io-client";
 import { computerMove, initialGameState, makeMove } from "./game/logic/logic";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
