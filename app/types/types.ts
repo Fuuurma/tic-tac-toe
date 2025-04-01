@@ -16,6 +16,11 @@ export interface GameState {
     O: number[];
   };
   gameMode: GameMode;
+
+  nextToRemove: {
+    X: number | null;
+    O: number | null;
+  };
 }
 
 export const initialGameState: GameState = {
@@ -31,6 +36,8 @@ export const initialGameState: GameState = {
     O: [],
   },
   gameMode: "human",
+
+  nextToRemove: { X: null, O: null },
 };
 
 export interface ServerToClientEvents {

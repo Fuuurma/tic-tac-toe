@@ -9,7 +9,6 @@ export const checkWinner = (board: GameBoard): PlayerType | "draw" | null => {
     }
   }
 
-  // Check for draw
   if (board.every((cell) => cell !== null)) {
     return "draw";
   }
