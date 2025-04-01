@@ -149,15 +149,21 @@ export default function Home() {
     if (socket && socket.connected) {
       socket.emit("resetGame");
     } else {
-      // Local reset
-      setGameState({
+      // Local reset - Create a fresh new state to ensure proper reset
+      const freshState = {
         ...initialGameState,
         players: {
           X: username,
           O: gameMode === "computer" ? "Computer" : null,
         },
         gameMode,
-      });
+        board: Array(9).fill(null),
+        moves: { X: [], O: [] },
+        nextToRemove: { X: null, O: null },
+        currentPlayer: "X",
+        winner: null,
+      } as GameState;
+      setGameState(freshState);
     }
   };
 

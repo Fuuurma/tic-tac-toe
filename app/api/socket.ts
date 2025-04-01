@@ -116,17 +116,25 @@ export default function handler(req: any, res: any) {
           gameState.players.X === username ||
           gameState.players.O === username
         ) {
-          const mode = gameState.gameMode;
-          const players = {
-            X: mode === "computer" ? username : gameState.players.X,
-            O: mode === "computer" ? "Computer" : gameState.players.O,
+          // const mode = gameState.gameMode;
+          // const players = {
+          //   X: mode === "computer" ? username : gameState.players.X,
+          //   O: mode === "computer" ? "Computer" : gameState.players.O,
+          // };
+
+          // gameState = {
+          //   ...initialGameState,
+          //   players,
+          //   gameMode: mode,
+          // };
+
+          const freshState = {
+            ...initialGameState,
+            players: { ...gameState.players }, // Keep the same players
+            gameMode: gameState.gameMode, // Keep the same game mode
           };
 
-          gameState = {
-            ...initialGameState,
-            players,
-            gameMode: mode,
-          };
+          gameState = freshState;
 
           io.emit("gameReset");
           io.emit("updateGame", gameState);

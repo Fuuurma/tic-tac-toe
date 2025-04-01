@@ -29,8 +29,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   return (
     <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl">
           {gameState.gameMode === "computer"
             ? "Playing vs Computer"
             : "Multiplayer Game"}
@@ -41,7 +41,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {message && (
           <div className="p-2 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
             {message}
@@ -57,37 +57,62 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mb-6 aspect-square">
-          {gameState.board.map((cell, i) => (
-            <button
-              key={i}
-              className={`h-full w-full rounded-md border-2 flex items-center justify-center text-3xl font-bold transition-all duration-200 ${
-                cell === "X"
-                  ? "bg-blue-100 border-blue-300 text-blue-600"
-                  : cell === "O"
-                  ? "bg-red-100 border-red-300 text-red-600"
-                  : "bg-white border-gray-200 hover:bg-gray-50"
-              } ${
-                gameState.nextToRemove.X === i
-                  ? "animate-pulse shadow-md border-blue-500 bg-blue-200"
-                  : ""
-              } ${
-                gameState.nextToRemove.O === i
-                  ? "animate-pulse shadow-md border-red-500 bg-red-200"
-                  : ""
-              } ${
-                gameState.currentPlayer === playerType &&
-                !cell &&
-                !gameState.winner
-                  ? "cursor-pointer hover:border-gray-400"
-                  : "cursor-default"
-              }`}
-              onClick={() => handleCellClick(i)}
-              disabled={!!cell || !!gameState.winner}
-            >
-              {cell}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-2 aspect-square w-full">
+          {gameState.board.map((cell, i) => {
+            const isNextToRemove =
+              gameState.nextToRemove.X === i || gameState.nextToRemove.O === i;
+
+            const isCurrentPlayerTurn =
+              gameState.currentPlayer === playerType &&
+              !cell &&
+              !gameState.winner;
+
+            return (
+              <button
+                key={i}
+                className={`
+                  relative h-full w-full rounded-md border-2 flex items-center justify-center 
+                  text-3xl font-bold transition-all duration-200
+                  ${cell ? "min-h-12" : "min-h-10"}
+                  ${
+                    cell === "X"
+                      ? "bg-blue-100 border-blue-300 text-blue-600"
+                      : cell === "O"
+                      ? "bg-red-100 border-red-300 text-red-600"
+                      : "bg-white border-gray-200 hover:bg-gray-50"
+                  } 
+                  ${
+                    isNextToRemove && gameState.nextToRemove.X === i
+                      ? "bg-blue-500 animate-pulse"
+                      : ""
+                  } 
+                  ${
+                    isNextToRemove && gameState.nextToRemove.O === i
+                      ? "bg-red-500 animate-pulse"
+                      : ""
+                  } 
+                  ${
+                    isCurrentPlayerTurn
+                      ? "cursor-pointer hover:border-gray-400"
+                      : "cursor-default"
+                  }
+                `}
+                onClick={() => handleCellClick(i)}
+                disabled={!!cell || !!gameState.winner}
+              >
+                {cell}
+                {isNextToRemove && (
+                  <div
+                    className="absolute inset-0 animate-wiggle border-2 rounded-md z-10 pointer-events-none"
+                    style={{
+                      borderColor:
+                        gameState.nextToRemove.X === i ? "#2563eb" : "#dc2626",
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {gameState.winner && (
@@ -99,7 +124,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         )}
       </CardContent>
 
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex justify-between pt-2">
         <Button onClick={resetGame} variant="outline">
           Reset Game
         </Button>
