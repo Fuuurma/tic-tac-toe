@@ -8,14 +8,25 @@ import {
 } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
+import { GameState, PlayerType } from "@/app/types/types";
 
-const GameBoard = ({
+interface GameBoardProps {
+  gameState: GameState;
+  message: string;
+  playerType?: PlayerType | null;
+  handleCellClick: (index: number) => void;
+  resetGame: () => void;
+  exitGame: () => void;
+}
+
+export const GameBoard: React.FC<GameBoardProps> = ({
   gameState,
   message,
+  playerType,
   handleCellClick,
   resetGame,
   exitGame,
-}: any) => {
+}) => {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
@@ -26,9 +37,7 @@ const GameBoard = ({
         </CardTitle>
         <CardDescription>
           Playing as:{" "}
-          <span className="font-bold">
-            {gameState.currentPlayer || "Spectator"}
-          </span>
+          <span className="font-bold">{playerType || "Spectator"}</span>
         </CardDescription>
       </CardHeader>
 
@@ -58,10 +67,16 @@ const GameBoard = ({
                   : cell === "O"
                   ? "bg-red-100 border-red-300 text-red-600"
                   : "bg-white border-gray-200 hover:bg-gray-50"
-              } ${gameState.moves.X.includes(i) ? "shadow-md" : ""} ${
-                gameState.moves.O.includes(i) ? "shadow-md" : ""
               } ${
-                gameState.currentPlayer === gameState.currentPlayer &&
+                gameState.nextToRemove.X === i
+                  ? "animate-pulse shadow-md border-blue-500 bg-blue-200"
+                  : ""
+              } ${
+                gameState.nextToRemove.O === i
+                  ? "animate-pulse shadow-md border-red-500 bg-red-200"
+                  : ""
+              } ${
+                gameState.currentPlayer === playerType &&
                 !cell &&
                 !gameState.winner
                   ? "cursor-pointer hover:border-gray-400"
@@ -86,17 +101,10 @@ const GameBoard = ({
 
       <CardFooter className="flex justify-between">
         <Button onClick={resetGame} variant="outline">
-          Reset
+          Reset Game
         </Button>
-        <Button
-          //   onClick={() => {
-          //     setLoggedIn(false);
-          //     setGameState(initialGameState);
-          //     setPlayerType(null);
-          //   }}
-          variant="ghost"
-        >
-          Exit
+        <Button onClick={exitGame} variant="ghost">
+          Exit Game
         </Button>
       </CardFooter>
     </Card>

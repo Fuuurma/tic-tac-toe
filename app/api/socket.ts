@@ -6,6 +6,7 @@ import {
   ServerToClientEvents,
 } from "../types/types";
 import { makeMove } from "../game/logic/makeMove";
+import { computerMove } from "../game/ai/logic";
 
 export default function handler(req: any, res: any) {
   if (!res.socket.server.io) {
@@ -22,31 +23,37 @@ export default function handler(req: any, res: any) {
       console.log("A user connected:", socket.id);
 
       // Handle user login
-      socket.on("login", (username) => {
+      socket.on("login", (username, mode) => {
         connectedUsers.set(socket.id, username);
 
-        // Assign player type (X, O, or spectator)
-        let playerType = null;
-        if (!gameState.players.X) {
+        // Set the game mode
+        gameState.gameMode = mode;
+
+        // Assign player type and opponent
+        if (mode === "computer") {
+          // For computer mode, player is always X, computer is O
           gameState.players.X = username;
-          playerType = "X";
-        } else if (!gameState.players.O) {
-          gameState.players.O = username;
-          playerType = "O";
-        }
-
-        // Notify player joining
-        if (playerType) {
-          io.emit("playerJoined", { username, type: playerType });
-
-          // Send to the specific socket their player type
-          socket.emit("updateGame", {
-            ...gameState,
-            currentPlayer: gameState.currentPlayer,
-          });
-        } else {
-          // Spectator
+          gameState.players.O = "Computer";
+          // Emit to only this player
           socket.emit("updateGame", gameState);
+        } else {
+          // For human vs human mode
+          let playerType = null;
+          if (!gameState.players.X) {
+            gameState.players.X = username;
+            playerType = "X";
+          } else if (!gameState.players.O) {
+            gameState.players.O = username;
+            playerType = "O";
+          }
+
+          // Notify player joining
+          if (playerType) {
+            io.emit("playerJoined", { username, type: playerType });
+          }
+
+          // Broadcast to all connected clients
+          io.emit("updateGame", gameState);
         }
       });
 
@@ -55,24 +62,48 @@ export default function handler(req: any, res: any) {
         const username = connectedUsers.get(socket.id);
         if (!username) return;
 
-        // Check if it's this player's turn
-        const playerType =
-          gameState.players.X === username
-            ? "X"
-            : gameState.players.O === username
-            ? "O"
-            : null;
+        if (gameState.gameMode === "computer") {
+          // In computer mode, only allow player X (human) to make direct moves
+          if (
+            gameState.players.X !== username ||
+            gameState.currentPlayer !== "X"
+          ) {
+            socket.emit("error", "It's not your turn");
+            return;
+          }
 
-        if (playerType !== gameState.currentPlayer) {
-          socket.emit("error", "It's not your turn");
-          return;
+          // Make player's move
+          gameState = makeMove(gameState, index);
+          io.emit("updateGame", gameState);
+
+          // If it's computer's turn and no winner yet, make computer move
+          if (gameState.currentPlayer === "O" && !gameState.winner) {
+            setTimeout(() => {
+              gameState = computerMove(gameState);
+              io.emit("updateGame", gameState);
+            }, 700);
+          }
+        } else {
+          // Human vs human mode
+          // Check if it's this player's turn
+          const playerType =
+            gameState.players.X === username
+              ? "X"
+              : gameState.players.O === username
+              ? "O"
+              : null;
+
+          if (playerType !== gameState.currentPlayer) {
+            socket.emit("error", "It's not your turn");
+            return;
+          }
+
+          // Make the move
+          gameState = makeMove(gameState, index);
+
+          // Broadcast updated state
+          io.emit("updateGame", gameState);
         }
-
-        // Make the move
-        gameState = makeMove(gameState, index);
-
-        // Broadcast updated state
-        io.emit("updateGame", gameState);
       });
 
       // Handle game reset
@@ -85,10 +116,18 @@ export default function handler(req: any, res: any) {
           gameState.players.X === username ||
           gameState.players.O === username
         ) {
+          const mode = gameState.gameMode;
+          const players = {
+            X: mode === "computer" ? username : gameState.players.X,
+            O: mode === "computer" ? "Computer" : gameState.players.O,
+          };
+
           gameState = {
             ...initialGameState,
-            players: gameState.players, // Keep players
+            players,
+            gameMode: mode,
           };
+
           io.emit("gameReset");
           io.emit("updateGame", gameState);
         }

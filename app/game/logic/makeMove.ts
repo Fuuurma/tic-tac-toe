@@ -6,7 +6,10 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
     return gameState;
   }
 
-  const newGameState = { ...gameState };
+  const newGameState = {
+    ...gameState,
+    nextToRemove: { ...gameState.nextToRemove },
+  };
   const player = newGameState.currentPlayer;
   const playerMoves = [...newGameState.moves[player]];
 
@@ -15,6 +18,9 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
     // Remove the oldest piece
     const oldestMoveIndex = playerMoves.shift() as number;
     newGameState.board[oldestMoveIndex] = null;
+
+    // Update nextToRemove for this player to null since we just removed a piece
+    newGameState.nextToRemove[player] = null;
   }
 
   // Add new move
@@ -25,8 +31,15 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
   // Check for winner
   newGameState.winner = checkWinner(newGameState.board);
 
-  // Switch player if no winner
+  // If no winner, switch player and update nextToRemove
   if (!newGameState.winner) {
+    // Update nextToRemove before switching player
+    // If player will have 3 pieces after this move, set the oldest as next to remove
+    if (playerMoves.length === 3) {
+      newGameState.nextToRemove[player] = playerMoves[0];
+    }
+
+    // Switch player
     newGameState.currentPlayer = player === "X" ? "O" : "X";
   }
 
