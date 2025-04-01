@@ -20,7 +20,7 @@ const colors = [
   "#14b8a6",
 ];
 
-export default function MiniMenu({
+export default function UserMenu({
   username,
   selectedColor,
   setSelectedColor,

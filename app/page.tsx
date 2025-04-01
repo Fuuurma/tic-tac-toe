@@ -25,6 +25,7 @@ import { computerMove } from "./game/ai/logic";
 import { makeMove } from "./game/logic/makeMove";
 import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
+import UserMenu from "@/components/menu/menu";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -37,6 +38,7 @@ export default function Home() {
   const [playerType, setPlayerType] = useState<PlayerType | null>(null);
   const [message, setMessage] = useState<string>("");
   const [gameMode, setGameMode] = useState<GameMode>("human");
+  const [selectedColor, setSelectedColor] = useState("#4ade80"); // Default Green
 
   useEffect(() => {
     const newSocket = io() as Socket<
@@ -127,7 +129,6 @@ export default function Home() {
   const handleCellClick = (index: number) => {
     if (!loggedIn || gameState.winner) return;
 
-    // Check if it's the player's turn
     if (
       gameState.currentPlayer === playerType ||
       (gameMode === "computer" && gameState.currentPlayer === "X")
@@ -135,7 +136,6 @@ export default function Home() {
       if (socket && socket.connected) {
         socket.emit("move", index);
       } else {
-        // Local play logic
         const newState = makeMove(gameState, index);
         setGameState(newState);
       }
@@ -170,6 +170,12 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-cyan-50">
       <h1 className="text-4xl font-bold text-indigo-800 mb-8">Tic Tac Toe</h1>
+      <UserMenu
+        username={username}
+        selectedColor={selectedColor}
+        setSelectedColor={setSelectedColor}
+      />
+
       {!loggedIn ? (
         <LoginForm
           username={username}
