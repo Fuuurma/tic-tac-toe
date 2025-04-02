@@ -1,26 +1,52 @@
-export type CellValue = "X" | "O" | null;
+import {
+  BorderColor,
+  Color,
+  GAME_RULES,
+  GameModes,
+  PlayerSymbol,
+  PlayerTypes,
+} from "../game/constants/constants";
+
+export type CellValue = PlayerSymbol | null;
 export type GameBoard = CellValue[];
-export type PlayerType = "X" | "O";
-export type GameMode = "human" | "computer";
+export type PlayerType = (typeof PlayerTypes)[keyof typeof PlayerTypes];
+export type GameMode = (typeof GameModes)[keyof typeof GameModes];
+
+export type PLAYER_CONFIG = {
+  username: string;
+  color: string;
+  borderColor: string;
+  label: string;
+};
 
 export interface GameState {
   board: GameBoard;
-  currentPlayer: PlayerType;
-  winner: PlayerType | "draw" | null;
+  currentPlayer: PlayerSymbol;
+  winner: PlayerSymbol | "draw" | null;
   players: {
-    X: string | null;
-    O: string | null;
+    [PlayerSymbol.X]: {
+      id: string | null;
+      type: PlayerType;
+      color: Color;
+      borderColor: BorderColor;
+    };
+    [PlayerSymbol.O]: {
+      id: string | null;
+      type: PlayerType;
+      color: Color;
+      borderColor: BorderColor;
+    };
   };
   moves: {
-    X: number[];
-    O: number[];
+    [PlayerSymbol.X]: number[];
+    [PlayerSymbol.O]: number[];
   };
   gameMode: GameMode;
-
   nextToRemove: {
-    X: number | null;
-    O: number | null;
+    [PlayerSymbol.X]: number | null;
+    [PlayerSymbol.O]: number | null;
   };
+  maxMoves: typeof GAME_RULES.MAX_MOVES_PER_PLAYER;
 }
 
 export const initialGameState: GameState = {

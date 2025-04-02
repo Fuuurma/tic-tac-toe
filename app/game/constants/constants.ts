@@ -17,41 +17,57 @@ export enum PlayerType {
   COMPUTER = "COMPUTER",
 }
 
-export enum GameMode {
+export enum GameModes {
   VS_COMPUTER = "VS_COMPUTER",
   ONLINE = "ONLINE",
   VS_FRIEND = "VS_FRIEND",
 }
 
 export const GAME_MODES = {
-  [GameMode.VS_COMPUTER]: {
-    id: GameMode.VS_COMPUTER,
+  [GameModes.VS_COMPUTER]: {
+    id: GameModes.VS_COMPUTER,
     label: "VS Computer",
     description: "Play against AI opponent",
     minPlayers: 1,
+    maxTimePerMove: 10000,
   },
-  [GameMode.ONLINE]: {
-    id: GameMode.ONLINE,
+  [GameModes.ONLINE]: {
+    id: GameModes.ONLINE,
     label: "Online Multiplayer",
     description: "Play against others online",
     minPlayers: 2,
+    maxTimePerMove: 10000,
   },
-  [GameMode.VS_FRIEND]: {
-    id: GameMode.VS_FRIEND,
+  [GameModes.VS_FRIEND]: {
+    id: GameModes.VS_FRIEND,
     label: "Local Multiplayer",
     description: "Play with a friend locally",
     minPlayers: 2,
+    maxTimePerMove: 10000,
   },
 } as const;
 
+// WILL BE USED TO MATCH WITH THE GLOBALS.CSS VARIABLES
 export enum Color {
-  PRIMARY = "#2563eb",
-  SECONDARY = "#4f46e5",
-  ACCENT = "#f59e0b",
-  SUCCESS = "#22c55e",
-  ERROR = "#ef4444",
-  WARNING = "#eab308",
-  NEUTRAL = "#64748b",
+  BLUE = "blue",
+  GREEN = "green",
+  YELLOW = "yellow",
+  ORANGE = "orange",
+  RED = "red",
+  PINK = "pink",
+  PURPLE = "purple",
+  GRAY = "gray",
+}
+
+export enum BorderColor {
+  B_BLUE = "b_blue",
+  B_GREEN = "b_green",
+  B_YELLOW = "b_yellow",
+  B_ORANGE = "b_orange",
+  B_RED = "b_red",
+  B_PINK = "b_pink",
+  B_PURPLE = "b_purple",
+  B_GRAY = "b_gray",
 }
 
 export enum PlayerSymbol {
@@ -61,11 +77,11 @@ export enum PlayerSymbol {
 
 export const PLAYER_CONFIG = {
   [PlayerSymbol.X]: {
-    color: Color.PRIMARY,
+    color: Color.BLUE,
     label: "Player X",
   },
   [PlayerSymbol.O]: {
-    color: Color.SECONDARY,
+    color: Color.RED,
     label: "Player O",
   },
 } as const;

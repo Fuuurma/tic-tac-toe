@@ -1,12 +1,12 @@
 import { GameState, PlayerType } from "@/app/types/types";
-import { winningCombinations } from "../constants/constants";
+import { WINNING_COMBINATIONS } from "../constants/constants";
 
 export const findWinningMove = (
   gameState: GameState,
   player: PlayerType
 ): number => {
   // Check each winning combination
-  for (const combination of winningCombinations) {
+  for (const combination of WINNING_COMBINATIONS) {
     const [a, b, c] = combination;
     const values = [gameState.board[a], gameState.board[b], gameState.board[c]];
 
