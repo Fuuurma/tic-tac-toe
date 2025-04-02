@@ -2,6 +2,7 @@ import {
   Color,
   GAME_RULES,
   GameModes,
+  GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
   PlayerTypes,
@@ -36,6 +37,9 @@ export interface GameState {
     [PlayerSymbol.O]: number | null;
   };
   maxMoves: typeof GAME_RULES.MAX_MOVES_PER_PLAYER;
+
+  turnTimeRemaining?: number;
+  gameStatus: GameStatus;
 }
 
 export const initialGameState: GameState = {
@@ -68,6 +72,7 @@ export const initialGameState: GameState = {
     [PlayerSymbol.O]: null,
   },
   maxMoves: GAME_RULES.MAX_MOVES_PER_PLAYER,
+  gameStatus: GameStatus.WAITING,
 };
 
 export interface ServerToClientEvents {
