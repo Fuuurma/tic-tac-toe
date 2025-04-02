@@ -20,11 +20,15 @@ const colors = [
   "#14b8a6",
 ];
 
+interface UserMenuProps {
+  username: string;
+}
+
 export default function UserMenu({
   username,
   selectedColor,
   setSelectedColor,
-}) {
+}): any {
   const { theme, setTheme } = useTheme();
 
   return (

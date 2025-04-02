@@ -168,7 +168,12 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-50 to-cyan-50">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-4 bg-background"
+      // bg-gradient-to-br
+      // from-indigo-50
+      // to-cyan-50"
+    >
       <h1 className="text-4xl font-bold text-indigo-800 mb-8">Tic Tac Toe</h1>
       <UserMenu
         username={username}
