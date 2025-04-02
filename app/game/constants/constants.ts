@@ -12,7 +12,7 @@ export const WINNING_COMBINATIONS = [
 
 export type WinningCombination = (typeof WINNING_COMBINATIONS)[number];
 
-export enum PlayerType {
+export enum PlayerTypes {
   HUMAN = "HUMAN",
   COMPUTER = "COMPUTER",
 }
@@ -59,16 +59,22 @@ export enum Color {
   GRAY = "gray",
 }
 
-export enum BorderColor {
-  B_BLUE = "b_blue",
-  B_GREEN = "b_green",
-  B_YELLOW = "b_yellow",
-  B_ORANGE = "b_orange",
-  B_RED = "b_red",
-  B_PINK = "b_pink",
-  B_PURPLE = "b_purple",
-  B_GRAY = "b_gray",
-}
+// Match with Tailwind classes in globals.css
+export const COLOR_VARIANTS = {
+  [Color.BLUE]: {
+    text: "text-blue",
+    bg: "bg-blue",
+    border: "border-blue",
+  },
+  [Color.RED]: {
+    text: "text-red",
+    bg: "bg-red",
+    border: "border-red",
+  },
+  // Add all color variants
+} as const;
+
+export type ColorVariant = keyof typeof COLOR_VARIANTS;
 
 export enum PlayerSymbol {
   X = "X",
@@ -77,11 +83,11 @@ export enum PlayerSymbol {
 
 export const PLAYER_CONFIG = {
   [PlayerSymbol.X]: {
-    color: Color.BLUE,
+    defaultColor: Color.BLUE,
     label: "Player X",
   },
   [PlayerSymbol.O]: {
-    color: Color.RED,
+    defaultColor: Color.RED,
     label: "Player O",
   },
 } as const;

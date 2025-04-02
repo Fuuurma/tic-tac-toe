@@ -1,8 +1,8 @@
 import {
-  BorderColor,
   Color,
   GAME_RULES,
   GameModes,
+  PLAYER_CONFIG,
   PlayerSymbol,
   PlayerTypes,
 } from "../game/constants/constants";
@@ -12,31 +12,20 @@ export type GameBoard = CellValue[];
 export type PlayerType = (typeof PlayerTypes)[keyof typeof PlayerTypes];
 export type GameMode = (typeof GameModes)[keyof typeof GameModes];
 
-export type PLAYER_CONFIG = {
+export interface PlayerConfig {
   username: string;
-  color: string;
-  borderColor: string;
-  label: string;
-};
+  color: Color;
+  symbol: PlayerSymbol;
+  type: PlayerTypes;
+  isActive: boolean;
+  lastMoveAt?: Date;
+}
 
 export interface GameState {
   board: GameBoard;
   currentPlayer: PlayerSymbol;
   winner: PlayerSymbol | "draw" | null;
-  players: {
-    [PlayerSymbol.X]: {
-      id: string | null;
-      type: PlayerType;
-      color: Color;
-      borderColor: BorderColor;
-    };
-    [PlayerSymbol.O]: {
-      id: string | null;
-      type: PlayerType;
-      color: Color;
-      borderColor: BorderColor;
-    };
-  };
+  players: Record<PlayerSymbol, PlayerConfig>;
   moves: {
     [PlayerSymbol.X]: number[];
     [PlayerSymbol.O]: number[];
@@ -50,20 +39,35 @@ export interface GameState {
 }
 
 export const initialGameState: GameState = {
-  board: Array(9).fill(null),
-  currentPlayer: "X",
+  board: Array(GAME_RULES.BOARD_SIZE).fill(null),
+  currentPlayer: PlayerSymbol.X,
   winner: null,
   players: {
-    X: null,
-    O: null,
+    [PlayerSymbol.X]: {
+      username: "",
+      color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
+      symbol: PlayerSymbol.X,
+      type: PlayerTypes.HUMAN,
+      isActive: true,
+    },
+    [PlayerSymbol.O]: {
+      username: "",
+      color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
+      symbol: PlayerSymbol.O,
+      type: PlayerTypes.HUMAN,
+      isActive: false,
+    },
   },
   moves: {
-    X: [],
-    O: [],
+    [PlayerSymbol.X]: [],
+    [PlayerSymbol.O]: [],
   },
-  gameMode: "human",
-
-  nextToRemove: { X: null, O: null },
+  gameMode: GameModes.VS_COMPUTER,
+  nextToRemove: {
+    [PlayerSymbol.X]: null,
+    [PlayerSymbol.O]: null,
+  },
+  maxMoves: GAME_RULES.MAX_MOVES_PER_PLAYER,
 };
 
 export interface ServerToClientEvents {
