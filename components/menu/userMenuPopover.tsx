@@ -1,6 +1,23 @@
-import React from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { User } from "lucide-react";
+import { Color, COLOR_VARIANTS } from "@/app/game/constants/constants";
 
-const UserMenuPopover = () => {
+interface UserMenuPopoverProps {
+  username?: string;
+  selectedColor: () => void;
+  setSelectedColor: (color: Color) => void;
+}
+
+const UserMenuPopover: React.FC<UserMenuPopoverProps> = ({
+  username,
+  selectedColor,
+  setSelectedColor,
+}) => {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -11,13 +28,14 @@ const UserMenuPopover = () => {
       <PopoverContent className="w-48">
         <p className="text-sm font-medium">Hello, {username || "Guest"}</p>
         <div className="mt-3 grid grid-cols-4 gap-2">
-          {colors.map((color) => (
+          // add the types. make the map work
+          {COLOR_VARIANTS.map((color: any) => (
             <button
               key={color}
               className="w-6 h-6 rounded-full border-2"
               style={{
-                backgroundColor: color,
-                borderColor: selectedColor === color ? "black" : "transparent",
+                backgroundColor: color.bg,
+                borderColor: color.border,
               }}
               onClick={() => setSelectedColor(color)}
             />
