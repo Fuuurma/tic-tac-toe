@@ -7,7 +7,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
-import { User, Moon, Sun } from "lucide-react"; // Icons
+import { User, Moon, Sun } from "lucide-react";
+import HelpButton from "./helpButton";
 
 const colors = [
   "#f87171",
@@ -33,6 +34,8 @@ export default function UserMenu({
 
   return (
     <div className="fixed top-4 right-4 flex gap-3">
+      <HelpButton />
+
       {/* User Menu Popover */}
       <Popover>
         <PopoverTrigger asChild>
@@ -58,6 +61,18 @@ export default function UserMenu({
           </div>
         </PopoverContent>
       </Popover>
+      <div>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+        <p>Hi</p>
+      </div>
 
       {/* Dark Mode Toggle */}
       <Button
