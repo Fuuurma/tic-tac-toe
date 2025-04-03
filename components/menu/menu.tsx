@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import { User, Moon, Sun } from "lucide-react";
 import HelpButton from "./helpButton";
+import ThemeTogglerButton from "./themeToggler";
 
 const colors = [
   "#f87171",
@@ -61,31 +62,8 @@ export default function UserMenu({
           </div>
         </PopoverContent>
       </Popover>
-      <div>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-        <p>Hi</p>
-      </div>
 
-      {/* Dark Mode Toggle */}
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      >
-        {theme === "dark" ? (
-          <Sun className="w-5 h-5" />
-        ) : (
-          <Moon className="w-5 h-5" />
-        )}
-      </Button>
+      <ThemeTogglerButton />
     </div>
   );
 }
