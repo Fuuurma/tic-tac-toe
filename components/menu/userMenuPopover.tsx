@@ -54,10 +54,6 @@ const UserMenuPopover: React.FC<UserMenuPopoverProps> = ({
                         ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
                         : "hover:scale-105"
                     }`}
-                    // style={{
-                    //   backgroundColor: extractColorValue(colorValue.bg),
-                    //   borderColor: extractColorValue(colorValue.border),
-                    // }}
                     onClick={() => setSelectedColor(color)}
                     title={capitalizeFirstLetter(color)}
                   />

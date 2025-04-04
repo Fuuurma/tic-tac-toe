@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,12 +11,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GameMode } from "@/app/types/types";
+import {
+  Color,
+  GameModes,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+} from "@/app/game/constants/constants";
 
 interface LoginFormProps {
   username: string;
   setUsername: (username: string) => void;
-  gameMode: GameMode;
-  setGameMode: (gameMode: GameMode) => void;
+  gameMode: GameModes;
+  setGameMode: (gameMode: GameModes) => void;
+  selectedColor: Color;
+  setSelectedColor: (color: Color) => void;
   handleLogin: () => void;
 }
 
@@ -25,8 +33,54 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setUsername,
   gameMode,
   setGameMode,
+  selectedColor,
+  setSelectedColor,
   handleLogin,
 }) => {
+  const [opponent, setOpponent] = useState<string>("");
+  const [opponentColor, setOpponentColor] = useState<Color>(
+    PLAYER_CONFIG[PlayerSymbol.O].defaultColor
+  );
+  const [error, setError] = useState<string>("");
+
+  // Check if the form is valid before submission
+  const isFormValid = () => {
+    if (!username.trim()) {
+      setError("Please enter your username");
+      return false;
+    }
+
+    if (gameMode === GameModes.VS_FRIEND && !opponent.trim()) {
+      setError("Please enter opponent's username");
+      return false;
+    }
+
+    if (
+      gameMode === GameModes.VS_FRIEND &&
+      username.trim() === opponent.trim()
+    ) {
+      setError("Player names must be different");
+      return false;
+    }
+
+    if (gameMode === GameModes.VS_FRIEND && selectedColor === opponentColor) {
+      setError("Players must choose different colors");
+      return false;
+    }
+
+    setError("");
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (isFormValid()) {
+      handleLogin();
+    }
+  };
+
+  // Available colors for selection
+  const availableColors = Object.values(Color);
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader>

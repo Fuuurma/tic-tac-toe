@@ -31,12 +31,17 @@ export default function Home() {
   > | null>(null);
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
+  const [opponentName, setOpponentName] = useState<string>("");
+
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
   const [message, setMessage] = useState<string>("");
   const [gameMode, setGameMode] = useState<GameMode>(GameModes.VS_COMPUTER);
   const [selectedColor, setSelectedColor] = useState<Color>(
     PLAYER_CONFIG[PlayerSymbol.X].defaultColor
+  );
+  const [opponentColor, setOpponentColor] = useState<Color>(
+    PLAYER_CONFIG[PlayerSymbol.O].defaultColor
   );
 
   useEffect(() => {
@@ -114,40 +119,43 @@ export default function Home() {
   // User login
   const handleLogin = () => {
     if (username.trim()) {
-      if (socket && socket.connected) {
+      if (socket && socket.connected && gameMode === GameModes.ONLINE) {
         socket.emit("login", username, gameMode);
       } else {
-        // Local play against computer
+        // Setup for local play
         const updatedGameState = { ...initialGameState };
 
         // Update player X (human player)
         updatedGameState.players[PlayerSymbol.X] = {
-          ...updatedGameState.players[PlayerSymbol.X],
           username: username,
+          color: selectedColor,
+          symbol: PlayerSymbol.X,
           type: PlayerTypes.HUMAN,
           isActive: true,
         };
 
-        // Update player O (computer or waiting for player)
-        updatedGameState.players[PlayerSymbol.O] = {
-          ...updatedGameState.players[PlayerSymbol.O],
-          username:
-            gameMode === GameModes.VS_COMPUTER
-              ? "Computer"
-              : "Waiting for player...",
-          type:
-            gameMode === GameModes.VS_COMPUTER
-              ? PlayerTypes.COMPUTER
-              : PlayerTypes.HUMAN,
-          isActive: false,
-        };
+        // Setup player O based on game mode
+        if (gameMode === GameModes.VS_COMPUTER) {
+          updatedGameState.players[PlayerSymbol.O] = {
+            username: "Computer",
+            color: opponentColor,
+            symbol: PlayerSymbol.O,
+            type: PlayerTypes.COMPUTER,
+            isActive: false,
+          };
+        } else if (gameMode === GameModes.VS_FRIEND) {
+          updatedGameState.players[PlayerSymbol.O] = {
+            username: opponentName || "Player 2",
+            color: opponentColor,
+            symbol: PlayerSymbol.O,
+            type: PlayerTypes.HUMAN,
+            isActive: false,
+          };
+        }
 
         // Set game mode and status
         updatedGameState.gameMode = gameMode;
-        updatedGameState.gameStatus =
-          gameMode === GameModes.VS_COMPUTER
-            ? GameStatus.ACTIVE
-            : GameStatus.WAITING;
+        updatedGameState.gameStatus = GameStatus.ACTIVE;
 
         setGameState(updatedGameState);
         setPlayerSymbol(PlayerSymbol.X);
