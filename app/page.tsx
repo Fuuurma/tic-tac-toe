@@ -244,12 +244,10 @@ export default function Home() {
 
   return (
     <div
-  className={`min-h-screen flex flex-col items-center justify-center p-4
-    bg-gradient-light
-    dark:${GRADIENT_CLASSES[Math.floor(Math.random() * GRADIENT_CLASSES.length]}
-    dark-gradient-transition bg-noise`}
->
-      {/* dark:bg-[image:var(--gradient-dark-9)] */}
+      className="min-h-screen flex flex-col items-center justify-center p-4
+        bg-gradient-light
+        dark:bg-[image:var(--gradient-dark-9)]"
+    >
       <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
       <UserMenu
         username={username}
