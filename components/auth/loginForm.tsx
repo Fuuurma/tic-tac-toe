@@ -170,46 +170,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
 export default LoginForm;
 
-//             onValueChange={(value) => {
-//               setGameMode(value as GameModes);
-//               setError("");
-//             }}
-//           >
-//             {Object.values(GAME_MODES).map((mode) => (
-//               <div key={mode.id} className="flex items-start space-x-2 py-2">
-//                 <RadioGroupItem value={mode.id} id={mode.id} />
-//                 <div className="grid gap-1.5">
-//                   <Label htmlFor={mode.id} className="font-medium">
-//                     {mode.label}
-//                   </Label>
-//                   <p className="text-sm text-muted-foreground">
-//                     {mode.description}
-//                   </p>
-//                 </div>
-//               </div>
-//             ))}
-//           </RadioGroup>
-//         </div>
-
-//         {/* Show opponent settings only for local multiplayer */}
-//         {gameMode === GameModes.VS_FRIEND && (
-//           <div className="space-y-4 pt-2 border-t">
-//             <div className="flex items-center gap-2">
-//               <Users className="w-5 h-5" />
-//               <h3 className="font-medium">Opponent Details</h3>
-//             </div>
-
-//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//               <div className="space-y-2">
-//                 <Label htmlFor="opponent">Opponent's Username</Label>
-//                 <Input
-//                   id="opponent"
-//                   type="text"
-//                   value={opponentName}
-//                   onChange={(e) => {
-//                     setOpponentName(e.target.value);
-//                     setError("");
-//                   }}
 //                   placeholder={PLAYER_CONFIG[PlayerSymbol.O].label}
 //                   className="w-full"
 //                 />
