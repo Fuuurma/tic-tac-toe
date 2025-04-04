@@ -146,42 +146,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
 export default GameBoard;
 
-//           <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full">
-//             <span className="font-bold text-red-700">O</span>
-//             <span>{gameState.players.O.username || "Waiting..."}</span>
-//             <span className="text-xs text-gray-500">
-//               ({gameState.players.O.type})
-//             </span>
-//             {gameState.currentPlayer === PlayerSymbol.O && (
-//               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-//             )}
-//           </div>
-//         </div>
-
-//         <div className="grid grid-cols-3 gap-2 aspect-square w-full">
-//           {gameState.board.map((cell, i) => {
-//             const isNextToRemove =
-//               gameState.nextToRemove.X === i || gameState.nextToRemove.O === i;
-
-//             const isCurrentPlayerTurn =
-//               gameState.currentPlayer === PlayerSymbol.X &&
-//               !cell &&
-//               !gameState.winner;
-
-//             return (
-//               <button
-//                 key={i}
-//                 className={`
-//                   relative h-full w-full rounded-md border-2 flex items-center justify-center
-//                   text-3xl font-bold transition-all duration-200
-//                   ${cell ? "min-h-12" : "min-h-10"}
-//                   ${
-//                     cell === "X"
-//                       ? "bg-blue-100 border-blue-300 text-blue-600"
-//                       : cell === "O"
-//                       ? "bg-red-100 border-red-300 text-red-600"
-//                       : "bg-white border-gray-200 hover:bg-gray-50"
-//                   }
 //                   ${
 //                     isNextToRemove && gameState.nextToRemove.X === i
 //                       ? "bg-blue-500 animate-pulse"
