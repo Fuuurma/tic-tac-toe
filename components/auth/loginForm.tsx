@@ -170,46 +170,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
 export default LoginForm;
 
-// export const LoginForm: React.FC<LoginFormProps> = ({
-//   username,
-//   setUsername,
-//   gameMode,
-//   setGameMode,
-//   selectedColor,
-//   setSelectedColor,
-//   opponentName,
-//   setOpponentName,
-//   opponentColor,
-//   setOpponentColor,
-//   handleLogin,
-// }) => {
-//   const [error, setError] = useState<string>("");
-
-//   // Check if the form is valid before submission
-//   const isFormValid = () => {
-//     if (!username.trim()) {
-//       setError("Please enter your username");
-//       return false;
-//     }
-
-//     if (gameMode === GameModes.VS_FRIEND && !opponentName.trim()) {
-//       setError("Please enter opponent's username");
-//       return false;
-//     }
-
-//     if (
-//       gameMode === GameModes.VS_FRIEND &&
-//       username.trim() === opponentName.trim()
-//     ) {
-//       setError("Player names must be different");
-//       return false;
-//     }
-
-//     if (gameMode === GameModes.VS_FRIEND && selectedColor === opponentColor) {
-//       setError("Players must choose different colors");
-//       return false;
-//     }
-
 //     setError("");
 //     return true;
 //   };
