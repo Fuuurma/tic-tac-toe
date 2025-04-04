@@ -229,19 +229,6 @@ export default function Home() {
     }
   };
 
-  const GRADIENT_CLASSES = [
-    "gradient-dark-1",
-    "gradient-dark-2",
-    "gradient-dark-3",
-    "gradient-dark-4",
-    "gradient-dark-5",
-    "gradient-dark-6",
-    "gradient-dark-7",
-    "gradient-dark-8",
-    "gradient-dark-9",
-    "gradient-dark-10",
-  ];
-
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-4

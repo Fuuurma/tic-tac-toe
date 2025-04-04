@@ -9,7 +9,11 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { GameState, PlayerType } from "@/app/types/types";
-import { Color, PlayerSymbol } from "@/app/game/constants/constants";
+import {
+  Color,
+  GameStatus,
+  PlayerSymbol,
+} from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
 import { PlayerInfoBadge } from "./playerBadge";
 import { GameStatusMessage } from "./gameStatusMessage";
@@ -56,12 +60,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   // 4. Determine if the game is currently active (no winner)
   const isGameActive = !winner;
 
+  // 5. If game has finished update state
+  // do we need to use state no? this will only do onrender
+  if (!isGameActive && (winner === PlayerSymbol.O || winner === PlayerSymbol.X))
+    gameState.gameStatus = GameStatus.COMPLETED;
+
   // --- Render Logic ---
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg">
-      {" "}
-      {/* Center card, add shadow */}
-      <CardHeader className="pb-2 text-center">
+      <CardHeader className="text-center">
         <CardTitle className="text-2xl font-semibold">{gameMode}</CardTitle>
         {playerType && ( // Display the role of the person viewing this board
           <CardDescription>
@@ -69,7 +76,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className="space-y-4 p-4 md:p-6">
+      <CardContent className="md:p-6">
         <div className="flex justify-around items-center gap-2 flex-wrap px-1">
           <PlayerInfoBadge
             symbol={PlayerSymbol.X}
