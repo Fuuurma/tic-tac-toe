@@ -9,6 +9,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { GameState, PlayerType } from "@/app/types/types";
+import { PlayerSymbol } from "@/app/game/constants/constants";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -31,9 +32,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     <Card className="w-full max-w-md">
       <CardHeader className="pb-2">
         <CardTitle className="text-xl">
-          {gameState.gameMode === "computer"
+          {gameState.gameMode}
+          {/* {gameState.gameMode === "computer"
             ? "Playing vs Computer"
-            : "Multiplayer Game"}
+            : "Multiplayer Game"} */}
         </CardTitle>
         <CardDescription>
           Playing as:{" "}
@@ -49,11 +51,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         )}
 
         <div className="flex justify-between text-sm">
-          <div className="px-3 py-1 bg-blue-100 rounded-full">
-            X: {gameState.players.X || "Waiting..."}
+          <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-full">
+            <span className="font-bold text-blue-700">X</span>
+            <span>{gameState.players.X.username || "Waiting..."}</span>
+            <span className="text-xs text-gray-500">
+              ({gameState.players.X.type})
+            </span>
+            {gameState.currentPlayer === PlayerSymbol.X && (
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            )}
           </div>
-          <div className="px-3 py-1 bg-red-100 rounded-full">
-            O: {gameState.players.O || "Waiting..."}
+          <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full">
+            <span className="font-bold text-red-700">O</span>
+            <span>{gameState.players.O.username || "Waiting..."}</span>
+            <span className="text-xs text-gray-500">
+              ({gameState.players.O.type})
+            </span>
+            {gameState.currentPlayer === PlayerSymbol.O && (
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            )}
           </div>
         </div>
 
@@ -63,7 +79,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               gameState.nextToRemove.X === i || gameState.nextToRemove.O === i;
 
             const isCurrentPlayerTurn =
-              gameState.currentPlayer === playerType &&
+              gameState.currentPlayer === PlayerSymbol.X &&
               !cell &&
               !gameState.winner;
 

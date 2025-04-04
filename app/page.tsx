@@ -23,6 +23,7 @@ import {
   PlayerSymbol,
   PlayerTypes,
 } from "./game/constants/constants";
+import DevPanel from "@/components/game/devPanel";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -264,6 +265,8 @@ export default function Home() {
           }}
         />
       )}
+
+      <DevPanel gameState={gameState} username={username} socket={socket} />
     </div>
   );
 }
