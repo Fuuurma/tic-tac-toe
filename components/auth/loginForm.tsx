@@ -13,12 +13,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GameMode } from "@/app/types/types";
 import {
   Color,
+  COLOR_VARIANTS,
   GAME_MODES,
   GameModes,
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
 import capitalizeFirstLetter from "@/app/utils/capitalize";
+import { AlertCircle, User, Users } from "lucide-react";
+import { Alert, AlertDescription } from "../ui/alert";
+import { Input } from "../ui/input";
 
 interface LoginFormProps {
   username: string;
@@ -128,7 +132,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 {availableColors.map((color) => (
                   <button
                     key={color}
-                    className={`w-8 h-8 rounded-full transition-all ${
+                    className={`w-8 h-8 rounded-full transition-all 
+                      ${color.bg} ${colorValue.border} ${
                       selectedColor === color
                         ? "ring-2 ring-offset-2 ring-primary"
                         : "opacity-70 hover:opacity-100"
@@ -196,8 +201,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               <div className="space-y-2">
                 <Label>Opponent's color</Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {availableColors.map((color) => (
-                    <button
+                 
+
+              {Object.entries(COLOR_VARIANTS).map(([colorKey, colorValue]) => {
+                    const color = colorKey as Color; 
+                    return (
+                      <button
                       key={color}
                       disabled={color === selectedColor}
                       className={`w-8 h-8 rounded-full transition-all
@@ -211,17 +220,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                             ? "ring-2 ring-offset-2 ring-primary"
                             : "opacity-70 hover:opacity-100"
                         }`}
-                      style={{ backgroundColor: getColorHex(color) }}
                       onClick={() => setOpponentColor(color)}
                       title={capitalizeFirstLetter(color)}
                     />
-                  ))}
-                </div>
-                {selectedColor === opponentColor && (
+                    )
+                    {selectedColor === opponentColor && (
                   <p className="text-xs text-red-500">
                     Please select a different color
                   </p>
                 )}
+
+                   
+                  }
+                </div>
+                
               </div>
             </div>
           </div>
