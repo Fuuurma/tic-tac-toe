@@ -135,8 +135,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           Reset Game
         </Button>
         <Button onClick={exitGame} variant="destructive">
-          {" "}
-          {/* Maybe destructive for exit? */}
           Exit Game
         </Button>
       </CardFooter>
@@ -145,60 +143,3 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 };
 
 export default GameBoard;
-
-//                   ${
-//                     isNextToRemove && gameState.nextToRemove.X === i
-//                       ? "bg-blue-500 animate-pulse"
-//                       : ""
-//                   }
-//                   ${
-//                     isNextToRemove && gameState.nextToRemove.O === i
-//                       ? "bg-red-500 animate-pulse"
-//                       : ""
-//                   }
-//                   ${
-//                     isCurrentPlayerTurn
-//                       ? "cursor-pointer hover:border-gray-400"
-//                       : "cursor-default"
-//                   }
-//                 `}
-//                 onClick={() => handleCellClick(i)}
-//                 disabled={!!cell || !!gameState.winner}
-//               >
-//                 {cell}
-//                 {isNextToRemove && (
-//                   <div
-//                     className="absolute inset-0 animate-wiggle border-2 rounded-md z-10 pointer-events-none"
-//                     style={{
-//                       borderColor:
-//                         gameState.nextToRemove.X === i ? "#2563eb" : "#dc2626",
-//                     }}
-//                   />
-//                 )}
-//               </button>
-//             );
-//           })}
-//         </div>
-
-//         {gameState.winner && (
-//           <div className="text-center p-3 bg-green-100 text-green-800 rounded-md font-medium">
-//             {gameState.winner === "draw"
-//               ? "It's a draw!"
-//               : `Player ${gameState.winner} wins!`}
-//           </div>
-//         )}
-//       </CardContent>
-
-//       <CardFooter className="flex justify-between pt-2">
-//         <Button onClick={resetGame} variant="outline">
-//           Reset Game
-//         </Button>
-//         <Button onClick={exitGame} variant="ghost">
-//           Exit Game
-//         </Button>
-//       </CardFooter>
-//     </Card>
-//   );
-// };
-
-// export default GameBoard;
