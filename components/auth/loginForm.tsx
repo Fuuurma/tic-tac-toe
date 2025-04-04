@@ -170,47 +170,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
 export default LoginForm;
 
-//     setError("");
-//     return true;
-//   };
-
-//   const handleSubmit = () => {
-//     if (isFormValid()) {
-//       handleLogin();
-//     }
-//   };
-
-//   // Helper function to capitalize the first letter
-//   const capitalizeFirstLetter = (str: string): string => {
-//     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-//   };
-
-//   return (
-//     <Card className="w-full max-w-md">
-//       <CardHeader>
-//         <CardTitle className="text-2xl">Welcome to Tic Tac Toe</CardTitle>
-//         <CardDescription>
-//           Enter your details and select game mode to start playing
-//         </CardDescription>
-//       </CardHeader>
-//       <CardContent className="space-y-4">
-//         {error && <ErrorMessage message={error} />}
-
-//         {/* Player 1 Settings */}
-//         <div className="space-y-4">
-//           <div className="flex items-center gap-2">
-//             <User className="w-5 h-5" />
-//             <h3 className="font-medium">Your Details</h3>
-//           </div>
-
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//             <div className="space-y-2">
-//               <Label htmlFor="username">Username</Label>
-//               <Input
-//                 id="username"
-//                 type="text"
-//                 value={username}
-//                 onChange={(e) => {
 //                   setUsername(e.target.value);
 //                   setError("");
 //                 }}
