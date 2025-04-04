@@ -12,7 +12,7 @@ const DevPanel: React.FC<DevPanelProps> = ({ gameState, username, socket }) => {
     <div
       style={{
         position: "fixed",
-        bottom: 20,
+        top: 75,
         right: 20,
         zIndex: 9999,
         backgroundColor: "#1e293b", // slate-800
@@ -20,7 +20,7 @@ const DevPanel: React.FC<DevPanelProps> = ({ gameState, username, socket }) => {
         padding: "1rem",
         borderRadius: "0.5rem",
         width: "350px",
-        maxHeight: "90vh",
+        maxHeight: "80vh",
         overflowY: "auto",
         fontSize: "0.75rem",
         fontFamily: "monospace",

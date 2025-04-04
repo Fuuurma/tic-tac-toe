@@ -229,15 +229,33 @@ export default function Home() {
     }
   };
 
+  const GRADIENT_CLASSES = [
+    "gradient-dark-1",
+    "gradient-dark-2",
+    "gradient-dark-3",
+    "gradient-dark-4",
+    "gradient-dark-5",
+    "gradient-dark-6",
+    "gradient-dark-7",
+    "gradient-dark-8",
+    "gradient-dark-9",
+    "gradient-dark-10",
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
-      <h1 className="text-4xl font-bold text-indigo-800 mb-8">Tic Tac Toe</h1>
+    <div
+  className={`min-h-screen flex flex-col items-center justify-center p-4
+    bg-gradient-light
+    dark:${GRADIENT_CLASSES[Math.floor(Math.random() * GRADIENT_CLASSES.length]}
+    dark-gradient-transition bg-noise`}
+>
+      {/* dark:bg-[image:var(--gradient-dark-9)] */}
+      <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
       <UserMenu
         username={username}
         selectedColor={selectedColor}
         setSelectedColor={setSelectedColor}
       />
-
       {!loggedIn ? (
         <LoginForm
           username={username}
@@ -265,8 +283,19 @@ export default function Home() {
           }}
         />
       )}
-
       <DevPanel gameState={gameState} username={username} socket={socket} />
+
+      <footer className="mt-auto py-4 text-center text-sm text-muted-foreground">
+        Created by{" "}
+        <a
+          href="https://github.com/fuuurma"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-primary"
+        >
+          @fuuurma
+        </a>
+      </footer>
     </div>
   );
 }

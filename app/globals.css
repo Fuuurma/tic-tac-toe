@@ -76,6 +76,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --gradient-light: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
 }
 
 .dark {
@@ -110,6 +111,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --gradient-dark: linear-gradient(135deg, #1e3a8a 0%, #2e1065 100%);
+  /* Deep Ocean */
+  /* Deep Ocean */
 }
 
 @layer base {
@@ -154,6 +158,130 @@
   }
 }
 
+@layer utilities {
+  .gradient-dark-1 {
+    background-image: linear-gradient(
+      135deg,
+      #0f172a 0%,
+      #1e3a8a 50%,
+      #1e40af 100%
+    );
+  }
+
+  /* Midnight Forest */
+  .gradient-dark-2 {
+    background-image: linear-gradient(
+      135deg,
+      #1a2b3c 0%,
+      #2d4a5a 50%,
+      #3a6b7a 100%
+    );
+  }
+
+  /* Royal Velvet */
+  .gradient-dark-3 {
+    background-image: linear-gradient(
+      135deg,
+      #2c0b36 0%,
+      #4a154b 50%,
+      #6d1f70 100%
+    );
+  }
+
+  /* Smoky Quartz */
+  .gradient-dark-4 {
+    background-image: linear-gradient(
+      135deg,
+      #2d3748 0%,
+      #4a5568 50%,
+      #718096 100%
+    );
+  }
+
+  /* Crimson Depth */
+  .gradient-dark-5 {
+    background-image: linear-gradient(
+      135deg,
+      #2b0c12 0%,
+      #5a1725 50%,
+      #8d2d3d 100%
+    );
+  }
+
+  /* Deep Space */
+  .gradient-dark-6 {
+    background-image: linear-gradient(
+      135deg,
+      #1a1b2f 0%,
+      #2d2e50 50%,
+      #45457c 100%
+    );
+  }
+
+  /* Charcoal Elegance */
+  .gradient-dark-7 {
+    background-image: linear-gradient(
+      135deg,
+      #232526 0%,
+      #2d2f30 50%,
+      #414345 100%
+    );
+  }
+
+  /* Emerald Abyss */
+  .gradient-dark-8 {
+    background-image: linear-gradient(
+      135deg,
+      #0d2b2b 0%,
+      #1a4040 50%,
+      #275757 100%
+    );
+  }
+
+  /* Twilight Dusk */
+  .gradient-dark-9 {
+    background-image: linear-gradient(
+      135deg,
+      #1c1f33 0%,
+      #2d325c 50%,
+      #3d447d 100%
+    );
+  }
+
+  /* Wine Cellar */
+  .gradient-dark-10 {
+    background-image: linear-gradient(
+      135deg,
+      #2a0f18 0%,
+      #4a1a2a 50%,
+      #6a253c 100%
+    );
+  }
+
+  .dark-gradient-transition {
+    transition: background 0.5s ease-in-out;
+  }
+
+  .bg-noise {
+    position: relative;
+    z-index: 0;
+  }
+
+  .bg-noise::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(
+        rgba(255, 255, 255, 0.02) 50%,
+        transparent 0
+      ),
+      url('data:image/svg+xml,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.7"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.2"/></svg>');
+    z-index: -1;
+  }
+}
 .animate-wiggle {
   animation: wiggle 0.5s ease-in-out infinite;
 }

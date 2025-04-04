@@ -114,42 +114,40 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {" "}
-          {/* Increased spacing slightly */}
           <ErrorMessage message={error} />
+
           <PlayerInputSection
             idPrefix="player1"
             title="Your Details"
             Icon={User}
             usernameLabel="Username"
-            usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.X].label} // Example placeholder
+            usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.X].label}
             usernameValue={username}
             onUsernameChange={handleInputChange(setUsername)}
             colorLabel="Choose your color"
             selectedColor={selectedColor}
             onColorChange={handleInputChange(setSelectedColor)}
-            // No disabledColor for Player 1
           />
+
           <GameModeSelector
             selectedMode={gameMode}
             onModeChange={handleInputChange(setGameMode)}
           />
+
           {gameMode === GameModes.VS_FRIEND && (
             <div className="pt-4 border-t">
-              {" "}
-              {/* Add top padding and border */}
               <PlayerInputSection
                 idPrefix="opponent"
                 title="Opponent Details"
                 Icon={Users}
                 usernameLabel="Opponent's Username"
-                usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.O].label} // Example placeholder
+                usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.O].label}
                 usernameValue={opponentName}
                 onUsernameChange={handleInputChange(setOpponentName)}
                 colorLabel="Opponent's color"
                 selectedColor={opponentColor}
                 onColorChange={handleInputChange(setOpponentColor)}
-                disabledColor={selectedColor} // Disable Player 1's chosen color
+                disabledColor={selectedColor}
               />
             </div>
           )}
