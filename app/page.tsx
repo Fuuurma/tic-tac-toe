@@ -243,7 +243,13 @@ export default function Home() {
           setUsername={setUsername}
           gameMode={gameMode}
           setGameMode={setGameMode}
+          selectedColor={selectedColor}
+          setSelectedColor={setSelectedColor}
           handleLogin={handleLogin}
+          opponentName={opponentName}
+          setOpponentName={setOpponentName}
+          opponentColor={opponentColor}
+          setOpponentColor={setOpponentColor}
         />
       ) : (
         <GameBoard
