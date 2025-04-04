@@ -8,21 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { GameMode } from "@/app/types/types";
 import {
   Color,
-  COLOR_VARIANTS,
-  GAME_MODES,
   GameModes,
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
-import capitalizeFirstLetter from "@/app/utils/capitalize";
-import { AlertCircle, User, Users } from "lucide-react";
-import { Alert, AlertDescription } from "../ui/alert";
-import { Input } from "../ui/input";
+import { User, Users } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
@@ -104,7 +96,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   return (
-    // Use a form element for better accessibility and semantics
     <form onSubmit={handleSubmit}>
       <Card className="w-full max-w-md">
         <CardHeader>
