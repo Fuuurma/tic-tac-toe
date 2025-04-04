@@ -13,10 +13,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GameMode } from "@/app/types/types";
 import {
   Color,
+  GAME_MODES,
   GameModes,
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
+import capitalizeFirstLetter from "@/app/utils/capitalize";
 
 interface LoginFormProps {
   username: string;
@@ -84,49 +86,153 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Welcome to Tic Tac Toe</CardTitle>
+        <CardTitle className="text-2xl">Welcome to Tic Tac Toe</CardTitle>
         <CardDescription>
-          Enter your username and select game mode to start playing
+          Enter your details and select game mode to start playing
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="username">Username</Label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Enter your username"
-            className="w-full p-2 border rounded-md"
-          />
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Player 1 Settings */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            <h3 className="font-medium">Your Details</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setError("");
+                }}
+                placeholder={PLAYER_CONFIG[PlayerSymbol.X].label}
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Choose your color</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {availableColors.map((color) => (
+                  <button
+                    key={color}
+                    className={`w-8 h-8 rounded-full transition-all ${
+                      selectedColor === color
+                        ? "ring-2 ring-offset-2 ring-primary"
+                        : "opacity-70 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: getColorHex(color) }}
+                    onClick={() => setSelectedColor(color)}
+                    title={capitalizeFirstLetter(color)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="text-sm font-medium">Game Mode</div>
+        {/* Game Mode Selection */}
+        <div className="space-y-3 pt-2">
+          <Label>Game Mode</Label>
           <RadioGroup
-            defaultValue="human"
-            onValueChange={(value) => setGameMode(value as GameMode)}
-            className="flex flex-col space-y-2"
+            value={gameMode}
+            onValueChange={(value) => {
+              setGameMode(value as GameModes);
+              setError("");
+            }}
           >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="human" id="human" />
-              <Label htmlFor="human">Play against another player</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="computer" id="computer" />
-              <Label htmlFor="computer">Play against computer</Label>
-            </div>
+            {Object.values(GAME_MODES).map((mode) => (
+              <div key={mode.id} className="flex items-start space-x-2 py-2">
+                <RadioGroupItem value={mode.id} id={mode.id} />
+                <div className="grid gap-1.5">
+                  <Label htmlFor={mode.id} className="font-medium">
+                    {mode.label}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {mode.description}
+                  </p>
+                </div>
+              </div>
+            ))}
           </RadioGroup>
         </div>
+
+        {/* Show opponent settings only for local multiplayer */}
+        {gameMode === GameModes.VS_FRIEND && (
+          <div className="space-y-4 pt-2 border-t">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              <h3 className="font-medium">Opponent Details</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="opponent">Opponent's Username</Label>
+                <Input
+                  id="opponent"
+                  type="text"
+                  value={opponent}
+                  onChange={(e) => {
+                    setOpponent(e.target.value);
+                    setError("");
+                  }}
+                  placeholder={PLAYER_CONFIG[PlayerSymbol.O].label}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Opponent's color</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {availableColors.map((color) => (
+                    <button
+                      key={color}
+                      disabled={color === selectedColor}
+                      className={`w-8 h-8 rounded-full transition-all
+                        ${
+                          color === selectedColor
+                            ? "opacity-30 cursor-not-allowed"
+                            : ""
+                        }
+                        ${
+                          opponentColor === color
+                            ? "ring-2 ring-offset-2 ring-primary"
+                            : "opacity-70 hover:opacity-100"
+                        }`}
+                      style={{ backgroundColor: getColorHex(color) }}
+                      onClick={() => setOpponentColor(color)}
+                      title={capitalizeFirstLetter(color)}
+                    />
+                  ))}
+                </div>
+                {selectedColor === opponentColor && (
+                  <p className="text-xs text-red-500">
+                    Please select a different color
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
       <CardFooter>
-        <Button onClick={handleLogin} className="w-full">
+        <Button onClick={handleSubmit} className="w-full">
           Start Game
         </Button>
       </CardFooter>
     </Card>
   );
 };
-
 export default LoginForm;

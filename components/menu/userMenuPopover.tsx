@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
 import { Color, COLOR_VARIANTS } from "@/app/game/constants/constants";
+import capitalizeFirstLetter from "@/app/utils/capitalize";
 
 interface UserMenuPopoverProps {
   username?: string;
@@ -66,9 +67,5 @@ const UserMenuPopover: React.FC<UserMenuPopoverProps> = ({
     </Popover>
   );
 };
-
-function capitalizeFirstLetter(string: string): string {
-  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-}
 
 export default UserMenuPopover;
