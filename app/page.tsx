@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import {
   ClientToServerEvents,
   GameMode,
@@ -26,8 +26,7 @@ import {
 import DevPanel from "@/components/game/devPanel";
 import { createFreshGameState } from "./game/logic/newGameState";
 import { CanMakeMove } from "./game/logic/canMakeMove";
-import { CanAI_MakeMove } from "./game/ai/canAI_MakeMove";
-import { IsOkToClick } from "./game/logic/isOkToClick";
+import { isAITurn } from "./game/ai/canAI_MakeMove";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -94,9 +93,10 @@ export default function Home() {
 
   // Effect for computer moves
   useEffect(() => {
-    // If it's a computer game and computer's turn
-    if (CanAI_MakeMove(gameState)) {
+    if (isAITurn(gameState)) {
+      return handleAIMove(gameState, socket, setGameState);
     }
+
     if (
       gameState.gameMode === GameModes.VS_COMPUTER &&
       gameState.currentPlayer === PlayerSymbol.O &&
@@ -173,7 +173,7 @@ export default function Home() {
   };
 
   const handleCellClick = (index: number) => {
-    if (!IsOkToClick(loggedIn, gameState, index)) return;
+    // if (!IsOkToClick(loggedIn, gameState, index)) return;
     if (
       !loggedIn ||
       gameState.winner ||

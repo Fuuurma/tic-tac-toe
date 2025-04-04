@@ -1,15 +1,15 @@
 import { GameState } from "@/app/types/types";
 import { GameStatus } from "../constants/constants";
 
-export const IsOkToClick = (
-  loggedIn: boolean,
-  gameState: GameState,
-  cellIndex: number
-) => {
+export const isValidMove = (
+  state: GameState,
+  cellIndex: number,
+  isLoggedIn: boolean
+): boolean => {
   return (
-    loggedIn &&
-    !gameState.winner &&
-    gameState.gameStatus === GameStatus.ACTIVE &&
-    gameState.board[cellIndex] !== null
+    isLoggedIn &&
+    state.gameStatus === GameStatus.ACTIVE &&
+    !state.winner &&
+    state.board[cellIndex] === null
   );
 };
