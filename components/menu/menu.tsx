@@ -5,7 +5,7 @@ import { Color } from "@/app/game/constants/constants";
 
 interface UserMenuProps {
   username?: string;
-  selectedColor: () => void;
+  selectedColor: Color;
   setSelectedColor: (color: Color) => void;
 }
 
