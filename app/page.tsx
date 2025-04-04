@@ -157,12 +157,19 @@ export default function Home() {
   };
 
   const handleCellClick = (index: number) => {
-    if (!loggedIn || gameState.winner) return;
-
     if (
-      gameState.currentPlayer === playerType ||
-      (gameMode === "computer" && gameState.currentPlayer === "X")
-    ) {
+      !loggedIn ||
+      gameState.winner ||
+      gameState.gameStatus !== GameStatus.ACTIVE
+    )
+      return;
+
+    const isMyTurn =
+      playerSymbol === gameState.currentPlayer ||
+      (gameMode === GameModes.VS_COMPUTER &&
+        gameState.currentPlayer === PlayerSymbol.X);
+
+    if (isMyTurn) {
       if (socket && socket.connected) {
         socket.emit("move", index);
       } else {
@@ -180,19 +187,35 @@ export default function Home() {
       socket.emit("resetGame");
     } else {
       // Local reset - Create a fresh new state to ensure proper reset
-      const freshState = {
+      const freshState: GameState = {
         ...initialGameState,
         players: {
-          X: username,
-          O: gameMode === "computer" ? "Computer" : null,
+          [PlayerSymbol.X]: {
+            ...initialGameState.players[PlayerSymbol.X],
+            username: username,
+            type: PlayerTypes.HUMAN,
+            isActive: true,
+          },
+          [PlayerSymbol.O]: {
+            ...initialGameState.players[PlayerSymbol.O],
+            username:
+              gameMode === GameModes.VS_COMPUTER
+                ? "Computer"
+                : "Waiting for player...",
+            type:
+              gameMode === GameModes.VS_COMPUTER
+                ? PlayerTypes.COMPUTER
+                : PlayerTypes.HUMAN,
+            isActive: false,
+          },
         },
         gameMode,
-        board: Array(9).fill(null),
-        moves: { X: [], O: [] },
-        nextToRemove: { X: null, O: null },
-        currentPlayer: "X",
-        winner: null,
-      } as GameState;
+        gameStatus:
+          gameMode === GameModes.VS_COMPUTER
+            ? GameStatus.ACTIVE
+            : GameStatus.WAITING,
+      };
+
       setGameState(freshState);
     }
   };
