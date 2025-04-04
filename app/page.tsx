@@ -21,6 +21,7 @@ import {
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
+  PlayerTypes,
 } from "./game/constants/constants";
 
 export default function Home() {
@@ -110,21 +111,46 @@ export default function Home() {
     }
   }, [gameState, socket]);
 
+  // User login
   const handleLogin = () => {
     if (username.trim()) {
       if (socket && socket.connected) {
         socket.emit("login", username, gameMode);
       } else {
         // Local play against computer
-        setGameState({
-          ...initialGameState,
-          players: {
-            X: username,
-            O: gameMode === "computer" ? "Computer" : null,
-          },
-          gameMode,
-        });
-        setPlayerType("X");
+        const updatedGameState = { ...initialGameState };
+
+        // Update player X (human player)
+        updatedGameState.players[PlayerSymbol.X] = {
+          ...updatedGameState.players[PlayerSymbol.X],
+          username: username,
+          type: PlayerTypes.HUMAN,
+          isActive: true,
+        };
+
+        // Update player O (computer or waiting for player)
+        updatedGameState.players[PlayerSymbol.O] = {
+          ...updatedGameState.players[PlayerSymbol.O],
+          username:
+            gameMode === GameModes.VS_COMPUTER
+              ? "Computer"
+              : "Waiting for player...",
+          type:
+            gameMode === GameModes.VS_COMPUTER
+              ? PlayerTypes.COMPUTER
+              : PlayerTypes.HUMAN,
+          isActive: false,
+        };
+
+        // Set game mode and status
+        updatedGameState.gameMode = gameMode;
+        updatedGameState.gameStatus =
+          gameMode === GameModes.VS_COMPUTER
+            ? GameStatus.ACTIVE
+            : GameStatus.WAITING;
+
+        setGameState(updatedGameState);
+        setPlayerSymbol(PlayerSymbol.X);
       }
       setLoggedIn(true);
     }
