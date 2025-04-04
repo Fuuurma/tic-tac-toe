@@ -18,6 +18,7 @@ import { User, Users } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
+import { VallidateUserInput } from "@/app/game/auth/validateInput";
 
 interface LoginFormProps {
   username: string;
@@ -50,28 +51,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
   // Memoize validation logic - recalculates only when dependencies change
   const validationResult = useMemo(() => {
-    const trimmedUsername = username.trim();
-    const trimmedOpponentName = opponentName.trim();
-
-    if (!trimmedUsername) {
-      return { isValid: false, message: "Please enter your username." };
-    }
-    if (gameMode === GameModes.VS_FRIEND) {
-      if (!trimmedOpponentName) {
-        return { isValid: false, message: "Please enter opponent's username." };
-      }
-      if (trimmedUsername.toLowerCase() === trimmedOpponentName.toLowerCase()) {
-        // Case-insensitive comparison might be better UX
-        return { isValid: false, message: "Player names must be different." };
-      }
-      if (selectedColor === opponentColor) {
-        return {
-          isValid: false,
-          message: "Players must choose different colors.",
-        };
-      }
-    }
-    return { isValid: true, message: null };
+    return VallidateUserInput(
+      username.trim().toLowerCase(),
+      opponentName.trim().toLowerCase(),
+      gameMode,
+      selectedColor,
+      opponentColor
+    );
   }, [username, opponentName, gameMode, selectedColor, opponentColor]);
 
   // Clear error when relevant fields change - useCallback prevents recreation
