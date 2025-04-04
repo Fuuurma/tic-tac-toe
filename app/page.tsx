@@ -6,26 +6,22 @@ import {
   GameMode,
   GameState,
   initialGameState,
-  PlayerType,
   ServerToClientEvents,
 } from "./types/types";
 import { io, Socket } from "socket.io-client";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { computerMove } from "./game/ai/logic";
 import { makeMove } from "./game/logic/makeMove";
 import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
 import UserMenu from "@/components/menu/menu";
+import {
+  Color,
+  GameModes,
+  GameStatus,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+} from "./game/constants/constants";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -35,10 +31,12 @@ export default function Home() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
-  const [playerType, setPlayerType] = useState<PlayerType | null>(null);
+  const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
   const [message, setMessage] = useState<string>("");
-  const [gameMode, setGameMode] = useState<GameMode>("human");
-  const [selectedColor, setSelectedColor] = useState("#4ade80"); // Default Green
+  const [gameMode, setGameMode] = useState<GameMode>(GameModes.VS_COMPUTER);
+  const [selectedColor, setSelectedColor] = useState<Color>(
+    PLAYER_CONFIG[PlayerSymbol.X].defaultColor
+  );
 
   useEffect(() => {
     const newSocket = io() as Socket<
@@ -50,10 +48,10 @@ export default function Home() {
     // Listen for game updates
     newSocket.on("updateGame", (newGameState) => {
       setGameState(newGameState);
-      setPlayerType((prev) => {
+      setPlayerSymbol((prev) => {
         // If we're playing against computer, always set as X
-        if (newGameState.gameMode === "computer") {
-          return "X";
+        if (newGameState.gameMode === GameModes.VS_COMPUTER) {
+          return PlayerSymbol.X;
         }
         return prev;
       });
@@ -86,9 +84,10 @@ export default function Home() {
   useEffect(() => {
     // If it's a computer game and computer's turn
     if (
-      gameState.gameMode === "computer" &&
-      gameState.currentPlayer === "O" &&
-      !gameState.winner
+      gameState.gameMode === GameModes.VS_COMPUTER &&
+      gameState.currentPlayer === PlayerSymbol.O &&
+      !gameState.winner &&
+      gameState.gameStatus === GameStatus.ACTIVE
     ) {
       // Add a slight delay to make it feel more natural
       const timer = setTimeout(() => {
@@ -98,7 +97,12 @@ export default function Home() {
           setGameState(newState);
         } else {
           // In case of online play, tell server the computer moved
-          socket.emit("move", newState.moves.O[newState.moves.O.length - 1]);
+          socket.emit(
+            "move",
+            newState.moves[PlayerSymbol.O][
+              newState.moves[PlayerSymbol.O].length - 1
+            ]
+          );
         }
       }, 600);
 
