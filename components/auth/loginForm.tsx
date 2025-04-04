@@ -34,6 +34,20 @@ interface LoginFormProps {
   handleLogin: () => void;
 }
 
+interface LoginFormProps {
+  username: string;
+  setUsername: (username: string) => void;
+  gameMode: GameModes;
+  setGameMode: (gameMode: GameModes) => void;
+  selectedColor: Color;
+  setSelectedColor: (color: Color) => void;
+  opponentName: string;
+  setOpponentName: (name: string) => void;
+  opponentColor: Color;
+  setOpponentColor: (color: Color) => void;
+  handleLogin: () => void;
+}
+
 export const LoginForm: React.FC<LoginFormProps> = ({
   username,
   setUsername,
@@ -41,12 +55,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setGameMode,
   selectedColor,
   setSelectedColor,
+  opponentName,
+  setOpponentName,
+  opponentColor,
+  setOpponentColor,
   handleLogin,
 }) => {
-  const [opponent, setOpponent] = useState<string>("");
-  const [opponentColor, setOpponentColor] = useState<Color>(
-    PLAYER_CONFIG[PlayerSymbol.O].defaultColor
-  );
   const [error, setError] = useState<string>("");
 
   // Check if the form is valid before submission
@@ -56,14 +70,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       return false;
     }
 
-    if (gameMode === GameModes.VS_FRIEND && !opponent.trim()) {
+    if (gameMode === GameModes.VS_FRIEND && !opponentName.trim()) {
       setError("Please enter opponent's username");
       return false;
     }
 
     if (
       gameMode === GameModes.VS_FRIEND &&
-      username.trim() === opponent.trim()
+      username.trim() === opponentName.trim()
     ) {
       setError("Player names must be different");
       return false;
@@ -84,8 +98,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     }
   };
 
-  // Available colors for selection
-  const availableColors = Object.values(Color);
+  // Helper function to capitalize the first letter
+  const capitalizeFirstLetter = (str: string): string => {
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
 
   return (
     <Card className="w-full max-w-md">
@@ -129,20 +145,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             <div className="space-y-2">
               <Label>Choose your color</Label>
               <div className="grid grid-cols-4 gap-2">
-                {availableColors.map((color) => (
-                  <button
-                    key={color}
-                    className={`w-8 h-8 rounded-full transition-all 
-                      ${color.bg} ${colorValue.border} ${
-                      selectedColor === color
-                        ? "ring-2 ring-offset-2 ring-primary"
-                        : "opacity-70 hover:opacity-100"
-                    }`}
-                    style={{ backgroundColor: getColorHex(color) }}
-                    onClick={() => setSelectedColor(color)}
-                    title={capitalizeFirstLetter(color)}
-                  />
-                ))}
+                {Object.entries(COLOR_VARIANTS).map(
+                  ([colorKey, colorValue]) => {
+                    const color = colorKey as Color;
+                    return (
+                      <button
+                        key={color}
+                        className={`w-8 h-8 rounded-full transition-all ${
+                          colorValue.bg
+                        } ${colorValue.border}
+                        ${
+                          selectedColor === color
+                            ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
+                            : "hover:scale-105"
+                        }`}
+                        onClick={() => setSelectedColor(color)}
+                        title={capitalizeFirstLetter(color)}
+                      />
+                    );
+                  }
+                )}
               </div>
             </div>
           </div>
@@ -188,9 +210,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 <Input
                   id="opponent"
                   type="text"
-                  value={opponent}
+                  value={opponentName}
                   onChange={(e) => {
-                    setOpponent(e.target.value);
+                    setOpponentName(e.target.value);
                     setError("");
                   }}
                   placeholder={PLAYER_CONFIG[PlayerSymbol.O].label}
@@ -201,39 +223,37 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               <div className="space-y-2">
                 <Label>Opponent's color</Label>
                 <div className="grid grid-cols-4 gap-2">
-                 
-
-              {Object.entries(COLOR_VARIANTS).map(([colorKey, colorValue]) => {
-                    const color = colorKey as Color; 
-                    return (
-                      <button
-                      key={color}
-                      disabled={color === selectedColor}
-                      className={`w-8 h-8 rounded-full transition-all
-                        ${
-                          color === selectedColor
-                            ? "opacity-30 cursor-not-allowed"
-                            : ""
-                        }
-                        ${
-                          opponentColor === color
-                            ? "ring-2 ring-offset-2 ring-primary"
-                            : "opacity-70 hover:opacity-100"
-                        }`}
-                      onClick={() => setOpponentColor(color)}
-                      title={capitalizeFirstLetter(color)}
-                    />
-                    )
-                    {selectedColor === opponentColor && (
+                  {Object.entries(COLOR_VARIANTS).map(
+                    ([colorKey, colorValue]) => {
+                      const color = colorKey as Color;
+                      return (
+                        <button
+                          key={color}
+                          disabled={color === selectedColor}
+                          className={`w-8 h-8 rounded-full transition-all 
+                          ${colorValue.bg} ${colorValue.border}
+                          ${
+                            color === selectedColor
+                              ? "opacity-30 cursor-not-allowed"
+                              : ""
+                          }
+                          ${
+                            opponentColor === color
+                              ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
+                              : "hover:scale-105"
+                          }`}
+                          onClick={() => setOpponentColor(color)}
+                          title={capitalizeFirstLetter(color)}
+                        />
+                      );
+                    }
+                  )}
+                </div>
+                {selectedColor === opponentColor && (
                   <p className="text-xs text-red-500">
                     Please select a different color
                   </p>
                 )}
-
-                   
-                  }
-                </div>
-                
               </div>
             </div>
           </div>
@@ -247,4 +267,5 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     </Card>
   );
 };
+
 export default LoginForm;
