@@ -25,6 +25,9 @@ import {
 } from "./game/constants/constants";
 import DevPanel from "@/components/game/devPanel";
 import { createFreshGameState } from "./game/logic/newGameState";
+import { CanMakeMove } from "./game/logic/canMakeMove";
+import { CanAI_MakeMove } from "./game/ai/canAI_MakeMove";
+import { IsOkToClick } from "./game/logic/isOkToClick";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -46,6 +49,7 @@ export default function Home() {
     PLAYER_CONFIG[PlayerSymbol.O].defaultColor
   );
 
+  //socket should be used just for online game
   useEffect(() => {
     const newSocket = io() as Socket<
       ServerToClientEvents,
@@ -91,6 +95,8 @@ export default function Home() {
   // Effect for computer moves
   useEffect(() => {
     // If it's a computer game and computer's turn
+    if (CanAI_MakeMove(gameState)) {
+    }
     if (
       gameState.gameMode === GameModes.VS_COMPUTER &&
       gameState.currentPlayer === PlayerSymbol.O &&
@@ -124,8 +130,8 @@ export default function Home() {
       if (socket && socket.connected && gameMode === GameModes.ONLINE) {
         socket.emit("login", username, gameMode);
       } else {
-        // Setup for local play
-        const updatedGameState = { ...initialGameState };
+        // Use createFreshGameState instead of initialGameState
+        const updatedGameState = createFreshGameState();
 
         // Update player X (human player)
         updatedGameState.players[PlayerSymbol.X] = {
@@ -167,19 +173,22 @@ export default function Home() {
   };
 
   const handleCellClick = (index: number) => {
+    if (!IsOkToClick(loggedIn, gameState, index)) return;
     if (
       !loggedIn ||
       gameState.winner ||
-      gameState.gameStatus !== GameStatus.ACTIVE
+      gameState.gameStatus !== GameStatus.ACTIVE ||
+      gameState.board[index] !== null // Prevent clicking on occupied cells
     )
       return;
 
-    const isMyTurn =
-      playerSymbol === gameState.currentPlayer ||
-      (gameMode === GameModes.VS_COMPUTER &&
-        gameState.currentPlayer === PlayerSymbol.X);
+    const canMakeMove = CanMakeMove(
+      gameMode,
+      gameState.currentPlayer,
+      playerSymbol
+    );
 
-    if (isMyTurn) {
+    if (canMakeMove) {
       if (socket && socket.connected) {
         socket.emit("move", index);
       } else {
@@ -222,7 +231,7 @@ export default function Home() {
 
       freshState.gameMode = gameMode;
       freshState.gameStatus =
-        gameMode === GameModes.VS_COMPUTER
+        gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND
           ? GameStatus.ACTIVE
           : GameStatus.WAITING;
 
@@ -233,7 +242,7 @@ export default function Home() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-4
-        bg-gradient-light
+        bg-[image:var(--gradient-light)]
         dark:bg-[image:var(--gradient-dark-9)]"
     >
       <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
@@ -264,7 +273,7 @@ export default function Home() {
           resetGame={resetGame}
           exitGame={() => {
             setLoggedIn(false);
-            setGameState(initialGameState);
+            setGameState(createFreshGameState());
             setPlayerSymbol(null);
           }}
         />
