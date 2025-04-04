@@ -24,6 +24,7 @@ import {
   PlayerTypes,
 } from "./game/constants/constants";
 import DevPanel from "@/components/game/devPanel";
+import { createFreshGameState } from "./game/logic/newGameState";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -195,35 +196,35 @@ export default function Home() {
     if (socket && socket.connected) {
       socket.emit("resetGame");
     } else {
-      // Local reset - Create a fresh new state to ensure proper reset
-      const freshState: GameState = {
-        ...initialGameState,
-        players: {
-          [PlayerSymbol.X]: {
-            ...initialGameState.players[PlayerSymbol.X],
-            username: username,
-            type: PlayerTypes.HUMAN,
-            isActive: true,
-          },
-          [PlayerSymbol.O]: {
-            ...initialGameState.players[PlayerSymbol.O],
-            username:
-              gameMode === GameModes.VS_COMPUTER
-                ? "Computer"
-                : "Waiting for player...",
-            type:
-              gameMode === GameModes.VS_COMPUTER
-                ? PlayerTypes.COMPUTER
-                : PlayerTypes.HUMAN,
-            isActive: false,
-          },
-        },
-        gameMode,
-        gameStatus:
-          gameMode === GameModes.VS_COMPUTER
-            ? GameStatus.ACTIVE
-            : GameStatus.WAITING,
+      const freshState = createFreshGameState();
+
+      freshState.players[PlayerSymbol.X] = {
+        username: username,
+        color: selectedColor,
+        symbol: PlayerSymbol.X,
+        type: PlayerTypes.HUMAN,
+        isActive: true,
       };
+
+      freshState.players[PlayerSymbol.O] = {
+        username:
+          gameMode === GameModes.VS_COMPUTER
+            ? "Computer"
+            : opponentName || "Player 2",
+        color: opponentColor,
+        symbol: PlayerSymbol.O,
+        type:
+          gameMode === GameModes.VS_COMPUTER
+            ? PlayerTypes.COMPUTER
+            : PlayerTypes.HUMAN,
+        isActive: gameMode === GameModes.VS_COMPUTER,
+      };
+
+      freshState.gameMode = gameMode;
+      freshState.gameStatus =
+        gameMode === GameModes.VS_COMPUTER
+          ? GameStatus.ACTIVE
+          : GameStatus.WAITING;
 
       setGameState(freshState);
     }
