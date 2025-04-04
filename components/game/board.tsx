@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { GameState, PlayerType } from "@/app/types/types";
 import { Color, PlayerSymbol } from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
+import { PlayerInfoBadge } from "./playerBadge";
+import { GameStatusMessage } from "./gameStatusMessage";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -68,9 +70,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         )}
       </CardHeader>
       <CardContent className="space-y-4 p-4 md:p-6">
-        {" "}
-        {/* Add padding */}
-        {/* Player Info Badges */}
         <div className="flex justify-around items-center gap-2 flex-wrap px-1">
           <PlayerInfoBadge
             symbol={PlayerSymbol.X}
@@ -88,10 +87,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             isCurrentPlayer={currentPlayer === PlayerSymbol.O && isGameActive}
           />
         </div>
+
         {/* Game Status / Winner Message Area */}
         <div className="min-h-[50px] flex items-center justify-center text-center">
           <GameStatusMessage
-            // Show game message only when the game is active
             message={isGameActive ? message : null}
             winner={winner}
             winningPlayerName={winnerName}
@@ -99,7 +98,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
         {/* Tic Tac Toe Grid */}
         <div className="grid grid-cols-3 gap-2 aspect-square w-full bg-border/40 p-1 rounded-lg">
-          {" "}
           {/* Add subtle background/padding */}
           {board.map((cellValue, index) => {
             const isCellNextToRemove =
@@ -148,44 +146,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
 export default GameBoard;
 
-// export const GameBoard: React.FC<GameBoardProps> = ({
-//   gameState,
-//   message,
-//   playerType,
-//   handleCellClick,
-//   resetGame,
-//   exitGame,
-// }) => {
-//   return (
-//     <Card className="w-full max-w-md">
-//       <CardHeader className="pb-2">
-//         <CardTitle className="text-xl">
-//           {gameState.gameMode}
-//         </CardTitle>
-//         <CardDescription>
-//           Playing as:{" "}
-//           <span className="font-bold">{playerType || "Spectator"}</span>
-//         </CardDescription>
-//       </CardHeader>
-
-//       <CardContent className="space-y-3">
-//         {message && (
-//           <div className="p-2 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
-//             {message}
-//           </div>
-//         )}
-
-//         <div className="flex justify-between text-sm">
-//           <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-full">
-//             <span className="font-bold text-blue-700">X</span>
-//             <span>{gameState.players.X.username || "Waiting..."}</span>
-//             <span className="text-xs text-gray-500">
-//               ({gameState.players.X.type})
-//             </span>
-//             {gameState.currentPlayer === PlayerSymbol.X && (
-//               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-//             )}
-//           </div>
 //           <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full">
 //             <span className="font-bold text-red-700">O</span>
 //             <span>{gameState.players.O.username || "Waiting..."}</span>
