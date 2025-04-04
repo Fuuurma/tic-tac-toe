@@ -170,47 +170,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
 export default LoginForm;
 
-//                   setUsername(e.target.value);
-//                   setError("");
-//                 }}
-//                 placeholder={PLAYER_CONFIG[PlayerSymbol.X].label}
-//                 className="w-full"
-//               />
-//             </div>
-
-//             <div className="space-y-2">
-//               <Label>Choose your color</Label>
-//               <div className="grid grid-cols-4 gap-2">
-//                 {Object.entries(COLOR_VARIANTS).map(
-//                   ([colorKey, colorValue]) => {
-//                     const color = colorKey as Color;
-//                     return (
-//                       <button
-//                         key={color}
-//                         className={`w-8 h-8 rounded-full transition-all ${
-//                           colorValue.bg
-//                         } ${colorValue.border}
-//                         ${
-//                           selectedColor === color
-//                             ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
-//                             : "hover:scale-105"
-//                         }`}
-//                         onClick={() => setSelectedColor(color)}
-//                         title={capitalizeFirstLetter(color)}
-//                       />
-//                     );
-//                   }
-//                 )}
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Game Mode Selection */}
-//         <div className="space-y-3 pt-2">
-//           <Label>Game Mode</Label>
-//           <RadioGroup
-//             value={gameMode}
 //             onValueChange={(value) => {
 //               setGameMode(value as GameModes);
 //               setError("");
