@@ -23,6 +23,7 @@ import capitalizeFirstLetter from "@/app/utils/capitalize";
 import { AlertCircle, User, Users } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Input } from "../ui/input";
+import { ErrorMessage } from "../common/errorMessage";
 
 interface LoginFormProps {
   username: string;
@@ -112,12 +113,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {error && <ErrorMessage message={error} />}
 
         {/* Player 1 Settings */}
         <div className="space-y-4">
