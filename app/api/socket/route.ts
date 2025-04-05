@@ -179,41 +179,6 @@ export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
-//         // Make the move
-//         gameState = makeMove(gameState, index);
-
-//         // Broadcast updated state
-//         io.emit("updateGame", gameState);
-//       });
-
-//       // Handle game reset
-//       socket.on("resetGame", () => {
-//         const username = connectedUsers.get(socket.id);
-//         if (!username) return;
-
-//         // Only players can reset
-//         if (
-//           gameState.players[PlayerSymbol.X].username === username ||
-//           gameState.players[PlayerSymbol.O].username === username
-//         ) {
-//           const freshState = {
-//             ...initialGameState,
-//             players: { ...gameState.players }, // Keep the same players
-//             gameMode: gameState.gameMode, // Keep the same game mode
-//           };
-
-//           gameState = freshState;
-
-//           io.emit("gameReset");
-//           io.emit("updateGame", gameState);
-//         }
-//       });
-
-//       // Handle disconnection
-//       socket.on("disconnect", () => {
-//         const username = connectedUsers.get(socket.id);
-//         console.log("User disconnected:", socket.id, username);
-
 //         if (username) {
 //           // Remove player if they disconnect
 //           if (gameState.players[PlayerSymbol.X]?.username === username) {
