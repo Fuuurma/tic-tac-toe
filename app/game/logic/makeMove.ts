@@ -1,5 +1,6 @@
 import { GameState } from "@/app/types/types";
 import { checkWinner } from "./checkWinner";
+import { PlayerSymbol } from "../constants/constants";
 
 export const makeMove = (gameState: GameState, index: number): GameState => {
   if (gameState.board[index] !== null || gameState.winner) {
@@ -40,7 +41,9 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
     }
 
     // Switch player
-    newGameState.currentPlayer = player === "X" ? "O" : "X";
+    // newGameState.currentPlayer = player === "X" ? "O" : "X";
+    newGameState.currentPlayer =
+      player === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
   }
 
   return newGameState;

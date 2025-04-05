@@ -10,12 +10,25 @@ export const initializeSocketConnection = (
   gameMode: GameMode,
   existingSocket: Socket | null,
   setSocket: (socket: Socket) => void
-): Socket => {
-  if (existingSocket) return existingSocket;
+): void => {
+  if (existingSocket) return;
 
-  const newSocket = io() as Socket<ServerToClientEvents, ClientToServerEvents>;
-  setSocket(newSocket);
+  // Initialize the socket API endpoint
+  fetch("/api/socket")
+    .then(() => {
+      const newSocket = io({
+        path: "/api/socket",
+        addTrailingSlash: false,
+      });
 
-  newSocket.emit("login", username, gameMode);
-  return newSocket;
+      setSocket(newSocket);
+
+      // Once connected, log in
+      newSocket.on("connect", () => {
+        newSocket.emit("login", username, gameMode);
+      });
+    })
+    .catch((err) => {
+      console.error("Socket initialization error:", err);
+    });
 };

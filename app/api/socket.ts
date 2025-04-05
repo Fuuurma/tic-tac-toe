@@ -1,183 +1,175 @@
-import { Server } from "socket.io";
-import {
-  ClientToServerEvents,
-  GameState,
-  initialGameState,
-  ServerToClientEvents,
-} from "../types/types";
-import { makeMove } from "../game/logic/makeMove";
-import { computerMove } from "../game/ai/logic";
-import {
-  GameModes,
-  PLAYER_CONFIG,
-  PlayerSymbol,
-  PlayerTypes,
-} from "../game/constants/constants";
-import { isOnlineGame } from "../utils/gameModeChecks";
+// import { Server } from "socket.io";
+// import {
+//   ClientToServerEvents,
+//   GameState,
+//   initialGameState,
+//   ServerToClientEvents,
+// } from "../types/types";
+// import { makeMove } from "../game/logic/makeMove";
+// import { computerMove } from "../game/ai/logic";
+// import {
+//   GameModes,
+//   PLAYER_CONFIG,
+//   PlayerSymbol,
+//   PlayerTypes,
+// } from "../game/constants/constants";
+// import { isOnlineGame } from "../utils/gameModeChecks";
 
-export default function handler(req: any, res: any) {
-  if (!res.socket.server.io) {
-    console.log("Setting up socket server...");
-    const io = new Server<ClientToServerEvents, ServerToClientEvents>(
-      res.socket.server
-    );
-    res.socket.server.io = io;
+// export default function handler(req: any, res: any) {
+//   if (!res.socket.server.io) {
+//     console.log("Setting up socket server...");
 
-    let gameState: GameState = { ...initialGameState };
+//     const io = new Server(res.socket.server, {
+//       path: "/api/socket",
+//       addTrailingSlash: false,
+//     });
 
-    if (!isOnlineGame(gameState)) return;
+//     res.socket.server.io = io;
 
-    const connectedUsers = new Map<string, string>(); // socketId -> username
+//     let gameState = { ...initialGameState };
+//     const connectedUsers = new Map(); // socketId -> username
 
-    io.on("connection", (socket) => {
-      console.log("A user connected:", socket.id);
+//     io.on("connection", (socket) => {
+//       console.log("A user connected:", socket.id);
 
-      // Handle user login
-      socket.on("login", (username, gameMode) => {
-        connectedUsers.set(socket.id, username);
+//       // Handle user login
+//       socket.on("login", (username, gameMode) => {
+//         connectedUsers.set(socket.id, username);
 
-        // Set the game mode
-        gameState.gameMode = gameMode;
+//         // Set the game mode
+//         gameState.gameMode = gameMode;
 
-        if (!isOnlineGame(gameState)) return;
+//         if (!isOnlineGame(gameState)) return;
 
-        // Assign player type and opponent
-        let playerType = null;
+//         // Assign player type and opponent
+//         let playerType = null;
 
-        if (!gameState.players[PlayerSymbol.X]?.username) {
-          gameState.players[PlayerSymbol.X] = {
-            username,
-            color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
-            symbol: PlayerSymbol.X,
-            type: PlayerTypes.HUMAN,
-            isActive: true,
-          };
-          playerType = PlayerTypes.HUMAN;
-        } else if (!gameState.players[PlayerSymbol.O]?.username) {
-          gameState.players[PlayerSymbol.O] = {
-            username,
-            color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
-            symbol: PlayerSymbol.O,
-            type: PlayerTypes.HUMAN,
-            isActive: true,
-          };
-          playerType = PlayerTypes.HUMAN;
-        }
+//         if (!gameState.players[PlayerSymbol.X]?.username) {
+//           gameState.players[PlayerSymbol.X] = {
+//             username,
+//             color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
+//             symbol: PlayerSymbol.X,
+//             type: PlayerTypes.HUMAN,
+//             isActive: true,
+//           };
+//           playerType = PlayerSymbol.X;
 
-        // Notify player joining
-        if (playerType) {
-          io.emit("playerJoined", {
-            username,
-            type: playerType,
-          });
-        }
+//           // Notify user they're X
+//           socket.emit("playerAssigned", PlayerSymbol.X);
+//         } else if (!gameState.players[PlayerSymbol.O]?.username) {
+//           gameState.players[PlayerSymbol.O] = {
+//             username,
+//             color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
+//             symbol: PlayerSymbol.O,
+//             type: PlayerTypes.HUMAN,
+//             isActive: true,
+//           };
+//           playerType = PlayerSymbol.O;
 
-        // Broadcast to all connected clients
-        io.emit("updateGame", gameState);
-      });
+//           // Notify user they're O
+//           socket.emit("playerAssigned", PlayerSymbol.O);
+//         } else {
+//           // Game is full
+//           socket.emit("error", "Game is full, please try again later");
+//           return;
+//         }
 
-      // Handle moves
-      socket.on("move", (index) => {
-        const username = connectedUsers.get(socket.id);
-        if (!username) return;
+//         // Notify all of player joining
+//         io.emit("playerJoined", {
+//           username,
+//           type: playerType,
+//         });
 
-        if (gameState.gameMode === GameModes.VS_COMPUTER) {
-          // In computer mode, only allow player X (human) to make direct moves
-          if (
-            gameState.players[PlayerSymbol.X].username !== username ||
-            gameState.currentPlayer !== PlayerSymbol.X
-          ) {
-            socket.emit("error", "It's not your turn");
-            return;
-          }
+//         // Broadcast the updated game state
+//         io.emit("updateGame", gameState);
+//       });
 
-          // Make player's move
-          gameState = makeMove(gameState, index);
-          io.emit("updateGame", gameState);
+//       // Handle moves
+//       socket.on("move", (index) => {
+//         const username = connectedUsers.get(socket.id);
+//         if (!username) return;
 
-          // If it's computer's turn and no winner yet, make computer move
-          if (gameState.currentPlayer === PlayerSymbol.O && !gameState.winner) {
-            setTimeout(() => {
-              const aiEngine = new AI_MoveEngine(gameState);
-              gameState = aiEngine.getOptimalMove();
-              io.emit("updateGame", gameState);
-            }, 700);
-          }
-        } else {
-          // Human vs human mode
-          // Check if it's this player's turn
-          const playerSymbol =
-            gameState.players[PlayerSymbol.X].username === username
-              ? PlayerSymbol.X
-              : gameState.players[PlayerSymbol.O].username === username
-              ? PlayerSymbol.O
-              : null;
+//         if (!isOnlineGame(gameState)) return;
 
-          if (playerSymbol !== gameState.currentPlayer) {
-            socket.emit("error", "It's not your turn");
-            return;
-          }
+//         // Check if it's this player's turn
+//         const playerSymbol =
+//           gameState.players[PlayerSymbol.X].username === username
+//             ? PlayerSymbol.X
+//             : gameState.players[PlayerSymbol.O].username === username
+//             ? PlayerSymbol.O
+//             : null;
 
-          // Make the move
-          gameState = makeMove(gameState, index);
+//         if (playerSymbol !== gameState.currentPlayer) {
+//           socket.emit("error", "It's not your turn");
+//           return;
+//         }
 
-          // Broadcast updated state
-          io.emit("updateGame", gameState);
-        }
-      });
+//         // Make the move
+//         gameState = makeMove(gameState, index);
 
-      // Handle game reset
-      socket.on("resetGame", () => {
-        const username = connectedUsers.get(socket.id);
-        if (!username) return;
+//         // Broadcast updated state
+//         io.emit("updateGame", gameState);
+//       });
 
-        // Only players can reset
-        if (
-          gameState.players[PlayerSymbol.X].username === username ||
-          gameState.players[PlayerSymbol.O].username === username
-        ) {
-          const freshState = {
-            ...initialGameState,
-            players: { ...gameState.players }, // Keep the same players
-            gameMode: gameState.gameMode, // Keep the same game mode
-          };
+//       // Handle game reset
+//       socket.on("resetGame", () => {
+//         const username = connectedUsers.get(socket.id);
+//         if (!username) return;
 
-          gameState = freshState;
+//         // Only players can reset
+//         if (
+//           gameState.players[PlayerSymbol.X].username === username ||
+//           gameState.players[PlayerSymbol.O].username === username
+//         ) {
+//           const freshState = {
+//             ...initialGameState,
+//             players: { ...gameState.players }, // Keep the same players
+//             gameMode: gameState.gameMode, // Keep the same game mode
+//           };
 
-          io.emit("gameReset");
-          io.emit("updateGame", gameState);
-        }
-      });
+//           gameState = freshState;
 
-      // Handle disconnection
-      socket.on("disconnect", () => {
-        const username = connectedUsers.get(socket.id);
-        console.log("User disconnected:", socket.id, username);
+//           io.emit("gameReset");
+//           io.emit("updateGame", gameState);
+//         }
+//       });
 
-        if (username) {
-          // Remove player if they disconnect
-          if (gameState.players[PlayerSymbol.X].username === username) {
-            gameState.players[PlayerSymbol.X].isActive = false;
-            gameState.players[PlayerSymbol.X].username = "";
-          } else if (gameState.players[PlayerSymbol.O].username === username) {
-            gameState.players[PlayerSymbol.O].isActive = false;
-            gameState.players[PlayerSymbol.O].username = "";
-          }
-          connectedUsers.delete(socket.id);
+//       // Handle disconnection
+//       socket.on("disconnect", () => {
+//         const username = connectedUsers.get(socket.id);
+//         console.log("User disconnected:", socket.id, username);
 
-          // If both players are gone, reset the game
-          if (
-            !gameState.players[PlayerSymbol.X].isActive &&
-            !gameState.players[PlayerSymbol.O].isActive
-          ) {
-            gameState = { ...initialGameState };
-          }
+//         if (username) {
+//           // Remove player if they disconnect
+//           if (gameState.players[PlayerSymbol.X]?.username === username) {
+//             gameState.players[PlayerSymbol.X].isActive = false;
+//             gameState.players[PlayerSymbol.X].username = "";
+//           } else if (gameState.players[PlayerSymbol.O]?.username === username) {
+//             gameState.players[PlayerSymbol.O].isActive = false;
+//             gameState.players[PlayerSymbol.O].username = "";
+//           }
+//           connectedUsers.delete(socket.id);
 
-          io.emit("updateGame", gameState);
-        }
-      });
-    });
-  }
+//           // If both players are gone, reset the game
+//           if (
+//             !gameState.players[PlayerSymbol.X]?.isActive &&
+//             !gameState.players[PlayerSymbol.O]?.isActive
+//           ) {
+//             gameState = { ...initialGameState };
+//           }
 
-  res.end();
-}
+//           io.emit("updateGame", gameState);
+//         }
+//       });
+//     });
+//   }
+
+//   res.end();
+// }
+
+// // For App Router, add this:
+// export const config = {
+//   api: {
+//     bodyParser: false,
+//   },
+// };

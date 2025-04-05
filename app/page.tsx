@@ -28,7 +28,7 @@ import { CanMakeMove } from "./game/logic/canMakeMove";
 import { isAITurn } from "./game/ai/canAI_MakeMove";
 import { handleAI_Move } from "./game/ai/handleAI_Move";
 import { isValidMove } from "./game/logic/isValidMove";
-import { isVsComputer } from "./utils/gameModeChecks";
+import { isOnlineGame, isVsComputer } from "./utils/gameModeChecks";
 import PageFooter from "@/components/common/pageFooter";
 import { initializeSocketConnection } from "./api/initSocketConnection";
 import { cleanupSocketConnection } from "./api/cleanSocketConnection";
@@ -55,19 +55,48 @@ export default function Home() {
   );
 
   // ----- SOCKET ----- //
+
+  // Create a proper socket initialization function
+  const initializeSocket = () => {
+    if (socket) return;
+
+    // First, create a fetch to initialize the socket on the server
+    fetch("/api/socket")
+      .then(() => {
+        // Then connect the client
+        const newSocket = io({
+          path: "/api/socket",
+          addTrailingSlash: false,
+        });
+
+        setSocket(newSocket);
+
+        // Once connected, log in
+        newSocket.on("connect", () => {
+          newSocket.emit("login", username, gameMode);
+        });
+      })
+      .catch((err) => {
+        console.error("Socket initialization error:", err);
+        setMessage("Failed to connect to game server");
+      });
+  };
+
   useEffect(() => {
     if (!socket) return;
+
+    // Listen for player symbol assignment
+    socket.on("playerAssigned", (symbol) => {
+      setPlayerSymbol(symbol);
+    });
 
     // Listen for game updates
     socket.on("updateGame", (newGameState) => {
       setGameState(newGameState);
-      setPlayerSymbol((prev) => {
-        // If we're playing against computer, always set as X
-        if (isVsComputer(newGameState)) {
-          return PlayerSymbol.X;
-        }
-        return prev;
-      });
+      // For computer games, always be X
+      if (isVsComputer(newGameState) && playerSymbol !== PlayerSymbol.X) {
+        setPlayerSymbol(PlayerSymbol.X);
+      }
     });
 
     // Listen for player join events
@@ -90,12 +119,13 @@ export default function Home() {
 
     // Clean up listeners when component unmounts or socket changes
     return () => {
+      socket.off("playerAssigned");
       socket.off("updateGame");
       socket.off("playerJoined");
       socket.off("gameReset");
       socket.off("error");
     };
-  }, [socket]);
+  }, [socket, playerSymbol]);
 
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
@@ -109,7 +139,9 @@ export default function Home() {
     if (!username.trim()) return;
 
     if (gameMode === GameModes.ONLINE) {
-      initializeSocketConnection(username, gameMode, socket, setSocket);
+      initializeSocket();
+
+      // initializeSocketConnection(username, gameMode, socket, setSocket);
     } else {
       cleanupSocketConnection(gameMode, socket);
       setGameState(
@@ -120,6 +152,11 @@ export default function Home() {
         })
       );
       setPlayerSymbol(PlayerSymbol.X);
+
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
     }
 
     setLoggedIn(true);

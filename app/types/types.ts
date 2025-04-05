@@ -81,6 +81,7 @@ export const initialGameState: GameState = {
 export interface ServerToClientEvents {
   updateGame: (gameState: GameState) => void;
   playerJoined: (playerInfo: { username: string; type: PlayerType }) => void;
+  playerAssigned: (symbol: PlayerSymbol) => void;
   gameReset: () => void;
   error: (message: string) => void;
 }
