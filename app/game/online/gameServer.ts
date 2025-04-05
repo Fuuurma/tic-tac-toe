@@ -1,5 +1,13 @@
 import { GameRoom } from "@/app/types/types";
 import { Server } from "socket.io";
+import {
+  GameModes,
+  GameStatus,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+  PlayerTypes,
+} from "../constants/constants";
+import { makeMove } from "../logic/makeMove";
 
 export class GameServer {
   private io: Server;
@@ -74,5 +82,28 @@ export class GameServer {
 
     room.state = makeMove(room.state, index);
     this.io.to(room.id).emit("gameUpdate", room.state);
+  }
+
+  private getPlayerRoom(socket: any): GameRoom | undefined {
+    const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+    return rooms.length > 0 ? this.rooms.get(rooms[0]) : undefined;
+  }
+
+  private handleDisconnect(socket: any) {
+    const room = this.getPlayerRoom(socket);
+    if (!room) return;
+
+    room.players = room.players.filter((id) => id !== socket.id);
+    if (room.players.length === 0) this.rooms.delete(room.id);
+
+    this.io.to(room.id).emit("playerLeft", socket.id);
+  }
+
+  private handleReset(socket: any) {
+    const room = this.getPlayerRoom(socket);
+    if (room) {
+      room.state = createGameState(GameModes.ONLINE);
+      this.io.to(room.id).emit("gameReset", room.state);
+    }
   }
 }
