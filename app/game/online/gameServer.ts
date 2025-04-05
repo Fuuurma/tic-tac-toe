@@ -88,24 +88,108 @@ export class GameServer {
     return roomId ? this.getRoomById(roomId) : undefined;
   }
 
-  // OLD
-  private handleLogin(socket: any, username: string) {
-    const roomId = this.matchmaker.findOrCreateRoom();
-    const room = this.getOrCreateRoom(roomId);
+  // --- Event Handlers ---
 
+  private handleLogin(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    username: string,
+    preferredColor: Color
+  ): void {
+    if (!username || username.trim().length === 0) {
+      socket.emit("error", "Invalid username.");
+      return;
+    }
+
+    // Prevent double login if already in a room
+    if (socket.data.roomId) {
+      socket.emit("error", "Already in a room.");
+      return;
+    }
+
+    const room = this.findAvailableRoomOrCreate();
+    const roomId = room.id;
+
+    // Assign player symbol and data
+    const symbol =
+      room.playerSocketIds.size === 0 ? PlayerSymbol.X : PlayerSymbol.O;
+    const color = preferredColor || PLAYER_CONFIG[symbol].defaultColor; // Use preferred or default color
+
+    // Store essential info in socket.data for easier access later
+    socket.data.username = username;
+    socket.data.roomId = roomId;
+    socket.data.symbol = symbol;
+
+    // Add player to the room (Socket.IO room and our internal set)
     socket.join(roomId);
-    this.assignPlayer(socket, room, username);
+    room.playerSocketIds.add(socket.id);
 
-    this.io.to(roomId).emit("playerJoined", {
-      username,
-      symbol: this.getPlayerSymbol(socket, room),
-    });
+    // Update the GameState with player details
+    room.state.players[symbol] = {
+      username: username,
+      symbol: symbol,
+      type: PlayerTypes.HUMAN, // Assuming online players are human
+      color: color,
+      isActive: true,
+    };
 
-    if (room.players.length === 2) {
-      room.state.gameStatus = GameStatus.ACTIVE;
+    console.log(
+      `Player ${username}(${socket.id}) joined room ${roomId} as ${symbol}`
+    );
+
+    // Notify the player they've been assigned
+    socket.emit("playerAssigned", { symbol, roomId });
+
+    // Notify others in the room (if any) that a player joined
+    // Note: `socket.to(roomId)` sends to everyone in the room *except* the sender
+    socket.to(roomId).emit("playerJoined", { username, symbol });
+
+    // If room is now full, start the game
+    if (room.playerSocketIds.size === 2) {
+      // Ensure player 'O' username and color are set correctly (might already be if they logged in)
+      const opponentSymbol =
+        symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+      const opponentSocketId = Array.from(room.playerSocketIds).find(
+        (id) => id !== socket.id
+      );
+      if (opponentSocketId && !room.state.players[opponentSymbol]?.username) {
+        // Fetch opponent data if missing (this depends on how you handle the second player's login)
+        // This might indicate a logic issue if player data isn't fully populated before game start
+        console.warn(
+          `Opponent data potentially missing for ${opponentSymbol} in room ${roomId}`
+        );
+      }
+
+      room.state.gameStatus = GameStatus.ACTIVE; // Set status to active
+      room.state.currentPlayer = PlayerSymbol.X; // X always starts? Or randomize?
+      console.log(`Game starting in room ${roomId}`);
+      // Emit 'gameStart' to EVERYONE in the room (including sender) with the initial state
       this.io.to(roomId).emit("gameStart", room.state);
+    } else {
+      // If waiting for opponent, send the current state (which includes the first player's info)
+      room.state.gameStatus = GameStatus.WAITING; // Explicitly set waiting status
+      socket.emit("gameUpdate", room.state); // Send partial state to the first player
+      console.log(`Room ${roomId} waiting for opponent.`);
     }
   }
+
+  // OLD
+  //   private handleLogin(socket: any, username: string) {
+  //     const roomId = this.matchmaker.findOrCreateRoom();
+  //     const room = this.getOrCreateRoom(roomId);
+
+  //     socket.join(roomId);
+  //     this.assignPlayer(socket, room, username);
+
+  //     this.io.to(roomId).emit("playerJoined", {
+  //       username,
+  //       symbol: this.getPlayerSymbol(socket, room),
+  //     });
+
+  //     if (room.players.length === 2) {
+  //       room.state.gameStatus = GameStatus.ACTIVE;
+  //       this.io.to(roomId).emit("gameStart", room.state);
+  //     }
+  //   }
 
   private getOrCreateRoom(roomId: string): GameRoom {
     if (!this.rooms.has(roomId)) {
