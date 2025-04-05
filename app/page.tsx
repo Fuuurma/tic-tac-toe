@@ -123,35 +123,6 @@ export default function Home() {
     }
 
     setLoggedIn(true);
-
-    //     // Setup player O based on game mode
-    //     if (gameMode === GameModes.VS_COMPUTER) {
-    //       updatedGameState.players[PlayerSymbol.O] = {
-    //         username: "Computer",
-    //         color: opponentColor,
-    //         symbol: PlayerSymbol.O,
-    //         type: PlayerTypes.COMPUTER,
-    //         isActive: false,
-    //       };
-    //     } else if (gameMode === GameModes.VS_FRIEND) {
-    //       updatedGameState.players[PlayerSymbol.O] = {
-    //         username: opponentName || "Player 2",
-    //         color: opponentColor,
-    //         symbol: PlayerSymbol.O,
-    //         type: PlayerTypes.HUMAN,
-    //         isActive: false,
-    //       };
-    //     }
-
-    //     // Set game mode and status
-    //     updatedGameState.gameMode = gameMode;
-    //     updatedGameState.gameStatus = GameStatus.ACTIVE;
-
-    //     setGameState(updatedGameState);
-    //     setPlayerSymbol(PlayerSymbol.X);
-    //   }
-    //   setLoggedIn(true);
-    // }
   };
 
   const handleCellClick = (index: number) => {
@@ -174,6 +145,14 @@ export default function Home() {
     if (socket && socket.connected && gameMode === GameModes.ONLINE) {
       socket.emit("resetGame");
     } else {
+      setGameState(
+        createInitialGameState(username, gameMode, {
+          opponentName,
+          playerColor: selectedColor,
+          opponentColor,
+        })
+      );
+
       const freshState = createFreshGameState();
 
       freshState.players[PlayerSymbol.X] = {
