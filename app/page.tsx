@@ -52,44 +52,45 @@ export default function Home() {
 
   // ----- SOCKET ----- //
 
-  // Create a proper socket initialization function
-  // For App Router - socket client initialization
-  const initializeSocket = () => {
-    if (socket) return;
+  // OLD
+  // // Create a proper socket initialization function
+  // // For App Router - socket client initialization
+  // const initializeSocket = () => {
+  //   if (socket) return;
 
-    // For App Router, we need to connect directly to the port we defined
-    const socketUrl = "http://localhost:3009";
-    // // How do i use nodeENV?
-    // const socketUrl =
-    //   process.env.NODE_ENV === "production"
-    //     ? window.location.origin
-    //     : "http://localhost:3001"; // Must match the port in route.ts
+  //   // For App Router, we need to connect directly to the port we defined
+  //   const socketUrl = "http://localhost:3009";
+  //   // // How do i use nodeENV? - /io idk about that...
+  //   // const socketUrl =
+  //   //   process.env.NODE_ENV === "production"
+  //   //     ? `${window.location.origin}/api/socket/io`
+  //   //     : "http://localhost:3009/api/socket/io"; // Match the path in GameServer
 
-    // First, initialize the socket API
-    fetch("/api/socket")
-      .then(() => {
-        // Connect directly (no path needed when using a separate port)
-        const newSocket = io(socketUrl);
+  //   // First, initialize the socket API
+  //   fetch("/api/socket")
+  //     .then(() => {
+  //       // Connect directly (no path needed when using a separate port)
+  //       const newSocket = io(socketUrl);
 
-        console.log("Socket connecting to:", socketUrl);
+  //       console.log("Socket connecting to:", socketUrl);
 
-        newSocket.on("connect", () => {
-          console.log("Socket connected successfully", newSocket.id);
-          newSocket.emit("login", username, gameMode);
-        });
+  //       newSocket.on("connect", () => {
+  //         console.log("Socket connected successfully", newSocket.id);
+  //         newSocket.emit("login", username, gameMode);
+  //       });
 
-        newSocket.on("connect_error", (err) => {
-          console.error("Socket connection error:", err);
-          setMessage(`Connection error: ${err.message}`);
-        });
+  //       newSocket.on("connect_error", (err) => {
+  //         console.error("Socket connection error:", err);
+  //         setMessage(`Connection error: ${err.message}`);
+  //       });
 
-        setSocket(newSocket);
-      })
-      .catch((err) => {
-        console.error("Socket fetch initialization error:", err);
-        setMessage("Failed to connect to game server");
-      });
-  };
+  //       setSocket(newSocket);
+  //     })
+  //     .catch((err) => {
+  //       console.error("Socket fetch initialization error:", err);
+  //       setMessage("Failed to connect to game server");
+  //     });
+  // };
 
   useEffect(() => {
     if (!socket) return;
