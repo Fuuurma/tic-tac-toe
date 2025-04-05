@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ClientToServerEvents,
   GameMode,
@@ -51,6 +51,58 @@ export default function Home() {
   );
 
   // ----- SOCKET ----- //
+
+  const initializeSocket = useCallback(() => {
+    // Prevent multiple initializations
+    if (socket?.connected) return;
+
+    // Ensure username is set before connecting
+    if (!username.trim()) {
+      setMessage("Please enter a username first.");
+      return;
+    }
+
+    console.log("Attempting to initialize socket connection...");
+    setMessage("Connecting to server...");
+
+    // Fetch to ensure the server-side initialization logic runs
+    fetch("/api/socket")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`API check failed: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data.status !== "running" && data.status !== "initializing") {
+          // Check status from API
+          throw new Error(`Socket server status: ${data.status || "unknown"}`);
+        }
+
+        // Determine Socket URL (use environment variables for production)
+        const socketUrl =
+          process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3009";
+        console.log("Connecting Socket.IO to:", socketUrl);
+
+        const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> =
+          io(socketUrl, {
+            // Optional: Add reconnection attempts, timeouts etc.
+            reconnectionAttempts: 5,
+            reconnectionDelay: 3000,
+            // Add query params if needed for auth, etc. (though login event is better)
+            // query: { username }
+          });
+
+        setSocket(newSocket); // Set socket state immediately
+      })
+      .catch((err) => {
+        console.error("Socket initialization error:", err);
+        setMessage(
+          `Connection failed: ${err.message}. Ensure server is running.`
+        );
+        setSocket(null); // Ensure socket is null on failure
+      });
+  }, [username, socket]); // Dependency: username, socket instance
 
   // OLD
   // // Create a proper socket initialization function
