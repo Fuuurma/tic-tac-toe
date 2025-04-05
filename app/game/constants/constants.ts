@@ -1,7 +1,7 @@
 // types/constants.ts
 
 export type BoardPosition = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-type WinningLine = [BoardPosition, BoardPosition, BoardPosition];
+export type WinningLine = [BoardPosition, BoardPosition, BoardPosition];
 
 export const WINNING_COMBINATIONS: WinningLine[] = [
   [0, 1, 2],
