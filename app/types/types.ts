@@ -78,6 +78,7 @@ export const initialGameState: GameState = {
   gameStatus: GameStatus.WAITING,
 };
 
+// ONLINE
 export interface ServerToClientEvents {
   updateGame: (gameState: GameState) => void;
   playerJoined: (playerInfo: { username: string; type: PlayerType }) => void;
@@ -90,4 +91,10 @@ export interface ClientToServerEvents {
   login: (username: string, gameMode: GameMode) => void;
   move: (index: number) => void;
   resetGame: () => void;
+}
+
+export interface GameRoom {
+  id: string;
+  players: string[];
+  state: GameState;
 }
