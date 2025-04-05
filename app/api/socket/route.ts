@@ -12,6 +12,27 @@ import { initialGameState } from "@/app/types/types";
 import { isOnlineGame } from "@/app/utils/gameModeChecks";
 import { NextResponse } from "next/server";
 import { Server } from "socket.io";
+import { GameServer } from "@/app/game/online/gameServer";
+
+// Create a global variable to store the HTTP server and GameServer instance
+let server: any;
+let gameServer: GameServer;
+
+export async function GET() {
+  if (!server) {
+    // Create a new HTTP server
+    server = createServer();
+
+    // Initialize the GameServer with our HTTP server
+    gameServer = new GameServer(server);
+
+    // Start the HTTP server
+    server.listen(3009);
+    console.log("Socket.IO server started on port 3009");
+  }
+
+  return NextResponse.json({ ok: true });
+}
 
 // // OLD - Was working - Now integrate GameServer class
 // // Create a global variable to store the Socket.IO server instance

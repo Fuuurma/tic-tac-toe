@@ -80,21 +80,32 @@ export const initialGameState: GameState = {
 
 // ONLINE
 export interface ServerToClientEvents {
-  updateGame: (gameState: GameState) => void;
-  playerJoined: (playerInfo: { username: string; type: PlayerType }) => void;
-  playerAssigned: (symbol: PlayerSymbol) => void;
-  gameReset: () => void;
-  error: (message: string) => void;
+  playerAssigned: (payload: { symbol: PlayerSymbol; roomId: string }) => void;
+  playerJoined: (payload: { username: string; symbol: PlayerSymbol }) => void;
+  playerLeft: (payload: { symbol: PlayerSymbol | null }) => void; // Send symbol of leaving player
+  gameStart: (gameState: GameState) => void; // Send initial state when game starts
+  gameUpdate: (gameState: GameState) => void; // Send updated state after move/event
+  gameReset: (gameState: GameState) => void; // Send state after reset
+  error: (message: string) => void; // Send error messages
 }
 
 export interface ClientToServerEvents {
-  login: (username: string, gameMode: GameMode) => void;
+  login: (username: string, color: Color) => void;
   move: (index: number) => void;
-  resetGame: () => void;
+  reset: () => void; // Change from 'resetGame'
+  disconnect: () => void; // Built-in event, but useful for typing
 }
 
 export interface GameRoom {
   id: string;
-  players: string[];
+  // Store socket IDs of players currently in the room
+  playerSocketIds: Set<string>;
+  // Game state specific to this room
   state: GameState;
+}
+
+export interface SocketData {
+  roomId?: string;
+  symbol?: PlayerSymbol;
+  username?: string;
 }

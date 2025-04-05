@@ -1,5 +1,11 @@
-import { GameRoom } from "@/app/types/types";
-import { Server } from "socket.io";
+import {
+  ClientToServerEvents,
+  GameRoom,
+  ServerToClientEvents,
+  SocketData,
+} from "@/app/types/types";
+import { Server, Socket } from "socket.io";
+
 import {
   GameStatus,
   PLAYER_CONFIG,
@@ -10,30 +16,79 @@ import { makeMove } from "../logic/makeMove";
 import { createOnlineGameState } from "./createOnlineGameState";
 
 export class GameServer {
-  private io: Server;
+  private io: Server<ClientToServerEvents, ServerToClientEvents, SocketData>;
   private rooms: Map<string, GameRoom> = new Map();
   private matchmaker = new Matchmaker();
 
   constructor(server: any) {
     this.io = new Server(server, {
       cors: { origin: "*", methods: ["GET", "POST"] },
-      path: "/api/socket/io",
+      // If running on a separate port, path might not be needed depending on client connection
+      // path: "/api/socket/io", // Keep if attaching to Next.js server on default port
     });
 
     this.setupEvents();
+    console.log("GameServer initialized");
   }
 
-  private setupEvents() {
+  private setupEvents(): void {
     this.io.on("connection", (socket) => {
-      console.log("User connected:", socket.id);
+      console.log(`User connected: ${socket.id}`);
 
-      socket.on("login", (username) => this.handleLogin(socket, username));
+      // Attach handlers with proper typing
+      socket.on("login", (username, color) =>
+        this.handleLogin(socket, username, color)
+      );
       socket.on("disconnect", () => this.handleDisconnect(socket));
       socket.on("move", (index) => this.handleMove(socket, index));
-      socket.on("reset", () => this.handleReset(socket));
+      socket.on("reset", () => this.handleReset(socket)); // Listen for 'reset'
+
+      // Optional: Error handler for socket middleware or general errors
+      socket.on("error", (err) => {
+        console.error(`Socket ${socket.id} error: ${err.message}`);
+        // Optionally disconnect socket on critical errors
+      });
     });
   }
 
+  // --- Room Management ---
+
+  private findAvailableRoomOrCreate(): GameRoom {
+    // 1. Find an existing room with less than 2 players
+    for (const room of this.rooms.values()) {
+      if (room.playerSocketIds.size < 2) {
+        console.log(`Found available room: ${room.id}`);
+        return room;
+      }
+    }
+
+    // 2. If no available room, create a new one
+    const newRoomId = `room-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 7)}`;
+    const newRoom: GameRoom = {
+      id: newRoomId,
+      playerSocketIds: new Set(),
+      state: createOnlineGameState(), // Use a function to get a fresh game state
+    };
+    this.rooms.set(newRoomId, newRoom);
+    console.log(`Created new room: ${newRoomId}`);
+    return newRoom;
+  }
+
+  private getRoomById(roomId: string): GameRoom | undefined {
+    return this.rooms.get(roomId);
+  }
+
+  // Helper to get room directly from socket data
+  private getPlayerRoom(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): GameRoom | undefined {
+    const roomId = socket.data.roomId;
+    return roomId ? this.getRoomById(roomId) : undefined;
+  }
+
+  // OLD
   private handleLogin(socket: any, username: string) {
     const roomId = this.matchmaker.findOrCreateRoom();
     const room = this.getOrCreateRoom(roomId);
@@ -89,13 +144,13 @@ export class GameServer {
     this.io.to(room.id).emit("gameUpdate", room.state);
   }
 
-  private getPlayerRoom(socket: any): GameRoom | undefined {
-    // Using type assertion to tell TypeScript these are strings
-    const rooms = Array.from(socket.rooms as Set<string>).filter(
-      (r) => r !== socket.id
-    );
-    return rooms.length > 0 ? this.rooms.get(rooms[0]) : undefined;
-  }
+  //   private getPlayerRoom(socket: any): GameRoom | undefined {
+  //     // Using type assertion to tell TypeScript these are strings
+  //     const rooms = Array.from(socket.rooms as Set<string>).filter(
+  //       (r) => r !== socket.id
+  //     );
+  //     return rooms.length > 0 ? this.rooms.get(rooms[0]) : undefined;
+  //   }
 
   private getPlayerSymbol(socket: any, room: GameRoom): PlayerSymbol | null {
     // Get player index in the room
