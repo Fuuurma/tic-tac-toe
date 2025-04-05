@@ -49,25 +49,61 @@ const initSocketServer = (() => {
 })();
 // --- End Singleton ---
 
-// Create a global variable to store the HTTP server and GameServer instance
-let server: any;
-let gameServer: GameServer;
-
+// This API route now primarily serves to ENSURE the server is running
+// and maybe return status, but doesn't handle socket connections directly.
 export async function GET() {
-  if (!server) {
-    // Create a new HTTP server
-    server = createServer();
+  try {
+    const { httpServer } = initSocketServer(); // Ensure the server starts if not already running
 
-    // Initialize the GameServer with our HTTP server
-    gameServer = new GameServer(server);
+    if (!httpServer?.listening) {
+      console.warn("Socket server HTTP instance not listening yet or failed.");
+      // Throw an error or return a specific status
+      return NextResponse.json({ status: "initializing" }, { status: 503 }); // Service Unavailable during init
+    }
 
-    // Start the HTTP server
-    server.listen(3009);
-    console.log("Socket.IO server started on port 3009");
+    // console.log("API route check: Socket server should be running.");
+    return NextResponse.json({ status: "running" });
+  } catch (error: any) {
+    console.error("Error in /api/socket GET handler:", error);
+    return NextResponse.json(
+      { error: "Failed to initialize socket server", details: error.message },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ ok: true });
 }
+
+/**
+ * IMPORTANT CONSIDERATIONS FOR DEPLOYMENT:
+ * 1. Stateful Server: Socket.IO requires a long-running, stateful server process.
+ * Serverless environments (like default Vercel deployments) are generally NOT suitable
+ * because they spin down instances. You'll likely need a traditional Node.js server
+ * hosting environment (like Vercel Hobby with persistent instances, Render, Railway, AWS EC2, etc.).
+ * 2. Separate Port: You need to ensure the port (e.g., 3009) is accessible and properly mapped
+ * in your deployment environment and that the client can reach it.
+ * 3. Environment Variables: Use process.env variables for the port (SOCKET_PORT) and potentially
+ * the client-side connection URL.
+ */
+
+// OLD
+// // Create a global variable to store the HTTP server and GameServer instance
+// let server: any;
+// let gameServer: GameServer;
+
+// export async function GET() {
+//   if (!server) {
+//     // Create a new HTTP server
+//     server = createServer();
+
+//     // Initialize the GameServer with our HTTP server
+//     gameServer = new GameServer(server);
+
+//     // Start the HTTP server
+//     server.listen(3009);
+//     console.log("Socket.IO server started on port 3009");
+//   }
+
+//   return NextResponse.json({ ok: true });
+// }
 
 // // OLD - Was working - Now integrate GameServer class
 // // Create a global variable to store the Socket.IO server instance
