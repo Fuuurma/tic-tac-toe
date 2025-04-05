@@ -360,31 +360,31 @@ export class GameServer {
   //     }
   //   }
 
-  private getOrCreateRoom(roomId: string): GameRoom {
-    if (!this.rooms.has(roomId)) {
-      this.rooms.set(roomId, {
-        id: roomId,
-        players: [],
-        state: createOnlineGameState(),
-      });
-    }
-    return this.rooms.get(roomId)!;
-  }
+//   private getOrCreateRoom(roomId: string): GameRoom {
+//     if (!this.rooms.has(roomId)) {
+//       this.rooms.set(roomId, {
+//         id: roomId,
+//         players: [],
+//         state: createOnlineGameState(),
+//       });
+//     }
+//     return this.rooms.get(roomId)!;
+//   }
 
-  private assignPlayer(socket: any, room: GameRoom, username: string) {
-    const symbol = room.players.length === 0 ? PlayerSymbol.X : PlayerSymbol.O;
+//   private assignPlayer(socket: any, room: GameRoom, username: string) {
+//     const symbol = room.players.length === 0 ? PlayerSymbol.X : PlayerSymbol.O;
 
-    room.state.players[symbol] = {
-      username,
-      symbol,
-      type: PlayerTypes.HUMAN,
-      color: PLAYER_CONFIG[symbol].defaultColor,
-      isActive: true,
-    };
+//     room.state.players[symbol] = {
+//       username,
+//       symbol,
+//       type: PlayerTypes.HUMAN,
+//       color: PLAYER_CONFIG[symbol].defaultColor,
+//       isActive: true,
+//     };
 
-    room.players.push(socket.id);
-    socket.emit("playerAssigned", { symbol, roomId: room.id });
-  }
+//     room.players.push(socket.id);
+//     socket.emit("playerAssigned", { symbol, roomId: room.id });
+//   }
 
   //   private handleMove(socket: any, index: number) {
   //     const room = this.getPlayerRoom(socket);
@@ -405,16 +405,16 @@ export class GameServer {
   //     return rooms.length > 0 ? this.rooms.get(rooms[0]) : undefined;
   //   }
 
-  private getPlayerSymbol(socket: any, room: GameRoom): PlayerSymbol | null {
-    // Get player index in the room
-    const playerIndex = room.players.indexOf(socket.id);
+//   private getPlayerSymbol(socket: any, room: GameRoom): PlayerSymbol | null {
+//     // Get player index in the room
+//     const playerIndex = room.players.indexOf(socket.id);
 
-    // If player is not in room, return null
-    if (playerIndex === -1) return null;
+//     // If player is not in room, return null
+//     if (playerIndex === -1) return null;
 
-    // First player (index 0) is X, second player (index 1) is O
-    return playerIndex === 0 ? PlayerSymbol.X : PlayerSymbol.O;
-  }
+//     // First player (index 0) is X, second player (index 1) is O
+//     return playerIndex === 0 ? PlayerSymbol.X : PlayerSymbol.O;
+//   }
 
   //   private handleDisconnect(socket: any) {
   //     const room = this.getPlayerRoom(socket);

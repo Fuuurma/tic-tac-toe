@@ -14,6 +14,41 @@ import { NextResponse } from "next/server";
 import { Server } from "socket.io";
 import { GameServer } from "@/app/game/online/gameServer";
 
+// --- Singleton Pattern for Server Initialization ---
+// Use a closure or a simple object to ensure server starts only once.
+const initSocketServer = (() => {
+  let gameServerInstance: GameServer | null = null;
+  let httpServer: ReturnType<typeof createServer> | null = null;
+
+  return () => {
+    if (!gameServerInstance) {
+      console.log("Initializing Socket.IO server...");
+      // Create a basic HTTP server instance (not linked to Next.js requests)
+      httpServer = createServer();
+
+      // Initialize the GameServer with this HTTP server
+      gameServerInstance = new GameServer(httpServer);
+
+      const port = parseInt(process.env.SOCKET_PORT || "3009", 10);
+      httpServer.listen(port, () => {
+        console.log(`✅ Socket.IO server listening on port ${port}`);
+      });
+
+      // Optional: Handle server errors
+      httpServer.on("error", (error) => {
+        console.error("HTTP Server Error:", error);
+        // Potentially reset instance state if needed
+        gameServerInstance = null;
+        httpServer = null;
+      });
+    } else {
+      console.log("Socket.IO server already running."); // Optional debug log
+    }
+    return { gameServerInstance, httpServer };
+  };
+})();
+// --- End Singleton ---
+
 // Create a global variable to store the HTTP server and GameServer instance
 let server: any;
 let gameServer: GameServer;
