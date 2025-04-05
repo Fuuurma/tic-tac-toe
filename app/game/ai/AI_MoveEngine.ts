@@ -8,6 +8,7 @@ import {
 import {
   CENTER_POSITION,
   CORNER_POSITIONS,
+  GAME_RULES,
   PlayerSymbol,
   SIDE_POSITIONS,
   WINNING_COMBINATIONS,
@@ -18,7 +19,7 @@ export class AI_MoveEngine {
   private state: GameState;
 
   constructor(gameState: GameState) {
-    this.state = { ...gameState };
+    this.state = structuredClone(gameState);
   }
 
   public getOptimalMove(): GameState {
@@ -45,7 +46,7 @@ export class AI_MoveEngine {
   private findStrategicMove(symbol: PlayerSymbol): GameState | null {
     for (const line of WINNING_COMBINATIONS) {
       const positions = this.getLineState(line);
-      const move = this.findCriticalMove(positions, symbol);
+      const move = this.findCriticalMove(line, positions, symbol);
       if (move !== null) return this.makeMove(move);
     }
     return null;
@@ -56,36 +57,32 @@ export class AI_MoveEngine {
   }
 
   private findCriticalMove(
+    line: WinningLine,
     positions: (PlayerSymbol | null)[],
     symbol: PlayerSymbol
   ): BoardPosition | null {
     const symbolCount = positions.filter((p) => p === symbol).length;
     const emptyIndex = positions.findIndex((p) => p === null);
 
-    if (symbolCount === 2 && emptyIndex !== -1) {
-      return positions[emptyIndex] === null
-        ? (positions[emptyIndex] as BoardPosition)
-        : null;
-    }
-    return null;
+    return symbolCount === 2 && emptyIndex !== -1 ? line[emptyIndex] : null;
   }
 
   private takeCenter(): GameState | null {
-    return this.state.board[CENTER_POSITION] === null
+    return this.isPositionAvailable(CENTER_POSITION)
       ? this.makeMove(CENTER_POSITION)
       : null;
   }
 
   private takeRandomCorner(): GameState | null {
-    return this.takeRandomPosition(CORNER_POSITIONS);
+    return this.takeRandomFrom(CORNER_POSITIONS);
   }
 
   private takeRandomSide(): GameState | null {
-    return this.takeRandomPosition(SIDE_POSITIONS);
+    return this.takeRandomFrom(SIDE_POSITIONS);
   }
 
-  private takeRandomPosition(positions: BoardPosition[]): GameState | null {
-    const available = positions.filter((pos) => this.state.board[pos] === null);
+  private takeRandomFrom(positions: BoardPosition[]): GameState | null {
+    const available = positions.filter((pos) => this.isPositionAvailable(pos));
     return available.length > 0
       ? this.makeMove(available[Math.floor(Math.random() * available.length)])
       : null;
@@ -93,33 +90,37 @@ export class AI_MoveEngine {
 
   private takeFirstAvailable(): GameState {
     const move = this.state.board.findIndex((cell) => cell === null);
+    if (move === -1) return this.state;
     return this.makeMove(move as BoardPosition);
   }
 
+  private isPositionAvailable(pos: BoardPosition): boolean {
+    return this.state.board[pos] === null;
+  }
+
   private makeMove(position: BoardPosition): GameState {
-    return {
-      ...this.state,
-      board: this.applyMoveToBoard(position),
-      moves: this.updateMoveHistory(position),
-      currentPlayer: PlayerSymbol.X,
-    };
+    const newState = structuredClone(this.state);
+
+    // Update board
+    newState.board[position] = PlayerSymbol.O;
+
+    // Update move history
+    const currentMoves = [...newState.moves[PlayerSymbol.O]];
+    if (currentMoves.length >= GAME_RULES.MAX_MOVES_PER_PLAYER) {
+      currentMoves.shift();
+    }
+    currentMoves.push(position);
+    newState.moves[PlayerSymbol.O] = currentMoves;
+
+    // Update game state
+    newState.currentPlayer = PlayerSymbol.X;
+    newState.nextToRemove[PlayerSymbol.O] = this.getNextToRemove(currentMoves);
+
+    return newState;
   }
 
-  private applyMoveToBoard(position: BoardPosition): CellValue[] {
-    const newBoard = [...this.state.board];
-    newBoard[position] = PlayerSymbol.O;
-    return newBoard;
-  }
-
-  private updateMoveHistory(position: BoardPosition): MovesHistory {
-    const moves = [...this.state.moves[PlayerSymbol.O]];
-    if (moves.length >= 3) moves.shift();
-    moves.push(position);
-
-    return {
-      ...this.state.moves,
-      [PlayerSymbol.O]: moves,
-    };
+  private getNextToRemove(moves: number[]): number | null {
+    return moves.length >= GAME_RULES.MAX_MOVES_PER_PLAYER ? moves[0] : null;
   }
 }
 

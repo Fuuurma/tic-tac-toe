@@ -29,6 +29,7 @@ import { CanMakeMove } from "./game/logic/canMakeMove";
 import { isAITurn } from "./game/ai/canAI_MakeMove";
 import { handleAI_Move } from "./game/ai/handleAI_Move";
 import { isValidMove } from "./game/logic/isValidMove";
+import { isVsComputer } from "./utils/gameModeChecks";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -50,20 +51,16 @@ export default function Home() {
     PLAYER_CONFIG[PlayerSymbol.O].defaultColor
   );
 
-  //socket should be used just for online game
+  // Set up socket listeners when socket is created
   useEffect(() => {
-    const newSocket = io() as Socket<
-      ServerToClientEvents,
-      ClientToServerEvents
-    >;
-    setSocket(newSocket);
+    if (!socket) return;
 
     // Listen for game updates
-    newSocket.on("updateGame", (newGameState) => {
+    socket.on("updateGame", (newGameState) => {
       setGameState(newGameState);
       setPlayerSymbol((prev) => {
         // If we're playing against computer, always set as X
-        if (newGameState.gameMode === GameModes.VS_COMPUTER) {
+        if (isVsComputer(newGameState)) {
           return PlayerSymbol.X;
         }
         return prev;
@@ -71,27 +68,74 @@ export default function Home() {
     });
 
     // Listen for player join events
-    newSocket.on("playerJoined", (playerInfo) => {
+    socket.on("playerJoined", (playerInfo) => {
       setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
       setTimeout(() => setMessage(""), 3000);
     });
 
     // Listen for game reset
-    newSocket.on("gameReset", () => {
+    socket.on("gameReset", () => {
       setMessage("Game has been reset");
       setTimeout(() => setMessage(""), 3000);
     });
 
     // Listen for errors
-    newSocket.on("error", (errorMessage) => {
+    socket.on("error", (errorMessage) => {
       setMessage(errorMessage);
       setTimeout(() => setMessage(""), 3000);
     });
 
+    // Clean up listeners when component unmounts or socket changes
     return () => {
-      newSocket.disconnect();
+      socket.off("updateGame");
+      socket.off("playerJoined");
+      socket.off("gameReset");
+      socket.off("error");
     };
-  }, []);
+  }, [socket]);
+
+  // //socket should be used just for online game
+  // useEffect(() => {
+  //   const newSocket = io() as Socket<
+  //     ServerToClientEvents,
+  //     ClientToServerEvents
+  //   >;
+  //   setSocket(newSocket);
+
+  //   // Listen for game updates
+  //   newSocket.on("updateGame", (newGameState) => {
+  //     setGameState(newGameState);
+  //     setPlayerSymbol((prev) => {
+  //       // If we're playing against computer, always set as X
+  //       if (newGameState.gameMode === GameModes.VS_COMPUTER) {
+  //         return PlayerSymbol.X;
+  //       }
+  //       return prev;
+  //     });
+  //   });
+
+  //   // Listen for player join events
+  //   newSocket.on("playerJoined", (playerInfo) => {
+  //     setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
+  //     setTimeout(() => setMessage(""), 3000);
+  //   });
+
+  //   // Listen for game reset
+  //   newSocket.on("gameReset", () => {
+  //     setMessage("Game has been reset");
+  //     setTimeout(() => setMessage(""), 3000);
+  //   });
+
+  //   // Listen for errors
+  //   newSocket.on("error", (errorMessage) => {
+  //     setMessage(errorMessage);
+  //     setTimeout(() => setMessage(""), 3000);
+  //   });
+
+  //   return () => {
+  //     newSocket.disconnect();
+  //   };
+  // }, []);
 
   // Effect for computer moves
   useEffect(() => {
@@ -103,10 +147,31 @@ export default function Home() {
   // User login
   const handleLogin = () => {
     if (username.trim()) {
-      if (socket && socket.connected && gameMode === GameModes.ONLINE) {
-        socket.emit("login", username, gameMode);
+      // For online mode, initialize socket connection if not already done
+      if (gameMode === GameModes.ONLINE) {
+        if (!socket) {
+          const newSocket = io() as Socket<
+            ServerToClientEvents,
+            ClientToServerEvents
+          >;
+          setSocket(newSocket);
+
+          // We'll emit login in the next render cycle after socket is set
+          setTimeout(() => {
+            newSocket.emit("login", username, gameMode);
+          }, 0);
+        } else {
+          socket.emit("login", username, gameMode);
+        }
       } else {
-        // Use createFreshGameState instead of initialGameState
+        // Local game modes don't need socket
+        if (socket) {
+          // Disconnect any existing socket for local play
+          socket.disconnect();
+          setSocket(null);
+        }
+
+        // Set up fresh local game state
         const updatedGameState = createFreshGameState();
 
         // Update player X (human player)

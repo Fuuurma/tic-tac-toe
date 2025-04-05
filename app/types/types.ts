@@ -16,7 +16,6 @@ export type GameMode = (typeof GameModes)[keyof typeof GameModes];
 export type BoardPosition = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type WinningLine = [BoardPosition, BoardPosition, BoardPosition];
 export type MovesHistory = number[];
-
 export interface PlayerConfig {
   username: string;
   color: Color;
