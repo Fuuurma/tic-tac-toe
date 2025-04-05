@@ -107,3 +107,16 @@ export class GameServer {
     }
   }
 }
+
+class Matchmaker {
+  private waitingRooms: string[] = [];
+
+  findOrCreateRoom(): string {
+    if (this.waitingRooms.length > 0) {
+      return this.waitingRooms.pop()!;
+    }
+    const newRoom = `room-${Date.now()}`;
+    this.waitingRooms.push(newRoom);
+    return newRoom;
+  }
+}
