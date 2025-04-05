@@ -122,43 +122,7 @@ export default function Home() {
       setPlayerSymbol(PlayerSymbol.X);
     }
 
-    // // old
-    // if (username.trim()) {
-    //   // For online mode, initialize socket connection if not already done
-    //   if (gameMode === GameModes.ONLINE) {
-    //     if (!socket) {
-    //       const newSocket = io() as Socket<
-    //         ServerToClientEvents,
-    //         ClientToServerEvents
-    //       >;
-    //       setSocket(newSocket);
-
-    //       // We'll emit login in the next render cycle after socket is set
-    //       setTimeout(() => {
-    //         newSocket.emit("login", username, gameMode);
-    //       }, 0);
-    //     } else {
-    //       socket.emit("login", username, gameMode);
-    //     }
-    //   } else {
-    //     // Local game modes don't need socket
-    //     if (socket) {
-    //       // Disconnect any existing socket for local play
-    //       socket.disconnect();
-    //       setSocket(null);
-    //     }
-
-    //     // Set up fresh local game state
-    //     const updatedGameState = createFreshGameState();
-
-    //     // Update player X (human player)
-    //     updatedGameState.players[PlayerSymbol.X] = {
-    //       username: username,
-    //       color: selectedColor,
-    //       symbol: PlayerSymbol.X,
-    //       type: PlayerTypes.HUMAN,
-    //       isActive: true,
-    //     };
+    setLoggedIn(true);
 
     //     // Setup player O based on game mode
     //     if (gameMode === GameModes.VS_COMPUTER) {
