@@ -98,9 +98,9 @@ export default function Home() {
   // Effect for computer moves
   useEffect(() => {
     if (isAITurn(gameState)) {
-      return handleAI_Move(gameState, socket, setGameState);
+      return handleAI_Move(gameState, setGameState);
     }
-  }, [gameState, socket]);
+  }, [gameState]);
 
   // User login
   const handleLogin = () => {

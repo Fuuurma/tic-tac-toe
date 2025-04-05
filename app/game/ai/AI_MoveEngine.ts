@@ -14,6 +14,7 @@ import {
   WINNING_COMBINATIONS,
 } from "../constants/constants";
 import { isAITurn } from "./canAI_MakeMove";
+import { checkWinner } from "../logic/checkWinner";
 
 export class AI_MoveEngine {
   private state: GameState;
@@ -101,20 +102,38 @@ export class AI_MoveEngine {
   private makeMove(position: BoardPosition): GameState {
     const newState = structuredClone(this.state);
 
-    // Update board
-    newState.board[position] = PlayerSymbol.O;
+    // Clone the moves array from the *original* state
+    const previousMoves = [...(this.state.moves[PlayerSymbol.O] || [])];
 
-    // Update move history
-    const currentMoves = [...newState.moves[PlayerSymbol.O]];
-    if (currentMoves.length >= GAME_RULES.MAX_MOVES_PER_PLAYER) {
-      currentMoves.shift();
+    // Remove oldest if needed
+    if (previousMoves.length >= GAME_RULES.MAX_MOVES_PER_PLAYER) {
+      const oldest = previousMoves.shift();
+      if (oldest !== undefined) {
+        newState.board[oldest] = null;
+      }
     }
-    currentMoves.push(position);
-    newState.moves[PlayerSymbol.O] = currentMoves;
 
-    // Update game state
-    newState.currentPlayer = PlayerSymbol.X;
-    newState.nextToRemove[PlayerSymbol.O] = this.getNextToRemove(currentMoves);
+    // Add the new move
+    newState.board[position] = PlayerSymbol.O;
+    previousMoves.push(position);
+
+    // Assign updated moves safely
+    newState.moves[PlayerSymbol.O] = previousMoves;
+
+    // Handle nextToRemove
+    newState.nextToRemove[PlayerSymbol.O] =
+      previousMoves.length >= GAME_RULES.MAX_MOVES_PER_PLAYER
+        ? previousMoves[0]
+        : null;
+
+    // Winner check
+    const winResult = checkWinner(newState.board);
+    newState.winner = winResult === "draw" ? "draw" : winResult ?? null;
+
+    // Switch turn if game still active
+    if (!newState.winner) {
+      newState.currentPlayer = PlayerSymbol.X;
+    }
 
     return newState;
   }
