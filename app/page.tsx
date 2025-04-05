@@ -30,6 +30,7 @@ import { isAITurn } from "./game/ai/canAI_MakeMove";
 import { handleAI_Move } from "./game/ai/handleAI_Move";
 import { isValidMove } from "./game/logic/isValidMove";
 import { isVsComputer } from "./utils/gameModeChecks";
+import PageFooter from "@/components/common/pageFooter";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -217,7 +218,7 @@ export default function Home() {
     if (!isValidMove(gameState, index, loggedIn)) return;
 
     if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
-      if (socket && socket.connected) {
+      if (socket && socket.connected && gameMode === GameModes.ONLINE) {
         socket.emit("move", index);
       } else {
         const newState = makeMove(gameState, index);
@@ -230,7 +231,7 @@ export default function Home() {
   };
 
   const resetGame = () => {
-    if (socket && socket.connected) {
+    if (socket && socket.connected && gameMode === GameModes.ONLINE) {
       socket.emit("resetGame");
     } else {
       const freshState = createFreshGameState();
@@ -267,6 +268,18 @@ export default function Home() {
     }
   };
 
+  const exitGame = () => {
+    setLoggedIn(false);
+    setGameState(createFreshGameState());
+    setPlayerSymbol(null);
+
+    // Clean up socket connection if exiting
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
+    }
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-4
@@ -299,26 +312,12 @@ export default function Home() {
           message={message}
           handleCellClick={handleCellClick}
           resetGame={resetGame}
-          exitGame={() => {
-            setLoggedIn(false);
-            setGameState(createFreshGameState());
-            setPlayerSymbol(null);
-          }}
+          exitGame={exitGame}
         />
       )}
       <DevPanel gameState={gameState} username={username} socket={socket} />
 
-      <footer className="mt-auto py-4 text-center text-sm text-muted-foreground">
-        Created by{" "}
-        <a
-          href="https://github.com/fuuurma"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-primary"
-        >
-          @fuuurma
-        </a>
-      </footer>
+      <PageFooter />
     </div>
   );
 }
