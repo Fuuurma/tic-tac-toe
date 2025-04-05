@@ -292,50 +292,50 @@ export default function Home() {
   //     });
   // };
 
-  useEffect(() => {
-    if (!socket) return;
+  // useEffect(() => {
+  //   if (!socket) return;
 
-    // Listen for player symbol assignment
-    socket.on("playerAssigned", (symbol) => {
-      setPlayerSymbol(symbol);
-    });
+  //   // Listen for player symbol assignment
+  //   socket.on("playerAssigned", (symbol) => {
+  //     setPlayerSymbol(symbol);
+  //   });
 
-    // Listen for game updates
-    socket.on("updateGame", (newGameState) => {
-      setGameState(newGameState);
-      // For computer games, always be X
-      if (isVsComputer(newGameState) && playerSymbol !== PlayerSymbol.X) {
-        setPlayerSymbol(PlayerSymbol.X);
-      }
-    });
+  //   // Listen for game updates
+  //   socket.on("updateGame", (newGameState) => {
+  //     setGameState(newGameState);
+  //     // For computer games, always be X
+  //     if (isVsComputer(newGameState) && playerSymbol !== PlayerSymbol.X) {
+  //       setPlayerSymbol(PlayerSymbol.X);
+  //     }
+  //   });
 
-    // Listen for player join events
-    socket.on("playerJoined", (playerInfo) => {
-      setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
-      setTimeout(() => setMessage(""), 3000);
-    });
+  //   // Listen for player join events
+  //   socket.on("playerJoined", (playerInfo) => {
+  //     setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
+  //     setTimeout(() => setMessage(""), 3000);
+  //   });
 
-    // Listen for game reset
-    socket.on("gameReset", () => {
-      setMessage("Game has been reset");
-      setTimeout(() => setMessage(""), 3000);
-    });
+  //   // Listen for game reset
+  //   socket.on("gameReset", () => {
+  //     setMessage("Game has been reset");
+  //     setTimeout(() => setMessage(""), 3000);
+  //   });
 
-    // Listen for errors
-    socket.on("error", (errorMessage) => {
-      setMessage(errorMessage);
-      setTimeout(() => setMessage(""), 3000);
-    });
+  //   // Listen for errors
+  //   socket.on("error", (errorMessage) => {
+  //     setMessage(errorMessage);
+  //     setTimeout(() => setMessage(""), 3000);
+  //   });
 
-    // Clean up listeners when component unmounts or socket changes
-    return () => {
-      socket.off("playerAssigned");
-      socket.off("updateGame");
-      socket.off("playerJoined");
-      socket.off("gameReset");
-      socket.off("error");
-    };
-  }, [socket, playerSymbol]);
+  //   // Clean up listeners when component unmounts or socket changes
+  //   return () => {
+  //     socket.off("playerAssigned");
+  //     socket.off("updateGame");
+  //     socket.off("playerJoined");
+  //     socket.off("gameReset");
+  //     socket.off("error");
+  //   };
+  // }, [socket, playerSymbol]);
 
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
