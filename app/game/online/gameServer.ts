@@ -172,6 +172,73 @@ export class GameServer {
     }
   }
 
+  private handleMove(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    index: number
+  ): void {
+    const room = this.getPlayerRoom(socket);
+    const playerSymbol = socket.data.symbol;
+
+    // Validations
+    if (!room) {
+      socket.emit("error", "Not in a valid room.");
+      return;
+    }
+    if (!playerSymbol) {
+      socket.emit("error", "Player symbol not assigned.");
+      return;
+    }
+    if (room.state.gameStatus !== GameStatus.ACTIVE) {
+      socket.emit("error", "Game is not active.");
+      return;
+    }
+    if (room.state.winner) return socket.emit("error", "Game is already over.");
+    if (playerSymbol !== room.state.currentPlayer)
+      return socket.emit("error", "Not your turn.");
+    if (
+      index < 0 ||
+      index >= room.state.board.length ||
+      room.state.board[index] !== null
+    ) {
+      return socket.emit("error", "Invalid move.");
+    }
+
+    console.log(
+      `Player ${playerSymbol} in room ${room.id} attempts move at index ${index}`
+    );
+
+    // Apply the move using the game logic function
+    try {
+      room.state = makeMove(room.state, index); // Update the state IN PLACE
+      console.log(
+        `Move successful in room ${room.id}. New current player: ${room.state.currentPlayer}`
+      );
+
+      // Broadcast the updated state to everyone in the room
+      this.io.to(room.id).emit("gameUpdate", room.state);
+
+      // Check if game ended after the move
+      if (room.state.winner) {
+        room.state.gameStatus = GameStatus.COMPLETED;
+        console.log(
+          `Game finished in room ${room.id}. Winner: ${room.state.winner}`
+        );
+        // No extra emit needed here, gameUpdate already sent the winning state
+      } else if (
+        room.state.gameStatus === GameStatus.ACTIVE &&
+        room.state.players[room.state.currentPlayer].type ===
+          PlayerTypes.COMPUTER
+      ) {
+        // If it's now an AI's turn (e.g., placeholder AI in online mode?)
+        // This logic might not belong here if online is strictly Human vs Human
+        console.log("AI turn logic triggered (if applicable)");
+      }
+    } catch (error: any) {
+      console.error(`Error during move in room ${room.id}: ${error.message}`);
+      socket.emit("error", `Move failed: ${error.message || "Unknown error"}`);
+    }
+  }
+
   // OLD
   //   private handleLogin(socket: any, username: string) {
   //     const roomId = this.matchmaker.findOrCreateRoom();
@@ -217,16 +284,16 @@ export class GameServer {
     socket.emit("playerAssigned", { symbol, roomId: room.id });
   }
 
-  private handleMove(socket: any, index: number) {
-    const room = this.getPlayerRoom(socket);
-    if (!room || room.state.winner) return;
+  //   private handleMove(socket: any, index: number) {
+  //     const room = this.getPlayerRoom(socket);
+  //     if (!room || room.state.winner) return;
 
-    const playerSymbol = this.getPlayerSymbol(socket, room);
-    if (playerSymbol !== room.state.currentPlayer) return;
+  //     const playerSymbol = this.getPlayerSymbol(socket, room);
+  //     if (playerSymbol !== room.state.currentPlayer) return;
 
-    room.state = makeMove(room.state, index);
-    this.io.to(room.id).emit("gameUpdate", room.state);
-  }
+  //     room.state = makeMove(room.state, index);
+  //     this.io.to(room.id).emit("gameUpdate", room.state);
+  //   }
 
   //   private getPlayerRoom(socket: any): GameRoom | undefined {
   //     // Using type assertion to tell TypeScript these are strings
