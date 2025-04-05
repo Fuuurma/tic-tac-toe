@@ -8,6 +8,7 @@ import {
   PlayerTypes,
 } from "../constants/constants";
 import { makeMove } from "../logic/makeMove";
+import { createOnlineGameState } from "./createOnlineGameState";
 
 export class GameServer {
   private io: Server;
@@ -52,7 +53,7 @@ export class GameServer {
       this.rooms.set(roomId, {
         id: roomId,
         players: [],
-        state: createGameState(GameModes.ONLINE),
+        state: createOnlineGameState(),
       });
     }
     return this.rooms.get(roomId)!;
@@ -85,8 +86,22 @@ export class GameServer {
   }
 
   private getPlayerRoom(socket: any): GameRoom | undefined {
-    const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+    // Using type assertion to tell TypeScript these are strings
+    const rooms = Array.from(socket.rooms as Set<string>).filter(
+      (r) => r !== socket.id
+    );
     return rooms.length > 0 ? this.rooms.get(rooms[0]) : undefined;
+  }
+
+  private getPlayerSymbol(socket: any, room: GameRoom): PlayerSymbol | null {
+    // Get player index in the room
+    const playerIndex = room.players.indexOf(socket.id);
+
+    // If player is not in room, return null
+    if (playerIndex === -1) return null;
+
+    // First player (index 0) is X, second player (index 1) is O
+    return playerIndex === 0 ? PlayerSymbol.X : PlayerSymbol.O;
   }
 
   private handleDisconnect(socket: any) {
@@ -102,7 +117,7 @@ export class GameServer {
   private handleReset(socket: any) {
     const room = this.getPlayerRoom(socket);
     if (room) {
-      room.state = createGameState(GameModes.ONLINE);
+      room.state = createOnlineGameState();
       this.io.to(room.id).emit("gameReset", room.state);
     }
   }
