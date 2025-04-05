@@ -346,12 +346,16 @@ export default function Home() {
 
   // ----- USER LOGIN ----- //
   const handleLogin = () => {
-    if (!username.trim()) return;
+    if (!username.trim()) {
+      setMessage("Please enter a username.");
+      return;
+    }
 
     if (gameMode === GameModes.ONLINE) {
+      // Initialize socket connection (will emit login on connect)
       initializeSocket();
-
-      // initializeSocketConnection(username, gameMode, socket, setSocket);
+      setLoggedIn(true); // Set loggedIn immediately for UI change
+      setMessage("Connecting...");
     } else {
       // cleanupSocketConnection(gameMode, socket);
       setGameState(
@@ -374,25 +378,48 @@ export default function Home() {
 
   // ----- USER MOVES ----- //
   const handleCellClick = (index: number) => {
-    if (!isValidMove(gameState, index, loggedIn)) return;
+    if (!loggedIn) return;
 
-    if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
-      if (socket && socket.connected && gameMode === GameModes.ONLINE) {
-        socket.emit("move", index);
-      } else {
+    // ONLINE
+    if (gameMode === GameModes.ONLINE) {
+      if (!socket || !socket.connected) {
+        setMessage("Not connected to server.");
+        return;
+      }
+      if (playerSymbol !== gameState.currentPlayer) {
+        setMessage("It's not your turn.");
+        return;
+      }
+      if (gameState.board[index] !== null || gameState.winner) {
+        setMessage("Invalid move.");
+        return;
+      }
+      // If all checks pass, emit the move
+      socket.emit("move", index);
+    }
+    // LOCAL
+    else {
+      if (!isValidMove(gameState, index, loggedIn)) return;
+
+      if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
         const newState = makeMove(gameState, index);
         setGameState(newState);
+      } else {
+        setMessage("It's not your turn");
+        setTimeout(() => setMessage(""), 2000);
       }
-    } else {
-      setMessage("It's not your turn");
-      setTimeout(() => setMessage(""), 2000);
     }
   };
 
   // ----- RESET GAME ----- //
   const resetGame = () => {
-    if (socket && socket.connected && gameMode === GameModes.ONLINE) {
-      socket.emit("resetGame");
+    if (gameMode === GameModes.ONLINE) {
+      if (socket && socket.connected) {
+        // Optional: Add confirmation dialog?
+        socket.emit("reset"); // Emit 'reset'
+      } else {
+        setMessage("Not connected to server.");
+      }
     } else {
       setGameState(
         createInitialGameState(username, gameMode, {
@@ -409,8 +436,11 @@ export default function Home() {
     setLoggedIn(false);
     setGameState(createFreshGameState());
     setPlayerSymbol(null);
+    setMessage(""); // Clear any messages
+    setOpponentName(""); // Clear opponent name
 
     if (socket) {
+      console.log("Disconnecting socket on exit...");
       socket.disconnect();
       setSocket(null);
     }
