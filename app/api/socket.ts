@@ -7,6 +7,13 @@ import {
 } from "../types/types";
 import { makeMove } from "../game/logic/makeMove";
 import { computerMove } from "../game/ai/logic";
+import {
+  GameModes,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+  PlayerTypes,
+} from "../game/constants/constants";
+import { isOnlineGame } from "../utils/gameModeChecks";
 
 export default function handler(req: any, res: any) {
   if (!res.socket.server.io) {
@@ -17,6 +24,9 @@ export default function handler(req: any, res: any) {
     res.socket.server.io = io;
 
     let gameState: GameState = { ...initialGameState };
+
+    if (!isOnlineGame(gameState)) return;
+
     const connectedUsers = new Map<string, string>(); // socketId -> username
 
     io.on("connection", (socket) => {
@@ -29,9 +39,12 @@ export default function handler(req: any, res: any) {
         // Set the game mode
         gameState.gameMode = gameMode;
 
+        if (!isOnlineGame(gameState)) return;
+
         // Assign player type and opponent
-        if (gameMode === GameModes.VS_COMPUTER) {
-          // For computer mode, player is always X, computer is O
+        let playerType = null;
+
+        if (!gameState.players[PlayerSymbol.X]?.username) {
           gameState.players[PlayerSymbol.X] = {
             username,
             color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
@@ -39,52 +52,28 @@ export default function handler(req: any, res: any) {
             type: PlayerTypes.HUMAN,
             isActive: true,
           };
-
+          playerType = PlayerTypes.HUMAN;
+        } else if (!gameState.players[PlayerSymbol.O]?.username) {
           gameState.players[PlayerSymbol.O] = {
-            username: "Computer",
+            username,
             color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
             symbol: PlayerSymbol.O,
-            type: PlayerTypes.AI,
+            type: PlayerTypes.HUMAN,
             isActive: true,
           };
-
-          // Emit to only this player
-          socket.emit("updateGame", gameState);
-        } else {
-          // For human vs human mode
-          let playerType = null;
-
-          if (!gameState.players[PlayerSymbol.X]?.username) {
-            gameState.players[PlayerSymbol.X] = {
-              username,
-              color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
-              symbol: PlayerSymbol.X,
-              type: PlayerTypes.HUMAN,
-              isActive: true,
-            };
-            playerType = PlayerTypes.HUMAN;
-          } else if (!gameState.players[PlayerSymbol.O]?.username) {
-            gameState.players[PlayerSymbol.O] = {
-              username,
-              color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
-              symbol: PlayerSymbol.O,
-              type: PlayerTypes.HUMAN,
-              isActive: true,
-            };
-            playerType = PlayerTypes.HUMAN;
-          }
-
-          // Notify player joining
-          if (playerType) {
-            io.emit("playerJoined", {
-              username,
-              type: playerType,
-            });
-          }
-
-          // Broadcast to all connected clients
-          io.emit("updateGame", gameState);
+          playerType = PlayerTypes.HUMAN;
         }
+
+        // Notify player joining
+        if (playerType) {
+          io.emit("playerJoined", {
+            username,
+            type: playerType,
+          });
+        }
+
+        // Broadcast to all connected clients
+        io.emit("updateGame", gameState);
       });
 
       // Handle moves
