@@ -1,3 +1,12 @@
+import { getInitialGameStatus } from "@/app/utils/getInitialGameStatus";
+import { createFreshGameState } from "./newGameState";
+import { GameMode, GameState } from "@/app/types/types";
+import { Color, PlayerSymbol, PlayerTypes } from "../constants/constants";
+import { createPlayerConfig } from "@/app/utils/createPlayerConfig";
+import { getOpponentName } from "@/app/utils/getOpponentName";
+import { shouldActivateOpponent } from "@/app/utils/shouldActivateOpponent";
+import { getOpponentType } from "@/app/utils/getOpponentType";
+
 export const createInitialGameState = (
   username: string,
   gameMode: GameMode,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ClientToServerEvents,
   GameMode,
@@ -10,7 +10,6 @@ import {
 } from "./types/types";
 import { io, Socket } from "socket.io-client";
 
-import { computerMove } from "./game/ai/logic";
 import { makeMove } from "./game/logic/makeMove";
 import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
@@ -31,6 +30,7 @@ import { handleAI_Move } from "./game/ai/handleAI_Move";
 import { isValidMove } from "./game/logic/isValidMove";
 import { isVsComputer } from "./utils/gameModeChecks";
 import PageFooter from "@/components/common/pageFooter";
+import { initializeSocketConnection } from "./api/initSocketConnection";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -104,6 +104,23 @@ export default function Home() {
 
   // User login
   const handleLogin = () => {
+    if (!username.trim()) return;
+
+    if (gameMode === GameModes.ONLINE) {
+      initializeSocketConnection(username, gameMode, socket, setSocket);
+    } else {
+      cleanupSocketConnection(gameMode, socket);
+      setGameState(
+        createLocalGameState(username, gameMode, {
+          opponentName,
+          playerColor: selectedColor,
+          opponentColor,
+        })
+      );
+      setPlayerSymbol(PlayerSymbol.X);
+    }
+
+    // old
     if (username.trim()) {
       // For online mode, initialize socket connection if not already done
       if (gameMode === GameModes.ONLINE) {
