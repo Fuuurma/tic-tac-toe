@@ -179,42 +179,6 @@ export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
-// NOPE
-// interface SocketServer extends HTTPServer {
-//   io?: Server;
-// }
-
-// interface SocketWithIO extends NetSocket {
-//   server: SocketServer;
-// }
-
-// interface NextApiResponseWithSocket extends NextApiResponse {
-//   socket: SocketWithIO;
-// }
-
-// export default function handler(
-//   req: NextApiRequest,
-//   res: NextApiResponseWithSocket
-// ) {
-//   if (req.method !== "GET") {
-//     res.status(405).json({ error: "Method not allowed" });
-//     return;
-//   }
-
-//   if (!res.socket.server.io) {
-//     console.log("Setting up socket server...");
-
-//     const io = new Server(res.socket.server, {
-//       path: "/api/socket",
-//       addTrailingSlash: false,
-//       cors: {
-//         origin: "*",
-//         methods: ["GET", "POST"],
-//       },
-//     });
-
-//     res.socket.server.io = io;
-
 //     let gameState = { ...initialGameState };
 //     const connectedUsers = new Map(); // socketId -> username
 
