@@ -95,49 +95,6 @@ export default function Home() {
     };
   }, [socket]);
 
-  // //socket should be used just for online game
-  // useEffect(() => {
-  //   const newSocket = io() as Socket<
-  //     ServerToClientEvents,
-  //     ClientToServerEvents
-  //   >;
-  //   setSocket(newSocket);
-
-  //   // Listen for game updates
-  //   newSocket.on("updateGame", (newGameState) => {
-  //     setGameState(newGameState);
-  //     setPlayerSymbol((prev) => {
-  //       // If we're playing against computer, always set as X
-  //       if (newGameState.gameMode === GameModes.VS_COMPUTER) {
-  //         return PlayerSymbol.X;
-  //       }
-  //       return prev;
-  //     });
-  //   });
-
-  //   // Listen for player join events
-  //   newSocket.on("playerJoined", (playerInfo) => {
-  //     setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
-  //     setTimeout(() => setMessage(""), 3000);
-  //   });
-
-  //   // Listen for game reset
-  //   newSocket.on("gameReset", () => {
-  //     setMessage("Game has been reset");
-  //     setTimeout(() => setMessage(""), 3000);
-  //   });
-
-  //   // Listen for errors
-  //   newSocket.on("error", (errorMessage) => {
-  //     setMessage(errorMessage);
-  //     setTimeout(() => setMessage(""), 3000);
-  //   });
-
-  //   return () => {
-  //     newSocket.disconnect();
-  //   };
-  // }, []);
-
   // Effect for computer moves
   useEffect(() => {
     if (isAITurn(gameState)) {
