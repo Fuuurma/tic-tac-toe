@@ -23,33 +23,63 @@ export default function handler(req: any, res: any) {
       console.log("A user connected:", socket.id);
 
       // Handle user login
-      socket.on("login", (username, mode) => {
+      socket.on("login", (username, gameMode) => {
         connectedUsers.set(socket.id, username);
 
         // Set the game mode
-        gameState.gameMode = mode;
+        gameState.gameMode = gameMode;
 
         // Assign player type and opponent
-        if (mode === "computer") {
+        if (gameMode === GameModes.VS_COMPUTER) {
           // For computer mode, player is always X, computer is O
-          gameState.players.X = username;
-          gameState.players.O = "Computer";
+          gameState.players[PlayerSymbol.X] = {
+            username,
+            color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
+            symbol: PlayerSymbol.X,
+            type: PlayerTypes.HUMAN,
+            isActive: true,
+          };
+
+          gameState.players[PlayerSymbol.O] = {
+            username: "Computer",
+            color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
+            symbol: PlayerSymbol.O,
+            type: PlayerTypes.AI,
+            isActive: true,
+          };
+
           // Emit to only this player
           socket.emit("updateGame", gameState);
         } else {
           // For human vs human mode
           let playerType = null;
-          if (!gameState.players.X) {
-            gameState.players.X = username;
-            playerType = "X";
-          } else if (!gameState.players.O) {
-            gameState.players.O = username;
-            playerType = "O";
+
+          if (!gameState.players[PlayerSymbol.X]?.username) {
+            gameState.players[PlayerSymbol.X] = {
+              username,
+              color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
+              symbol: PlayerSymbol.X,
+              type: PlayerTypes.HUMAN,
+              isActive: true,
+            };
+            playerType = PlayerTypes.HUMAN;
+          } else if (!gameState.players[PlayerSymbol.O]?.username) {
+            gameState.players[PlayerSymbol.O] = {
+              username,
+              color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
+              symbol: PlayerSymbol.O,
+              type: PlayerTypes.HUMAN,
+              isActive: true,
+            };
+            playerType = PlayerTypes.HUMAN;
           }
 
           // Notify player joining
           if (playerType) {
-            io.emit("playerJoined", { username, type: playerType });
+            io.emit("playerJoined", {
+              username,
+              type: playerType,
+            });
           }
 
           // Broadcast to all connected clients
@@ -62,11 +92,11 @@ export default function handler(req: any, res: any) {
         const username = connectedUsers.get(socket.id);
         if (!username) return;
 
-        if (gameState.gameMode === "computer") {
+        if (gameState.gameMode === GameModes.VS_COMPUTER) {
           // In computer mode, only allow player X (human) to make direct moves
           if (
-            gameState.players.X !== username ||
-            gameState.currentPlayer !== "X"
+            gameState.players[PlayerSymbol.X].username !== username ||
+            gameState.currentPlayer !== PlayerSymbol.X
           ) {
             socket.emit("error", "It's not your turn");
             return;
@@ -77,23 +107,24 @@ export default function handler(req: any, res: any) {
           io.emit("updateGame", gameState);
 
           // If it's computer's turn and no winner yet, make computer move
-          if (gameState.currentPlayer === "O" && !gameState.winner) {
+          if (gameState.currentPlayer === PlayerSymbol.O && !gameState.winner) {
             setTimeout(() => {
-              gameState = computerMove(gameState);
+              const aiEngine = new AI_MoveEngine(gameState);
+              gameState = aiEngine.getOptimalMove();
               io.emit("updateGame", gameState);
             }, 700);
           }
         } else {
           // Human vs human mode
           // Check if it's this player's turn
-          const playerType =
-            gameState.players.X === username
-              ? "X"
-              : gameState.players.O === username
-              ? "O"
+          const playerSymbol =
+            gameState.players[PlayerSymbol.X].username === username
+              ? PlayerSymbol.X
+              : gameState.players[PlayerSymbol.O].username === username
+              ? PlayerSymbol.O
               : null;
 
-          if (playerType !== gameState.currentPlayer) {
+          if (playerSymbol !== gameState.currentPlayer) {
             socket.emit("error", "It's not your turn");
             return;
           }
@@ -113,21 +144,9 @@ export default function handler(req: any, res: any) {
 
         // Only players can reset
         if (
-          gameState.players.X === username ||
-          gameState.players.O === username
+          gameState.players[PlayerSymbol.X].username === username ||
+          gameState.players[PlayerSymbol.O].username === username
         ) {
-          // const mode = gameState.gameMode;
-          // const players = {
-          //   X: mode === "computer" ? username : gameState.players.X,
-          //   O: mode === "computer" ? "Computer" : gameState.players.O,
-          // };
-
-          // gameState = {
-          //   ...initialGameState,
-          //   players,
-          //   gameMode: mode,
-          // };
-
           const freshState = {
             ...initialGameState,
             players: { ...gameState.players }, // Keep the same players
@@ -148,15 +167,20 @@ export default function handler(req: any, res: any) {
 
         if (username) {
           // Remove player if they disconnect
-          if (gameState.players.X === username) {
-            gameState.players.X = null;
-          } else if (gameState.players.O === username) {
-            gameState.players.O = null;
+          if (gameState.players[PlayerSymbol.X].username === username) {
+            gameState.players[PlayerSymbol.X].isActive = false;
+            gameState.players[PlayerSymbol.X].username = "";
+          } else if (gameState.players[PlayerSymbol.O].username === username) {
+            gameState.players[PlayerSymbol.O].isActive = false;
+            gameState.players[PlayerSymbol.O].username = "";
           }
           connectedUsers.delete(socket.id);
 
           // If both players are gone, reset the game
-          if (!gameState.players.X && !gameState.players.O) {
+          if (
+            !gameState.players[PlayerSymbol.X].isActive &&
+            !gameState.players[PlayerSymbol.O].isActive
+          ) {
             gameState = { ...initialGameState };
           }
 

@@ -54,7 +54,7 @@ export default function Home() {
     PLAYER_CONFIG[PlayerSymbol.O].defaultColor
   );
 
-  // Set up socket listeners when socket is created
+  // ----- SOCKET ----- //
   useEffect(() => {
     if (!socket) return;
 
@@ -97,14 +97,14 @@ export default function Home() {
     };
   }, [socket]);
 
-  // Effect for computer moves
+  // ----- COMPUTER MOVES ----- //
   useEffect(() => {
     if (isAITurn(gameState)) {
       return handleAI_Move(gameState, setGameState);
     }
   }, [gameState]);
 
-  // User login
+  // ----- USER LOGIN ----- //
   const handleLogin = () => {
     if (!username.trim()) return;
 
@@ -125,6 +125,7 @@ export default function Home() {
     setLoggedIn(true);
   };
 
+  // ----- USER MOVES ----- //
   const handleCellClick = (index: number) => {
     if (!isValidMove(gameState, index, loggedIn)) return;
 
@@ -141,6 +142,7 @@ export default function Home() {
     }
   };
 
+  // ----- RESET GAME ----- //
   const resetGame = () => {
     if (socket && socket.connected && gameMode === GameModes.ONLINE) {
       socket.emit("resetGame");
@@ -152,47 +154,15 @@ export default function Home() {
           opponentColor,
         })
       );
-
-      const freshState = createFreshGameState();
-
-      freshState.players[PlayerSymbol.X] = {
-        username: username,
-        color: selectedColor,
-        symbol: PlayerSymbol.X,
-        type: PlayerTypes.HUMAN,
-        isActive: true,
-      };
-
-      freshState.players[PlayerSymbol.O] = {
-        username:
-          gameMode === GameModes.VS_COMPUTER
-            ? "Computer"
-            : opponentName || "Player 2",
-        color: opponentColor,
-        symbol: PlayerSymbol.O,
-        type:
-          gameMode === GameModes.VS_COMPUTER
-            ? PlayerTypes.COMPUTER
-            : PlayerTypes.HUMAN,
-        isActive: gameMode === GameModes.VS_COMPUTER,
-      };
-
-      freshState.gameMode = gameMode;
-      freshState.gameStatus =
-        gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND
-          ? GameStatus.ACTIVE
-          : GameStatus.WAITING;
-
-      setGameState(freshState);
     }
   };
 
+  // ----- EXIT GAME ----- //
   const exitGame = () => {
     setLoggedIn(false);
     setGameState(createFreshGameState());
     setPlayerSymbol(null);
 
-    // Clean up socket connection if exiting
     if (socket) {
       socket.disconnect();
       setSocket(null);
