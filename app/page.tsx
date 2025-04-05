@@ -17,6 +17,7 @@ import UserMenu from "@/components/menu/menu";
 import {
   Color,
   GameModes,
+  GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "./game/constants/constants";
@@ -103,6 +104,153 @@ export default function Home() {
         setSocket(null); // Ensure socket is null on failure
       });
   }, [username, socket]); // Dependency: username, socket instance
+
+  // ----- SOCKET EVENT LISTENERS ----- //
+  useEffect(() => {
+    if (!socket) return;
+
+    // --- Connection Handling ---
+    const handleConnect = () => {
+      console.log("Socket connected:", socket.id);
+      setMessage("Connected! Waiting for opponent...");
+      // Emit login *after* successful connection
+      socket.emit("login", username, selectedColor); // Send username and preferred color
+    };
+
+    const handleDisconnect = (reason: Socket.DisconnectReason) => {
+      console.log("Socket disconnected:", reason);
+      setMessage(`Disconnected: ${reason}. Attempting to reconnect...`);
+      setPlayerSymbol(null); // Reset player symbol on disconnect
+      // Optionally reset game state or show overlay
+      // setLoggedIn(false); // Or handle reconnection state
+    };
+
+    const handleConnectError = (err: Error) => {
+      console.error("Socket connection error:", err);
+      setMessage(`Connection error: ${err.message}`);
+      setSocket(null); // Consider nulling socket on critical error
+    };
+
+    // --- Game Event Handling ---
+    const handlePlayerAssigned = (payload: {
+      symbol: PlayerSymbol;
+      roomId: string;
+    }) => {
+      console.log("Player assigned:", payload);
+      setPlayerSymbol(payload.symbol);
+      // Store roomId if needed client-side, e.g., for debugging or specific features
+    };
+
+    const handlePlayerJoined = (payload: {
+      username: string;
+      symbol: PlayerSymbol;
+    }) => {
+      console.log("Player joined:", payload);
+      setMessage(`${payload.username} (${payload.symbol}) joined.`);
+      // Update opponent name in state if needed
+      if (playerSymbol && payload.symbol !== playerSymbol) {
+        setOpponentName(payload.username);
+      }
+      // Don't clear message immediately, wait for game start or update
+    };
+
+    const handlePlayerLeft = (payload: { symbol: PlayerSymbol | null }) => {
+      console.log("Player left:", payload);
+      setMessage(`Player ${payload.symbol || "?"} left the game. Waiting...`);
+      // Update opponent name/state
+      setOpponentName(""); // Clear opponent name
+      // Keep current game state but maybe show an overlay or message
+      setGameState((prev) => ({
+        ...prev,
+        gameStatus: GameStatus.WAITING,
+        winner: null,
+      })); // Reset status/winner
+    };
+
+    const handleGameStart = (initialGameState: GameState) => {
+      console.log("Game start received:", initialGameState);
+      setGameState(initialGameState);
+      setMessage(
+        `Game started! ${
+          initialGameState.players[initialGameState.currentPlayer]?.username
+        }'s turn.`
+      );
+      // Set opponent name/color from initial state
+      const opponentSym =
+        playerSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+      if (initialGameState.players[opponentSym]?.username) {
+        setOpponentName(initialGameState.players[opponentSym].username);
+        setOpponentColor(initialGameState.players[opponentSym].color);
+      }
+    };
+
+    const handleGameUpdate = (updatedGameState: GameState) => {
+      console.log("Game update received:", updatedGameState);
+      setGameState(updatedGameState);
+      // Update message based on new state
+      if (updatedGameState.winner) {
+        setMessage(
+          updatedGameState.winner === "draw"
+            ? "It's a draw!"
+            : `${
+                updatedGameState.players[updatedGameState.winner]?.username ||
+                `Player ${updatedGameState.winner}`
+              } wins!`
+        );
+      } else {
+        setMessage(
+          `${
+            updatedGameState.players[updatedGameState.currentPlayer]
+              ?.username || "Opponent"
+          }'s turn.`
+        );
+      }
+    };
+
+    const handleGameReset = (resetGameState: GameState) => {
+      console.log("Game reset received:", resetGameState);
+      setGameState(resetGameState);
+      setMessage("Game reset!");
+      // setTimeout(() => setMessage(`${resetGameState.players[resetGameState.currentPlayer]?.username}'s turn.`), 1500); // Set turn message after short delay
+    };
+
+    const handleError = (errorMessage: string) => {
+      console.error("Server error received:", errorMessage);
+      setMessage(`Error: ${errorMessage}`);
+      // Don't clear error message immediately
+    };
+
+    // --- Register Listeners ---
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("playerAssigned", handlePlayerAssigned);
+    socket.on("playerJoined", handlePlayerJoined);
+    socket.on("playerLeft", handlePlayerLeft); // Add listener
+    socket.on("gameStart", handleGameStart); // Add listener
+    socket.on("gameUpdate", handleGameUpdate); // Listen for 'gameUpdate'
+    socket.on("gameReset", handleGameReset); // Add listener
+    socket.on("error", handleError);
+
+    // --- Cleanup Function ---
+    return () => {
+      console.log("Cleaning up socket listeners...");
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("playerAssigned", handlePlayerAssigned);
+      socket.off("playerJoined", handlePlayerJoined);
+      socket.off("playerLeft", handlePlayerLeft);
+      socket.off("gameStart", handleGameStart);
+      socket.off("gameUpdate", handleGameUpdate);
+      socket.off("gameReset", handleGameReset);
+      socket.off("error", handleError);
+      // Optional: disconnect on cleanup if component unmounts entirely?
+      // socket.disconnect();
+      // setSocket(null);
+    };
+    // Add dependencies that should trigger re-running the effect
+  }, [socket, username, playerSymbol, selectedColor]); // Include username, playerSymbol, selectedColor
 
   // OLD
   // // Create a proper socket initialization function
