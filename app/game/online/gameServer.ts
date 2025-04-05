@@ -287,6 +287,60 @@ export class GameServer {
     this.io.to(room.id).emit("gameReset", room.state);
   }
 
+  private handleDisconnect(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): void {
+    const roomId = socket.data.roomId;
+    const playerSymbol = socket.data.symbol;
+    const username = socket.data.username || socket.id; // Use username if available
+
+    console.log(
+      `User disconnected: ${username} (${socket.id}), was in room ${roomId}`
+    );
+
+    if (roomId) {
+      const room = this.getRoomById(roomId);
+      if (room) {
+        // Remove player from the room's socket set
+        room.playerSocketIds.delete(socket.id);
+
+        console.log(
+          `Removed ${socket.id} from room ${roomId}. Size: ${room.playerSocketIds.size}`
+        );
+
+        // Mark player as inactive in the game state if they had a symbol
+        if (playerSymbol && room.state.players[playerSymbol]) {
+          room.state.players[playerSymbol].isActive = false;
+        }
+
+        // Update room status
+        room.state.gameStatus = GameStatus.WAITING; // Or FINISHED if you prefer
+
+        // If the room is now empty, delete it
+        if (room.playerSocketIds.size === 0) {
+          this.rooms.delete(roomId);
+          console.log(`Room ${roomId} is empty, deleting.`);
+        } else {
+          // Notify the remaining player(s)
+          console.log(
+            `Notifying remaining players in room ${roomId} about disconnect.`
+          );
+          // Emit state update AND specific playerLeft event
+          this.io.to(roomId).emit("gameUpdate", room.state); // Send updated state showing inactive player
+          this.io
+            .to(roomId)
+            .emit("playerLeft", { symbol: playerSymbol || null });
+        }
+      } else {
+        console.log(
+          `Room ${roomId} not found during disconnect for ${socket.id}.`
+        );
+      }
+    }
+    // Clean up socket data regardless
+    socket.data = {};
+  }
+
   // OLD
   //   private handleLogin(socket: any, username: string) {
   //     const roomId = this.matchmaker.findOrCreateRoom();
@@ -362,32 +416,32 @@ export class GameServer {
     return playerIndex === 0 ? PlayerSymbol.X : PlayerSymbol.O;
   }
 
-  private handleDisconnect(socket: any) {
-    const room = this.getPlayerRoom(socket);
-    if (!room) return;
+  //   private handleDisconnect(socket: any) {
+  //     const room = this.getPlayerRoom(socket);
+  //     if (!room) return;
 
-    // Get the player symbol before removing from room
-    const playerSymbol = this.getPlayerSymbol(socket, room);
+  //     // Get the player symbol before removing from room
+  //     const playerSymbol = this.getPlayerSymbol(socket, room);
 
-    // Remove player from room
-    room.players = room.players.filter((id) => id !== socket.id);
+  //     // Remove player from room
+  //     room.players = room.players.filter((id) => id !== socket.id);
 
-    // Mark player as inactive
-    if (playerSymbol !== null) {
-      room.state.players[playerSymbol].isActive = false;
-    }
+  //     // Mark player as inactive
+  //     if (playerSymbol !== null) {
+  //       room.state.players[playerSymbol].isActive = false;
+  //     }
 
-    // If room is empty, remove it
-    if (room.players.length === 0) {
-      this.rooms.delete(room.id);
-    } else {
-      // Let remaining player know someone left
-      this.io.to(room.id).emit("playerLeft", {
-        socketId: socket.id,
-        symbol: playerSymbol,
-      });
-    }
-  }
+  //     // If room is empty, remove it
+  //     if (room.players.length === 0) {
+  //       this.rooms.delete(room.id);
+  //     } else {
+  //       // Let remaining player know someone left
+  //       this.io.to(room.id).emit("playerLeft", {
+  //         socketId: socket.id,
+  //         symbol: playerSymbol,
+  //       });
+  //     }
+  //   }
 
   //   private handleReset(socket: any) {
   //     const room = this.getPlayerRoom(socket);
