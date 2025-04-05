@@ -179,46 +179,6 @@ export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
-//     let gameState = { ...initialGameState };
-//     const connectedUsers = new Map(); // socketId -> username
-
-//     io.on("connection", (socket) => {
-//       console.log("A user connected:", socket.id);
-
-//       // Handle user login
-//       socket.on("login", (username, gameMode) => {
-//         connectedUsers.set(socket.id, username);
-
-//         // Set the game mode
-//         gameState.gameMode = gameMode;
-
-//         if (!isOnlineGame(gameState)) return;
-
-//         // Assign player type and opponent
-//         let playerType = null;
-
-//         if (!gameState.players[PlayerSymbol.X]?.username) {
-//           gameState.players[PlayerSymbol.X] = {
-//             username,
-//             color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
-//             symbol: PlayerSymbol.X,
-//             type: PlayerTypes.HUMAN,
-//             isActive: true,
-//           };
-//           playerType = PlayerSymbol.X;
-
-//           // Notify user they're X
-//           socket.emit("playerAssigned", PlayerSymbol.X);
-//         } else if (!gameState.players[PlayerSymbol.O]?.username) {
-//           gameState.players[PlayerSymbol.O] = {
-//             username,
-//             color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
-//             symbol: PlayerSymbol.O,
-//             type: PlayerTypes.HUMAN,
-//             isActive: true,
-//           };
-//           playerType = PlayerSymbol.O;
-
 //           // Notify user they're O
 //           socket.emit("playerAssigned", PlayerSymbol.O);
 //         } else {
