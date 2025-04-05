@@ -1,7 +1,6 @@
 import { GameRoom } from "@/app/types/types";
 import { Server } from "socket.io";
 import {
-  GameModes,
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
@@ -41,6 +40,11 @@ export class GameServer {
 
     socket.join(roomId);
     this.assignPlayer(socket, room, username);
+
+    this.io.to(roomId).emit("playerJoined", {
+      username,
+      symbol: this.getPlayerSymbol(socket, room),
+    });
 
     if (room.players.length === 2) {
       room.state.gameStatus = GameStatus.ACTIVE;
@@ -108,18 +112,43 @@ export class GameServer {
     const room = this.getPlayerRoom(socket);
     if (!room) return;
 
-    room.players = room.players.filter((id) => id !== socket.id);
-    if (room.players.length === 0) this.rooms.delete(room.id);
+    // Get the player symbol before removing from room
+    const playerSymbol = this.getPlayerSymbol(socket, room);
 
-    this.io.to(room.id).emit("playerLeft", socket.id);
+    // Remove player from room
+    room.players = room.players.filter((id) => id !== socket.id);
+
+    // Mark player as inactive
+    if (playerSymbol !== null) {
+      room.state.players[playerSymbol].isActive = false;
+    }
+
+    // If room is empty, remove it
+    if (room.players.length === 0) {
+      this.rooms.delete(room.id);
+    } else {
+      // Let remaining player know someone left
+      this.io.to(room.id).emit("playerLeft", {
+        socketId: socket.id,
+        symbol: playerSymbol,
+      });
+    }
   }
 
   private handleReset(socket: any) {
     const room = this.getPlayerRoom(socket);
-    if (room) {
-      room.state = createOnlineGameState();
-      this.io.to(room.id).emit("gameReset", room.state);
-    }
+    if (!room) return;
+
+    // Store current player data
+    const players = room.state.players;
+
+    // Reset game state but keep player info
+    room.state = {
+      ...createOnlineGameState(),
+      players,
+    };
+
+    this.io.to(room.id).emit("gameReset", room.state);
   }
 }
 

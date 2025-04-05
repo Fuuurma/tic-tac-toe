@@ -17,10 +17,8 @@ import UserMenu from "@/components/menu/menu";
 import {
   Color,
   GameModes,
-  GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
-  PlayerTypes,
 } from "./game/constants/constants";
 import DevPanel from "@/components/game/devPanel";
 import { createFreshGameState } from "./game/logic/newGameState";
@@ -28,10 +26,8 @@ import { CanMakeMove } from "./game/logic/canMakeMove";
 import { isAITurn } from "./game/ai/canAI_MakeMove";
 import { handleAI_Move } from "./game/ai/handleAI_Move";
 import { isValidMove } from "./game/logic/isValidMove";
-import { isOnlineGame, isVsComputer } from "./utils/gameModeChecks";
+import { isVsComputer } from "./utils/gameModeChecks";
 import PageFooter from "@/components/common/pageFooter";
-import { initializeSocketConnection } from "./api/initSocketConnection";
-import { cleanupSocketConnection } from "./api/cleanSocketConnection";
 import { createInitialGameState } from "./game/logic/createInitialGameState";
 
 export default function Home() {
