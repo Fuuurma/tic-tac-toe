@@ -9,6 +9,10 @@ import {
 } from "../constants/constants";
 
 // Create a fresh game state for a new game
+// Create a fresh game state for a new game
+// Create a fresh game state for a new game
+// Create a fresh game state for a new game
+// Create a fresh game state for a new game
 
 // Specifically for online games
 export function createOnlineGameState(): GameState {
