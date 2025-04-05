@@ -1,7 +1,10 @@
 // types/constants.ts
 
-export type BoardPosition = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-export type WinningLine = [BoardPosition, BoardPosition, BoardPosition];
+import { BoardPosition, WinningLine } from "@/app/types/types";
+
+export const CENTER_POSITION: BoardPosition = 4;
+export const CORNER_POSITIONS: BoardPosition[] = [0, 2, 6, 8];
+export const SIDE_POSITIONS: BoardPosition[] = [1, 3, 5, 7];
 
 export const WINNING_COMBINATIONS: WinningLine[] = [
   [0, 1, 2],

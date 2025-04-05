@@ -1,15 +1,18 @@
-import { GameState } from "@/app/types/types";
 import {
   BoardPosition,
-  PlayerSymbol,
-  WINNING_COMBINATIONS,
+  CellValue,
+  GameState,
+  MovesHistory,
   WinningLine,
+} from "@/app/types/types";
+import {
+  CENTER_POSITION,
+  CORNER_POSITIONS,
+  PlayerSymbol,
+  SIDE_POSITIONS,
+  WINNING_COMBINATIONS,
 } from "../constants/constants";
 import { isAITurn } from "./canAI_MakeMove";
-
-const CENTER_POSITION: BoardPosition = 4;
-const CORNER_POSITIONS: BoardPosition[] = [0, 2, 6, 8];
-const SIDE_POSITIONS: BoardPosition[] = [1, 3, 5, 7];
 
 export class AI_MoveEngine {
   private state: GameState;
@@ -80,4 +83,46 @@ export class AI_MoveEngine {
   private takeRandomSide(): GameState | null {
     return this.takeRandomPosition(SIDE_POSITIONS);
   }
+
+  private takeRandomPosition(positions: BoardPosition[]): GameState | null {
+    const available = positions.filter((pos) => this.state.board[pos] === null);
+    return available.length > 0
+      ? this.makeMove(available[Math.floor(Math.random() * available.length)])
+      : null;
+  }
+
+  private takeFirstAvailable(): GameState {
+    const move = this.state.board.findIndex((cell) => cell === null);
+    return this.makeMove(move as BoardPosition);
+  }
+
+  private makeMove(position: BoardPosition): GameState {
+    return {
+      ...this.state,
+      board: this.applyMoveToBoard(position),
+      moves: this.updateMoveHistory(position),
+      currentPlayer: PlayerSymbol.X,
+    };
+  }
+
+  private applyMoveToBoard(position: BoardPosition): CellValue[] {
+    const newBoard = [...this.state.board];
+    newBoard[position] = PlayerSymbol.O;
+    return newBoard;
+  }
+
+  private updateMoveHistory(position: BoardPosition): MovesHistory {
+    const moves = [...this.state.moves[PlayerSymbol.O]];
+    if (moves.length >= 3) moves.shift();
+    moves.push(position);
+
+    return {
+      ...this.state.moves,
+      [PlayerSymbol.O]: moves,
+    };
+  }
 }
+
+export const computerMove = (gameState: GameState): GameState => {
+  return new AI_MoveEngine(gameState).getOptimalMove();
+};
