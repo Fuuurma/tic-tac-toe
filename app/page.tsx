@@ -31,6 +31,8 @@ import { isValidMove } from "./game/logic/isValidMove";
 import { isVsComputer } from "./utils/gameModeChecks";
 import PageFooter from "@/components/common/pageFooter";
 import { initializeSocketConnection } from "./api/initSocketConnection";
+import { cleanupSocketConnection } from "./api/cleanSocketConnection";
+import { createInitialGameState } from "./game/logic/createInitialGameState";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -111,7 +113,7 @@ export default function Home() {
     } else {
       cleanupSocketConnection(gameMode, socket);
       setGameState(
-        createLocalGameState(username, gameMode, {
+        createInitialGameState(username, gameMode, {
           opponentName,
           playerColor: selectedColor,
           opponentColor,
@@ -120,72 +122,72 @@ export default function Home() {
       setPlayerSymbol(PlayerSymbol.X);
     }
 
-    // old
-    if (username.trim()) {
-      // For online mode, initialize socket connection if not already done
-      if (gameMode === GameModes.ONLINE) {
-        if (!socket) {
-          const newSocket = io() as Socket<
-            ServerToClientEvents,
-            ClientToServerEvents
-          >;
-          setSocket(newSocket);
+    // // old
+    // if (username.trim()) {
+    //   // For online mode, initialize socket connection if not already done
+    //   if (gameMode === GameModes.ONLINE) {
+    //     if (!socket) {
+    //       const newSocket = io() as Socket<
+    //         ServerToClientEvents,
+    //         ClientToServerEvents
+    //       >;
+    //       setSocket(newSocket);
 
-          // We'll emit login in the next render cycle after socket is set
-          setTimeout(() => {
-            newSocket.emit("login", username, gameMode);
-          }, 0);
-        } else {
-          socket.emit("login", username, gameMode);
-        }
-      } else {
-        // Local game modes don't need socket
-        if (socket) {
-          // Disconnect any existing socket for local play
-          socket.disconnect();
-          setSocket(null);
-        }
+    //       // We'll emit login in the next render cycle after socket is set
+    //       setTimeout(() => {
+    //         newSocket.emit("login", username, gameMode);
+    //       }, 0);
+    //     } else {
+    //       socket.emit("login", username, gameMode);
+    //     }
+    //   } else {
+    //     // Local game modes don't need socket
+    //     if (socket) {
+    //       // Disconnect any existing socket for local play
+    //       socket.disconnect();
+    //       setSocket(null);
+    //     }
 
-        // Set up fresh local game state
-        const updatedGameState = createFreshGameState();
+    //     // Set up fresh local game state
+    //     const updatedGameState = createFreshGameState();
 
-        // Update player X (human player)
-        updatedGameState.players[PlayerSymbol.X] = {
-          username: username,
-          color: selectedColor,
-          symbol: PlayerSymbol.X,
-          type: PlayerTypes.HUMAN,
-          isActive: true,
-        };
+    //     // Update player X (human player)
+    //     updatedGameState.players[PlayerSymbol.X] = {
+    //       username: username,
+    //       color: selectedColor,
+    //       symbol: PlayerSymbol.X,
+    //       type: PlayerTypes.HUMAN,
+    //       isActive: true,
+    //     };
 
-        // Setup player O based on game mode
-        if (gameMode === GameModes.VS_COMPUTER) {
-          updatedGameState.players[PlayerSymbol.O] = {
-            username: "Computer",
-            color: opponentColor,
-            symbol: PlayerSymbol.O,
-            type: PlayerTypes.COMPUTER,
-            isActive: false,
-          };
-        } else if (gameMode === GameModes.VS_FRIEND) {
-          updatedGameState.players[PlayerSymbol.O] = {
-            username: opponentName || "Player 2",
-            color: opponentColor,
-            symbol: PlayerSymbol.O,
-            type: PlayerTypes.HUMAN,
-            isActive: false,
-          };
-        }
+    //     // Setup player O based on game mode
+    //     if (gameMode === GameModes.VS_COMPUTER) {
+    //       updatedGameState.players[PlayerSymbol.O] = {
+    //         username: "Computer",
+    //         color: opponentColor,
+    //         symbol: PlayerSymbol.O,
+    //         type: PlayerTypes.COMPUTER,
+    //         isActive: false,
+    //       };
+    //     } else if (gameMode === GameModes.VS_FRIEND) {
+    //       updatedGameState.players[PlayerSymbol.O] = {
+    //         username: opponentName || "Player 2",
+    //         color: opponentColor,
+    //         symbol: PlayerSymbol.O,
+    //         type: PlayerTypes.HUMAN,
+    //         isActive: false,
+    //       };
+    //     }
 
-        // Set game mode and status
-        updatedGameState.gameMode = gameMode;
-        updatedGameState.gameStatus = GameStatus.ACTIVE;
+    //     // Set game mode and status
+    //     updatedGameState.gameMode = gameMode;
+    //     updatedGameState.gameStatus = GameStatus.ACTIVE;
 
-        setGameState(updatedGameState);
-        setPlayerSymbol(PlayerSymbol.X);
-      }
-      setLoggedIn(true);
-    }
+    //     setGameState(updatedGameState);
+    //     setPlayerSymbol(PlayerSymbol.X);
+    //   }
+    //   setLoggedIn(true);
+    // }
   };
 
   const handleCellClick = (index: number) => {
