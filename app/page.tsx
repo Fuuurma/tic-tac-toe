@@ -27,6 +27,8 @@ import DevPanel from "@/components/game/devPanel";
 import { createFreshGameState } from "./game/logic/newGameState";
 import { CanMakeMove } from "./game/logic/canMakeMove";
 import { isAITurn } from "./game/ai/canAI_MakeMove";
+import { handleAI_Move } from "./game/ai/handleAI_Move";
+import { isValidMove } from "./game/logic/isValidMove";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -94,33 +96,7 @@ export default function Home() {
   // Effect for computer moves
   useEffect(() => {
     if (isAITurn(gameState)) {
-      return handleAIMove(gameState, socket, setGameState);
-    }
-
-    if (
-      gameState.gameMode === GameModes.VS_COMPUTER &&
-      gameState.currentPlayer === PlayerSymbol.O &&
-      !gameState.winner &&
-      gameState.gameStatus === GameStatus.ACTIVE
-    ) {
-      // Add a slight delay to make it feel more natural
-      const timer = setTimeout(() => {
-        const newState = computerMove(gameState);
-        // Only update if playing locally, otherwise server handles it
-        if (!socket || !socket.connected) {
-          setGameState(newState);
-        } else {
-          // In case of online play, tell server the computer moved
-          socket.emit(
-            "move",
-            newState.moves[PlayerSymbol.O][
-              newState.moves[PlayerSymbol.O].length - 1
-            ]
-          );
-        }
-      }, 600);
-
-      return () => clearTimeout(timer);
+      return handleAI_Move(gameState, socket, setGameState);
     }
   }, [gameState, socket]);
 
@@ -173,22 +149,9 @@ export default function Home() {
   };
 
   const handleCellClick = (index: number) => {
-    // if (!IsOkToClick(loggedIn, gameState, index)) return;
-    if (
-      !loggedIn ||
-      gameState.winner ||
-      gameState.gameStatus !== GameStatus.ACTIVE ||
-      gameState.board[index] !== null // Prevent clicking on occupied cells
-    )
-      return;
+    if (!isValidMove(gameState, index, loggedIn)) return;
 
-    const canMakeMove = CanMakeMove(
-      gameMode,
-      gameState.currentPlayer,
-      playerSymbol
-    );
-
-    if (canMakeMove) {
+    if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
       if (socket && socket.connected) {
         socket.emit("move", index);
       } else {

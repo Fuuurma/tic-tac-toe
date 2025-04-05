@@ -1,5 +1,9 @@
 // types/constants.ts
-export const WINNING_COMBINATIONS = [
+
+export type BoardPosition = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+type WinningLine = [BoardPosition, BoardPosition, BoardPosition];
+
+export const WINNING_COMBINATIONS: WinningLine[] = [
   [0, 1, 2],
   [3, 4, 5],
   [6, 7, 8], // Rows
@@ -155,6 +159,9 @@ export const GAME_RULES = {
   MAX_MOVES_PER_PLAYER: 3,
   BOARD_SIZE: 9,
   TIMEOUT_DURATION: 5000,
+  MIN_MOVE_TIME: 200, // Minimum time in ms before computer makes a move
+  WINNING_SCORE: 10,
+  DRAW_SCORE: 5,
 } as const;
 
 export const ERROR_MESSAGES = {
@@ -162,6 +169,9 @@ export const ERROR_MESSAGES = {
   GAME_FULL: "Game is full!",
   PLAYER_EXISTS: "Player already exists!",
   UNAUTHORIZED: "Unauthorized action!",
+  TIMEOUT: "Your turn timed out!",
+  SERVER_ERROR: "Server error occurred. Please try again.",
+  CONNECTION_LOST: "Connection to the server was lost.",
 } as const;
 
 export const SESSION_CONFIG = {
