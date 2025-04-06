@@ -186,6 +186,59 @@ export class GameServer {
     this.io.to(room.id).emit(Events.GAME_RESET, room.state); // Notify clients game is reset
   }
 
+  private notifyRoom(
+    roomId: string,
+    event: keyof ServerToClientEvents,
+    payload?: any
+  ): void {
+    this.io.to(roomId).emit(event, payload);
+  }
+
+  private leaveRoomAndDeleteIfEmpty(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    room: GameRoom
+  ): void {
+    const roomId = room.id;
+    const playerSymbol = socket.data.symbol;
+
+    console.log(
+      `Player ${socket.data.username || socket.id} leaving room ${roomId}`
+    );
+    socket.leave(roomId);
+    room.playerSocketIds.delete(socket.id);
+
+    // Mark player inactive
+    if (playerSymbol) {
+      room.state.players[playerSymbol].isActive = false;
+    }
+    // Reset rematch state if someone leaves
+    room.rematchState = "none";
+    room.rematchRequesterSymbol = null;
+
+    // Update status (could be WAITING or even a custom state like ABANDONED)
+    room.state.gameStatus = GameStatus.WAITING;
+
+    if (room.playerSocketIds.size === 0) {
+      this.rooms.delete(roomId);
+      console.log(`Room ${roomId} is empty, deleting.`);
+    } else {
+      // Notify remaining player
+      const opponentSocket = this.getOpponentSocket(socket, room);
+      if (opponentSocket) {
+        opponentSocket.emit(Events.PLAYER_LEFT, {
+          symbol: playerSymbol || null,
+        });
+        opponentSocket.emit(Events.GAME_UPDATE, room.state); // Send updated state
+        console.log(
+          `Notified remaining player in room ${roomId} about disconnect.`
+        );
+      }
+    }
+
+    // Clear socket data
+    socket.data = {};
+  }
+
   // --- Event Handlers ---
 
   private handleLogin(
