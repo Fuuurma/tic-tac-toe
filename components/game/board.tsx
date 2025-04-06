@@ -25,6 +25,13 @@ interface GameBoardProps {
   handleCellClick: (index: number) => void;
   resetGame: () => void;
   exitGame: () => void;
+  isGameOver: boolean;
+  rematchOffered: boolean;
+  rematchRequested: boolean;
+  onRequestRematch: () => void;
+  onAcceptRematch: () => void;
+  onDeclineRematch: () => void;
+  onLeaveRoom: () => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -34,6 +41,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   handleCellClick,
   resetGame,
   exitGame,
+  isGameOver,
+  rematchOffered,
+  rematchRequested,
+  onRequestRematch,
+  onAcceptRematch,
+  onDeclineRematch,
+  onLeaveRoom,
 }) => {
   const { board, players, currentPlayer, winner, gameMode, nextToRemove } =
     gameState;

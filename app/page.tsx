@@ -363,6 +363,14 @@ export default function Home() {
     }
   };
 
+  const handleLeaveRoomClick = () => {
+    if (socket) {
+      console.log("Leaving room...");
+      socket.emit(Events.LEAVE_ROOM);
+    }
+    exitGame(); // Call existing exit function to clean up client state/disconnect
+  };
+
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
     if (isAITurn(gameState)) {
@@ -462,15 +470,23 @@ export default function Home() {
     setLoggedIn(false);
     setGameState(createFreshGameState());
     setPlayerSymbol(null);
-    setMessage(""); // Clear any messages
-    setOpponentName(""); // Clear opponent name
+    setMessage("");
+    setOpponentName("");
+    setRematchOffered(false); // Reset rematch flags
+    setRematchRequested(false);
+    setLastAssignedColor(null);
 
     if (socket) {
       console.log("Disconnecting socket on exit...");
-      socket.disconnect();
-      setSocket(null);
+      // Check if already disconnected before calling disconnect
+      if (socket.connected) {
+        socket.disconnect();
+      }
+      setSocket(null); // Clear socket state
     }
   };
+
+  const isGameOver = gameState.gameStatus === GameStatus.COMPLETED;
 
   return (
     <div
@@ -508,6 +524,13 @@ export default function Home() {
             handleCellClick={handleCellClick}
             resetGame={resetGame}
             exitGame={exitGame}
+            isGameOver={isGameOver}
+            rematchOffered={rematchOffered}
+            rematchRequested={rematchRequested}
+            onRequestRematch={handleRequestRematchClick}
+            onAcceptRematch={handleAcceptRematchClick}
+            onDeclineRematch={handleDeclineRematchClick}
+            onLeaveRoom={handleLeaveRoomClick}
           />
         )}
       </main>
