@@ -16,6 +16,7 @@ import GameBoard from "@/components/game/board";
 import UserMenu from "@/components/menu/menu";
 import {
   Color,
+  Events,
   GameModes,
   GameStatus,
   PLAYER_CONFIG,
@@ -331,21 +332,36 @@ export default function Home() {
     // Dependencies need review - ensure all state used inside handlers that should trigger re-binding is listed
   }, [socket, username, playerSymbol, selectedColor, opponentName]); // Added opponentName
 
-  //   // Listen for errors
-  //   socket.on("error", (errorMessage) => {
-  //     setMessage(errorMessage);
-  //     setTimeout(() => setMessage(""), 3000);
-  //   });
+  // online click handlers
 
-  //   // Clean up listeners when component unmounts or socket changes
-  //   return () => {
-  //     socket.off("playerAssigned");
-  //     socket.off("updateGame");
-  //     socket.off("playerJoined");
-  //     socket.off("gameReset");
-  //     socket.off("error");
-  //   };
-  // }, [socket, playerSymbol]);
+  const handleRequestRematchClick = () => {
+    if (socket && gameState.gameStatus === GameStatus.COMPLETED) {
+      console.log("Requesting rematch...");
+      socket.emit(Events.REQUEST_REMATCH);
+      setRematchRequested(true); // Update own state
+      setMessage("Rematch requested. Waiting for opponent...");
+    }
+  };
+
+  const handleAcceptRematchClick = () => {
+    if (socket && rematchOffered) {
+      console.log("Accepting rematch...");
+      socket.emit(Events.ACCEPT_REMATCH);
+      setRematchOffered(false); // Clear offer state
+      // Game state will be updated by server via gameReset event
+    }
+  };
+
+  const handleDeclineRematchClick = () => {
+    if (socket && rematchOffered) {
+      console.log("Declining rematch...");
+      socket.emit(Events.DECLINE_REMATCH);
+      setRematchOffered(false); // Clear offer state
+      setMessage("Rematch declined.");
+      // Consider automatically leaving or letting user click Leave Room separately
+      // handleLeaveRoomClick(); // Option: leave immediately after declining
+    }
+  };
 
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
