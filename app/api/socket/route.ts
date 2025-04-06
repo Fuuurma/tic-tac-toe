@@ -84,42 +84,6 @@ export async function GET() {
  * the client-side connection URL.
  */
 
-// OLD
-// // Create a global variable to store the HTTP server and GameServer instance
-// let server: any;
-// let gameServer: GameServer;
-
-// export async function GET() {
-//   if (!server) {
-//     // Create a new HTTP server
-//     server = createServer();
-
-//     // Initialize the GameServer with our HTTP server
-//     gameServer = new GameServer(server);
-
-//     // Start the HTTP server
-//     server.listen(3009);
-//     console.log("Socket.IO server started on port 3009");
-//   }
-
-//   return NextResponse.json({ ok: true });
-// }
-
-// // OLD - Was working - Now integrate GameServer class
-// // Create a global variable to store the Socket.IO server instance
-// let io: Server;
-
-// // Create a Map to store connected users
-// const connectedUsers = new Map();
-
-// // Store the game state
-// let gameState = { ...initialGameState };
-
-// export async function GET() {
-//   if (!io) {
-//     // Create a new HTTP server
-//     const httpServer = createServer();
-
 //     // Create a new Socket.IO server
 //     io = new Server(httpServer, {
 //       cors: {
@@ -133,7 +97,7 @@ export async function GET() {
 //       console.log("A user connected:", socket.id);
 
 //       // Handle user login
-//       socket.on("login", (username, gameMode) => {
+//   socket.on("login", (username, gameMode) => {
 //         console.log(`User ${username} logged in with game mode ${gameMode}`);
 //         connectedUsers.set(socket.id, username);
 
