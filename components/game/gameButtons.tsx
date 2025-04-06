@@ -28,41 +28,7 @@ const GameButtons: React.FC<GameButtonsProps> = ({
   resetGame,
   exitGame,
 }) => {
-  // Online game buttons with rematch functionality
-  if (isOnlineGame) {
-    if (isGameOver) {
-      // Game is over - show appropriate rematch options
-      if (rematchOffered) {
-        return (
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <Button
-              onClick={onAcceptRematch}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              Accept Rematch
-            </Button>
-            <Button
-              onClick={onDeclineRematch}
-              variant="outline"
-              className="flex-1"
-            >
-              Decline
-            </Button>
-            <Button
-              onClick={onLeaveRoom}
-              variant="destructive"
-              className="flex-1"
-            >
-              Leave Room
-            </Button>
-          </div>
-        );
-      } else if (rematchRequested) {
-        return (
-          <div className="flex gap-2 w-full items-center">
-            <span className="text-sm text-muted-foreground flex-1 text-center">
-              Waiting for opponent...
-            </span>
+  
             <Button onClick={onLeaveRoom} variant="destructive">
               Leave Room
             </Button>
