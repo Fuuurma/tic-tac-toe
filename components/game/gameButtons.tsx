@@ -1,5 +1,7 @@
 import { isOnlineGame } from "@/app/utils/gameModeChecks";
 import { Button } from "../ui/button";
+import OnlineGameButtons from "./onlineGameButtons";
+import LocalGameButtons from "./localGameButtons";
 
 interface GameButtonsProps {
   isOnlineGame: boolean;
@@ -28,34 +30,26 @@ const GameButtons: React.FC<GameButtonsProps> = ({
   resetGame,
   exitGame,
 }) => {
-  
-           
-
-  // Local game buttons (VS AI or VS Friend)
-  else if (isLocalGame) {
+  if (isOnlineGame) {
     return (
-      <div className="flex gap-2 w-full">
-        <Button onClick={resetGame} variant="outline" className="flex-1">
-          Reset Game
-        </Button>
-        <Button onClick={exitGame} variant="destructive" className="flex-1">
-          Exit Game
-        </Button>
-      </div>
+      <OnlineGameButtons
+        isGameOver={isGameOver}
+        rematchOffered={rematchOffered}
+        rematchRequested={rematchRequested}
+        onAcceptRematch={onAcceptRematch}
+        onDeclineRematch={onDeclineRematch}
+        onRequestRematch={onRequestRematch}
+        onLeaveRoom={onLeaveRoom}
+      />
     );
   }
 
-  // Fallback buttons
-  return (
-    <div className="flex gap-2 w-full">
-      <Button onClick={resetGame} variant="outline" className="flex-1">
-        Reset Game
-      </Button>
-      <Button onClick={exitGame} variant="destructive" className="flex-1">
-        Exit Game
-      </Button>
-    </div>
-  );
+  if (isLocalGame) {
+    return <LocalGameButtons resetGame={resetGame} exitGame={exitGame} />;
+  }
+
+  // Fallback to local game buttons for any other case
+  return <LocalGameButtons resetGame={resetGame} exitGame={exitGame} />;
 };
 
 export default GameButtons;
