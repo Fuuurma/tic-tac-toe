@@ -145,8 +145,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-4 border-t">
-        {" "}
-        {/* Add border */}
+        {/* {" "}
         <Button
           onClick={resetGame}
           variant="outline"
@@ -157,7 +156,68 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </Button>
         <Button onClick={exitGame} variant="destructive">
           Exit Game
-        </Button>
+        </Button> */}
+
+        {isGameOver ? (
+          <>
+            {rematchOffered ? (
+              <div className="flex flex-col sm:flex-row gap-2 w-full">
+                <Button
+                  onClick={onAcceptRematch}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  Accept Rematch
+                </Button>
+                <Button
+                  onClick={onDeclineRematch}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Decline
+                </Button>
+                <Button
+                  onClick={onLeaveRoom}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  Leave Room
+                </Button>
+              </div>
+            ) : rematchRequested ? (
+              <div className="flex gap-2 w-full items-center">
+                <span className="text-sm text-muted-foreground flex-1 text-center">
+                  Waiting for opponent...
+                </span>
+                <Button onClick={onLeaveRoom} variant="destructive">
+                  Leave Room
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2 w-full">
+                <Button onClick={onRequestRematch} className="flex-1">
+                  Request Rematch
+                </Button>
+                <Button
+                  onClick={onLeaveRoom}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  Leave Room
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Buttons for active game - maybe disable reset during active online game? */}
+            <Button variant="outline" disabled>
+              Reset (N/A)
+            </Button>
+            <Button onClick={onLeaveRoom} variant="destructive">
+              Exit Game
+            </Button>
+          </>
+        )}
       </CardFooter>
     </Card>
   );
