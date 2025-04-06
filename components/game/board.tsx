@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { GameState, PlayerType } from "@/app/types/types";
 import {
   Color,
+  GameModes,
   GameStatus,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
@@ -37,7 +38,7 @@ interface GameBoardProps {
 export const GameBoard: React.FC<GameBoardProps> = ({
   gameState,
   message,
-  playerType, // The type of the *user* viewing (e.g., 'Human' if they are playing)
+  playerType,
   handleCellClick,
   resetGame,
   exitGame,
@@ -78,6 +79,113 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   // do we need to use state no? this will only do onrender
   if (!isGameActive && (winner === PlayerSymbol.O || winner === PlayerSymbol.X))
     gameState.gameStatus = GameStatus.COMPLETED;
+
+  // Determine if this is an online game
+  const isOnlineGame = gameMode === GameModes.ONLINE;
+
+  // Determine if this is a local game (vs AI or Friend)
+  const isLocalGame =
+    gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
+
+  // --- Render Button Section Based on Game Mode ---
+  const renderGameButtons = () => {
+    // Online game buttons with rematch functionality
+    if (isOnlineGame) {
+      if (isGameOver) {
+        // Game is over - show appropriate rematch options
+        if (rematchOffered) {
+          return (
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
+              <Button
+                onClick={onAcceptRematch}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                Accept Rematch
+              </Button>
+              <Button
+                onClick={onDeclineRematch}
+                variant="outline"
+                className="flex-1"
+              >
+                Decline
+              </Button>
+              <Button
+                onClick={onLeaveRoom}
+                variant="destructive"
+                className="flex-1"
+              >
+                Leave Room
+              </Button>
+            </div>
+          );
+        } else if (rematchRequested) {
+          return (
+            <div className="flex gap-2 w-full items-center">
+              <span className="text-sm text-muted-foreground flex-1 text-center">
+                Waiting for opponent...
+              </span>
+              <Button onClick={onLeaveRoom} variant="destructive">
+                Leave Room
+              </Button>
+            </div>
+          );
+        } else {
+          return (
+            <div className="flex gap-2 w-full">
+              <Button onClick={onRequestRematch} className="flex-1">
+                Request Rematch
+              </Button>
+              <Button
+                onClick={onLeaveRoom}
+                variant="destructive"
+                className="flex-1"
+              >
+                Leave Room
+              </Button>
+            </div>
+          );
+        }
+      } else {
+        // Online game is active
+        return (
+          <>
+            <Button variant="outline" disabled>
+              Reset (N/A)
+            </Button>
+            <Button onClick={onLeaveRoom} variant="destructive">
+              Exit Game
+            </Button>
+          </>
+        );
+      }
+    }
+
+    // Local game buttons (VS AI or VS Friend)
+    else if (isLocalGame) {
+      return (
+        <>
+          <Button onClick={resetGame} variant="outline">
+            Reset Game
+          </Button>
+          <Button onClick={exitGame} variant="destructive">
+            Exit Game
+          </Button>
+        </>
+      );
+    }
+
+    // Fallback buttons
+    return (
+      <>
+        <Button onClick={resetGame} variant="outline">
+          Reset Game
+        </Button>
+        <Button onClick={exitGame} variant="destructive">
+          Exit Game
+        </Button>
+      </>
+    );
+  };
 
   // --- Render Logic ---
   return (
@@ -145,7 +253,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-4 border-t">
-        {/* {" "}
+        {/* This is the old reset & exit buttons. worked for vs Friend & AI but not for Online.
         <Button
           onClick={resetGame}
           variant="outline"
@@ -157,6 +265,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         <Button onClick={exitGame} variant="destructive">
           Exit Game
         </Button> */}
+
+        {/* We will need to handle diferent buttons for online games & vs AI and vs Friend
+          Online - cannot reset unless match is finished. It'll input other player 
+          If he accepts, it'll reset. 
+          Exit - Anytime 
+          Vs Friend & vs AI - Reset: Anytime 
+          Exit - Anytime 
+
+          Exit & reset will show a confirm that user has to accept in order to exit. 
+
+        */}
 
         {isGameOver ? (
           <>
