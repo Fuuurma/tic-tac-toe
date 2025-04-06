@@ -253,31 +253,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-4 border-t">
-        {/* This is the old reset & exit buttons. worked for vs Friend & AI but not for Online.
-        <Button
-          onClick={resetGame}
-          variant="outline"
-          // Optionally disable reset button unless game has finished or started
-          // disabled={!winner && message !== "Game ready"}
-        >
-          Reset Game
-        </Button>
-        <Button onClick={exitGame} variant="destructive">
-          Exit Game
-        </Button> */}
+        {renderGameButtons()}
+      </CardFooter>
+    </Card>
+  );
+};
 
-        {/* We will need to handle diferent buttons for online games & vs AI and vs Friend
-          Online - cannot reset unless match is finished. It'll input other player 
-          If he accepts, it'll reset. 
-          Exit - Anytime 
-          Vs Friend & vs AI - Reset: Anytime 
-          Exit - Anytime 
+export default GameBoard;
 
-          Exit & reset will show a confirm that user has to accept in order to exit. 
-
-        */}
-
-        {isGameOver ? (
+/*
+  {isGameOver ? (
           <>
             {rematchOffered ? (
               <div className="flex flex-col sm:flex-row gap-2 w-full">
@@ -320,26 +305,5 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   onClick={onLeaveRoom}
                   variant="destructive"
                   className="flex-1"
-                >
-                  Leave Room
-                </Button>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {/* Buttons for active game - maybe disable reset during active online game? */}
-            <Button variant="outline" disabled>
-              Reset (N/A)
-            </Button>
-            <Button onClick={onLeaveRoom} variant="destructive">
-              Exit Game
-            </Button>
-          </>
-        )}
-      </CardFooter>
-    </Card>
-  );
-};
-
-export default GameBoard;
+  
+*/
