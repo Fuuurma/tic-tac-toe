@@ -354,70 +354,76 @@ export class GameServer {
     const room = this.getPlayerRoom(socket);
     const playerSymbol = socket.data.symbol;
 
-    // Validations
-    if (!room) {
-      socket.emit("error", "Not in a valid room.");
+    const validation = this.validateMove(room, playerSymbol, index);
+    if (!validation.isValid) {
+      socket.emit(Events.ERROR, validation.error);
       return;
     }
-    if (!playerSymbol) {
-      socket.emit("error", "Player symbol not assigned.");
-      return;
-    }
-    if (room.state.gameStatus !== GameStatus.ACTIVE) {
-      socket.emit("error", "Game is not active.");
-      return;
-    }
-    if (room.state.winner) {
-      socket.emit("error", "Game is already over.");
-      return;
-    }
-    if (playerSymbol !== room.state.currentPlayer) {
-      socket.emit("error", "Not your turn.");
-      return;
-    }
-    if (
-      index < 0 ||
-      index >= room.state.board.length ||
-      room.state.board[index] !== null
-    ) {
-      socket.emit("error", "Invalid move.");
-      return;
-    }
+    // Validation passed, room and playerSymbol are defined here
+    const currentRoom = room!;
+    const currentSymbol = playerSymbol!;
 
     console.log(
-      `Player ${playerSymbol} in room ${room.id} attempts move at index ${index}`
+      `Player ${currentSymbol} in room ${currentRoom.id} attempts move at index ${index}`
     );
 
-    // Apply the move using the game logic function
     try {
-      room.state = makeMove(room.state, index); // Update the state IN PLACE
+      currentRoom.state = makeMove(currentRoom.state, index); // Update state
       console.log(
-        `Move successful in room ${room.id}. New current player: ${room.state.currentPlayer}`
+        `Move successful in room ${currentRoom.id}. New current player: ${currentRoom.state.currentPlayer}`
       );
 
-      // Broadcast the updated state to everyone in the room
-      this.io.to(room.id).emit("gameUpdate", room.state);
-
-      // Check if game ended after the move
-      if (room.state.winner) {
-        room.state.gameStatus = GameStatus.COMPLETED;
+      // Check for winner/draw
+      if (currentRoom.state.winner) {
+        currentRoom.state.gameStatus = GameStatus.COMPLETED; // Use a distinct 'completed' status
         console.log(
-          `Game finished in room ${room.id}. Winner: ${room.state.winner}`
+          `Game finished in room ${currentRoom.id}. Winner: ${currentRoom.state.winner}`
         );
-        // No extra emit needed here, gameUpdate already sent the winning state
-      } else if (
-        room.state.gameStatus === GameStatus.ACTIVE &&
-        room.state.players[room.state.currentPlayer].type ===
-          PlayerTypes.COMPUTER
-      ) {
-        // If it's now an AI's turn (e.g., placeholder AI in online mode?)
-        // This logic might not belong here if online is strictly Human vs Human
-        console.log("AI turn logic triggered (if applicable)");
       }
+
+      // Broadcast updated state regardless of game end
+      this.notifyRoom(currentRoom.id, Events.GAME_UPDATE, currentRoom.state);
     } catch (error: any) {
-      console.error(`Error during move in room ${room.id}: ${error.message}`);
-      socket.emit("error", `Move failed: ${error.message || "Unknown error"}`);
+      console.error(
+        `Error during move in room ${currentRoom.id}: ${error.message}`
+      );
+      socket.emit(
+        Events.ERROR,
+        `Move failed: ${error.message || "Unknown error"}`
+      );
     }
+  }
+
+  // --- Rematch and Leave Handlers ---
+
+  private handleRequestRematch(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): void {
+    const room = this.getPlayerRoom(socket);
+    const requesterSymbol = socket.data.symbol;
+
+    if (!room || !requesterSymbol)
+      return socket.emit(Events.ERROR, "Invalid request.");
+    if (room.state.gameStatus !== GameStatus.COMPLETED)
+      return socket.emit(Events.ERROR, "Game not finished yet.");
+    if (room.playerSocketIds.size < 2)
+      return socket.emit(Events.ERROR, "Opponent is not present.");
+    if (room.rematchState === "requested")
+      return socket.emit(Events.ERROR, "Rematch already requested."); // Prevent spamming
+
+    room.rematchState = "requested";
+    room.rematchRequesterSymbol = requesterSymbol;
+
+    console.log(
+      `Player ${requesterSymbol} requested rematch in room ${room.id}`
+    );
+
+    // Notify the opponent
+    const opponentSocket = this.getOpponentSocket(socket, room);
+    opponentSocket?.emit(Events.REMATCH_REQUESTED, { requesterSymbol });
+
+    // Notify requester (optional confirmation)
+    // socket.emit('status', 'Rematch requested. Waiting for opponent...');
   }
 
   private handleReset(
