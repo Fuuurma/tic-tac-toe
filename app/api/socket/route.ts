@@ -84,43 +84,6 @@ export async function GET() {
  * the client-side connection URL.
  */
 
-//           // Notify user they're X
-//           socket.emit("playerAssigned", PlayerSymbol.X);
-//         } else if (!gameState.players[PlayerSymbol.O]?.username) {
-//           gameState.players[PlayerSymbol.O] = {
-//             username,
-//             color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
-//             symbol: PlayerSymbol.O,
-//             type: PlayerTypes.HUMAN,
-//             isActive: true,
-//           };
-//           playerType = PlayerSymbol.O;
-
-//           // Notify user they're O
-//           socket.emit("playerAssigned", PlayerSymbol.O);
-//         } else {
-//           // Game is full
-//           socket.emit("error", "Game is full, please try again later");
-//           return;
-//         }
-
-//         // Notify all of player joining
-//         io.emit("playerJoined", {
-//           username,
-//           type: playerType,
-//         });
-
-//         // Broadcast the updated game state
-//         io.emit("updateGame", gameState);
-//       });
-
-//       // Handle moves
-//       socket.on("move", (index) => {
-//         const username = connectedUsers.get(socket.id);
-//         if (!username) return;
-
-//         if (!isOnlineGame(gameState)) return;
-
 //         // Check if it's this player's turn
 //         const playerSymbol =
 //           gameState.players[PlayerSymbol.X].username === username
