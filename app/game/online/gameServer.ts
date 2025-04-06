@@ -426,6 +426,60 @@ export class GameServer {
     // socket.emit('status', 'Rematch requested. Waiting for opponent...');
   }
 
+  private handleAcceptRematch(
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      InterServerEvents,
+      SocketData
+    >
+  ): void {
+    const room = this.getPlayerRoom(socket);
+    const accepterSymbol = socket.data.symbol;
+
+    if (!room || !accepterSymbol)
+      return socket.emit(Events.ERROR, "Invalid request.");
+    if (room.rematchState !== "requested")
+      return socket.emit(Events.ERROR, "No rematch request pending.");
+    if (room.rematchRequesterSymbol === accepterSymbol)
+      return socket.emit(
+        Events.ERROR,
+        "Cannot accept your own rematch request."
+      ); // Should not happen
+
+    console.log(`Player ${accepterSymbol} accepted rematch in room ${room.id}`);
+
+    // Reset the game state for both players
+    this.resetRoomForRematch(room);
+  }
+
+  private handleDeclineRematch(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): void {
+    const room = this.getPlayerRoom(socket);
+    const declinerSymbol = socket.data.symbol;
+
+    if (!room || !declinerSymbol)
+      return socket.emit(Events.ERROR, "Invalid request.");
+    // Check if there was a request to decline
+    if (room.rematchState !== "requested") return; // Ignore if no request pending
+
+    console.log(`Player ${declinerSymbol} declined rematch in room ${room.id}`);
+
+    // Notify the original requester
+    const requesterSocket = Array.from(room.playerSocketIds)
+      .map((id) => this.io.sockets.sockets.get(id))
+      .find((s) => s?.data.symbol === room.rematchRequesterSymbol);
+
+    requesterSocket?.emit(Events.ERROR, "Opponent declined the rematch."); // Use error or a specific event
+
+    // Reset rematch state
+    room.rematchState = "none";
+    room.rematchRequesterSymbol = null;
+    // Optional: Automatically make the decliner leave the room? Or let them choose 'Leave Room' separately.
+    // this.handleLeaveRoom(socket);
+  }
+
   private handleReset(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {
