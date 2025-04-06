@@ -52,6 +52,9 @@ export default function Home() {
 
   const [rematchOffered, setRematchOffered] = useState(false);
   const [rematchRequested, setRematchRequested] = useState(false);
+  const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(
+    null
+  ); // Track assigned color - Maybe it works with selectedColor ¿?
 
   // ----- SOCKET ----- //
 
@@ -121,10 +124,11 @@ export default function Home() {
 
     const handleDisconnect = (reason: Socket.DisconnectReason) => {
       console.log("Socket disconnected:", reason);
-      setMessage(`Disconnected: ${reason}. Attempting to reconnect...`);
-      setPlayerSymbol(null); // Reset player symbol on disconnect
-      // Optionally reset game state or show overlay
-      setLoggedIn(false); // Or handle reconnection state
+      setMessage(`Disconnected: ${reason}. Please log in again.`);
+      setPlayerSymbol(null);
+      setLoggedIn(false); // Force logout on disconnect
+      setRematchOffered(false); // Reset rematch state
+      setRematchRequested(false);
     };
 
     const handleConnectError = (err: Error) => {
@@ -137,10 +141,26 @@ export default function Home() {
     const handlePlayerAssigned = (payload: {
       symbol: PlayerSymbol;
       roomId: string;
+      assignedColor: Color;
     }) => {
+      // Added assignedColor
       console.log("Player assigned:", payload);
       setPlayerSymbol(payload.symbol);
-      // Store roomId if needed client-side, e.g., for debugging or specific features
+      setLastAssignedColor(payload.assignedColor); // Store the color assigned by server
+      // Update local color state if different from selectedColor (though server state is king)
+      if (
+        selectedColor !== payload.assignedColor &&
+        payload.symbol === PlayerSymbol.X
+      ) {
+        // Assuming X is 'self' initially
+        setSelectedColor(payload.assignedColor);
+      } else if (
+        opponentColor !== payload.assignedColor &&
+        payload.symbol === PlayerSymbol.O
+      ) {
+        // Assuming O is opponent
+        setOpponentColor(payload.assignedColor);
+      }
     };
 
     const handlePlayerJoined = (payload: {
