@@ -351,41 +351,6 @@ export class GameServer {
     // Clean up socket data regardless
     socket.data = {};
   }
-
-  //     // If player is not in room, return null
-  //     if (playerIndex === -1) return null;
-
-  //     // First player (index 0) is X, second player (index 1) is O
-  //     return playerIndex === 0 ? PlayerSymbol.X : PlayerSymbol.O;
-  //   }
-
-  //   private handleDisconnect(socket: any) {
-  //     const room = this.getPlayerRoom(socket);
-  //     if (!room) return;
-
-  //     // Get the player symbol before removing from room
-  //     const playerSymbol = this.getPlayerSymbol(socket, room);
-
-  //     // Remove player from room
-  //     room.players = room.players.filter((id) => id !== socket.id);
-
-  //     // Mark player as inactive
-  //     if (playerSymbol !== null) {
-  //       room.state.players[playerSymbol].isActive = false;
-  //     }
-
-  //     // If room is empty, remove it
-  //     if (room.players.length === 0) {
-  //       this.rooms.delete(room.id);
-  //     } else {
-  //       // Let remaining player know someone left
-  //       this.io.to(room.id).emit("playerLeft", {
-  //         socketId: socket.id,
-  //         symbol: playerSymbol,
-  //       });
-  //     }
-  //   }
-
   //   private handleReset(socket: any) {
   //     const room = this.getPlayerRoom(socket);
   //     if (!room) return;
