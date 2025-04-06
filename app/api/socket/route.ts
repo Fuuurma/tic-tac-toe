@@ -84,44 +84,6 @@ export async function GET() {
  * the client-side connection URL.
  */
 
-//         // Check if it's this player's turn
-//         const playerSymbol =
-//           gameState.players[PlayerSymbol.X].username === username
-//             ? PlayerSymbol.X
-//             : gameState.players[PlayerSymbol.O].username === username
-//             ? PlayerSymbol.O
-//             : null;
-
-//         if (playerSymbol !== gameState.currentPlayer) {
-//           socket.emit("error", "It's not your turn");
-//           return;
-//         }
-
-//         // Make the move
-//         gameState = makeMove(gameState, index);
-
-//         // Broadcast updated state
-//         io.emit("updateGame", gameState);
-//       });
-
-//       // Handle game reset
-//       socket.on("resetGame", () => {
-//         const username = connectedUsers.get(socket.id);
-//         if (!username) return;
-
-//         // Only players can reset
-//         if (
-//           gameState.players[PlayerSymbol.X].username === username ||
-//           gameState.players[PlayerSymbol.O].username === username
-//         ) {
-//           const freshState = {
-//             ...initialGameState,
-//             players: { ...gameState.players },
-//             gameMode: gameState.gameMode,
-//           };
-
-//           gameState = freshState;
-
 //           io.emit("gameReset");
 //           io.emit("updateGame", gameState);
 //         }
