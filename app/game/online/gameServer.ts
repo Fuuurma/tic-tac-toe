@@ -569,24 +569,4 @@ export class GameServer {
     // Broadcast the reset state to everyone in the room
     this.io.to(room.id).emit("gameReset", room.state);
   }
-
-  //           // Notify the remaining player(s)
-  //           console.log(
-  //             `Notifying remaining players in room ${roomId} about disconnect.`
-  //           );
-  //           // Emit state update AND specific playerLeft event
-  //           this.io.to(roomId).emit("gameUpdate", room.state); // Send updated state showing inactive player
-  //           this.io
-  //             .to(roomId)
-  //             .emit("playerLeft", { symbol: playerSymbol || null });
-  //         }
-  //       } else {
-  //         console.log(
-  //           `Room ${roomId} not found during disconnect for ${socket.id}.`
-  //         );
-  //       }
-  //     }
-  //     // Clean up socket data regardless
-  //     socket.data = {};
-  //   }
 }

@@ -249,25 +249,3 @@ export async function GET() {
 //             gameState.players[PlayerSymbol.O].isActive = false;
 //             gameState.players[PlayerSymbol.O].username = "";
 //           }
-//           connectedUsers.delete(socket.id);
-
-//           // If both players are gone, reset the game
-//           if (
-//             !gameState.players[PlayerSymbol.X]?.isActive &&
-//             !gameState.players[PlayerSymbol.O]?.isActive
-//           ) {
-//             gameState = { ...initialGameState };
-//           }
-
-//           io.emit("updateGame", gameState);
-//         }
-//       });
-//     });
-
-//     // Start the HTTP server
-//     httpServer.listen(3009);
-//     console.log("Socket.IO server started on port 3009");
-//   }
-
-//   return NextResponse.json({ ok: true });
-// }
