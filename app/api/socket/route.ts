@@ -83,23 +83,3 @@ export async function GET() {
  * 3. Environment Variables: Use process.env variables for the port (SOCKET_PORT) and potentially
  * the client-side connection URL.
  */
-
-//           io.emit("gameReset");
-//           io.emit("updateGame", gameState);
-//         }
-//       });
-
-//       // Handle disconnection
-//       socket.on("disconnect", () => {
-//         const username = connectedUsers.get(socket.id);
-//         console.log("User disconnected:", socket.id, username);
-
-//         if (username) {
-//           // Remove player if they disconnect
-//           if (gameState.players[PlayerSymbol.X]?.username === username) {
-//             gameState.players[PlayerSymbol.X].isActive = false;
-//             gameState.players[PlayerSymbol.X].username = "";
-//           } else if (gameState.players[PlayerSymbol.O]?.username === username) {
-//             gameState.players[PlayerSymbol.O].isActive = false;
-//             gameState.players[PlayerSymbol.O].username = "";
-//           }

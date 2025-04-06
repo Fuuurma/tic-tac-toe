@@ -27,7 +27,6 @@ import { CanMakeMove } from "./game/logic/canMakeMove";
 import { isAITurn } from "./game/ai/canAI_MakeMove";
 import { handleAI_Move } from "./game/ai/handleAI_Move";
 import { isValidMove } from "./game/logic/isValidMove";
-import { isVsComputer } from "./utils/gameModeChecks";
 import PageFooter from "@/components/common/pageFooter";
 import { createInitialGameState } from "./game/logic/createInitialGameState";
 
@@ -50,6 +49,9 @@ export default function Home() {
   const [opponentColor, setOpponentColor] = useState<Color>(
     PLAYER_CONFIG[PlayerSymbol.O].defaultColor
   );
+
+  const [rematchOffered, setRematchOffered] = useState(false);
+  const [rematchRequested, setRematchRequested] = useState(false);
 
   // ----- SOCKET ----- //
 
@@ -94,14 +96,14 @@ export default function Home() {
             // query: { username }
           });
 
-        setSocket(newSocket); // Set socket state immediately
+        setSocket(newSocket);
       })
       .catch((err) => {
         console.error("Socket initialization error:", err);
         setMessage(
           `Connection failed: ${err.message}. Ensure server is running.`
         );
-        setSocket(null); // Ensure socket is null on failure
+        setSocket(null);
       });
   }, [username, socket]); // Dependency: username, socket instance
 
@@ -122,13 +124,13 @@ export default function Home() {
       setMessage(`Disconnected: ${reason}. Attempting to reconnect...`);
       setPlayerSymbol(null); // Reset player symbol on disconnect
       // Optionally reset game state or show overlay
-      // setLoggedIn(false); // Or handle reconnection state
+      setLoggedIn(false); // Or handle reconnection state
     };
 
     const handleConnectError = (err: Error) => {
       console.error("Socket connection error:", err);
       setMessage(`Connection error: ${err.message}`);
-      setSocket(null); // Consider nulling socket on critical error
+      setSocket(null);
     };
 
     // --- Game Event Handling ---
