@@ -297,7 +297,7 @@ export default function Home() {
       }
       setMessage(`Error: ${errorMessage}`);
     };
-    
+
     // --- Register Listeners ---
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
@@ -319,52 +319,18 @@ export default function Home() {
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
       socket.off("playerAssigned", handlePlayerAssigned);
+      socket.off("colorChanged", handleColorChanged);
       socket.off("playerJoined", handlePlayerJoined);
       socket.off("playerLeft", handlePlayerLeft);
       socket.off("gameStart", handleGameStart);
       socket.off("gameUpdate", handleGameUpdate);
       socket.off("gameReset", handleGameReset);
+      socket.off("rematchRequested", handleRematchRequested);
       socket.off("error", handleError);
-      // Optional: disconnect on cleanup if component unmounts entirely?
-      // socket.disconnect();
-      // setSocket(null);
     };
-    // Add dependencies that should trigger re-running the effect
-  }, [socket, username, playerSymbol, selectedColor]); // Include username, playerSymbol, selectedColor
+    // Dependencies need review - ensure all state used inside handlers that should trigger re-binding is listed
+  }, [socket, username, playerSymbol, selectedColor, opponentName]); // Added opponentName
 
-  // OLD
-  // // Create a proper socket initialization function
-  // // For App Router - socket client initialization
-  // const initializeSocket = () => {
-  //   if (socket) return;
-
-  //   // For App Router, we need to connect directly to the port we defined
-  //   const socketUrl = "http://localhost:3009";
-  //   // // How do i use nodeENV? - /io idk about that...
-  //   // const socketUrl =
-  //   //   process.env.NODE_ENV === "production"
-  //   //     ? `${window.location.origin}/api/socket/io`
-  //   //     : "http://localhost:3009/api/socket/io"; // Match the path in GameServer
-
-  //   // First, initialize the socket API
-  //   fetch("/api/socket")
-  //     .then(() => {
-  //       // Connect directly (no path needed when using a separate port)
-  //       const newSocket = io(socketUrl);
-
-  //       console.log("Socket connecting to:", socketUrl);
-
-  //       newSocket.on("connect", () => {
-  //         console.log("Socket connected successfully", newSocket.id);
-  //         newSocket.emit("login", username, gameMode);
-  //       });
-
-  //       newSocket.on("connect_error", (err) => {
-  //         console.error("Socket connection error:", err);
-  //         setMessage(`Connection error: ${err.message}`);
-  //       });
-
-  //       setSocket(newSocket);
   //     })
   //     .catch((err) => {
   //       console.error("Socket fetch initialization error:", err);
