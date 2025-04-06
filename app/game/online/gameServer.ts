@@ -351,40 +351,6 @@ export class GameServer {
     // Clean up socket data regardless
     socket.data = {};
   }
-  //     room.state.players[symbol] = {
-  //       username,
-  //       symbol,
-  //       type: PlayerTypes.HUMAN,
-  //       color: PLAYER_CONFIG[symbol].defaultColor,
-  //       isActive: true,
-  //     };
-
-  //     room.players.push(socket.id);
-  //     socket.emit("playerAssigned", { symbol, roomId: room.id });
-  //   }
-
-  //   private handleMove(socket: any, index: number) {
-  //     const room = this.getPlayerRoom(socket);
-  //     if (!room || room.state.winner) return;
-
-  //     const playerSymbol = this.getPlayerSymbol(socket, room);
-  //     if (playerSymbol !== room.state.currentPlayer) return;
-
-  //     room.state = makeMove(room.state, index);
-  //     this.io.to(room.id).emit("gameUpdate", room.state);
-  //   }
-
-  //   private getPlayerRoom(socket: any): GameRoom | undefined {
-  //     // Using type assertion to tell TypeScript these are strings
-  //     const rooms = Array.from(socket.rooms as Set<string>).filter(
-  //       (r) => r !== socket.id
-  //     );
-  //     return rooms.length > 0 ? this.rooms.get(rooms[0]) : undefined;
-  //   }
-
-  //   private getPlayerSymbol(socket: any, room: GameRoom): PlayerSymbol | null {
-  //     // Get player index in the room
-  //     const playerIndex = room.players.indexOf(socket.id);
 
   //     // If player is not in room, return null
   //     if (playerIndex === -1) return null;
