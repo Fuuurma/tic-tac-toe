@@ -88,50 +88,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const isLocalGame =
     gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
 
-  
-          return (
-            <div className="flex gap-2 w-full">
-              <Button onClick={onRequestRematch} className="flex-1">
-                Request Rematch
-              </Button>
-              <Button
-                onClick={onLeaveRoom}
-                variant="destructive"
-                className="flex-1"
-              >
-                Leave Room
-              </Button>
-            </div>
-          );
-        }
-      } else {
-        // Online game is active
-        return (
-          <>
-            <Button variant="outline" disabled>
-              Reset (N/A)
-            </Button>
-            <Button onClick={onLeaveRoom} variant="destructive">
-              Exit Game
-            </Button>
-          </>
-        );
-      }
-    }
-
-    // Fallback buttons
-    return (
-      <>
-        <Button onClick={resetGame} variant="outline">
-          Reset Game
-        </Button>
-        <Button onClick={exitGame} variant="destructive">
-          Exit Game
-        </Button>
-      </>
-    );
-  };
-
   // --- Render Logic ---
   return (
     <Card className="w-full max-w-md shadow-lg mx-4 md:mx-0">
