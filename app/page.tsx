@@ -163,6 +163,23 @@ export default function Home() {
       }
     };
 
+    const handleColorChanged = (payload: {
+      newColor: Color;
+      reason: string;
+    }) => {
+      console.log("Color changed by server:", payload);
+      setMessage(
+        `Your color was changed to ${payload.newColor} (${payload.reason})`
+      );
+      setLastAssignedColor(payload.newColor); // Update stored color
+      // Update the primary color state based on current playerSymbol
+      if (playerSymbol) {
+        if (playerSymbol === PlayerSymbol.X) setSelectedColor(payload.newColor);
+        // No easy way to know opponent symbol here, rely on gameUpdate/Start
+      }
+      // Optionally update opponentColor if logic allows determination
+    };
+
     const handlePlayerJoined = (payload: {
       username: string;
       symbol: PlayerSymbol;
@@ -179,30 +196,42 @@ export default function Home() {
     const handlePlayerLeft = (payload: { symbol: PlayerSymbol | null }) => {
       console.log("Player left:", payload);
       setMessage(`Player ${payload.symbol || "?"} left the game. Waiting...`);
-      // Update opponent name/state
-      setOpponentName(""); // Clear opponent name
-      // Keep current game state but maybe show an overlay or message
+      setOpponentName("");
+      setRematchOffered(false); // Reset rematch state
+      setRematchRequested(false);
       setGameState((prev) => ({
         ...prev,
-        gameStatus: GameStatus.WAITING,
+        gameStatus: GameStatus.WAITING, // Set state to waiting
         winner: null,
-      })); // Reset status/winner
+        // Reset opponent details in players state? Or rely on gameUpdate?
+        // Let's rely on gameUpdate from server for consistency
+      }));
     };
 
     const handleGameStart = (initialGameState: GameState) => {
       console.log("Game start received:", initialGameState);
       setGameState(initialGameState);
+      setRematchOffered(false); // Reset rematch state on new game
+      setRematchRequested(false);
       setMessage(
         `Game started! ${
           initialGameState.players[initialGameState.currentPlayer]?.username
         }'s turn.`
       );
       // Set opponent name/color from initial state
-      const opponentSym =
-        playerSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
-      if (initialGameState.players[opponentSym]?.username) {
-        setOpponentName(initialGameState.players[opponentSym].username);
-        setOpponentColor(initialGameState.players[opponentSym].color);
+      const selfSymbol = playerSymbol; // Get current player's symbol
+      if (selfSymbol) {
+        const opponentSym =
+          selfSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        const opponentData = initialGameState.players[opponentSym];
+        if (opponentData?.username) {
+          setOpponentName(opponentData.username);
+          setOpponentColor(opponentData.color); // Set opponent color from state
+        }
+        // Ensure self color matches game state (in case COLOR_CHANGED wasn't processed before game start)
+        if (initialGameState.players[selfSymbol]?.color) {
+          setSelectedColor(initialGameState.players[selfSymbol].color);
+        }
       }
     };
 
