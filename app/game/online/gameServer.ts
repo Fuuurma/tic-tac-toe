@@ -19,7 +19,6 @@ import { createOnlineGameState } from "./createOnlineGameState";
 export class GameServer {
   private io: Server<ClientToServerEvents, ServerToClientEvents, SocketData>;
   private rooms: Map<string, GameRoom> = new Map();
-  private matchmaker = new Matchmaker();
 
   constructor(server: any) {
     this.io = new Server(server, {
@@ -350,33 +349,5 @@ export class GameServer {
     }
     // Clean up socket data regardless
     socket.data = {};
-  }
-  //   private handleReset(socket: any) {
-  //     const room = this.getPlayerRoom(socket);
-  //     if (!room) return;
-
-  //     // Store current player data
-  //     const players = room.state.players;
-
-  //     // Reset game state but keep player info
-  //     room.state = {
-  //       ...createOnlineGameState(),
-  //       players,
-  //     };
-
-  //     this.io.to(room.id).emit("gameReset", room.state);
-  //   }
-}
-
-class Matchmaker {
-  private waitingRooms: string[] = [];
-
-  findOrCreateRoom(): string {
-    if (this.waitingRooms.length > 0) {
-      return this.waitingRooms.pop()!;
-    }
-    const newRoom = `room-${Date.now()}`;
-    this.waitingRooms.push(newRoom);
-    return newRoom;
   }
 }

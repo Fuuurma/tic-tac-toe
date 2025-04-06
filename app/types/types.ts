@@ -98,11 +98,11 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   login: (username: string, color: Color) => void;
   move: (index: number) => void;
-  reset: () => void; // Change from 'resetGame'
-  requestRematch: () => void; // New
-  acceptRematch: () => void; // New
-  declineRematch: () => void; // New
-  leaveRoom: () => void; // New
+  reset: () => void;
+  requestRematch: () => void;
+  acceptRematch: () => void;
+  declineRematch: () => void;
+  leaveRoom: () => void;
   disconnect: () => void; // Built-in event, but useful for typing
 }
 
