@@ -82,8 +82,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Card className="w-full max-w-md">
+    <form onSubmit={handleSubmit} className="w-full">
+      <Card className="w-full mx-4 md:max-w-xl">
         <CardHeader>
           <CardTitle className="text-2xl">Welcome to Tic Tac Toe</CardTitle>
           <CardDescription>

@@ -67,7 +67,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // --- Render Logic ---
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg">
+    <Card className="w-full max-w-md shadow-lg mx-4 md:mx-0">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-semibold">{gameMode}</CardTitle>
         {playerType && ( // Display the role of the person viewing this board

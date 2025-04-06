@@ -351,40 +351,6 @@ export class GameServer {
     // Clean up socket data regardless
     socket.data = {};
   }
-
-  // OLD
-  //   private handleLogin(socket: any, username: string) {
-  //     const roomId = this.matchmaker.findOrCreateRoom();
-  //     const room = this.getOrCreateRoom(roomId);
-
-  //     socket.join(roomId);
-  //     this.assignPlayer(socket, room, username);
-
-  //     this.io.to(roomId).emit("playerJoined", {
-  //       username,
-  //       symbol: this.getPlayerSymbol(socket, room),
-  //     });
-
-  //     if (room.players.length === 2) {
-  //       room.state.gameStatus = GameStatus.ACTIVE;
-  //       this.io.to(roomId).emit("gameStart", room.state);
-  //     }
-  //   }
-
-  //   private getOrCreateRoom(roomId: string): GameRoom {
-  //     if (!this.rooms.has(roomId)) {
-  //       this.rooms.set(roomId, {
-  //         id: roomId,
-  //         players: [],
-  //         state: createOnlineGameState(),
-  //       });
-  //     }
-  //     return this.rooms.get(roomId)!;
-  //   }
-
-  //   private assignPlayer(socket: any, room: GameRoom, username: string) {
-  //     const symbol = room.players.length === 0 ? PlayerSymbol.X : PlayerSymbol.O;
-
   //     room.state.players[symbol] = {
   //       username,
   //       symbol,

@@ -15,7 +15,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   setSelectedColor,
 }) => {
   return (
-    <div className="fixed top-4 right-4 flex gap-3">
+    <div className="flex gap-2 md:gap-3">
       <HelpButton />
 
       <UserMenuPopover

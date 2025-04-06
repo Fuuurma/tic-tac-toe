@@ -80,10 +80,16 @@ export const initialGameState: GameState = {
 
 // ONLINE
 export interface ServerToClientEvents {
-  playerAssigned: (payload: { symbol: PlayerSymbol; roomId: string }) => void;
+  playerAssigned: (payload: {
+    symbol: PlayerSymbol;
+    roomId: string;
+    // assignedColor: Color;
+  }) => void; // Added assignedColor
   playerJoined: (payload: { username: string; symbol: PlayerSymbol }) => void;
   playerLeft: (payload: { symbol: PlayerSymbol | null }) => void; // Send symbol of leaving player
   gameStart: (gameState: GameState) => void; // Send initial state when game starts
+  rematchRequested: (payload: { requesterSymbol: PlayerSymbol }) => void;
+  colorChanged: (payload: { newColor: Color; reason: string }) => void;
   gameUpdate: (gameState: GameState) => void; // Send updated state after move/event
   gameReset: (gameState: GameState) => void; // Send state after reset
   error: (message: string) => void; // Send error messages
@@ -93,6 +99,10 @@ export interface ClientToServerEvents {
   login: (username: string, color: Color) => void;
   move: (index: number) => void;
   reset: () => void; // Change from 'resetGame'
+  requestRematch: () => void; // New
+  acceptRematch: () => void; // New
+  declineRematch: () => void; // New
+  leaveRoom: () => void; // New
   disconnect: () => void; // Built-in event, but useful for typing
 }
 
