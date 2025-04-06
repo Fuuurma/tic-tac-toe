@@ -92,18 +92,57 @@ export class GameServer {
     return newRoom;
   }
 
-  // --- Room Management ---
-
   private getRoomById(roomId: string): GameRoom | undefined {
     return this.rooms.get(roomId);
   }
 
-  // Helper to get room directly from socket data
   private getPlayerRoom(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): GameRoom | undefined {
     const roomId = socket.data.roomId;
     return roomId ? this.getRoomById(roomId) : undefined;
+  }
+
+  // Gets the socket instance of the opponent in the room
+  private getOpponentSocket(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    room: GameRoom
+  ):
+    | Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+    | undefined {
+    const opponentSocketId = Array.from(room.playerSocketIds).find(
+      (id) => id !== socket.id
+    );
+    return opponentSocketId
+      ? this.io.sockets.sockets.get(opponentSocketId)
+      : undefined;
+  }
+
+  private assignPlayerColor(
+    room: GameRoom,
+    joiningSymbol: PlayerSymbol,
+    preferredColor: Color
+  ): Color {
+    const opponentSymbol =
+      joiningSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+    const opponent = room.state.players[opponentSymbol];
+
+    // If opponent exists and has the same preferred color
+    if (opponent?.isActive && opponent.color === preferredColor) {
+      // Find the first available color that is different
+      for (const availableColor of Object.values(Color)) {
+        if (availableColor !== opponent.color) {
+          console.log(
+            `Color conflict for ${joiningSymbol}. Assigning ${availableColor} instead of ${preferredColor}.`
+          );
+          return availableColor;
+        }
+      }
+      // Fallback if somehow all colors are the same (shouldn't happen with >1 color)
+      return PLAYER_CONFIG[joiningSymbol].defaultColor;
+    }
+    // No conflict or no active opponent yet, use preferred or default
+    return preferredColor || PLAYER_CONFIG[joiningSymbol].defaultColor;
   }
 
   // --- Event Handlers ---
