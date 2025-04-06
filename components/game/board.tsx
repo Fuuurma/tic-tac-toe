@@ -18,6 +18,7 @@ import {
 import { BoardCell } from "./boardCell";
 import { PlayerInfoBadge } from "./playerBadge";
 import { GameStatusMessage } from "./gameStatusMessage";
+import GameButtons from "./gameButtons";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -118,17 +119,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               </Button>
             </div>
           );
-        } else if (rematchRequested) {
-          return (
-            <div className="flex gap-2 w-full items-center">
-              <span className="text-sm text-muted-foreground flex-1 text-center">
-                Waiting for opponent...
-              </span>
-              <Button onClick={onLeaveRoom} variant="destructive">
-                Leave Room
-              </Button>
-            </div>
-          );
         } else {
           return (
             <div className="flex gap-2 w-full">
@@ -158,20 +148,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           </>
         );
       }
-    }
-
-    // Local game buttons (VS AI or VS Friend)
-    else if (isLocalGame) {
-      return (
-        <>
-          <Button onClick={resetGame} variant="outline">
-            Reset Game
-          </Button>
-          <Button onClick={exitGame} variant="destructive">
-            Exit Game
-          </Button>
-        </>
-      );
     }
 
     // Fallback buttons
@@ -253,7 +229,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-4 border-t">
-        {renderGameButtons()}
+        {/* {renderGameButtons()} */}
+        <GameButtons
+          isOnlineGame={isOnlineGame}
+          isLocalGame={isLocalGame}
+          isGameOver={isGameOver}
+          rematchOffered={rematchOffered}
+          rematchRequested={rematchRequested}
+          onAcceptRematch={onAcceptRematch}
+          onDeclineRematch={onDeclineRematch}
+          onLeaveRoom={onLeaveRoom}
+          onRequestRematch={onRequestRematch}
+          resetGame={resetGame}
+          exitGame={exitGame}
+        />
       </CardFooter>
     </Card>
   );

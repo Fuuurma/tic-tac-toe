@@ -3,6 +3,16 @@ import { Button } from "../ui/button";
 
 interface GameButtonsProps {
   isOnlineGame: boolean;
+  isLocalGame: boolean;
+  isGameOver: boolean;
+  rematchOffered: boolean;
+  rematchRequested: boolean;
+  onAcceptRematch: () => void;
+  onDeclineRematch: () => void;
+  onLeaveRoom: () => void;
+  onRequestRematch: () => void;
+  resetGame: () => void;
+  exitGame: () => void;
 }
 
 const GameButtons: React.FC<GameButtonsProps> = ({
@@ -79,7 +89,7 @@ const GameButtons: React.FC<GameButtonsProps> = ({
       return (
         <div className="flex gap-2 w-full">
           <Button variant="outline" disabled className="flex-1">
-            Reset (N/A)
+            Reset
           </Button>
           <Button
             onClick={onLeaveRoom}
