@@ -29,45 +29,7 @@ const GameButtons: React.FC<GameButtonsProps> = ({
   exitGame,
 }) => {
   
-            <Button onClick={onLeaveRoom} variant="destructive">
-              Leave Room
-            </Button>
-          </div>
-        );
-      } else {
-        return (
-          <div className="flex gap-2 w-full">
-            <Button onClick={onRequestRematch} className="flex-1">
-              Request Rematch
-            </Button>
-            <Button
-              onClick={onLeaveRoom}
-              variant="destructive"
-              className="flex-1"
-            >
-              Leave Room
-            </Button>
-          </div>
-        );
-      }
-    } else {
-      // Online game is active
-      return (
-        <div className="flex gap-2 w-full">
-          <Button variant="outline" disabled className="flex-1">
-            Reset
-          </Button>
-          <Button
-            onClick={onLeaveRoom}
-            variant="destructive"
-            className="flex-1"
-          >
-            Exit Game
-          </Button>
-        </div>
-      );
-    }
-  }
+           
 
   // Local game buttons (VS AI or VS Friend)
   else if (isLocalGame) {
