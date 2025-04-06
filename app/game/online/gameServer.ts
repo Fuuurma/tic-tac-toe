@@ -239,6 +239,31 @@ export class GameServer {
     socket.data = {};
   }
 
+  // Validates a move attempt
+  private validateMove(
+    room: GameRoom | undefined,
+    playerSymbol: PlayerSymbol | undefined,
+    index: number
+  ): ValidationResult {
+    if (!room) return { isValid: false, error: "Not in a valid room." };
+    if (!playerSymbol)
+      return { isValid: false, error: "Player symbol not assigned." };
+    if (room.state.gameStatus !== GameStatus.ACTIVE)
+      return { isValid: false, error: "Game is not active." };
+    if (room.state.winner)
+      return { isValid: false, error: "Game is already over." };
+    if (playerSymbol !== room.state.currentPlayer)
+      return { isValid: false, error: "Not your turn." };
+    if (
+      index < 0 ||
+      index >= room.state.board.length ||
+      room.state.board[index] !== null
+    ) {
+      return { isValid: false, error: "Invalid move location." };
+    }
+    return { isValid: true };
+  }
+
   // --- Event Handlers ---
 
   private handleLogin(
@@ -246,79 +271,78 @@ export class GameServer {
     username: string,
     preferredColor: Color
   ): void {
-    if (!username || username.trim().length === 0) {
-      socket.emit("error", "Invalid username.");
-      return;
-    }
-
-    // Prevent double login if already in a room
-    if (socket.data.roomId) {
-      socket.emit("error", "Already in a room.");
-      return;
-    }
+    // Basic validation
+    if (!username?.trim())
+      return socket.emit(Events.ERROR, "Invalid username.");
+    if (socket.data.roomId)
+      return socket.emit(Events.ERROR, "Already in a room.");
 
     const room = this.findAvailableRoomOrCreate();
     const roomId = room.id;
+    const isFirstPlayer = room.playerSocketIds.size === 0;
+    const symbol = isFirstPlayer ? PlayerSymbol.X : PlayerSymbol.O;
 
-    // Assign player symbol and data
-    const symbol =
-      room.playerSocketIds.size === 0 ? PlayerSymbol.X : PlayerSymbol.O;
-    const color = preferredColor || PLAYER_CONFIG[symbol].defaultColor; // Use preferred or default color
+    // Determine final color, checking for conflicts ONLY if second player
+    let finalColor = preferredColor;
+    let colorWasChanged = false;
+    if (!isFirstPlayer) {
+      const assignedColor = this.assignPlayerColor(
+        room,
+        symbol,
+        preferredColor
+      );
+      if (assignedColor !== preferredColor) {
+        colorWasChanged = true;
+        finalColor = assignedColor;
+        // Notify the player immediately that their color was changed
+        socket.emit(Events.COLOR_CHANGED, {
+          newColor: finalColor,
+          reason: "Color already taken by opponent.",
+        });
+      }
+    } else {
+      finalColor = preferredColor || PLAYER_CONFIG[symbol].defaultColor;
+    }
 
-    // Store essential info in socket.data for easier access later
-    socket.data.username = username;
-    socket.data.roomId = roomId;
-    socket.data.symbol = symbol;
-
-    // Add player to the room (Socket.IO room and our internal set)
+    // Store data on socket
+    socket.data = { username, roomId, symbol };
     socket.join(roomId);
     room.playerSocketIds.add(socket.id);
 
-    // Update the GameState with player details
+    // Update GameState
     room.state.players[symbol] = {
-      username: username,
-      symbol: symbol,
-      type: PlayerTypes.HUMAN, // Assuming online players are human
-      color: color,
+      username,
+      symbol,
+      type: PlayerTypes.HUMAN,
+      color: finalColor,
       isActive: true,
     };
 
     console.log(
-      `Player ${username}(${socket.id}) joined room ${roomId} as ${symbol}`
+      `Player ${username}(${socket.id}) joined room ${roomId} as ${symbol} with color ${finalColor}`
     );
 
-    // Notify the player they've been assigned
-    socket.emit("playerAssigned", { symbol, roomId });
+    // Notify player of assignment (including final color)
+    socket.emit(Events.PLAYER_ASSIGNED, {
+      symbol,
+      roomId,
+      assignedColor: finalColor,
+    });
 
-    // Notify others in the room (if any) that a player joined
-    // Note: `socket.to(roomId)` sends to everyone in the room *except* the sender
-    socket.to(roomId).emit("playerJoined", { username, symbol });
+    // Notify opponent (if exists)
+    const opponentSocket = this.getOpponentSocket(socket, room);
+    if (opponentSocket) {
+      opponentSocket.emit(Events.PLAYER_JOINED, { username, symbol });
+      // If opponent joined, update *their* game state view with the new player's info too
+      opponentSocket.emit(Events.GAME_UPDATE, room.state);
+    }
 
-    // If room is now full, start the game
+    // Start game or wait
     if (room.playerSocketIds.size === 2) {
-      // Ensure player 'O' username and color are set correctly (might already be if they logged in)
-      const opponentSymbol =
-        symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
-      const opponentSocketId = Array.from(room.playerSocketIds).find(
-        (id) => id !== socket.id
-      );
-      if (opponentSocketId && !room.state.players[opponentSymbol]?.username) {
-        // Fetch opponent data if missing (this depends on how you handle the second player's login)
-        // This might indicate a logic issue if player data isn't fully populated before game start
-        console.warn(
-          `Opponent data potentially missing for ${opponentSymbol} in room ${roomId}`
-        );
-      }
-
-      room.state.gameStatus = GameStatus.ACTIVE; // Set status to active
-      room.state.currentPlayer = PlayerSymbol.X; // X always starts? Or randomize?
-      console.log(`Game starting in room ${roomId}`);
-      // Emit 'gameStart' to EVERYONE in the room (including sender) with the initial state
-      this.io.to(roomId).emit("gameStart", room.state);
+      this.startGame(room);
     } else {
-      // If waiting for opponent, send the current state (which includes the first player's info)
-      room.state.gameStatus = GameStatus.WAITING; // Explicitly set waiting status
-      socket.emit("gameUpdate", room.state); // Send partial state to the first player
+      room.state.gameStatus = GameStatus.WAITING;
+      socket.emit(Events.GAME_UPDATE, room.state); // Send initial state to first player
       console.log(`Room ${roomId} waiting for opponent.`);
     }
   }
