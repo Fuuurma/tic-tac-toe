@@ -83,7 +83,7 @@ export interface ServerToClientEvents {
   playerAssigned: (payload: {
     symbol: PlayerSymbol;
     roomId: string;
-    // assignedColor: Color;
+    assignedColor: Color;
   }) => void; // Added assignedColor
   playerJoined: (payload: { username: string; symbol: PlayerSymbol }) => void;
   playerLeft: (payload: { symbol: PlayerSymbol | null }) => void; // Send symbol of leaving player
@@ -112,6 +112,8 @@ export interface GameRoom {
   playerSocketIds: Set<string>;
   // Game state specific to this room
   state: GameState;
+  rematchState: "none" | "requested"; // Track rematch status
+  rematchRequesterSymbol: PlayerSymbol | null; // Who requested?
 }
 
 export interface SocketData {

@@ -181,3 +181,27 @@ export const SESSION_CONFIG = {
   INACTIVITY_TIMEOUT: 15 * 60 * 1000, // 15 minutes
   MAX_GAMES_PER_USER: 5,
 } as const;
+
+// At the top of GameServer.ts or in a shared constants file
+export const Events = {
+  CONNECTION: "connection",
+  DISCONNECT: "disconnect",
+  LOGIN: "login",
+  MOVE: "move",
+  RESET: "reset", // Current reset, will adapt for rematch
+  REQUEST_REMATCH: "requestRematch", // New for rematch
+  ACCEPT_REMATCH: "acceptRematch", // New for rematch
+  DECLINE_REMATCH: "declineRematch", // New for rematch
+  LEAVE_ROOM: "leaveRoom", // New for explicit leave
+
+  // Server to Client
+  ERROR: "error",
+  PLAYER_ASSIGNED: "playerAssigned", // Will include final color
+  PLAYER_JOINED: "playerJoined",
+  PLAYER_LEFT: "playerLeft",
+  GAME_START: "gameStart",
+  GAME_UPDATE: "gameUpdate",
+  GAME_RESET: "gameReset", // Emitted after successful rematch/reset
+  REMATCH_REQUESTED: "rematchRequested", // To notify opponent
+  COLOR_CHANGED: "colorChanged", // Explicitly notify if color changes
+} as const;

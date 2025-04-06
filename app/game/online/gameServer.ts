@@ -8,6 +8,7 @@ import { Server, Socket } from "socket.io";
 
 import {
   Color,
+  Events,
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
@@ -15,6 +16,8 @@ import {
 } from "../constants/constants";
 import { makeMove } from "../logic/makeMove";
 import { createOnlineGameState } from "./createOnlineGameState";
+
+type ValidationResult = { isValid: true } | { isValid: false; error: string };
 
 export class GameServer {
   private io: Server<ClientToServerEvents, ServerToClientEvents, SocketData>;
@@ -30,6 +33,8 @@ export class GameServer {
     this.setupEvents();
     console.log("GameServer initialized");
   }
+
+  // --- SETUP  ---
 
   private setupEvents(): void {
     this.io.on("connection", (socket) => {
@@ -48,6 +53,25 @@ export class GameServer {
         console.error(`Socket ${socket.id} error: ${err.message}`);
         // Optionally disconnect socket on critical errors
       });
+    });
+  }
+
+  private registerEventHandlers(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): void {
+    socket.on(Events.LOGIN, (username, color) =>
+      this.handleLogin(socket, username, color)
+    );
+    socket.on(Events.DISCONNECT, () => this.handleDisconnect(socket));
+    socket.on(Events.MOVE, (index) => this.handleMove(socket, index));
+    // socket.on(Events.RESET, () => this.handleResetRequest(socket)); // Deprecate direct reset?
+    socket.on(Events.REQUEST_REMATCH, () => this.handleRequestRematch(socket));
+    socket.on(Events.ACCEPT_REMATCH, () => this.handleAcceptRematch(socket));
+    socket.on(Events.DECLINE_REMATCH, () => this.handleDeclineRematch(socket));
+    socket.on(Events.LEAVE_ROOM, () => this.handleLeaveRoom(socket));
+
+    socket.on("error", (err) => {
+      console.error(`Socket ${socket.id} error: ${err.message}`);
     });
   }
 
