@@ -37,22 +37,9 @@ export class GameServer {
   // --- SETUP  ---
 
   private setupEvents(): void {
-    this.io.on("connection", (socket) => {
+    this.io.on(Events.CONNECTION, (socket) => {
       console.log(`User connected: ${socket.id}`);
-
-      // Attach handlers with proper typing
-      socket.on("login", (username, color) =>
-        this.handleLogin(socket, username, color)
-      );
-      socket.on("disconnect", () => this.handleDisconnect(socket));
-      socket.on("move", (index) => this.handleMove(socket, index));
-      socket.on("reset", () => this.handleReset(socket)); // Listen for 'reset'
-
-      // Optional: Error handler for socket middleware or general errors
-      socket.on("error", (err) => {
-        console.error(`Socket ${socket.id} error: ${err.message}`);
-        // Optionally disconnect socket on critical errors
-      });
+      this.registerEventHandlers(socket);
     });
   }
 
@@ -75,30 +62,37 @@ export class GameServer {
     });
   }
 
+  // --- Helper Functions ---
+
   // --- Room Management ---
 
   private findAvailableRoomOrCreate(): GameRoom {
-    // 1. Find an existing room with less than 2 players
     for (const room of this.rooms.values()) {
       if (room.playerSocketIds.size < 2) {
         console.log(`Found available room: ${room.id}`);
         return room;
       }
     }
+    return this.createNewRoom();
+  }
 
-    // 2. If no available room, create a new one
+  private createNewRoom(): GameRoom {
     const newRoomId = `room-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 7)}`;
     const newRoom: GameRoom = {
       id: newRoomId,
       playerSocketIds: new Set(),
-      state: createOnlineGameState(), // Use a function to get a fresh game state
+      state: createOnlineGameState(),
+      rematchState: "none", // Initialize rematch state
+      rematchRequesterSymbol: null,
     };
     this.rooms.set(newRoomId, newRoom);
     console.log(`Created new room: ${newRoomId}`);
     return newRoom;
   }
+
+  // --- Room Management ---
 
   private getRoomById(roomId: string): GameRoom | undefined {
     return this.rooms.get(roomId);
