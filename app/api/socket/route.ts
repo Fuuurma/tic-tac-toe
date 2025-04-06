@@ -84,41 +84,6 @@ export async function GET() {
  * the client-side connection URL.
  */
 
-//     // Create a new Socket.IO server
-//     io = new Server(httpServer, {
-//       cors: {
-//         origin: "*",
-//         methods: ["GET", "POST"],
-//       },
-//     });
-
-//     // Set up Socket.IO event handlers
-//     io.on("connection", (socket) => {
-//       console.log("A user connected:", socket.id);
-
-//       // Handle user login
-//   socket.on("login", (username, gameMode) => {
-//         console.log(`User ${username} logged in with game mode ${gameMode}`);
-//         connectedUsers.set(socket.id, username);
-
-//         // Set the game mode
-//         gameState.gameMode = gameMode;
-
-//         if (!isOnlineGame(gameState)) return;
-
-//         // Assign player type and opponent
-//         let playerType = null;
-
-//         if (!gameState.players[PlayerSymbol.X]?.username) {
-//           gameState.players[PlayerSymbol.X] = {
-//             username,
-//             color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
-//             symbol: PlayerSymbol.X,
-//             type: PlayerTypes.HUMAN,
-//             isActive: true,
-//           };
-//           playerType = PlayerSymbol.X;
-
 //           // Notify user they're X
 //           socket.emit("playerAssigned", PlayerSymbol.X);
 //         } else if (!gameState.players[PlayerSymbol.O]?.username) {
