@@ -331,42 +331,6 @@ export default function Home() {
     // Dependencies need review - ensure all state used inside handlers that should trigger re-binding is listed
   }, [socket, username, playerSymbol, selectedColor, opponentName]); // Added opponentName
 
-  //     })
-  //     .catch((err) => {
-  //       console.error("Socket fetch initialization error:", err);
-  //       setMessage("Failed to connect to game server");
-  //     });
-  // };
-
-  // useEffect(() => {
-  //   if (!socket) return;
-
-  //   // Listen for player symbol assignment
-  //   socket.on("playerAssigned", (symbol) => {
-  //     setPlayerSymbol(symbol);
-  //   });
-
-  //   // Listen for game updates
-  //   socket.on("updateGame", (newGameState) => {
-  //     setGameState(newGameState);
-  //     // For computer games, always be X
-  //     if (isVsComputer(newGameState) && playerSymbol !== PlayerSymbol.X) {
-  //       setPlayerSymbol(PlayerSymbol.X);
-  //     }
-  //   });
-
-  //   // Listen for player join events
-  //   socket.on("playerJoined", (playerInfo) => {
-  //     setMessage(`${playerInfo.username} joined as ${playerInfo.type}`);
-  //     setTimeout(() => setMessage(""), 3000);
-  //   });
-
-  //   // Listen for game reset
-  //   socket.on("gameReset", () => {
-  //     setMessage("Game has been reset");
-  //     setTimeout(() => setMessage(""), 3000);
-  //   });
-
   //   // Listen for errors
   //   socket.on("error", (errorMessage) => {
   //     setMessage(errorMessage);
