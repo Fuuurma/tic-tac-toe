@@ -88,38 +88,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const isLocalGame =
     gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
 
-  // --- Render Button Section Based on Game Mode ---
-  const renderGameButtons = () => {
-    // Online game buttons with rematch functionality
-    if (isOnlineGame) {
-      if (isGameOver) {
-        // Game is over - show appropriate rematch options
-        if (rematchOffered) {
-          return (
-            <div className="flex flex-col sm:flex-row gap-2 w-full">
-              <Button
-                onClick={onAcceptRematch}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                Accept Rematch
-              </Button>
-              <Button
-                onClick={onDeclineRematch}
-                variant="outline"
-                className="flex-1"
-              >
-                Decline
-              </Button>
-              <Button
-                onClick={onLeaveRoom}
-                variant="destructive"
-                className="flex-1"
-              >
-                Leave Room
-              </Button>
-            </div>
-          );
-        } else {
+  
           return (
             <div className="flex gap-2 w-full">
               <Button onClick={onRequestRematch} className="flex-1">
