@@ -427,25 +427,23 @@ export class GameServer {
   }
 
   private handleAcceptRematch(
-    socket: Socket<
-      ClientToServerEvents,
-      ServerToClientEvents,
-      InterServerEvents,
-      SocketData
-    >
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {
     const room = this.getPlayerRoom(socket);
     const accepterSymbol = socket.data.symbol;
 
-    if (!room || !accepterSymbol)
-      return socket.emit(Events.ERROR, "Invalid request.");
-    if (room.rematchState !== "requested")
-      return socket.emit(Events.ERROR, "No rematch request pending.");
-    if (room.rematchRequesterSymbol === accepterSymbol)
-      return socket.emit(
-        Events.ERROR,
-        "Cannot accept your own rematch request."
-      ); // Should not happen
+    if (!room || !accepterSymbol) {
+      socket.emit(Events.ERROR, "Invalid request.");
+      return;
+    }
+    if (room.rematchState !== "requested") {
+      socket.emit(Events.ERROR, "No rematch request pending.");
+      return;
+    }
+    if (room.rematchRequesterSymbol === accepterSymbol) {
+      socket.emit(Events.ERROR, "Cannot accept your own rematch request."); // Should not happen
+      return;
+    }
 
     console.log(`Player ${accepterSymbol} accepted rematch in room ${room.id}`);
 
@@ -459,8 +457,10 @@ export class GameServer {
     const room = this.getPlayerRoom(socket);
     const declinerSymbol = socket.data.symbol;
 
-    if (!room || !declinerSymbol)
-      return socket.emit(Events.ERROR, "Invalid request.");
+    if (!room || !declinerSymbol) {
+      socket.emit(Events.ERROR, "Invalid request.");
+      return;
+    }
     // Check if there was a request to decline
     if (room.rematchState !== "requested") return; // Ignore if no request pending
 
@@ -478,6 +478,31 @@ export class GameServer {
     room.rematchRequesterSymbol = null;
     // Optional: Automatically make the decliner leave the room? Or let them choose 'Leave Room' separately.
     // this.handleLeaveRoom(socket);
+  }
+
+  private handleLeaveRoom(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): void {
+    const room = this.getPlayerRoom(socket);
+    if (room) {
+      this.leaveRoomAndDeleteIfEmpty(socket, room);
+    } else {
+      // If not in a room (maybe already left), just ensure data is clear
+      socket.data = {};
+    }
+  }
+
+  private handleDisconnect(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  ): void {
+    const username = socket.data.username || socket.id;
+    console.log(`User disconnected: ${username} (${socket.id})`);
+    const room = this.getPlayerRoom(socket);
+    if (room) {
+      // Use the same leave logic as explicit leave
+      this.leaveRoomAndDeleteIfEmpty(socket, room);
+    }
+    // Socket data is cleared within leaveRoomAndDeleteIfEmpty
   }
 
   private handleReset(
