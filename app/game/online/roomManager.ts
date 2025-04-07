@@ -87,5 +87,9 @@ export class RoomManager {
     return this.rooms.size;
   }
 
+  private createRoomName(): string {
+    return `room-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  }
+
   // Optional: Add methods to get all rooms, iterate, etc. if needed for admin/debug
 }
