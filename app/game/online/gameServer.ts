@@ -70,37 +70,37 @@ export class GameServer {
 
   // --- Room Management ---
 
-  private findAvailableRoomOrCreate(): GameRoom {
-    for (const room of this.rooms.values()) {
-      if (room.playerSocketIds.size < 2) {
-        console.log(`Found available room: ${room.id}`);
-        return room;
-      }
-    }
-    return this.createNewRoom();
-  }
+  // private findAvailableRoomOrCreate(): GameRoom {
+  //   for (const room of this.rooms.values()) {
+  //     if (room.playerSocketIds.size < 2) {
+  //       console.log(`Found available room: ${room.id}`);
+  //       return room;
+  //     }
+  //   }
+  //   return this.createNewRoom();
+  // }
 
-  private createNewRoom(): GameRoom {
-    const newRoomId = `room-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 7)}`;
+  // private createNewRoom(): GameRoom {
+  //   const newRoomId = `room-${Date.now()}-${Math.random()
+  //     .toString(36)
+  //     .substring(2, 7)}`;
 
-    const newRoom: GameRoom = {
-      id: newRoomId,
-      playerSocketIds: new Set(),
-      state: createOnlineGameState(),
-      rematchState: "none", // Initialize rematch state
-      rematchRequesterSymbol: null,
-    };
+  //   const newRoom: GameRoom = {
+  //     id: newRoomId,
+  //     playerSocketIds: new Set(),
+  //     state: createOnlineGameState(),
+  //     rematchState: "none", // Initialize rematch state
+  //     rematchRequesterSymbol: null,
+  //   };
 
-    this.rooms.set(newRoomId, newRoom);
-    console.log(`Created new room: ${newRoomId}`);
-    return newRoom;
-  }
+  //   this.rooms.set(newRoomId, newRoom);
+  //   console.log(`Created new room: ${newRoomId}`);
+  //   return newRoom;
+  // }
 
-  private getRoomById(roomId: string): GameRoom | undefined {
-    return this.rooms.get(roomId);
-  }
+  // private getRoomById(roomId: string): GameRoom | undefined {
+  //   return this.rooms.get(roomId);
+  // }
 
   private getPlayerRoom(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
