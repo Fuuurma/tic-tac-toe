@@ -563,58 +563,5 @@ export class GameServer {
       // Use the same leave logic as explicit leave
       this.playerLeaveActions(socket, room);
     }
-    // Socket data is cleared within leaveRoomAndDeleteIfEmpty
   }
-
-  // Obsolete
-  // private handleReset(
-  //   socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
-  // ): void {
-  //   const room = this.getPlayerRoom(socket);
-
-  //   if (!room) {
-  //     socket.emit("error", "Not in a valid room.");
-  //     return;
-  //   }
-
-  //   // Optional: Allow reset only if game is finished or > 1 player?
-  //   if (room.state.gameStatus === GameStatus.ACTIVE) {
-  //     socket.emit("error", "Cannot reset active game.");
-  //     return;
-  //   }
-
-  //   console.log(
-  //     `Reset request from ${socket.data.username} in room ${room.id}`
-  //   );
-
-  //   // Store current player data (ensure deep copy if necessary, but references should be fine if not mutating player objects directly)
-  //   const currentPlayersData = { ...room.state.players };
-
-  //   // Reset game state but keep player info and room structure
-  //   room.state = {
-  //     ...createOnlineGameState(), // Get a fresh board, winner=null, etc.
-  //     players: currentPlayersData, // Restore player details
-  //     gameStatus:
-  //       room.playerSocketIds.size === 2
-  //         ? GameStatus.ACTIVE
-  //         : GameStatus.WAITING, // Reset status based on player count
-  //     currentPlayer: PlayerSymbol.X, // Reset starting player
-  //   };
-
-  //   // Ensure players are marked active (might have been inactive on disconnect/reconnect)
-  //   Array.from(room.playerSocketIds).forEach((socketId) => {
-  //     const playerSocket = this.io.sockets.sockets.get(socketId);
-  //     const symbol = playerSocket?.data.symbol;
-
-  //     if (symbol && Object.values(PlayerSymbol).includes(symbol)) {
-  //       room.state.players[symbol as PlayerSymbol].isActive = true;
-  //     }
-  //   });
-
-  //   console.log(
-  //     `Game reset in room ${room.id}. Status: ${room.state.gameStatus}`
-  //   );
-  //   // Broadcast the reset state to everyone in the room
-  //   this.io.to(room.id).emit("gameReset", room.state);
-  // }
 }
