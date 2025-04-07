@@ -1,4 +1,11 @@
-import { PlayerSymbol } from "@/app/game/constants/constants";
+import {
+  Color,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+} from "@/app/game/constants/constants";
+import { hasColorConflict } from "./hasColorConflict";
+import { findAlternativeColor } from "./findAlternativeColor";
+import { PlayerConfig } from "@/app/types/types";
 
 /**
  * Determines the appropriate color for a joining player
@@ -9,7 +16,7 @@ import { PlayerSymbol } from "@/app/game/constants/constants";
  */
 export function determinePlayerColor(
   joiningSymbol: PlayerSymbol,
-  opponentData: PlayerData | undefined,
+  opponentData: PlayerConfig | undefined,
   preferredColor: Color
 ): { finalColor: Color; wasChanged: boolean } {
   // If no opponent or opponent is inactive, use preferred color
