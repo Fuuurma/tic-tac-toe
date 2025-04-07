@@ -144,34 +144,6 @@ export class GameServer {
     console.log(`Game reset for rematch in room ${room.id}.`);
     this.io.to(room.id).emit(Events.GAME_RESET, room.state);
   }
-  // Resets the board state, keeps players, prepares for new game
-  // private resetRoomForRematch(room: GameRoom): void {
-  //   const currentPlayersData = { ...room.state.players };
-
-  //   // Reset game state but keep player info
-  //   room.state = {
-  //     ...createOnlineGameState(),
-  //     players: currentPlayersData,
-  //     gameStatus: GameStatus.ACTIVE, // Start immediately
-  //     currentPlayer: PlayerSymbol.X, // Or swap starter?
-  //   };
-
-  //   // Ensure players are marked active
-  //   Array.from(room.playerSocketIds).forEach((socketId) => {
-  //     const playerSocket = this.io.sockets.sockets.get(socketId);
-  //     const symbol = playerSocket?.data.symbol;
-  //     if (isValidPlayerSymbol(symbol)) {
-  //       room.state.players[symbol].isActive = true;
-  //     }
-  //   });
-
-  //   // Reset rematch tracking state
-  //   room.rematchState = "none";
-  //   room.rematchRequesterSymbol = null;
-
-  //   console.log(`Game reset for rematch in room ${room.id}.`);
-  //   this.io.to(room.id).emit(Events.GAME_RESET, room.state); // Notify clients game is reset
-  // }
 
   private notifyRoom(
     roomId: string,
