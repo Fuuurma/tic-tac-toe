@@ -81,6 +81,7 @@ export class GameServer {
     const newRoomId = `room-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 7)}`;
+
     const newRoom: GameRoom = {
       id: newRoomId,
       playerSocketIds: new Set(),
@@ -88,6 +89,7 @@ export class GameServer {
       rematchState: "none", // Initialize rematch state
       rematchRequesterSymbol: null,
     };
+
     this.rooms.set(newRoomId, newRoom);
     console.log(`Created new room: ${newRoomId}`);
     return newRoom;
@@ -101,6 +103,7 @@ export class GameServer {
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): GameRoom | undefined {
     const roomId = socket.data.roomId;
+    // return this.getRoomById(roomId);
     return roomId ? this.getRoomById(roomId) : undefined;
   }
 
@@ -114,6 +117,8 @@ export class GameServer {
     const opponentSocketId = Array.from(room.playerSocketIds).find(
       (id) => id !== socket.id
     );
+
+    // return this.io.sockets.sockets.get(opponentSocketId);
     return opponentSocketId
       ? this.io.sockets.sockets.get(opponentSocketId)
       : undefined;
@@ -126,6 +131,7 @@ export class GameServer {
   ): Color {
     const opponentSymbol =
       joiningSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+
     const opponent = room.state.players[opponentSymbol];
 
     // If opponent exists and has the same preferred color
@@ -402,6 +408,27 @@ export class GameServer {
 
   // --- Rematch and Leave Handlers ---
 
+  private validateRematchRequest(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    room: GameRoom | undefined
+  ): ValidationResult {
+    const requesterSymbol = socket.data.symbol;
+
+    if (!room || !requesterSymbol)
+      return { isValid: false, error: "Invalid request context." };
+
+    if (room.state.gameStatus !== GameStatus.COMPLETED)
+      return { isValid: false, error: "Game not finished yet." };
+
+    if (room.playerSocketIds.size < 2)
+      return { isValid: false, error: "Opponent is not present." };
+
+    if (room.rematchState === "requested")
+      return { isValid: false, error: "Rematch already requested." };
+
+    return { isValid: true };
+  }
+
   private handleRequestRematch(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {
@@ -421,7 +448,7 @@ export class GameServer {
       return;
     }
     if (room.rematchState === "requested") {
-      socket.emit(Events.ERROR, "Rematch already requested."); // Prevent spamming
+      socket.emit(Events.ERROR, "Rematch already requested.");
       return;
     }
 
@@ -438,6 +465,27 @@ export class GameServer {
 
     // Notify requester (optional confirmation)
     // socket.emit('status', 'Rematch requested. Waiting for opponent...');
+  }
+
+  private validateRematchAccept(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    room: GameRoom | undefined
+  ): ValidationResult {
+    const accepterSymbol = socket.data.symbol;
+
+    if (!room || !accepterSymbol)
+      return { isValid: false, error: "Invalid request context." };
+
+    if (room.rematchState !== "requested")
+      return { isValid: false, error: "No rematch request pending." };
+
+    if (room.rematchRequesterSymbol === accepterSymbol)
+      return { isValid: false, error: "Cannot accept your own request." };
+
+    if (!room.playerSocketIds.has(socket.id))
+      return { isValid: false, error: "Player not in this room." }; // Extra check
+
+    return { isValid: true };
   }
 
   private handleAcceptRematch(

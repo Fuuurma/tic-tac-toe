@@ -494,7 +494,7 @@ export default function Home() {
     bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
     overflow-y-auto" // Controlled scrolling
     >
-      <header className="w-full max-w-4xl flex justify-between items-center mb-4">
+      <header className="w-full max-w-4xl flex justify-center items-center gap-4 mb-4">
         <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
         <UserMenu
           username={username}

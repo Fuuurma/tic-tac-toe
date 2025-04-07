@@ -1,17 +1,5 @@
-import {
-  PlayerSymbol,
-  PLAYER_CONFIG,
-  PlayerTypes,
-} from "@/app/game/constants/constants";
 import { createServer } from "http";
-import { NextApiRequest, NextApiResponse } from "next";
-import type { Server as HTTPServer } from "http";
-import type { Socket as NetSocket } from "net";
-import { makeMove } from "@/app/game/logic/makeMove";
-import { initialGameState } from "@/app/types/types";
-import { isOnlineGame } from "@/app/utils/gameModeChecks";
 import { NextResponse } from "next/server";
-import { Server } from "socket.io";
 import { GameServer } from "@/app/game/online/gameServer";
 
 // --- Singleton Pattern for Server Initialization ---
