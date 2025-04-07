@@ -3,6 +3,7 @@
  */
 
 import { GameRoom } from "@/app/types/types";
+import { createOnlineGameState } from "./createOnlineGameState";
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
@@ -24,10 +25,44 @@ export class RoomManager {
         return room;
       }
     }
+
+    // TODO:
     // If no room with 1 player, check for truly empty rooms that might exist transiently (less likely needed)
     // for (const room of this.rooms.values()) { ... }
 
     // If no suitable waiting room, create a new one.
     return this.createNewRoom();
+  }
+
+  /**
+   * Creates a new, empty GameRoom and adds it to the manager.
+   * @returns The newly created GameRoom.
+   */
+  private createNewRoom(): GameRoom {
+    const newRoomId = `room-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 7)}`;
+
+    const newRoom: GameRoom = {
+      id: newRoomId,
+      playerSocketIds: new Set(),
+      state: createOnlineGameState(),
+      rematchState: "none",
+      rematchRequesterSymbol: null,
+    };
+
+    this.rooms.set(newRoomId, newRoom);
+    console.log(`[RoomManager] Created new room: ${newRoomId}`);
+
+    return newRoom;
+  }
+
+  /**
+   * Retrieves a room by its ID.
+   * @param roomId The ID of the room to retrieve.
+   * @returns The GameRoom if found, otherwise undefined.
+   */
+  public getRoomById(roomId: string): GameRoom | undefined {
+    return this.rooms.get(roomId);
   }
 }
