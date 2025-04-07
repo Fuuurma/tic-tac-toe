@@ -55,7 +55,6 @@ export class GameServer {
     );
     socket.on(Events.DISCONNECT, () => this.handleDisconnect(socket));
     socket.on(Events.MOVE, (index) => this.handleMove(socket, index));
-    // socket.on(Events.RESET, () => this.handleResetRequest(socket)); // Deprecate direct reset?
     socket.on(Events.REQUEST_REMATCH, () => this.handleRequestRematch(socket));
     socket.on(Events.ACCEPT_REMATCH, () => this.handleAcceptRematch(socket));
     socket.on(Events.DECLINE_REMATCH, () => this.handleDeclineRematch(socket));
@@ -67,40 +66,6 @@ export class GameServer {
   }
 
   // --- Helper Functions ---
-
-  // --- Room Management ---
-
-  // private findAvailableRoomOrCreate(): GameRoom {
-  //   for (const room of this.rooms.values()) {
-  //     if (room.playerSocketIds.size < 2) {
-  //       console.log(`Found available room: ${room.id}`);
-  //       return room;
-  //     }
-  //   }
-  //   return this.createNewRoom();
-  // }
-
-  // private createNewRoom(): GameRoom {
-  //   const newRoomId = `room-${Date.now()}-${Math.random()
-  //     .toString(36)
-  //     .substring(2, 7)}`;
-
-  //   const newRoom: GameRoom = {
-  //     id: newRoomId,
-  //     playerSocketIds: new Set(),
-  //     state: createOnlineGameState(),
-  //     rematchState: "none", // Initialize rematch state
-  //     rematchRequesterSymbol: null,
-  //   };
-
-  //   this.rooms.set(newRoomId, newRoom);
-  //   console.log(`Created new room: ${newRoomId}`);
-  //   return newRoom;
-  // }
-
-  // private getRoomById(roomId: string): GameRoom | undefined {
-  //   return this.rooms.get(roomId);
-  // }
 
   private getPlayerRoom(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
@@ -120,7 +85,6 @@ export class GameServer {
       (id) => id !== socket.id
     );
 
-    // return this.io.sockets.sockets.get(opponentSocketId);
     return opponentSocketId
       ? this.io.sockets.sockets.get(opponentSocketId)
       : undefined;
