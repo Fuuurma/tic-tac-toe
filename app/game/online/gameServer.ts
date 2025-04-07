@@ -433,35 +433,27 @@ export class GameServer {
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {
     const room = this.getPlayerRoom(socket);
-    const requesterSymbol = socket.data.symbol;
 
-    if (!room || !requesterSymbol) {
-      socket.emit(Events.ERROR, "Invalid request.");
-      return;
-    }
-    if (room.state.gameStatus !== GameStatus.COMPLETED) {
-      socket.emit(Events.ERROR, "Game not finished yet.");
-      return;
-    }
-    if (room.playerSocketIds.size < 2) {
-      socket.emit(Events.ERROR, "Opponent is not present.");
-      return;
-    }
-    if (room.rematchState === "requested") {
-      socket.emit(Events.ERROR, "Rematch already requested.");
+    const validation = this.validateRematchRequest(socket, room);
+    if (!validation.isValid) {
+      socket.emit(Events.ERROR, validation.error);
       return;
     }
 
-    room.rematchState = "requested";
-    room.rematchRequesterSymbol = requesterSymbol;
+    const currentRoom = room!;
+    const requesterSymbol = socket.data.symbol!;
+
+    currentRoom.rematchState = "requested";
+    currentRoom.rematchRequesterSymbol = requesterSymbol;
 
     console.log(
-      `Player ${requesterSymbol} requested rematch in room ${room.id}`
+      `Player ${requesterSymbol} requested rematch in room ${currentRoom.id}`
     );
 
-    // Notify the opponent
-    const opponentSocket = this.getOpponentSocket(socket, room);
-    opponentSocket?.emit(Events.REMATCH_REQUESTED, { requesterSymbol });
+    this.getOpponentSocket(socket, currentRoom)?.emit(
+      Events.REMATCH_REQUESTED,
+      { requesterSymbol }
+    );
 
     // Notify requester (optional confirmation)
     // socket.emit('status', 'Rematch requested. Waiting for opponent...');
@@ -492,25 +484,21 @@ export class GameServer {
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {
     const room = this.getPlayerRoom(socket);
-    const accepterSymbol = socket.data.symbol;
 
-    if (!room || !accepterSymbol) {
-      socket.emit(Events.ERROR, "Invalid request.");
-      return;
-    }
-    if (room.rematchState !== "requested") {
-      socket.emit(Events.ERROR, "No rematch request pending.");
-      return;
-    }
-    if (room.rematchRequesterSymbol === accepterSymbol) {
-      socket.emit(Events.ERROR, "Cannot accept your own rematch request."); // Should not happen
+    const validation = this.validateRematchAccept(socket, room);
+    if (!validation.isValid) {
+      socket.emit(Events.ERROR, validation.error);
       return;
     }
 
-    console.log(`Player ${accepterSymbol} accepted rematch in room ${room.id}`);
+    const currentRoom = room!;
+    const accepterSymbol = socket.data.symbol!;
 
-    // Reset the game state for both players
-    this.resetRoomForRematch(room);
+    console.log(
+      `Player ${accepterSymbol} accepted rematch in room ${currentRoom.id}`
+    );
+
+    this.resetRoomForRematch(currentRoom);
   }
 
   private handleDeclineRematch(
