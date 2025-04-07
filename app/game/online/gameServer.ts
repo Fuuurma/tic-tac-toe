@@ -40,7 +40,7 @@ export class GameServer {
     console.log("GameServer initialized");
   }
 
-  // --- SETUP  ---
+  // --- SETUP  --- //
 
   private setupEvents(): void {
     this.io.on(Events.CONNECTION, (socket) => {
@@ -67,7 +67,7 @@ export class GameServer {
     });
   }
 
-  // --- Helper Functions ---
+  // --- HELPER FUNCTIONS --- //
 
   private getPlayerRoom(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
@@ -94,34 +94,6 @@ export class GameServer {
     return opponentSocketId
       ? this.io.sockets.sockets.get(opponentSocketId)
       : undefined;
-  }
-
-  private assignPlayerColor(
-    room: GameRoom,
-    joiningSymbol: PlayerSymbol,
-    preferredColor: Color
-  ): Color {
-    const opponentSymbol =
-      joiningSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
-
-    const opponent = room.state.players[opponentSymbol];
-
-    // If opponent exists and has the same preferred color
-    if (opponent?.isActive && opponent.color === preferredColor) {
-      // Find the first available color that is different
-      for (const availableColor of Object.values(Color)) {
-        if (availableColor !== opponent.color) {
-          console.log(
-            `Color conflict for ${joiningSymbol}. Assigning ${availableColor} instead of ${preferredColor}.`
-          );
-          return availableColor;
-        }
-      }
-      // Fallback if somehow all colors are the same (shouldn't happen with >1 color)
-      return PLAYER_CONFIG[joiningSymbol].defaultColor;
-    }
-    // No conflict or no active opponent yet, use preferred or default
-    return preferredColor || PLAYER_CONFIG[joiningSymbol].defaultColor;
   }
 
   private startGame(room: GameRoom): void {
@@ -153,6 +125,7 @@ export class GameServer {
     this.io.to(roomId).emit(event, payload);
   }
 
+  // -- PLAYER LEAVES ACTIONS --- //
   // Main logic for handling player leaving/disconnecting
   private playerLeaveActions(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
@@ -198,32 +171,7 @@ export class GameServer {
     socket.data = {};
   }
 
-  // Validates a move attempt
-  private validateMove(
-    room: GameRoom | undefined,
-    playerSymbol: PlayerSymbol | undefined,
-    index: number
-  ): ValidationResult {
-    if (!room) return { isValid: false, error: "Not in a valid room." };
-    if (!playerSymbol)
-      return { isValid: false, error: "Player symbol not assigned." };
-    if (room.state.gameStatus !== GameStatus.ACTIVE)
-      return { isValid: false, error: "Game is not active." };
-    if (room.state.winner)
-      return { isValid: false, error: "Game is already over." };
-    if (playerSymbol !== room.state.currentPlayer)
-      return { isValid: false, error: "Not your turn." };
-    if (
-      index < 0 ||
-      index >= room.state.board.length ||
-      room.state.board[index] !== null
-    ) {
-      return { isValid: false, error: "Invalid move location." };
-    }
-    return { isValid: true };
-  }
-
-  // --- Event Handlers ---
+  // --- LOGIN --- //
 
   private handleLogin(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
@@ -307,6 +255,34 @@ export class GameServer {
     }
   }
 
+  // --- MOVE VALIDATION --- //
+
+  private validateMove(
+    room: GameRoom | undefined,
+    playerSymbol: PlayerSymbol | undefined,
+    index: number
+  ): ValidationResult {
+    if (!room) return { isValid: false, error: "Not in a valid room." };
+    if (!playerSymbol)
+      return { isValid: false, error: "Player symbol not assigned." };
+    if (room.state.gameStatus !== GameStatus.ACTIVE)
+      return { isValid: false, error: "Game is not active." };
+    if (room.state.winner)
+      return { isValid: false, error: "Game is already over." };
+    if (playerSymbol !== room.state.currentPlayer)
+      return { isValid: false, error: "Not your turn." };
+    if (
+      index < 0 ||
+      index >= room.state.board.length ||
+      room.state.board[index] !== null
+    ) {
+      return { isValid: false, error: "Invalid move location." };
+    }
+    return { isValid: true };
+  }
+
+  // --- HANDLE MOVE --- //
+
   private handleMove(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
     index: number
@@ -354,7 +330,7 @@ export class GameServer {
     }
   }
 
-  // --- Rematch and Leave Handlers ---
+  // --- REMATCH HANDLERS ---
 
   private validateRematchRequest(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
@@ -478,6 +454,7 @@ export class GameServer {
     // this.handleLeaveRoom(socket);
   }
 
+  // --- LEAVE HANDLERS ---
   private handleLeaveRoom(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {
