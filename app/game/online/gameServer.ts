@@ -18,6 +18,8 @@ import { makeMove } from "../logic/makeMove";
 import { createOnlineGameState } from "./createOnlineGameState";
 import { isValidPlayerSymbol } from "@/app/utils/isValidSymbol";
 import { RoomManager } from "./roomManager";
+import { prepareRoomForRematch } from "./utils/prepareRoomRematch";
+import { determinePlayerColor } from "@/app/utils/colors/determinePlayerColor";
 
 type ValidationResult = { isValid: true } | { isValid: false; error: string };
 
@@ -72,6 +74,10 @@ export class GameServer {
   ): GameRoom | undefined {
     const roomId = socket.data.roomId;
     return roomId ? this.roomManager.getRoomById(roomId) : undefined;
+  }
+
+  private getSocketFromId(socketId: string): Socket | undefined {
+    return this.io.sockets.sockets.get(socketId);
   }
 
   // Gets the socket instance of the opponent in the room
@@ -131,34 +137,41 @@ export class GameServer {
     this.io.to(room.id).emit(Events.GAME_START, room.state);
   }
 
-  // Resets the board state, keeps players, prepares for new game
   private resetRoomForRematch(room: GameRoom): void {
-    const currentPlayersData = { ...room.state.players };
-
-    // Reset game state but keep player info
-    room.state = {
-      ...createOnlineGameState(),
-      players: currentPlayersData,
-      gameStatus: GameStatus.ACTIVE, // Start immediately
-      currentPlayer: PlayerSymbol.X, // Or swap starter?
-    };
-
-    // Ensure players are marked active
-    Array.from(room.playerSocketIds).forEach((socketId) => {
-      const playerSocket = this.io.sockets.sockets.get(socketId);
-      const symbol = playerSocket?.data.symbol;
-      if (isValidPlayerSymbol(symbol)) {
-        room.state.players[symbol].isActive = true;
-      }
-    });
-
-    // Reset rematch tracking state
-    room.rematchState = "none";
-    room.rematchRequesterSymbol = null;
-
+    prepareRoomForRematch(room, room.playerSocketIds, (socketId) =>
+      this.getSocketFromId(socketId)
+    );
     console.log(`Game reset for rematch in room ${room.id}.`);
-    this.io.to(room.id).emit(Events.GAME_RESET, room.state); // Notify clients game is reset
+    this.io.to(room.id).emit(Events.GAME_RESET, room.state);
   }
+  // Resets the board state, keeps players, prepares for new game
+  // private resetRoomForRematch(room: GameRoom): void {
+  //   const currentPlayersData = { ...room.state.players };
+
+  //   // Reset game state but keep player info
+  //   room.state = {
+  //     ...createOnlineGameState(),
+  //     players: currentPlayersData,
+  //     gameStatus: GameStatus.ACTIVE, // Start immediately
+  //     currentPlayer: PlayerSymbol.X, // Or swap starter?
+  //   };
+
+  //   // Ensure players are marked active
+  //   Array.from(room.playerSocketIds).forEach((socketId) => {
+  //     const playerSocket = this.io.sockets.sockets.get(socketId);
+  //     const symbol = playerSocket?.data.symbol;
+  //     if (isValidPlayerSymbol(symbol)) {
+  //       room.state.players[symbol].isActive = true;
+  //     }
+  //   });
+
+  //   // Reset rematch tracking state
+  //   room.rematchState = "none";
+  //   room.rematchRequesterSymbol = null;
+
+  //   console.log(`Game reset for rematch in room ${room.id}.`);
+  //   this.io.to(room.id).emit(Events.GAME_RESET, room.state); // Notify clients game is reset
+  // }
 
   private notifyRoom(
     roomId: string,
@@ -260,26 +273,23 @@ export class GameServer {
     const isFirstPlayer = room.playerSocketIds.size === 0;
     const symbol = isFirstPlayer ? PlayerSymbol.X : PlayerSymbol.O;
 
-    // Determine final color, checking for conflicts ONLY if second player
-    let finalColor = preferredColor;
-    let colorWasChanged = false;
-    if (!isFirstPlayer) {
-      const assignedColor = this.assignPlayerColor(
-        room,
-        symbol,
-        preferredColor
-      );
-      if (assignedColor !== preferredColor) {
-        colorWasChanged = true;
-        finalColor = assignedColor;
-        // Notify the player immediately that their color was changed
-        socket.emit(Events.COLOR_CHANGED, {
-          newColor: finalColor,
-          reason: "Color already taken by opponent.",
-        });
-      }
-    } else {
-      finalColor = preferredColor || PLAYER_CONFIG[symbol].defaultColor;
+    // Get opponent data if second player
+    const opponentSymbol = isFirstPlayer ? PlayerSymbol.O : PlayerSymbol.X;
+    const opponentData = room.state.players[opponentSymbol];
+
+    // Determine final color using our helper function
+    const { finalColor, wasChanged } = determinePlayerColor(
+      symbol,
+      opponentData,
+      preferredColor
+    );
+
+    // Notify the player if their color was changed
+    if (wasChanged) {
+      socket.emit(Events.COLOR_CHANGED, {
+        newColor: finalColor,
+        reason: "Color already taken by opponent.",
+      });
     }
 
     // Store data on socket
