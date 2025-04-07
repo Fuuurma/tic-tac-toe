@@ -1,11 +1,11 @@
+import { Color } from "@/app/game/constants/constants";
+
 /**
  * Finds an alternative color when there is a conflict
  * @param existingColor The color already taken by another player
  * @param allColors Array of all available colors
  * @returns A different color that isn't the existing one
  */
-
-import { Color } from "@/app/game/constants/constants";
 
 export function findAlternativeColor(
   existingColor: Color,
