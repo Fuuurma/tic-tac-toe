@@ -14,6 +14,7 @@ import { PlayerConfig } from "@/app/types/types";
  * @param preferredColor The color preferred by the joining player
  * @returns The final color to use, and whether it was changed from the preferred color
  */
+
 export function determinePlayerColor(
   joiningSymbol: PlayerSymbol,
   opponentData: PlayerConfig | undefined,
