@@ -65,4 +65,27 @@ export class RoomManager {
   public getRoomById(roomId: string): GameRoom | undefined {
     return this.rooms.get(roomId);
   }
+
+  /**
+   * Deletes a room by its ID.
+   * @param roomId The ID of the room to delete.
+   * @returns True if the room was deleted, false otherwise.
+   */
+  public deleteRoom(roomId: string): boolean {
+    const deleted = this.rooms.delete(roomId);
+    if (deleted) {
+      console.log(`[RoomManager] Deleted room: ${roomId}`);
+    }
+    return deleted;
+  }
+
+  /**
+   * Gets the total number of active rooms.
+   * @returns The number of rooms.
+   */
+  public getRoomCount(): number {
+    return this.rooms.size;
+  }
+
+  // Optional: Add methods to get all rooms, iterate, etc. if needed for admin/debug
 }

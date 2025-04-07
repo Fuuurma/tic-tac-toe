@@ -17,12 +17,14 @@ import {
 import { makeMove } from "../logic/makeMove";
 import { createOnlineGameState } from "./createOnlineGameState";
 import { isValidPlayerSymbol } from "@/app/utils/isValidSymbol";
+import { RoomManager } from "./roomManager";
 
 type ValidationResult = { isValid: true } | { isValid: false; error: string };
 
 export class GameServer {
   private io: Server<ClientToServerEvents, ServerToClientEvents, SocketData>;
   private rooms: Map<string, GameRoom> = new Map();
+  private roomManager: RoomManager;
 
   constructor(server: any) {
     this.io = new Server(server, {
@@ -31,6 +33,7 @@ export class GameServer {
       // path: "/api/socket/io", // Keep if attaching to Next.js server on default port
     });
 
+    this.roomManager = new RoomManager();
     this.setupEvents();
     console.log("GameServer initialized");
   }
@@ -103,8 +106,7 @@ export class GameServer {
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): GameRoom | undefined {
     const roomId = socket.data.roomId;
-    // return this.getRoomById(roomId);
-    return roomId ? this.getRoomById(roomId) : undefined;
+    return roomId ? this.roomManager.getRoomById(roomId) : undefined;
   }
 
   // Gets the socket instance of the opponent in the room
@@ -202,6 +204,51 @@ export class GameServer {
     this.io.to(roomId).emit(event, payload);
   }
 
+  // Main logic for handling player leaving/disconnecting
+  private playerLeaveActions(
+    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
+    room: GameRoom
+  ): void {
+    const roomId = room.id;
+    const playerSymbol = socket.data.symbol;
+
+    console.log(
+      `Processing leave for ${
+        socket.data.username || socket.id
+      } from room ${roomId}`
+    );
+    socket.leave(roomId);
+    room.playerSocketIds.delete(socket.id);
+
+    // Mark player inactive in state
+    if (isValidPlayerSymbol(playerSymbol)) {
+      room.state.players[playerSymbol].isActive = false;
+    }
+    // Reset rematch state
+    room.rematchState = "none";
+    room.rematchRequesterSymbol = null;
+    // Update game status
+    room.state.gameStatus = GameStatus.WAITING;
+
+    // Delete room if empty, otherwise notify opponent
+    if (room.playerSocketIds.size === 0) {
+      this.roomManager.deleteRoom(roomId);
+    } else {
+      const opponentSocket = this.getOpponentSocket(socket, room);
+      if (opponentSocket) {
+        opponentSocket.emit(Events.PLAYER_LEFT, {
+          symbol: playerSymbol || null,
+        });
+        opponentSocket.emit(Events.GAME_UPDATE, room.state);
+        console.log(
+          `Notified remaining player in room ${roomId} about player leaving.`
+        );
+      }
+    }
+
+    socket.data = {};
+  }
+
   private leaveRoomAndDeleteIfEmpty(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>,
     room: GameRoom
@@ -289,7 +336,7 @@ export class GameServer {
       return;
     }
 
-    const room = this.findAvailableRoomOrCreate();
+    const room = this.roomManager.findAvailableRoomOrCreate();
     const roomId = room.id;
     const isFirstPlayer = room.playerSocketIds.size === 0;
     const symbol = isFirstPlayer ? PlayerSymbol.X : PlayerSymbol.O;
@@ -371,7 +418,7 @@ export class GameServer {
       socket.emit(Events.ERROR, validation.error);
       return;
     }
-    // Validation passed, room and playerSymbol are defined here
+
     const currentRoom = room!;
     const currentSymbol = playerSymbol!;
 
@@ -535,7 +582,7 @@ export class GameServer {
   ): void {
     const room = this.getPlayerRoom(socket);
     if (room) {
-      this.leaveRoomAndDeleteIfEmpty(socket, room);
+      this.playerLeaveActions(socket, room);
     } else {
       // If not in a room (maybe already left), just ensure data is clear
       socket.data = {};
@@ -550,59 +597,60 @@ export class GameServer {
     const room = this.getPlayerRoom(socket);
     if (room) {
       // Use the same leave logic as explicit leave
-      this.leaveRoomAndDeleteIfEmpty(socket, room);
+      this.playerLeaveActions(socket, room);
     }
     // Socket data is cleared within leaveRoomAndDeleteIfEmpty
   }
 
-  private handleReset(
-    socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
-  ): void {
-    const room = this.getPlayerRoom(socket);
+  // Obsolete
+  // private handleReset(
+  //   socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
+  // ): void {
+  //   const room = this.getPlayerRoom(socket);
 
-    if (!room) {
-      socket.emit("error", "Not in a valid room.");
-      return;
-    }
+  //   if (!room) {
+  //     socket.emit("error", "Not in a valid room.");
+  //     return;
+  //   }
 
-    // Optional: Allow reset only if game is finished or > 1 player?
-    if (room.state.gameStatus === GameStatus.ACTIVE) {
-      socket.emit("error", "Cannot reset active game.");
-      return;
-    }
+  //   // Optional: Allow reset only if game is finished or > 1 player?
+  //   if (room.state.gameStatus === GameStatus.ACTIVE) {
+  //     socket.emit("error", "Cannot reset active game.");
+  //     return;
+  //   }
 
-    console.log(
-      `Reset request from ${socket.data.username} in room ${room.id}`
-    );
+  //   console.log(
+  //     `Reset request from ${socket.data.username} in room ${room.id}`
+  //   );
 
-    // Store current player data (ensure deep copy if necessary, but references should be fine if not mutating player objects directly)
-    const currentPlayersData = { ...room.state.players };
+  //   // Store current player data (ensure deep copy if necessary, but references should be fine if not mutating player objects directly)
+  //   const currentPlayersData = { ...room.state.players };
 
-    // Reset game state but keep player info and room structure
-    room.state = {
-      ...createOnlineGameState(), // Get a fresh board, winner=null, etc.
-      players: currentPlayersData, // Restore player details
-      gameStatus:
-        room.playerSocketIds.size === 2
-          ? GameStatus.ACTIVE
-          : GameStatus.WAITING, // Reset status based on player count
-      currentPlayer: PlayerSymbol.X, // Reset starting player
-    };
+  //   // Reset game state but keep player info and room structure
+  //   room.state = {
+  //     ...createOnlineGameState(), // Get a fresh board, winner=null, etc.
+  //     players: currentPlayersData, // Restore player details
+  //     gameStatus:
+  //       room.playerSocketIds.size === 2
+  //         ? GameStatus.ACTIVE
+  //         : GameStatus.WAITING, // Reset status based on player count
+  //     currentPlayer: PlayerSymbol.X, // Reset starting player
+  //   };
 
-    // Ensure players are marked active (might have been inactive on disconnect/reconnect)
-    Array.from(room.playerSocketIds).forEach((socketId) => {
-      const playerSocket = this.io.sockets.sockets.get(socketId);
-      const symbol = playerSocket?.data.symbol;
+  //   // Ensure players are marked active (might have been inactive on disconnect/reconnect)
+  //   Array.from(room.playerSocketIds).forEach((socketId) => {
+  //     const playerSocket = this.io.sockets.sockets.get(socketId);
+  //     const symbol = playerSocket?.data.symbol;
 
-      if (symbol && Object.values(PlayerSymbol).includes(symbol)) {
-        room.state.players[symbol as PlayerSymbol].isActive = true;
-      }
-    });
+  //     if (symbol && Object.values(PlayerSymbol).includes(symbol)) {
+  //       room.state.players[symbol as PlayerSymbol].isActive = true;
+  //     }
+  //   });
 
-    console.log(
-      `Game reset in room ${room.id}. Status: ${room.state.gameStatus}`
-    );
-    // Broadcast the reset state to everyone in the room
-    this.io.to(room.id).emit("gameReset", room.state);
-  }
+  //   console.log(
+  //     `Game reset in room ${room.id}. Status: ${room.state.gameStatus}`
+  //   );
+  //   // Broadcast the reset state to everyone in the room
+  //   this.io.to(room.id).emit("gameReset", room.state);
+  // }
 }
