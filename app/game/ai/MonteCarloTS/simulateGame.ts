@@ -25,6 +25,7 @@ export function simulateRandomGame(
 
   const winner = getWinner(currentState); // Or use currentState.winner
 
+  // there should NOT be draw
   if (winner === perspectivePlayer) {
     return 1; // Win for the perspective player
   } else if (winner === "draw") {
