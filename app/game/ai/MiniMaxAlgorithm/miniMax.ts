@@ -1,5 +1,5 @@
 // Recursive Minimax function with Alpha-Beta Pruning
-function minimax(
+export function minimax(
   state: GameState,
   depth: number, // Current depth
   alpha: number, // Best score for maximizer found so far along the path
