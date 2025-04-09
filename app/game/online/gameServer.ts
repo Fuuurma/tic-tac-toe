@@ -20,6 +20,7 @@ import { isValidPlayerSymbol } from "@/app/utils/isValidSymbol";
 import { RoomManager } from "./roomManager";
 import { prepareRoomForRematch } from "./utils/prepareRoomRematch";
 import { determinePlayerColor } from "@/app/utils/colors/determinePlayerColor";
+import { getStartingPlayer } from "@/app/utils/getStartingPlayer";
 
 type ValidationResult = { isValid: true } | { isValid: false; error: string };
 
@@ -103,8 +104,10 @@ export class GameServer {
       );
       return;
     }
+
     room.state.gameStatus = GameStatus.ACTIVE;
-    room.state.currentPlayer = PlayerSymbol.X; // Or randomize starting player
+    room.state.currentPlayer = getStartingPlayer();
+
     console.log(`Game starting in room ${room.id}`);
     this.io.to(room.id).emit(Events.GAME_START, room.state);
   }
@@ -113,6 +116,7 @@ export class GameServer {
     prepareRoomForRematch(room, room.playerSocketIds, (socketId) =>
       this.getSocketFromId(socketId)
     );
+
     console.log(`Game reset for rematch in room ${room.id}.`);
     this.io.to(room.id).emit(Events.GAME_RESET, room.state);
   }
@@ -454,7 +458,8 @@ export class GameServer {
     // this.handleLeaveRoom(socket);
   }
 
-  // --- LEAVE HANDLERS ---
+  // --- LEAVE HANDLERS --- //
+
   private handleLeaveRoom(
     socket: Socket<ClientToServerEvents, ServerToClientEvents, SocketData>
   ): void {

@@ -32,11 +32,3 @@ export const handleAI_Move = (
 //     // AI will only be used offline
 //     if (socket?.connected) {
 //       const lastMove = newState.moves[PlayerSymbol.O].at(-1);
-//       socket.emit("move", lastMove);
-//     } else {
-//       onLocalUpdate(newState);
-//     }
-//   }, aiMoveDelay);
-
-//   return () => clearTimeout(timer);
-// };
