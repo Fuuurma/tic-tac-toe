@@ -1,6 +1,6 @@
 import { GameState } from "@/app/types/types";
-import { PlayerSymbol } from "../constants/constants";
-import { getValidMoves } from "../logic/getValidMoves";
+import { PlayerSymbol } from "../../constants/constants";
+import { getValidMoves } from "../../logic/getValidMoves";
 
 export class MonteCarloTreeSearchNode {
   state: GameState;
@@ -68,5 +68,40 @@ export class MonteCarloTreeSearchNode {
       }
     }
     return bestChild;
+  }
+
+  /**
+   * Expands this node by creating a child node for one untried move.
+   * @returns The newly created child node.
+   */
+  expand(): MonteCarloTreeSearchNode | null {
+    if (this.untriedMoves.length === 0) {
+      console.warn("Attempted to expand a fully expanded node.");
+      return null; // Should not happen if called after isFullyExpanded check
+    }
+
+    // Get a random untried move
+    const moveIndex = Math.floor(Math.random() * this.untriedMoves.length);
+    const move = this.untriedMoves.splice(moveIndex, 1)[0]; // Remove the move
+
+    // Create the state for the child node by applying the move
+    // IMPORTANT: applyMove MUST return a new state object
+    const nextState = applyMove(this.state, move); // Assuming makeMove handles player switching
+
+    // Create the child node
+    const childNode = new MonteCarloTreeSearchNode(nextState, this);
+
+    // Add the child to this node's children map
+    this.children.set(move, childNode);
+
+    return childNode;
+  }
+
+  /**
+   * Updates the node's visit count and score based on simulation result.
+   */
+  updateNode(result: number): void {
+    this.visits++;
+    this.score += result;
   }
 }
