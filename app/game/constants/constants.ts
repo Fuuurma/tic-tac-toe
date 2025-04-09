@@ -205,3 +205,25 @@ export const Events = {
   REMATCH_REQUESTED: "rematchRequested", // To notify opponent
   COLOR_CHANGED: "colorChanged", // Explicitly notify if color changes
 } as const;
+
+// AI
+
+export enum AI_Difficulty {
+  EASY = "easy",
+  NORMAL = "normal",
+  HARD = "hard",
+  INSANE = "insane",
+}
+
+// do both: iterations and time. stop when either are met
+const MCTS_ITERATIONS = {
+  [AI_Difficulty.NORMAL]: 1000, // Adjust these values based on testing
+  [AI_Difficulty.HARD]: 5000,
+  [AI_Difficulty.INSANE]: 20000, // Or use a time limit
+};
+
+const MCTS_TIME_LIMIT = {
+  [AI_Difficulty.NORMAL]: 5000,
+  [AI_Difficulty.HARD]: 10000,
+  [AI_Difficulty.INSANE]: 20000,
+};
