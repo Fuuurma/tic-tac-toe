@@ -67,5 +67,51 @@ export function findBestMoveMCTS(
     return validMoves.length > 0 ? validMoves[0] : -1; // Fallback: first valid move
   }
 
-  return 0;
+  console.log("--- MCTS Results ---");
+  for (const [move, child] of rootNode.children.entries()) {
+    if (child.visits > 0) {
+      const winRate = (child.score / child.visits).toFixed(3); // Score might include draws as 0.5
+      console.log(
+        `Move: ${move}, Score: ${child.score.toFixed(1)}, Visits: ${
+          child.visits
+        }, WinRate (approx): ${winRate}`
+      );
+      // Choose based on highest score (favors wins, includes draws) or highest visits
+      if (child.score / child.visits > highestScore) {
+        // Using average score (win rate)
+        highestScore = child.score / child.visits;
+        bestMove = move;
+      }
+      // Or choose based on most visits (robust choice)
+      // if (child.visits > mostVisits) {
+      //     mostVisits = child.visits;
+      //     bestMove = move;
+      // }
+    } else {
+      console.log(`Move: ${move}, Score: 0, Visits: 0`);
+    }
+  }
+
+  console.log("--------------------");
+
+  if (bestMove === -1) {
+    // If all children have 0 visits or scores are problematic, pick robustly
+    let mostVisits = -1;
+    for (const [move, child] of rootNode.children.entries()) {
+      if (child.visits > mostVisits) {
+        mostVisits = child.visits;
+        bestMove = move;
+      }
+    }
+    if (bestMove === -1) {
+      // Still nothing? Very rare. Fallback.
+      const validMoves = getValidMoves(currentState);
+      bestMove = validMoves.length > 0 ? validMoves[0] : -1;
+    }
+    console.log(`Choosing best move based on visits: ${bestMove}`);
+  } else {
+    console.log(`Choosing best move based on score: ${bestMove}`);
+  }
+
+  return bestMove;
 }
