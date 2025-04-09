@@ -39,9 +39,7 @@ export class RoomManager {
    * @returns The newly created GameRoom.
    */
   private createNewRoom(): GameRoom {
-    const newRoomId = `room-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 7)}`;
+    const newRoomId = this.createRoomName();
 
     const newRoom: GameRoom = {
       id: newRoomId,
