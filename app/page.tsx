@@ -15,6 +15,7 @@ import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
 import UserMenu from "@/components/menu/menu";
 import {
+  AI_Difficulty,
   Color,
   Events,
   GameModes,
@@ -39,6 +40,7 @@ export default function Home() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
   const [opponentName, setOpponentName] = useState<string>("");
+  const [aiDifficulty, setAI_Difficulty] = useState<AI_Difficulty | null>(null);
 
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
@@ -55,7 +57,7 @@ export default function Home() {
   const [rematchRequested, setRematchRequested] = useState(false);
   const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(
     null
-  ); // Track assigned color - Maybe it works with selectedColor ¿?
+  );
 
   // ----- SOCKET ----- //
 
@@ -109,7 +111,7 @@ export default function Home() {
         );
         setSocket(null);
       });
-  }, [username, socket]); // Dependency: username, socket instance
+  }, [username, socket]);
 
   // ----- SOCKET EVENT LISTENERS ----- //
   useEffect(() => {
@@ -120,15 +122,15 @@ export default function Home() {
       console.log("Socket connected:", socket.id);
       setMessage("Connected! Waiting for opponent...");
       // Emit login *after* successful connection
-      socket.emit("login", username, selectedColor); // Send username and preferred color
+      socket.emit("login", username, selectedColor);
     };
 
     const handleDisconnect = (reason: Socket.DisconnectReason) => {
       console.log("Socket disconnected:", reason);
       setMessage(`Disconnected: ${reason}. Please log in again.`);
       setPlayerSymbol(null);
-      setLoggedIn(false); // Force logout on disconnect
-      setRematchOffered(false); // Reset rematch state
+      setLoggedIn(false);
+      setRematchOffered(false);
       setRematchRequested(false);
     };
 
