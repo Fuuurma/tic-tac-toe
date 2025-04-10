@@ -6,10 +6,10 @@ import { PlayerSymbol } from "../../constants/constants";
 // Perspective of the AI (maximizing player)
 export function evaluateState(
   state: GameState,
-  aiSymbol: PlayerSymbol
+  AI_Symbol: PlayerSymbol
 ): number {
   const winner = state.winner; // Or use state.winner
-  if (winner === aiSymbol) {
+  if (winner === AI_Symbol) {
     return 10; // AI wins - High positive score
   } else if (winner && winner !== "draw") {
     return -10; // Opponent wins - High negative score

@@ -1,3 +1,7 @@
+import { GameState } from "@/app/types/types";
+import { PlayerSymbol } from "../../constants/constants";
+import { evaluateState } from "./evaluateState";
+
 // Recursive Minimax function with Alpha-Beta Pruning
 export function minimax(
   state: GameState,

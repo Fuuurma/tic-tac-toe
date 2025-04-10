@@ -1,6 +1,8 @@
 import { GameState } from "@/app/types/types";
 import { PlayerSymbol } from "../../constants/constants";
 import { getValidMoves } from "../../logic/getValidMoves";
+import { isGameActive } from "../../logic/isGameActive";
+import { makeMove } from "../../logic/makeMove";
 
 export class MonteCarloTreeSearchNode {
   state: GameState;
@@ -28,7 +30,7 @@ export class MonteCarloTreeSearchNode {
    * Checks if this node represents a terminal game state.
    */
   get isTerminalNode(): boolean {
-    return isTerminalGameState(this.state);
+    return !isGameActive(this.state);
   }
 
   /**
@@ -86,7 +88,7 @@ export class MonteCarloTreeSearchNode {
 
     // Create the state for the child node by applying the move
     // IMPORTANT: applyMove MUST return a new state object
-    const nextState = applyMove(this.state, move); // Assuming makeMove handles player switching
+    const nextState = makeMove(this.state, move);
 
     // Create the child node
     const childNode = new MonteCarloTreeSearchNode(nextState, this);

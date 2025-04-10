@@ -121,12 +121,3 @@ export interface SocketData {
   symbol?: PlayerSymbol;
   username?: string;
 }
-
-// AI
-
-export enum AI_Difficulty {
-  EASY = "easy",
-  NORMAL = "normal",
-  HARD = "hard",
-  INSANE = "insane",
-}

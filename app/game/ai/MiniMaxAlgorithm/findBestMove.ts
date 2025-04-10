@@ -1,3 +1,7 @@
+import { GameState } from "@/app/types/types";
+import { minimax } from "./miniMax";
+import { PlayerSymbol } from "../../constants/constants";
+
 /**
  * Finds the best move from the current state using the Minimax algorithm with Alpha-Beta Pruning.
  * @param currentState The current game state.
@@ -5,6 +9,7 @@
  * @param maxDepth How many moves ahead to search (adjust for performance vs strength). Tic-Tac-Toe (even modified) might allow high depth.
  * @returns The index of the best move found.
  */
+
 export function findBestMoveMinimax(
   currentState: GameState,
   aiSymbol: PlayerSymbol,
