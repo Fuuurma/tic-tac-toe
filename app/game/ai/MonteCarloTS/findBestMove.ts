@@ -2,6 +2,8 @@ import { GameState } from "@/app/types/types";
 import { MonteCarloTreeSearchNode } from "./monteCarloTreeSearch";
 import { backpropagate } from "../backPropagate";
 import { simulateRandomGame } from "./simulateGame";
+import { isGameActive } from "../../logic/isGameActive";
+import { getValidMoves } from "../../logic/getValidMoves";
 
 /**
  * Finds the best move from the current state using MCTS.
@@ -16,7 +18,7 @@ export function findBestMoveMCTS(
   iterations: number,
   explorationParameter: number = Math.SQRT2
 ): number {
-  if (isTerminal(currentState)) {
+  if (!isGameActive(currentState)) {
     throw new Error("Cannot find move for terminal state.");
   }
 

@@ -40,7 +40,9 @@ export default function Home() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
   const [opponentName, setOpponentName] = useState<string>("");
-  const [aiDifficulty, setAI_Difficulty] = useState<AI_Difficulty | null>(null);
+  const [aiDifficulty, setAI_Difficulty] = useState<AI_Difficulty>(
+    AI_Difficulty.EASY
+  );
 
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
@@ -376,9 +378,9 @@ export default function Home() {
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
     if (isAITurn(gameState)) {
-      return handleAI_Move(gameState, setGameState);
+      return handleAI_Move(gameState, setGameState, aiDifficulty);
     }
-  }, [gameState]);
+  }, [gameState]); // [gameState, gameMode, loggedIn, aiDifficulty]); // Add aiDifficulty dependency
 
   // ----- USER LOGIN ----- //
   const handleLogin = () => {
@@ -399,6 +401,7 @@ export default function Home() {
           opponentName,
           playerColor: selectedColor,
           opponentColor,
+          // aiDifficulty: gameMode === GameModes.VS_COMPUTER ? aiDifficulty : undefined, // Pass difficulty only if relevant
         })
       );
       setPlayerSymbol(PlayerSymbol.X);
@@ -462,6 +465,7 @@ export default function Home() {
           opponentName,
           playerColor: selectedColor,
           opponentColor,
+          // aiDifficulty: gameMode === GameModes.VS_COMPUTER ? aiDifficulty : undefined, // Pass difficulty only if relevant
         })
       );
     }
@@ -474,9 +478,10 @@ export default function Home() {
     setPlayerSymbol(null);
     setMessage("");
     setOpponentName("");
-    setRematchOffered(false); // Reset rematch flags
+    setRematchOffered(false);
     setRematchRequested(false);
     setLastAssignedColor(null);
+    setAI_Difficulty(AI_Difficulty.NORMAL);
 
     if (socket) {
       console.log("Disconnecting socket on exit...");
@@ -484,7 +489,7 @@ export default function Home() {
       if (socket.connected) {
         socket.disconnect();
       }
-      setSocket(null); // Clear socket state
+      setSocket(null);
     }
   };
 
@@ -513,11 +518,13 @@ export default function Home() {
             setGameMode={setGameMode}
             selectedColor={selectedColor}
             setSelectedColor={setSelectedColor}
-            handleLogin={handleLogin}
             opponentName={opponentName}
             setOpponentName={setOpponentName}
             opponentColor={opponentColor}
             setOpponentColor={setOpponentColor}
+            aiDifficulty={aiDifficulty}
+            setAiDifficulty={setAI_Difficulty}
+            handleLogin={handleLogin}
           />
         ) : (
           <GameBoard

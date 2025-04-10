@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  AI_Difficulty,
   Color,
   GameModes,
   PLAYER_CONFIG,
@@ -19,6 +20,7 @@ import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
 import { VallidateUserInput } from "@/app/game/auth/validateInput";
+import AI_DifficultySelector from "./aiDifficultySelector";
 
 interface LoginFormProps {
   username: string;
@@ -31,6 +33,8 @@ interface LoginFormProps {
   setOpponentName: (name: string) => void;
   opponentColor: Color;
   setOpponentColor: (color: Color) => void;
+  aiDifficulty: AI_Difficulty;
+  setAiDifficulty: (difficulty: AI_Difficulty) => void;
   handleLogin: () => void;
 }
 
@@ -45,6 +49,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setOpponentName,
   opponentColor,
   setOpponentColor,
+  aiDifficulty,
+  setAiDifficulty,
   handleLogin,
 }) => {
   const [error, setError] = useState<string | null>(null); // Use null for no error
@@ -110,6 +116,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             selectedMode={gameMode}
             onModeChange={handleInputChange(setGameMode)}
           />
+
+          {gameMode === GameModes.VS_COMPUTER && (
+            <div className="pt-4 border-t">
+              <AI_DifficultySelector
+                selectedDifficulty={aiDifficulty}
+                onDifficultyChange={handleInputChange(setAiDifficulty)}
+              />
+            </div>
+          )}
 
           {gameMode === GameModes.VS_FRIEND && (
             <div className="pt-4 border-t">

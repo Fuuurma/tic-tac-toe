@@ -1,12 +1,13 @@
 import { GameState } from "@/app/types/types";
 import { computerMove } from "./logic";
 import { Socket } from "socket.io-client";
-import { PlayerSymbol } from "../constants/constants";
+import { AI_Difficulty, PlayerSymbol } from "../constants/constants";
 import { AI_MoveEngine } from "./AI_MoveEngine";
 
 export const handleAI_Move = (
   state: GameState,
-  onLocalUpdate: (newState: GameState) => void
+  onLocalUpdate: (newState: GameState) => void,
+  difficulty: AI_Difficulty
 ): (() => void) => {
   const aiMoveDelay = 600;
 
@@ -19,16 +20,3 @@ export const handleAI_Move = (
 
   return () => clearTimeout(timer);
 };
-
-// export const handleAI_Move = (
-//   state: GameState,
-//   socket: Socket | null,
-//   onLocalUpdate: (newState: GameState) => void
-// ): (() => void) => {
-//   const newState = computerMove(state);
-//   const aiMoveDelay = 600;
-
-//   const timer = setTimeout(() => {
-//     // AI will only be used offline
-//     if (socket?.connected) {
-//       const lastMove = newState.moves[PlayerSymbol.O].at(-1);
