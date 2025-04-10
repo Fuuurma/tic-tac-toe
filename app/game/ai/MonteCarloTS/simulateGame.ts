@@ -1,3 +1,10 @@
+import { GameState } from "@/app/types/types";
+import { PlayerSymbol } from "../../constants/constants";
+import { makeMove } from "../../logic/makeMove";
+import { checkWinner } from "../../logic/checkWinner";
+import { getValidMoves } from "../../logic/getValidMoves";
+import { isGameActive } from "../../logic/isGameActive";
+
 /**
  * Simulates a random game from the given state until a terminal state is reached.
  * @param state The starting state for the simulation.
@@ -5,32 +12,29 @@
  * @returns 1 if perspectivePlayer wins, 0 for a draw, -1 if perspectivePlayer loses.
  */
 
-import { GameState } from "@/app/types/types";
-import { PlayerSymbol } from "../../constants/constants";
-
 export function simulateRandomGame(
-  state: GameState,
+  gameState: GameState,
   perspectivePlayer: PlayerSymbol
 ): number {
-  let currentState = state; // Start from the given state
+  while (isGameActive(gameState)) {
+    const validMoves = getValidMoves(gameState);
+    if (validMoves.length === 0) break;
 
-  // is game active
-  while (!isTerminal(currentState)) {
-    const validMoves = getValidMoves(currentState);
-    if (validMoves.length === 0) break; // Should not happen in TicTacToe unless already terminal
     const randomMove =
       validMoves[Math.floor(Math.random() * validMoves.length)];
-    currentState = applyMove(currentState, randomMove); // Update the state
+    gameState = makeMove(gameState, randomMove);
   }
 
-  const winner = getWinner(currentState); // Or use currentState.winner
+  const winner = checkWinner(gameState.board);
 
-  // there should NOT be draw
-  if (winner === perspectivePlayer) {
-    return 1; // Win for the perspective player
-  } else if (winner === "draw") {
-    return 0; // Draw
-  } else {
-    return -1; // Loss for the perspective player (opponent won)
+  switch (winner) {
+    case perspectivePlayer:
+      return 1;
+    case "draw":
+      return 0;
+    case null:
+      return -1;
   }
+
+  return -1; // fallback
 }

@@ -1,4 +1,5 @@
 import {
+  AI_Difficulty,
   Color,
   GAME_RULES,
   GameModes,
@@ -43,6 +44,7 @@ export interface GameState {
 
   turnTimeRemaining?: number;
   gameStatus: GameStatus;
+  aiDifficulty?: AI_Difficulty;
 }
 
 export const initialGameState: GameState = {

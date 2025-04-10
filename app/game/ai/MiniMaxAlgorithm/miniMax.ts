@@ -1,6 +1,9 @@
-import { GameState } from "@/app/types/types";
+import { BoardPosition, GameState } from "@/app/types/types";
 import { PlayerSymbol } from "../../constants/constants";
 import { evaluateState } from "./evaluateState";
+import { isGameActive } from "../../logic/isGameActive";
+import { getValidMoves } from "../../logic/getValidMoves";
+import { makeMove } from "../../logic/makeMove";
 
 // Recursive Minimax function with Alpha-Beta Pruning
 export function minimax(
@@ -13,12 +16,14 @@ export function minimax(
   maxDepth: number // Max search depth
 ): number {
   // Check for terminal state or max depth reached
-  if (isTerminal(state) || depth === maxDepth) {
+  if (!isGameActive(state) || depth === maxDepth) {
     // Adjust score based on depth? Less important for win/loss/draw evaluation
     return evaluateState(state, aiSymbol);
   }
 
-  const humanSymbol = getOpponent(aiSymbol);
+  const humanSymbol =
+    aiSymbol === PlayerSymbol.O ? PlayerSymbol.X : PlayerSymbol.O;
+  //getOpponent(aiSymbol);
   const validMoves = getValidMoves(state);
   const currentPlayer = isMaximizingPlayer ? aiSymbol : humanSymbol;
 
@@ -26,7 +31,7 @@ export function minimax(
     // AI's turn (Maximize score)
     let maxEval = -Infinity;
     for (const move of validMoves) {
-      const childState = applyMove(state, move as BoardPosition); // Use correct applyMove
+      const childState = makeMove(state, move as BoardPosition);
       const evaluation = minimax(
         childState,
         depth + 1,
@@ -47,7 +52,7 @@ export function minimax(
     // Opponent's turn (Minimize score)
     let minEval = Infinity;
     for (const move of validMoves) {
-      const childState = applyMove(state, move as BoardPosition);
+      const childState = makeMove(state, move as BoardPosition);
       const evaluation = minimax(
         childState,
         depth + 1,

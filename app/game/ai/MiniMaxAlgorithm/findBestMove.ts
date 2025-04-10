@@ -1,6 +1,9 @@
-import { GameState } from "@/app/types/types";
+import { BoardPosition, GameState } from "@/app/types/types";
 import { minimax } from "./miniMax";
 import { PlayerSymbol } from "../../constants/constants";
+import { getValidMoves } from "../../logic/getValidMoves";
+import { makeMove } from "../../logic/makeMove";
+import { isGameActive } from "../../logic/isGameActive";
 
 /**
  * Finds the best move from the current state using the Minimax algorithm with Alpha-Beta Pruning.
@@ -15,7 +18,7 @@ export function findBestMoveMinimax(
   aiSymbol: PlayerSymbol,
   maxDepth: number = 9 // Max possible moves is 9, should be sufficient to solve
 ): number {
-  if (isTerminal(currentState)) {
+  if (!isGameActive(currentState)) {
     throw new Error("Cannot find move for terminal state.");
   }
 
@@ -25,7 +28,7 @@ export function findBestMoveMinimax(
 
   console.log("--- Minimax Analysis ---");
   for (const move of validMoves) {
-    const childState = applyMove(currentState, move as BoardPosition);
+    const childState = makeMove(currentState, move as BoardPosition);
     // Call minimax for the state *after* the AI's potential move.
     // The next turn is the opponent's (minimizing player).
     const moveValue = minimax(
