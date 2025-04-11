@@ -10,6 +10,7 @@ import {
 import { AI_MoveEngine } from "./AI_MoveEngine";
 import { findBestMoveMCTS } from "./MonteCarloTS/findBestMove";
 import { findBestMoveMinimax } from "./MiniMaxAlgorithm/findBestMove";
+import { getValidMoves } from "../logic/getValidMoves";
 
 export const handleAI_Move = (
   state: GameState,
@@ -19,13 +20,6 @@ export const handleAI_Move = (
   const aiMoveDelay = 600;
 
   const timer = setTimeout(() => {
-    // is it ok to instantiate a new engine for every AI turn ¿?
-    // const aiEngine = new AI_MoveEngine(state);
-    // const newState = aiEngine.getOptimalMove();
-    // onLocalUpdate(newState);
-
-    // NEW:
-
     let gameStateClone = structuredClone(state);
 
     const startTime = performance.now();
@@ -33,11 +27,6 @@ export const handleAI_Move = (
     const aiSymbol = gameStateClone.currentPlayer;
 
     switch (difficulty) {
-      // case AI_Difficulty.EASY:
-      //   console.log("AI Difficulty: EASY (Rule-Based)");
-      //   bestMove = findBestMoveEasy(gameState, aiSymbol);
-      //   break;
-
       case AI_Difficulty.EASY:
         const aiEngine = new AI_MoveEngine(state);
         const newState = aiEngine.getOptimalMove();
@@ -66,22 +55,6 @@ export const handleAI_Move = (
         );
         // bestMove = findBestMoveEasy(gameState, aiSymbol);
         break;
-    }
-
-    const endTime = performance.now();
-    console.log(
-      `AI (${difficulty}) chose move ${bestMove} in ${(
-        endTime - startTime
-      ).toFixed(2)} ms`
-    );
-
-    // Final safety check
-    if (!getValidMoves(gameState).includes(bestMove)) {
-      console.error(
-        `AI (${difficulty}) chose an invalid move: ${bestMove}. Falling back.`
-      );
-      const validMoves = getValidMoves(gameState);
-      return validMoves.length > 0 ? validMoves[0] : -1;
     }
 
     return bestMove;

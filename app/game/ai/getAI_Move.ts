@@ -1,6 +1,15 @@
 import { GameState } from "@/app/types/types";
 import { isGameActive } from "../logic/isGameActive";
-import { AI_Difficulty, PlayerTypes } from "../constants/constants";
+import {
+  AI_Difficulty,
+  MCTS_ITERATIONS,
+  MCTS_TIME_LIMIT,
+  PlayerTypes,
+} from "../constants/constants";
+import { findBestMoveMCTS } from "./MonteCarloTS/findBestMove";
+import { findBestMoveMinimax } from "./MiniMaxAlgorithm/findBestMove";
+import { findBestMoveEasyAI } from "./simpleAI/findBestMove";
+import { getValidMoves } from "../logic/getValidMoves";
 
 /**
  * Gets the AI's next move based on the difficulty level.
@@ -25,21 +34,21 @@ export function getAIMove(
 
   try {
     switch (difficulty) {
-      case AIDifficulty.EASY:
+      case AI_Difficulty.EASY:
         console.log("AI Difficulty: EASY (Rule-Based)");
-        bestMove = findBestMoveEasy(gameState, aiSymbol);
+        bestMove = findBestMoveEasyAI(gameState, aiSymbol);
         break;
 
-      case AIDifficulty.NORMAL:
-      case AIDifficulty.HARD:
+      case AI_Difficulty.NORMAL:
+      case AI_Difficulty.HARD:
         console.log(`AI Difficulty: ${difficulty.toUpperCase()} (MCTS)`);
         const iterations = MCTS_ITERATIONS[difficulty];
         const timeLimit = MCTS_TIME_LIMIT[difficulty];
         // Pass both iterations and time limit to MCTS
-        bestMove = findBestMoveMCTS(gameState, iterations, timeLimit);
+        bestMove = findBestMoveMCTS(gameState, iterations);
         break;
 
-      case AIDifficulty.INSANE:
+      case AI_Difficulty.INSANE:
         console.log("AI Difficulty: INSANE (Minimax)");
         // Depth can be adjusted. For modified TicTacToe, 9 might be safe,
         // but test performance.
@@ -50,14 +59,14 @@ export function getAIMove(
         console.warn(
           `Unknown AI difficulty: ${difficulty}. Falling back to EASY.`
         );
-        bestMove = findBestMoveEasy(gameState, aiSymbol);
+        bestMove = findBestMoveEasyAI(gameState, aiSymbol);
         break;
     }
   } catch (error) {
     console.error(`Error during AI calculation (${difficulty}):`, error);
     // Fallback to easy move on any error during calculation
     console.log("Falling back to EASY due to error.");
-    bestMove = findBestMoveEasy(gameState, aiSymbol);
+    bestMove = findBestMoveEasyAI(gameState, aiSymbol);
   }
 
   const endTime = performance.now();
