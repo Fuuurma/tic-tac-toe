@@ -1,9 +1,9 @@
 import { GameState } from "@/app/types/types";
 import { MonteCarloTreeSearchNode } from "./monteCarloTreeSearch";
-import { backpropagate } from "../backPropagate";
 import { simulateRandomGame } from "./simulateGame";
 import { isGameActive } from "../../logic/isGameActive";
 import { getValidMoves } from "../../logic/getValidMoves";
+import { backpropagate } from "./backPropagate";
 
 /**
  * Finds the best move from the current state using MCTS.
