@@ -3,7 +3,7 @@ import { PlayerSymbol, WINNING_COMBINATIONS } from "../../constants/constants";
 import { getLineState } from "./getLineState";
 import { findCriticalMoveInLine } from "./findCriticalMove";
 
-function findStrategicMove(
+export function findStrategicMove(
   gameState: GameState,
   symbol: PlayerSymbol
 ): BoardPosition | null {

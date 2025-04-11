@@ -1,7 +1,7 @@
 import { BoardPosition, GameState } from "@/app/types/types";
 import { isPositionAvailable } from "./isPositionAvailable";
 
-export function takeRandomPosition(
+export function takeRandomPositionFrom(
   gameState: GameState,
   positions: BoardPosition[]
 ): BoardPosition | null {
