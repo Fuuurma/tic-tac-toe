@@ -45,22 +45,56 @@ export function evaluateState(
     const humanCount = lineSymbols.filter((s) => s === humanSymbol).length;
     const emptyCount = lineSymbols.filter((s) => s === null).length;
 
-    // // Scoring logic
-    // if (aiCount === 2 && emptyCount === 1) {
-    //   score += 100; // AI can win next move
-    // } else if (humanCount === 2 && emptyCount === 1) {
-    //   score -= 90; // Need to block opponent
-    // } else if (aiCount === 1 && emptyCount === 2) {
-    //   score += 10; // Potential future line
-    // } else if (humanCount === 1 && emptyCount === 2) {
-    //   score -= 8; // Opponent potential line
-    // }
+    // Scoring logic
+    if (aiCount === 2 && emptyCount === 1) {
+      score += 100; // AI can win next move
+    } else if (humanCount === 2 && emptyCount === 1) {
+      score -= 90; // Need to block opponent
+    } else if (aiCount === 1 && emptyCount === 2) {
+      score += 10; // Potential future line
+    } else if (humanCount === 1 && emptyCount === 2) {
+      score -= 8; // Opponent potential line
+    }
   }
 
-  // // Center position is valuable
-  // if (board[4] === aiSymbol) {
-  //   score += 20;
-  // } else if (board[4] === humanSymbol) {
-  //   score -= 20;
-  // }
+  // Center position is valuable
+  if (board[4] === AI_Symbol) {
+    score += 20;
+  } else if (board[4] === humanSymbol) {
+    score -= 20;
+  }
+  const corners = [0, 2, 6, 8];
+  for (const corner of corners) {
+    if (board[corner] === AI_Symbol) {
+      score += 5;
+    } else if (board[corner] === humanSymbol) {
+      score -= 5;
+    }
+  }
+
+  if (!AI_Symbol) {
+    switch (winner) {
+      case null:
+        if (AI_Symbol) {
+          return 0;
+        }
+
+      case "draw":
+        if (AI_Symbol) {
+          return 0;
+        }
+
+      case PlayerSymbol.X:
+        if (AI_Symbol) {
+          return 1;
+        }
+
+      case PlayerSymbol.O:
+        if (AI_Symbol) {
+          return -1;
+        }
+    }
+  }
+
+  return score;
 }
