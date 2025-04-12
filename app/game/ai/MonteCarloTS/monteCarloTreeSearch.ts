@@ -17,11 +17,11 @@ export class MonteCarloTreeSearchNode {
     state: GameState,
     parent: MonteCarloTreeSearchNode | null = null
   ) {
-    this.state = state;
+    this.state = state; // IMPORTANT: Assume state is immutable or cloned before passing
     this.parent = parent;
     this.children = new Map();
     this.visits = 0;
-    this.score = 0;
+    this.score = 0; // Wins + 0.5 * Draws relative to playerTurn
     this.playerTurn = state.currentPlayer;
     this.untriedMoves = getValidMoves(state);
   }

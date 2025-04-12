@@ -543,7 +543,7 @@ export default function Home() {
           />
         )}
       </main>
-      {/* <DevPanel gameState={gameState} username={username} socket={socket} /> */}
+      <DevPanel gameState={gameState} username={username} socket={socket} />
 
       <PageFooter />
     </div>

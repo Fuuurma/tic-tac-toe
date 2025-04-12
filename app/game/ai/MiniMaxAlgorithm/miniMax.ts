@@ -52,7 +52,8 @@ export function minimax(
     // Opponent's turn (Minimize score)
     let minEval = Infinity;
     for (const move of validMoves) {
-      const childState = makeMove(state, move as BoardPosition);
+      const clonedState = structuredClone(state);
+      const childState = makeMove(clonedState, move as BoardPosition);
       const evaluation = minimax(
         childState,
         depth + 1,

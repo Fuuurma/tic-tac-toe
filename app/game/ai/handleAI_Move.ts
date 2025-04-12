@@ -33,7 +33,7 @@ export const handleAI_Move = (
     // Call the main AI wrapper function to get the best move index
     const bestMoveIndex = getAIMove(stateClone, difficulty);
 
-    if (bestMoveIndex !== -1 && stateClone.board[bestMoveIndex] === null) {
+    if (bestMoveIndex !== -1 && state.board[bestMoveIndex] === null) {
       // Double check validity
       // Use the standalone applyMove function with the original state
       // to ensure correct state progression from the *actual* current state

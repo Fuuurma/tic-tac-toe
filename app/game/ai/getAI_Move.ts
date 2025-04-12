@@ -50,8 +50,6 @@ export function getAIMove(
 
       case AI_Difficulty.INSANE:
         console.log("AI Difficulty: INSANE (Minimax)");
-        // Depth can be adjusted. For modified TicTacToe, 9 might be safe,
-        // but test performance.
         bestMove = findBestMoveMinimax(gameState, aiSymbol, 9);
         break;
 
@@ -75,15 +73,6 @@ export function getAIMove(
       endTime - startTime
     ).toFixed(2)} ms`
   );
-
-  // Final safety check
-  if (!getValidMoves(gameState).includes(bestMove)) {
-    console.error(
-      `AI (${difficulty}) chose an invalid move: ${bestMove}. Falling back.`
-    );
-    const validMoves = getValidMoves(gameState);
-    return validMoves.length > 0 ? validMoves[0] : -1;
-  }
 
   return bestMove;
 }

@@ -1,5 +1,4 @@
-import { MonteCarloTreeSearchNode } from "./MonteCarloTS/monteCarloTreeSearch";
-
+import { MonteCarloTreeSearchNode } from "./monteCarloTreeSearch";
 /**
  * Performs the backpropagation step, updating nodes from the simulation leaf back to the root.
  * @param node The node from which the simulation started.
