@@ -16,12 +16,12 @@ export function minimax(
   aiSymbol: PlayerSymbol,
   maxDepth: number // Max search depth
 ): number {
-  // Check for terminal state or max depth reached
+  // Terminal state check - game over or max depth reached
   if (!isGameActive(state)) {
-    // Adjust score based on depth? Less important for win/loss/draw evaluation
     return evaluateState(state, aiSymbol, depth);
-  } else if (depth === maxDepth) {
-    // evaluate Non-terminalState
+  }
+
+  if (depth >= maxDepth) {
     return evaluateActiveState(state, aiSymbol);
   }
 
@@ -31,49 +31,61 @@ export function minimax(
   const validMoves = getValidMoves(state);
   const currentPlayer = isMaximizingPlayer ? aiSymbol : humanSymbol;
 
-  const clonedState = structuredClone(state);
-
   if (isMaximizingPlayer) {
-    // AI's turn (Maximize score)
+    // AI's turn - try to maximize score
     let maxEval = -Infinity;
+
     for (const move of validMoves) {
-      const childState = makeMove(clonedState, move as BoardPosition);
+      // Create a NEW state for each move
+      const newState = makeMove(structuredClone(state), move as BoardPosition);
+
       const evaluation = minimax(
-        childState,
+        newState,
         depth + 1,
         alpha,
         beta,
-        false,
+        false, // Next turn is opponent (minimizing)
         aiSymbol,
         maxDepth
       );
+
       maxEval = Math.max(maxEval, evaluation);
-      alpha = Math.max(alpha, evaluation); // Update alpha
+      alpha = Math.max(alpha, evaluation);
+
+      // Alpha-beta pruning
       if (beta <= alpha) {
-        break; // Beta cut-off
+        break;
       }
     }
+
     return maxEval;
   } else {
-    // Opponent's turn (Minimize score)
+    // Opponent's turn - try to minimize score
     let minEval = Infinity;
+
     for (const move of validMoves) {
-      const childState = makeMove(clonedState, move as BoardPosition);
+      // Create a NEW state for each move
+      const newState = makeMove(structuredClone(state), move as BoardPosition);
+
       const evaluation = minimax(
-        childState,
+        newState,
         depth + 1,
         alpha,
         beta,
-        true,
+        true, // Next turn is AI (maximizing)
         aiSymbol,
         maxDepth
       );
+
       minEval = Math.min(minEval, evaluation);
-      beta = Math.min(beta, evaluation); // Update beta
+      beta = Math.min(beta, evaluation);
+
+      // Alpha-beta pruning
       if (beta <= alpha) {
-        break; // Alpha cut-off
+        break;
       }
     }
+
     return minEval;
   }
 }

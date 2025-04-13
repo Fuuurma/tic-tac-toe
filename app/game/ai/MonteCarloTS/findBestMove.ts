@@ -4,6 +4,8 @@ import { simulateRandomGame } from "./simulateGame";
 import { isGameActive } from "../../logic/isGameActive";
 import { getValidMoves } from "../../logic/getValidMoves";
 import { backpropagate } from "./backPropagate";
+import { makeMove } from "../../logic/makeMove";
+import { PlayerSymbol } from "../../constants/constants";
 
 /**
  * Finds the best move from the current state using MCTS.
@@ -23,97 +25,111 @@ export function findBestMoveMCTS(
   }
 
   const rootNode = new MonteCarloTreeSearchNode(currentState);
+  const rootState = structuredClone(currentState);
+
   const rootPlayer = rootNode.playerTurn;
 
+  // First, check for immediate winning moves (extra logic for stronger play)
+  const immediateWin = findImmediateWinOrBlock(
+    rootState,
+    rootState.currentPlayer
+  );
+  if (immediateWin !== -1) {
+    console.log(`Found immediate winning move: ${immediateWin}`);
+    return immediateWin;
+  }
+
+  // Then check for blocking opponent's winning moves
+  const opponentSymbol =
+    rootState.currentPlayer === PlayerSymbol.X
+      ? PlayerSymbol.O
+      : PlayerSymbol.X;
+  const blockingMove = findImmediateWinOrBlock(rootState, opponentSymbol);
+  if (blockingMove !== -1) {
+    console.log(`Found blocking move: ${blockingMove}`);
+    return blockingMove;
+  }
+
+  // Run MCTS iterations
   for (let i = 0; i < iterations; i++) {
-    // 1. Selection
-    let node: MonteCarloTreeSearchNode = rootNode;
+    // 1. Selection: Select path through tree
+    let node = rootNode;
+    let currentState = structuredClone(rootState);
+
+    // Select until we reach a leaf node or a node not fully expanded
     while (!node.isTerminalNode && node.isFullyExpanded) {
       const bestChild = node.selectBestChild(explorationParameter);
-      if (!bestChild) break; // Should not happen unless terminal
-      node = bestChild;
+      if (!bestChild) break;
+
+      // Apply the move that leads to this child
+      let moveToChild = -1;
+      for (const [move, child] of node.children.entries()) {
+        if (child === bestChild) {
+          moveToChild = move;
+          break;
+        }
+      }
+
+      if (moveToChild !== -1) {
+        currentState = makeMove(structuredClone(currentState), moveToChild);
+        node = bestChild;
+      } else {
+        break; // Should not happen with proper implementation
+      }
     }
 
-    // 2. Expansion
-    let simulationNode: MonteCarloTreeSearchNode = node; // Node to start simulation from
+    // 2. Expansion: Add a new child node if possible
     if (!node.isTerminalNode && !node.isFullyExpanded) {
       const expandedNode = node.expand();
       if (expandedNode) {
-        simulationNode = expandedNode;
+        // Apply the move that leads to expanded node
+        let moveToChild = -1;
+        for (const [move, child] of node.children.entries()) {
+          if (child === expandedNode) {
+            moveToChild = move;
+            break;
+          }
+        }
+
+        if (moveToChild !== -1) {
+          currentState = makeMove(structuredClone(currentState), moveToChild);
+          node = expandedNode;
+        }
       }
-      // If expand returned null (shouldn't happen here), simulation starts from 'node'
     }
 
-    // 3. Simulation
-    // Result is from the perspective of the player whose turn it is at simulationNode
-    const simulationResult = simulateRandomGame(
-      simulationNode.state,
-      simulationNode.playerTurn
+    // 3. Simulation: Play random moves until game end
+    const result = simulateRandomGame(
+      structuredClone(currentState),
+      node.playerTurn
     );
 
-    // 4. Backpropagation
-    // Backpropagate expects result relative to the player at the node being updated
-    // Initial result IS relative to simulationNode.playerWhoseTurnItIs. Backpropagate handles flipping.
-    backpropagate(simulationNode, simulationResult);
+    // 4. Backpropagation: Update scores up the tree
+    backpropagate(node, result);
   }
 
-  // After iterations, choose the best move from the root node's children
-  let bestMove = -1;
-  let highestScore = -Infinity; // Or highest visits, depending on strategy
-  // let mostVisits = -1;
+  // After all iterations, choose the best move from root's children
+  return selectBestMoveFromRoot(rootNode);
+}
 
-  if (rootNode.children.size === 0) {
-    // No simulations run or no valid moves? Fallback needed.
-    console.warn("MCTS root has no children after iterations. Falling back.");
-    const validMoves = getValidMoves(currentState);
-    return validMoves.length > 0 ? validMoves[0] : -1; // Fallback: first valid move
-  }
+// Find immediate win or blocking move
+function findImmediateWinOrBlock(
+  state: GameState,
+  playerSymbol: PlayerSymbol
+): number {
+  const validMoves = getValidMoves(state);
 
-  console.log("--- MCTS Results ---");
-  for (const [move, child] of rootNode.children.entries()) {
-    if (child.visits > 0) {
-      const winRate = (child.score / child.visits).toFixed(3); // Score might include draws as 0.5
-      console.log(
-        `Move: ${move}, Score: ${child.score.toFixed(1)}, Visits: ${
-          child.visits
-        }, WinRate (approx): ${winRate}`
-      );
-      // Choose based on highest score (favors wins, includes draws) or highest visits
-      if (child.score / child.visits > highestScore) {
-        // Using average score (win rate)
-        highestScore = child.score / child.visits;
-        bestMove = move;
-      }
-      // Or choose based on most visits (robust choice)
-      // if (child.visits > mostVisits) {
-      //     mostVisits = child.visits;
-      //     bestMove = move;
-      // }
-    } else {
-      console.log(`Move: ${move}, Score: 0, Visits: 0`);
+  for (const move of validMoves) {
+    // Create a simulation state where this move is played
+    const simulationState = structuredClone(state);
+    simulationState.currentPlayer = playerSymbol; // Set player for this simulation
+    const nextState = makeMove(simulationState, move);
+
+    // Check if this move results in a win
+    if (nextState.winner === playerSymbol) {
+      return move;
     }
   }
 
-  console.log("--------------------");
-
-  if (bestMove === -1) {
-    // If all children have 0 visits or scores are problematic, pick robustly
-    let mostVisits = -1;
-    for (const [move, child] of rootNode.children.entries()) {
-      if (child.visits > mostVisits) {
-        mostVisits = child.visits;
-        bestMove = move;
-      }
-    }
-    if (bestMove === -1) {
-      // Still nothing? Very rare. Fallback.
-      const validMoves = getValidMoves(currentState);
-      bestMove = validMoves.length > 0 ? validMoves[0] : -1;
-    }
-    console.log(`Choosing best move based on visits: ${bestMove}`);
-  } else {
-    console.log(`Choosing best move based on score: ${bestMove}`);
-  }
-
-  return bestMove;
+  return -1; // No immediate win found
 }

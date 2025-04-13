@@ -6,16 +6,16 @@ import { PlayerSymbol } from "../../constants/constants";
 // Perspective of the AI (maximizing player)
 export function evaluateState(
   state: GameState,
-  AI_Symbol: PlayerSymbol,
+  aiSymbol: PlayerSymbol,
   depth: number
 ): number {
-  // console.log("Evaluating Finished Game State...");
   const winner = state.winner;
-  if (winner === AI_Symbol) {
-    return 100 - depth; // AI wins - High positive score
+
+  if (winner === aiSymbol) {
+    return 1000 - depth; // AI wins - prefer winning sooner
   } else if (winner && winner !== "draw") {
-    return -100 + depth; // Opponent wins - High negative score
+    return -1000 + depth; // Opponent wins - prefer losing later
   } else {
-    return 0; // Draw or non-terminal state (less useful here)
+    return 0; // Draw
   }
 }
