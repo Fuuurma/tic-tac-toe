@@ -217,7 +217,8 @@ export enum AI_Difficulty {
 
 // do both: iterations and time. stop when either are met
 export const MCTS_ITERATIONS = {
-  [AI_Difficulty.NORMAL]: 1000, // Adjust these values based on testing
+  // 1000
+  [AI_Difficulty.NORMAL]: 100, // Adjust these values based on testing
   [AI_Difficulty.HARD]: 5000,
   [AI_Difficulty.INSANE]: 20000, // Or use a time limit
 } as const;
