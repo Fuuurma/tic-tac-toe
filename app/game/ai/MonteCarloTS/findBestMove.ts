@@ -7,6 +7,7 @@ import { backpropagate } from "./backPropagate";
 import { makeMove } from "../../logic/makeMove";
 import { PlayerSymbol } from "../../constants/constants";
 import { selectBestMoveFromRoot } from "./getBestMoveFromRoot";
+import { findImmediateWinOrBlock } from "./findWinOrBlock";
 
 /**
  * Finds the best move from the current state using MCTS.

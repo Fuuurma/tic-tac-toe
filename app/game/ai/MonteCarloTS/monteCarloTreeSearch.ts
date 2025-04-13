@@ -17,7 +17,7 @@ export class MonteCarloTreeSearchNode {
     state: GameState,
     parent: MonteCarloTreeSearchNode | null = null
   ) {
-    this.state = state; // IMPORTANT: Assume state is immutable or cloned before passing
+    this.state = structuredClone(state);
     this.parent = parent;
     this.children = new Map();
     this.visits = 0;
@@ -88,7 +88,7 @@ export class MonteCarloTreeSearchNode {
 
     // Create the state for the child node by applying the move
     // IMPORTANT: applyMove MUST return a new state object
-    const nextState = makeMove(this.state, move);
+    const nextState = makeMove(structuredClone(this.state), move);
 
     // Create the child node
     const childNode = new MonteCarloTreeSearchNode(nextState, this);
