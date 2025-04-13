@@ -17,9 +17,9 @@ export function minimax(
   maxDepth: number // Max search depth
 ): number {
   // Check for terminal state or max depth reached
-  if (!isGameActive(state) || depth === maxDepth) {
+  if (!isGameActive(state)) {
     // Adjust score based on depth? Less important for win/loss/draw evaluation
-    return evaluateState(state, aiSymbol);
+    return evaluateState(state, aiSymbol, depth);
   } else if (depth === maxDepth) {
     // evaluate Non-terminalState
     return evaluateActiveState(state, aiSymbol);
@@ -31,11 +31,13 @@ export function minimax(
   const validMoves = getValidMoves(state);
   const currentPlayer = isMaximizingPlayer ? aiSymbol : humanSymbol;
 
+  const clonedState = structuredClone(state);
+
   if (isMaximizingPlayer) {
     // AI's turn (Maximize score)
     let maxEval = -Infinity;
     for (const move of validMoves) {
-      const childState = makeMove(state, move as BoardPosition);
+      const childState = makeMove(clonedState, move as BoardPosition);
       const evaluation = minimax(
         childState,
         depth + 1,
@@ -56,7 +58,6 @@ export function minimax(
     // Opponent's turn (Minimize score)
     let minEval = Infinity;
     for (const move of validMoves) {
-      const clonedState = structuredClone(state);
       const childState = makeMove(clonedState, move as BoardPosition);
       const evaluation = minimax(
         childState,
