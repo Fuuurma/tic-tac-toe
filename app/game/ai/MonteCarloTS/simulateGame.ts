@@ -16,25 +16,29 @@ export function simulateRandomGame(
   gameState: GameState,
   perspectivePlayer: PlayerSymbol
 ): number {
-  while (isGameActive(gameState)) {
-    const validMoves = getValidMoves(gameState);
+  let simulationState = structuredClone(gameState);
+
+  // Play random moves until game over
+  while (isGameActive(simulationState)) {
+    const validMoves = getValidMoves(simulationState);
     if (validMoves.length === 0) break;
 
-    const randomMove =
-      validMoves[Math.floor(Math.random() * validMoves.length)];
-    gameState = makeMove(gameState, randomMove);
+    const randomMoveIndex = Math.floor(Math.random() * validMoves.length);
+    const randomMove = validMoves[randomMoveIndex];
+
+    // Apply move
+    const nextState = makeMove(simulationState, randomMove);
+
+    // Update simulation state
+    simulationState = nextState;
   }
 
-  const winner = checkWinner(gameState.board);
-
-  switch (winner) {
-    case perspectivePlayer:
-      return 1;
-    case "draw":
-      return 0;
-    case null:
-      return -1;
+  // Determine outcome from perspective of the starting player
+  if (simulationState.winner === perspectivePlayer) {
+    return 1; // Win
+  } else if (simulationState.winner === "draw") {
+    return 0; // Draw
+  } else {
+    return -1; // Loss
   }
-
-  return -1; // fallback
 }
