@@ -6,6 +6,7 @@ import { getValidMoves } from "../../logic/getValidMoves";
 import { backpropagate } from "./backPropagate";
 import { makeMove } from "../../logic/makeMove";
 import { PlayerSymbol } from "../../constants/constants";
+import { selectBestMoveFromRoot } from "./getBestMoveFromRoot";
 
 /**
  * Finds the best move from the current state using MCTS.
@@ -110,26 +111,4 @@ export function findBestMoveMCTS(
 
   // After all iterations, choose the best move from root's children
   return selectBestMoveFromRoot(rootNode);
-}
-
-// Find immediate win or blocking move
-function findImmediateWinOrBlock(
-  state: GameState,
-  playerSymbol: PlayerSymbol
-): number {
-  const validMoves = getValidMoves(state);
-
-  for (const move of validMoves) {
-    // Create a simulation state where this move is played
-    const simulationState = structuredClone(state);
-    simulationState.currentPlayer = playerSymbol; // Set player for this simulation
-    const nextState = makeMove(simulationState, move);
-
-    // Check if this move results in a win
-    if (nextState.winner === playerSymbol) {
-      return move;
-    }
-  }
-
-  return -1; // No immediate win found
 }
