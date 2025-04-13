@@ -8,7 +8,7 @@ export function evaluateState(
   state: GameState,
   AI_Symbol: PlayerSymbol
 ): number {
-  const winner = state.winner; // Or use state.winner
+  const winner = state.winner;
   if (winner === AI_Symbol) {
     return 10; // AI wins - High positive score
   } else if (winner && winner !== "draw") {
@@ -69,30 +69,6 @@ export function evaluateState(
       score += 5;
     } else if (board[corner] === humanSymbol) {
       score -= 5;
-    }
-  }
-
-  if (!AI_Symbol) {
-    switch (winner) {
-      case null:
-        if (AI_Symbol) {
-          return 0;
-        }
-
-      case "draw":
-        if (AI_Symbol) {
-          return 0;
-        }
-
-      case PlayerSymbol.X:
-        if (AI_Symbol) {
-          return 1;
-        }
-
-      case PlayerSymbol.O:
-        if (AI_Symbol) {
-          return -1;
-        }
     }
   }
 
