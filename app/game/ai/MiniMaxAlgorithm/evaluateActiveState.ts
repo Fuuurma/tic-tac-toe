@@ -10,6 +10,8 @@ export function evaluateActiveState(
   gameState: GameState,
   AI_Symbol: PlayerSymbol
 ): number {
+  console.log("Evaluating Active Game State...");
+
   // Non-terminal state evaluation (heuristic scoring)
   const humanSymbol =
     AI_Symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
