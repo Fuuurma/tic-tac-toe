@@ -16,19 +16,16 @@ export function selectBestMoveFromRoot(
   let bestVisits = -1;
   let bestRobustScore = -Infinity;
 
-  console.log("--- MCTS Results After Simulation ---");
   for (const [move, child] of rootNode.children.entries()) {
     if (child.visits > 0) {
       const winRate = child.score / child.visits;
       const robustScore = winRate + 1.0 / Math.sqrt(child.visits);
 
-      console.log(
-        `Move: ${move}, Score: ${child.score.toFixed(1)}, ` +
-          `Visits: ${child.visits}, Win Rate: ${winRate.toFixed(3)}, ` +
-          `Robust Score: ${robustScore.toFixed(3)}`
-      );
-
-      // We can choose based on various strategies:
+      // console.log(
+      //   `Move: ${move}, Score: ${child.score.toFixed(1)}, ` +
+      //     `Visits: ${child.visits}, Win Rate: ${winRate.toFixed(3)}, ` +
+      //     `Robust Score: ${robustScore.toFixed(3)}`
+      // );
 
       // 1. Highest win rate (exploitation)
       if (winRate > bestScore) {
@@ -45,8 +42,6 @@ export function selectBestMoveFromRoot(
       if (robustScore > bestRobustScore) {
         bestRobustScore = robustScore;
       }
-    } else {
-      console.log(`Move: ${move}, Score: 0, Visits: 0`);
     }
   }
 
@@ -61,7 +56,6 @@ export function selectBestMoveFromRoot(
 
   if (!useOptimalStrategy) {
     // For some randomness (easy/medium difficulty), occasionally pick something else
-    console.log("Using suboptimal strategy for variety");
     const validMoves = getValidMoves(rootNode.state);
     const randomMove =
       validMoves[Math.floor(Math.random() * validMoves.length)];
@@ -72,9 +66,6 @@ export function selectBestMoveFromRoot(
       selectedMove = randomMove;
     }
   }
-
-  console.log(`Selected move: ${selectedMove}`);
-  console.log("--------------------");
 
   return selectedMove;
 }

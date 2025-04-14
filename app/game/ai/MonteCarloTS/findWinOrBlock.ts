@@ -11,16 +11,14 @@ export function findImmediateWinOrBlock(
   const validMoves = getValidMoves(state);
 
   for (const move of validMoves) {
-    // Create a simulation state where this move is played
     const simulationState = structuredClone(state);
-    simulationState.currentPlayer = playerSymbol; // Set player for this simulation
+    simulationState.currentPlayer = playerSymbol;
     const nextState = makeMove(simulationState, move);
 
-    // Check if this move results in a win
     if (nextState.winner === playerSymbol) {
       return move;
     }
   }
 
-  return -1; // No immediate win found
+  return -1;
 }

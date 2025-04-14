@@ -6,6 +6,7 @@ import { createPlayerConfig } from "@/app/utils/createPlayerConfig";
 import { getOpponentName } from "@/app/utils/getOpponentName";
 import { shouldActivateOpponent } from "@/app/utils/shouldActivateOpponent";
 import { getOpponentType } from "@/app/utils/getOpponentType";
+import { getStartingPlayer } from "@/app/utils/getStartingPlayer";
 
 export const createInitialGameState = (
   username: string,
@@ -38,5 +39,6 @@ export const createInitialGameState = (
         isActive: shouldActivateOpponent(gameMode),
       }),
     },
+    currentPlayer: getStartingPlayer(),
   };
 };

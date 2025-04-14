@@ -21,7 +21,7 @@ export class MonteCarloTreeSearchNode {
     this.parent = parent;
     this.children = new Map();
     this.visits = 0;
-    this.score = 0; // Wins + 0.5 * Draws relative to playerTurn
+    this.score = 0;
     this.playerTurn = state.currentPlayer;
     this.untriedMoves = getValidMoves(state);
   }
@@ -82,18 +82,14 @@ export class MonteCarloTreeSearchNode {
       return null; // Should not happen if called after isFullyExpanded check
     }
 
-    // Get a random untried move
     const moveIndex = Math.floor(Math.random() * this.untriedMoves.length);
-    const move = this.untriedMoves.splice(moveIndex, 1)[0]; // Remove the move
 
-    // Create the state for the child node by applying the move
-    // IMPORTANT: applyMove MUST return a new state object
+    const move = this.untriedMoves.splice(moveIndex, 1)[0];
+
     const nextState = makeMove(structuredClone(this.state), move);
 
-    // Create the child node
     const childNode = new MonteCarloTreeSearchNode(nextState, this);
 
-    // Add the child to this node's children map
     this.children.set(move, childNode);
 
     return childNode;

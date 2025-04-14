@@ -17,16 +17,12 @@ export function getValidMoves(gameState: GameState): number[] {
   if (!isGameActive(gameState)) return [];
 
   const validMoves: number[] = [];
+
   for (let i = 0; i < gameState.board.length; i++) {
     if (gameState.board[i] === null) {
       validMoves.push(i);
     }
   }
-  // console.log(
-  //   "getValidMoves - Board:",
-  //   gameState.board,
-  //   "Returning:",
-  //   validMoves
-  // );
+
   return validMoves;
 }

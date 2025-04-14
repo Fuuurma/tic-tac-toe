@@ -31,24 +31,21 @@ export function findBestMoveMCTS(
 
   const rootPlayer = rootNode.playerTurn;
 
-  // First, check for immediate winning moves (extra logic for stronger play)
   const immediateWin = findImmediateWinOrBlock(
     rootState,
     rootState.currentPlayer
   );
   if (immediateWin !== -1) {
-    console.log(`Found immediate winning move: ${immediateWin}`);
     return immediateWin;
   }
 
-  // Then check for blocking opponent's winning moves
   const opponentSymbol =
     rootState.currentPlayer === PlayerSymbol.X
       ? PlayerSymbol.O
       : PlayerSymbol.X;
+
   const blockingMove = findImmediateWinOrBlock(rootState, opponentSymbol);
   if (blockingMove !== -1) {
-    console.log(`Found blocking move: ${blockingMove}`);
     return blockingMove;
   }
 
@@ -76,7 +73,7 @@ export function findBestMoveMCTS(
         currentState = makeMove(structuredClone(currentState), moveToChild);
         node = bestChild;
       } else {
-        break; // Should not happen with proper implementation
+        break;
       }
     }
 
@@ -110,6 +107,5 @@ export function findBestMoveMCTS(
     backpropagate(node, result);
   }
 
-  // After all iterations, choose the best move from root's children
   return selectBestMoveFromRoot(rootNode);
 }

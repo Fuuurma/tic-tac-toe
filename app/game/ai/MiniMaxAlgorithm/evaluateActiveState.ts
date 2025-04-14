@@ -15,7 +15,6 @@ export function evaluateActiveState(
   const board = gameState.board;
   let score = 0;
 
-  // Check each winning combination
   for (const [a, b, c] of WINNING_COMBINATIONS) {
     const lineSymbols = [board[a], board[b], board[c]];
 

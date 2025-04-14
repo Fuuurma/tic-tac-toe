@@ -9,16 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Info } from "lucide-react";
+import AI_DifficultySelectorInfo from "./aiDifficultySelectorInfo";
 
 interface AI_DifficultySelectorProps {
   selectedDifficulty: AI_Difficulty;
@@ -31,7 +22,7 @@ const AI_DifficultySelector: React.FC<AI_DifficultySelectorProps> = ({
 }) => {
   return (
     <div className="space-y-2">
-      {/* The Select component remains the same */}
+      <AI_DifficultySelectorInfo />
       <Select
         value={selectedDifficulty}
         onValueChange={(value) => onDifficultyChange(value as AI_Difficulty)}

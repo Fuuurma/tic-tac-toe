@@ -16,7 +16,6 @@ export function minimax(
   aiSymbol: PlayerSymbol,
   maxDepth: number // Max search depth
 ): number {
-  // Terminal state check - game over or max depth reached
   if (!isGameActive(state)) {
     return evaluateState(state, aiSymbol, depth);
   }
@@ -27,7 +26,6 @@ export function minimax(
 
   const humanSymbol =
     aiSymbol === PlayerSymbol.O ? PlayerSymbol.X : PlayerSymbol.O;
-  //getOpponent(aiSymbol);
   const validMoves = getValidMoves(state);
   const currentPlayer = isMaximizingPlayer ? aiSymbol : humanSymbol;
 
@@ -36,7 +34,6 @@ export function minimax(
     let maxEval = -Infinity;
 
     for (const move of validMoves) {
-      // Create a NEW state for each move
       const newState = makeMove(structuredClone(state), move as BoardPosition);
 
       const evaluation = minimax(
@@ -44,7 +41,7 @@ export function minimax(
         depth + 1,
         alpha,
         beta,
-        false, // Next turn is opponent (minimizing)
+        false,
         aiSymbol,
         maxDepth
       );
@@ -72,7 +69,7 @@ export function minimax(
         depth + 1,
         alpha,
         beta,
-        true, // Next turn is AI (maximizing)
+        true,
         aiSymbol,
         maxDepth
       );

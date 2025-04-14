@@ -405,6 +405,7 @@ export default function Home() {
         })
       );
       setPlayerSymbol(PlayerSymbol.X);
+      setMessage("");
 
       if (socket) {
         socket.disconnect();
@@ -465,7 +466,6 @@ export default function Home() {
           opponentName,
           playerColor: selectedColor,
           opponentColor,
-          // aiDifficulty: gameMode === GameModes.VS_COMPUTER ? aiDifficulty : undefined, // Pass difficulty only if relevant
         })
       );
     }
@@ -481,7 +481,7 @@ export default function Home() {
     setRematchOffered(false);
     setRematchRequested(false);
     setLastAssignedColor(null);
-    setAI_Difficulty(AI_Difficulty.NORMAL);
+    setAI_Difficulty(aiDifficulty || AI_Difficulty.NORMAL);
 
     if (socket) {
       console.log("Disconnecting socket on exit...");
@@ -499,7 +499,7 @@ export default function Home() {
     <div
       className="h-screen flex flex-col items-center p-4 gap-4 
     bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
-    overflow-y-auto" // Controlled scrolling
+    overflow-y-auto"
     >
       <header className="w-full max-w-4xl flex justify-center items-center gap-4 mb-4">
         <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
