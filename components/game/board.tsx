@@ -77,35 +77,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const isGameActive = !winner;
 
   // 5. If game has finished update state
-  // do we need to use state no? this will only do onrender
   if (!isGameActive && (winner === PlayerSymbol.O || winner === PlayerSymbol.X))
     gameState.gameStatus = GameStatus.COMPLETED;
 
-  // Determine if this is an online game
   const isOnlineGame = gameMode === GameModes.ONLINE;
 
-  // Determine if this is a local game (vs AI or Friend)
   const isLocalGame =
     gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
 
-  // --- Render Logic ---
   return (
     <Card className="w-full max-w-md shadow-lg mx-4 md:mx-0">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-semibold">{gameMode}</CardTitle>
-        {playerType && ( // Display the role of the person viewing this board
+        {playerType && (
           <CardDescription>
             Playing as: <span className="font-medium">{playerType}</span>
           </CardDescription>
         )}
       </CardHeader>
+
       <CardContent className="md:p-6">
         <div className="flex justify-around items-center gap-2 flex-wrap px-1">
           <PlayerInfoBadge
             symbol={PlayerSymbol.X}
             username={players.X.username}
             type={players.X.type}
-            color={players.X.color} // Pass color for badge styling
+            color={players.X.color}
             isCurrentPlayer={currentPlayer === PlayerSymbol.X && isGameActive}
           />
           <span className="text-muted-foreground font-bold text-lg">vs</span>
@@ -113,7 +110,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             symbol={PlayerSymbol.O}
             username={players.O.username}
             type={players.O.type}
-            color={players.O.color} // Pass color for badge styling
+            color={players.O.color}
             isCurrentPlayer={currentPlayer === PlayerSymbol.O && isGameActive}
           />
         </div>
@@ -126,26 +123,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             winningPlayerName={winnerName}
           />
         </div>
+
         {/* Tic Tac Toe Grid */}
         <div className="grid grid-cols-3 gap-2 aspect-square w-full bg-border/40 p-1 rounded-lg">
-          {/* Add subtle background/padding */}
           {board.map((cellValue, index) => {
             const isCellNextToRemove =
               nextToRemove.X === index || nextToRemove.O === index;
             const symbolToRemove = getRemovalSymbol(index);
-            // Cells are disabled if there's a winner OR if it's not the current player's turn (for AI/network play maybe?)
-            // For simple hotseat/local play, just disabling based on winner is enough.
-            const isCellDisabled = !!winner; // Adjust if turn logic needed here
+            const isCellDisabled = !!winner;
 
             return (
               <BoardCell
-                key={index} // Key is essential for list rendering
+                key={index}
                 index={index}
                 value={cellValue}
-                playerColors={playerColorsMap} // Pass the color map
+                playerColors={playerColorsMap}
                 isNextToRemove={isCellNextToRemove}
                 removalSymbol={symbolToRemove}
-                // Pass final disabled state: game over OR specific cell logic
                 isDisabled={isCellDisabled}
                 onClick={handleCellClick}
               />
@@ -153,8 +147,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           })}
         </div>
       </CardContent>
+
       <CardFooter className="flex justify-between pt-4 border-t">
-        {/* {renderGameButtons()} */}
         <GameButtons
           isOnlineGame={isOnlineGame}
           isLocalGame={isLocalGame}
