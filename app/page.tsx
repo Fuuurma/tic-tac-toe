@@ -485,7 +485,6 @@ export default function Home() {
 
     if (socket) {
       console.log("Disconnecting socket on exit...");
-      // Check if already disconnected before calling disconnect
       if (socket.connected) {
         socket.disconnect();
       }

@@ -7,7 +7,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { Button } from "@/components/ui/button";
 import { GameState, PlayerType } from "@/app/types/types";
 import {
   Color,
