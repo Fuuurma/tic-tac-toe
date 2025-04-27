@@ -426,6 +426,12 @@ export default function Home() {
   const handleCellClick = (index: number) => {
     if (!loggedIn) return;
 
+    // Clear timer immediately on attempted move
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      setTimerIntervalId(null);
+    }
+
     // ONLINE
     if (gameMode === GameModes.ONLINE) {
       if (!socket || !socket.connected) {
@@ -523,15 +529,12 @@ export default function Home() {
     if (
       isGameActive(gameState) &&
       gameState.turnTimeRemaining !== undefined &&
-      gameState.turnTimeRemaining > 0 &&
+      gameState.turnTimeRemaining > 0
     ) {
       const intervalId = setInterval(() => {
         setGameState((prevGameState) => {
           // Ensure game hasn't ended while timer was running
-          if (
-            prevGameState.gameStatus !== GameStatus.ACTIVE ||
-            prevGameState.winner
-          ) {
+          if (!isGameActive(prevGameState)) {
             clearInterval(intervalId); // Stop timer if game ended
             setTimerIntervalId(null);
             return prevGameState; // Return unchanged state
@@ -598,6 +601,11 @@ export default function Home() {
         })
       );
     }
+    // Clear any active interval immediately on reset
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      setTimerIntervalId(null);
+    }
   };
 
   // ----- EXIT GAME ----- //
@@ -618,6 +626,11 @@ export default function Home() {
         socket.disconnect();
       }
       setSocket(null);
+    }
+    // Clear any active interval immediately on reset
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      setTimerIntervalId(null);
     }
   };
 
