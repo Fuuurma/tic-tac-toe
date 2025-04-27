@@ -13,11 +13,14 @@ import {
   GameModes,
   GameStatus,
   PlayerSymbol,
+  TURN_DURATION_MS,
 } from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
 import { PlayerInfoBadge } from "./playerBadge";
 import { GameStatusMessage } from "./gameStatusMessage";
 import GameButtons from "./gameButtons";
+import { Progress } from "@/components/ui/progress";
+import { useEffect, useState } from "react";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -50,8 +53,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onDeclineRematch,
   onLeaveRoom,
 }) => {
-  const { board, players, currentPlayer, winner, gameMode, nextToRemove } =
-    gameState;
+  const {
+    board,
+    players,
+    currentPlayer,
+    winner,
+    gameMode,
+    nextToRemove,
+    turnTimeRemaining,
+    gameStatus,
+  } = gameState;
+
+  // --- State for Display Timer ---
+  // We use local state for the display value derived from the prop
+  // to potentially format it or handle smooth updates if desired.
+  const [displayTime, setDisplayTime] = useState(0);
+  const [progressValue, setProgressValue] = useState(100);
+
+  // --- Effect to update display time based on prop ---
+  useEffect(() => {
+    if (gameStatus === GameStatus.ACTIVE && turnTimeRemaining !== undefined) {
+      const secondsLeft = Math.ceil(turnTimeRemaining / 1000);
+      setDisplayTime(secondsLeft);
+      // Calculate progress percentage
+      const progress = Math.max(
+        0,
+        (turnTimeRemaining / TURN_DURATION_MS) * 100
+      );
+      setProgressValue(progress);
+    } else {
+      // Reset or hide timer when game not running
+      setDisplayTime(0);
+      setProgressValue(0); // Or 100 if you prefer it full when inactive
+    }
+  }, [turnTimeRemaining, gameStatus]); // Update when timer prop or status changes
 
   // --- Pre-computation for cleaner rendering ---
 
@@ -113,6 +148,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             isCurrentPlayer={currentPlayer === PlayerSymbol.O && isGameActive}
           />
         </div>
+
+        {/* Timer Display Area */}
+        {isGameActive && turnTimeRemaining !== undefined && (
+          <div className="my-2 text-center">
+            <p className="text-sm text-muted-foreground mb-1">
+              Time Remaining:{" "}
+              <span className="font-semibold text-lg">{displayTime}s</span>
+            </p>
+            {/* Optional: Progress Bar visual */}
+            <Progress value={progressValue} className="w-3/4 mx-auto h-2" />
+          </div>
+        )}
 
         {/* Game Status / Winner Message Area */}
         <div className="min-h-[50px] flex items-center justify-center text-center">
