@@ -130,6 +130,92 @@ export function useGameSocket({
       setSocket(null);
     };
 
+    const handleGameStart = (initialGameState: GameState) => {
+      console.log("Game start received:", initialGameState);
+      onGameStateUpdate(initialGameState);
+      onRematchState(false, false);
+
+      onMessage(
+        `Game started! ${
+          initialGameState.players[initialGameState.currentPlayer]?.username
+        }'s turn.`
+      );
+
+      // Set opponent name/color from initial state
+      if (playerSymbol) {
+        const opponentSym =
+          playerSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        const opponentData = initialGameState.players[opponentSym];
+        if (opponentData?.username) {
+          onOpponentUpdate(opponentData.username, opponentData.color);
+        }
+      }
+    };
+
+    const handleGameUpdate = (updatedGameState: GameState) => {
+      console.log("Game update received:", updatedGameState);
+      onGameStateUpdate(updatedGameState);
+      onRematchState(false, false);
+
+      // Update message based on new state
+      if (updatedGameState.winner) {
+        onMessage(
+          updatedGameState.winner === "draw"
+            ? "It's a draw!"
+            : `${
+                updatedGameState.players[updatedGameState.winner]?.username ||
+                `Player ${updatedGameState.winner}`
+              } wins!`
+        );
+      } else {
+        onMessage(
+          `${
+            updatedGameState.players[updatedGameState.currentPlayer]
+              ?.username || "Opponent"
+          }'s turn.`
+        );
+      }
+    };
+
+    const handleGameReset = (resetGameState: GameState) => {
+      console.log("Game reset (rematch accepted):", resetGameState);
+      onGameStateUpdate(resetGameState);
+      onRematchState(false, false);
+
+      onMessage("Rematch started!");
+      setTimeout(
+        () =>
+          onMessage(
+            `${
+              resetGameState.players[resetGameState.currentPlayer]?.username
+            }'s turn.`
+          ),
+        1500
+      );
+    };
+
+    const handleRematchRequested = (payload: {
+      requesterSymbol: PlayerSymbol;
+    }) => {
+      console.log("Rematch requested by:", payload.requesterSymbol);
+
+      // Only show offer if it wasn't this player who requested it
+      if (payload.requesterSymbol !== playerSymbol) {
+        onRematchState(true, false);
+        onMessage(`Opponent wants a rematch!`);
+      }
+    };
+
+    const handleError = (errorMessage: string) => {
+      console.error("Server error received:", errorMessage);
+
+      // Check if the error relates to a declined rematch
+      if (errorMessage.toLowerCase().includes("declined the rematch")) {
+        onRematchState(false, false);
+      }
+      onMessage(`Error: ${errorMessage}`);
+    };
+
     // --- Register Listeners ---
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
