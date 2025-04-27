@@ -1,6 +1,6 @@
 import { GameState } from "@/app/types/types";
 import { checkWinner } from "./checkWinner";
-import { PlayerSymbol } from "../constants/constants";
+import { PlayerSymbol, TURN_DURATION_MS } from "../constants/constants";
 
 export const makeMove = (gameState: GameState, index: number): GameState => {
   if (gameState.board[index] !== null || gameState.winner) {
@@ -45,6 +45,8 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
     newGameState.currentPlayer =
       player === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
   }
+
+  newGameState.turnTimeRemaining = TURN_DURATION_MS;
 
   return newGameState;
 };

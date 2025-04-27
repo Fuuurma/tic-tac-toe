@@ -1,4 +1,10 @@
-import { GameState, GameMode } from "@/app/types/types";
+import {
+  GameState,
+  GameMode,
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from "@/app/types/types";
+import { io, Socket } from "socket.io-client";
 
 import {
   PlayerSymbol,
@@ -8,7 +14,7 @@ import {
   Color,
   Events,
 } from "@/app/game/constants/constants";
-import { useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface UseGameSocketProps {
   username: string;
@@ -18,16 +24,6 @@ interface UseGameSocketProps {
   onPlayerSymbolAssigned: (symbol: PlayerSymbol | null) => void;
   onOpponentUpdate: (name: string, color?: Color) => void;
   onRematchState: (offered: boolean, requested: boolean) => void;
-}
-
-interface ClientToServerEvents {
-  login: (username: string, color: Color) => void;
-  move: (index: number) => void;
-  reset: () => void;
-  [Events.REQUEST_REMATCH]: () => void;
-  [Events.ACCEPT_REMATCH]: () => void;
-  [Events.DECLINE_REMATCH]: () => void;
-  [Events.LEAVE_ROOM]: () => void;
 }
 
 /**
@@ -172,7 +168,11 @@ export function useGameSocket({
       onOpponentUpdate("");
       onRematchState(false, false);
 
-      onGameStateUpdate((prevState) => ({
+      // Argument of type '(prevState: GameState) =>
+      // { gameStatus: GameStatus; winner: null; board: GameBoard; currentPlayer: PlayerSymbol; players: Record<PlayerSymbol, PlayerConfig>;
+      // ... 5 more ...; aiDifficulty?: AI_Difficulty; }'
+      // is not assignable to parameter of type 'GameState'.ts(2345)
+      onGameStateUpdate((prevState: GameState) => ({
         ...prevState,
         gameStatus: GameStatus.WAITING,
         winner: null,

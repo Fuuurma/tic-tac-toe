@@ -1,7 +1,12 @@
 import { getInitialGameStatus } from "@/app/utils/getInitialGameStatus";
 import { createFreshGameState } from "./newGameState";
 import { GameMode, GameState } from "@/app/types/types";
-import { Color, PlayerSymbol, PlayerTypes } from "../constants/constants";
+import {
+  Color,
+  PlayerSymbol,
+  PlayerTypes,
+  TURN_DURATION_MS,
+} from "../constants/constants";
 import { createPlayerConfig } from "@/app/utils/createPlayerConfig";
 import { getOpponentName } from "@/app/utils/getOpponentName";
 import { shouldActivateOpponent } from "@/app/utils/shouldActivateOpponent";
@@ -40,5 +45,6 @@ export const createInitialGameState = (
       }),
     },
     currentPlayer: getStartingPlayer(),
+    turnTimeRemaining: TURN_DURATION_MS,
   };
 };

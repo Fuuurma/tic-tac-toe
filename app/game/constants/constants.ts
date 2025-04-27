@@ -36,27 +36,29 @@ export enum GameStatus {
   COMPLETED = "completed",
 }
 
+export const TURN_DURATION_MS = 10000; // 10 seconds
+
 export const GAME_MODES = {
   [GameModes.VS_COMPUTER]: {
     id: GameModes.VS_COMPUTER,
     label: "VS Computer",
     description: "Play against AI opponent",
     minPlayers: 1,
-    maxTimePerMove: 10000,
+    maxTimePerMove: TURN_DURATION_MS,
   },
   [GameModes.ONLINE]: {
     id: GameModes.ONLINE,
     label: "Online Multiplayer",
     description: "Play against others online",
     minPlayers: 2,
-    maxTimePerMove: 10000,
+    maxTimePerMove: TURN_DURATION_MS,
   },
   [GameModes.VS_FRIEND]: {
     id: GameModes.VS_FRIEND,
     label: "Local Multiplayer",
     description: "Play with a friend locally",
     minPlayers: 2,
-    maxTimePerMove: 10000,
+    maxTimePerMove: TURN_DURATION_MS,
   },
 } as const;
 
