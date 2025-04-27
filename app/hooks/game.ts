@@ -8,6 +8,13 @@ import {
   GameModes,
   Color,
 } from "@/app/game/constants/constants";
+import { createInitialGameState } from "@/app/game/logic/createInitialGameState";
+import { createFreshGameState } from "@/app/game/logic/newGameState";
+import { isValidMove } from "@/app/game/logic/isValidMove";
+import { makeMove } from "@/app/game/logic/makeMove";
+import { CanMakeMove } from "@/app/game/logic/canMakeMove";
+import { isAITurn } from "@/app/game/ai/canAI_MakeMove";
+import { handleAI_Move } from "@/app/game/ai/handleAI_Move";
 
 interface UseGameLogicProps {
   username: string;
