@@ -32,6 +32,7 @@ import { isValidMove } from "./game/logic/isValidMove";
 import PageFooter from "@/components/common/pageFooter";
 import { createInitialGameState } from "./game/logic/createInitialGameState";
 import { findRandomValidMove } from "./game/logic/makeRandomMove";
+import { isGameActive } from "./game/logic/isGameActive";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -456,7 +457,7 @@ export default function Home() {
     }
   };
 
-  // Function to handle the timeout action
+  // ----- TURN TIMEOUT ----- //
   const handleTurnTimeout = () => {
     console.log(
       `Time out for player ${gameState.currentPlayer}! Making random move.`
@@ -507,6 +508,77 @@ export default function Home() {
       // This might indicate a draw or an unexpected game state
     }
   };
+
+  // More timer //
+
+  // useEffect for managing the turn timer
+  useEffect(() => {
+    // Clear any existing timer before setting a new one
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      setTimerIntervalId(null);
+    }
+
+    // Only run the timer if the game is active and time is set
+    if (
+      isGameActive(gameState) &&
+      gameState.turnTimeRemaining !== undefined &&
+      gameState.turnTimeRemaining > 0 &&
+    ) {
+      const intervalId = setInterval(() => {
+        setGameState((prevGameState) => {
+          // Ensure game hasn't ended while timer was running
+          if (
+            prevGameState.gameStatus !== GameStatus.ACTIVE ||
+            prevGameState.winner
+          ) {
+            clearInterval(intervalId); // Stop timer if game ended
+            setTimerIntervalId(null);
+            return prevGameState; // Return unchanged state
+          }
+
+          const newTimeRemaining = (prevGameState.turnTimeRemaining ?? 0) - 100; // Decrement by 100ms for smoother updates
+
+          if (newTimeRemaining <= 0) {
+            clearInterval(intervalId);
+            setTimerIntervalId(null);
+            // Trigger timeout action *after* state update
+            setTimeout(handleTurnTimeout, 0); // Use setTimeout to ensure state update completes
+            return {
+              ...prevGameState,
+              turnTimeRemaining: 0,
+            };
+          } else {
+            return {
+              ...prevGameState,
+              turnTimeRemaining: newTimeRemaining,
+            };
+          }
+        });
+      }, 100); // Run every 100 milliseconds
+
+      setTimerIntervalId(intervalId);
+    }
+
+    // Cleanup function: clear interval when effect re-runs or component unmounts
+    return () => {
+      if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        setTimerIntervalId(null);
+      }
+    };
+    // Dependencies: Run when the current player changes, game status changes,
+    // or the timer value is explicitly reset (e.g., by makeMove updating gameState).
+    // Also include dependencies used inside handleTurnTimeout if they aren't stable refs/functions.
+  }, [
+    gameState.currentPlayer,
+    gameState.gameStatus,
+    gameState.turnTimeRemaining,
+    gameState.winner,
+    gameMode,
+    socket,
+    playerSymbol,
+  ]); // Add necessary dependencies
 
   // ----- RESET GAME ----- //
   const resetGame = () => {
