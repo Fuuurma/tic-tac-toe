@@ -8,6 +8,7 @@ import {
   Color,
   Events,
 } from "@/app/game/constants/constants";
+import { useCallback } from "react";
 
 interface UseGameSocketProps {
   username: string;
@@ -27,4 +28,245 @@ interface ClientToServerEvents {
   [Events.ACCEPT_REMATCH]: () => void;
   [Events.DECLINE_REMATCH]: () => void;
   [Events.LEAVE_ROOM]: () => void;
+}
+
+/**
+ * Custom hook for managing socket connection and game socket events
+ */
+export function useGameSocket({
+  username,
+  selectedColor,
+  onMessage,
+  onGameStateUpdate,
+  onPlayerSymbolAssigned,
+  onOpponentUpdate,
+  onRematchState,
+}: UseGameSocketProps) {
+  const [socket, setSocket] = useState<Socket<
+    ServerToClientEvents,
+    ClientToServerEvents
+  > | null>(null);
+  const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(
+    null
+  );
+  const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
+
+  /**
+   * Initialize socket connection
+   */
+  const initializeSocket = useCallback(() => {
+    // Prevent multiple initializations
+    if (socket?.connected) return;
+
+    // Ensure username is set before connecting
+    if (!username.trim()) {
+      onMessage("Please enter a username first.");
+      return;
+    }
+
+    console.log("Attempting to initialize socket connection...");
+    onMessage("Connecting to server...");
+
+    // Fetch to ensure the server-side initialization logic runs
+    fetch("/api/socket")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`API check failed: ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data.status !== "running" && data.status !== "initializing") {
+          throw new Error(`Socket server status: ${data.status || "unknown"}`);
+        }
+
+        // Determine Socket URL (use environment variables for production)
+        const socketUrl =
+          process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3009";
+        console.log("Connecting Socket.IO to:", socketUrl);
+
+        const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> =
+          io(socketUrl, {
+            reconnectionAttempts: 5,
+            reconnectionDelay: 3000,
+          });
+
+        setSocket(newSocket);
+      })
+      .catch((err) => {
+        console.error("Socket initialization error:", err);
+        onMessage(
+          `Connection failed: ${err.message}. Ensure server is running.`
+        );
+        setSocket(null);
+      });
+  }, [username, socket, onMessage]);
+
+  /**
+   * Set up socket event listeners
+   */
+  useEffect(() => {
+    if (!socket) return;
+
+    // --- Connection Handling ---
+    const handleConnect = () => {
+      console.log("Socket connected:", socket.id);
+      onMessage("Connected! Waiting for opponent...");
+      // Emit login *after* successful connection
+      socket.emit("login", username, selectedColor);
+    };
+
+    const handleDisconnect = (reason: Socket.DisconnectReason) => {
+      console.log("Socket disconnected:", reason);
+      onMessage(`Disconnected: ${reason}. Please log in again.`);
+      setPlayerSymbol(null);
+      onPlayerSymbolAssigned(null);
+      onRematchState(false, false);
+    };
+
+    const handleConnectError = (err: Error) => {
+      console.error("Socket connection error:", err);
+      onMessage(`Connection error: ${err.message}`);
+      setSocket(null);
+    };
+
+    // --- Register Listeners ---
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("playerAssigned", handlePlayerAssigned);
+    socket.on("colorChanged", handleColorChanged);
+    socket.on("playerJoined", handlePlayerJoined);
+    socket.on("playerLeft", handlePlayerLeft);
+    socket.on("gameStart", handleGameStart);
+    socket.on("gameUpdate", handleGameUpdate);
+    socket.on("gameReset", handleGameReset);
+    socket.on("rematchRequested", handleRematchRequested);
+    socket.on("error", handleError);
+
+    // --- Cleanup Function ---
+    return () => {
+      console.log("Cleaning up socket listeners...");
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("playerAssigned", handlePlayerAssigned);
+      socket.off("colorChanged", handleColorChanged);
+      socket.off("playerJoined", handlePlayerJoined);
+      socket.off("playerLeft", handlePlayerLeft);
+      socket.off("gameStart", handleGameStart);
+      socket.off("gameUpdate", handleGameUpdate);
+      socket.off("gameReset", handleGameReset);
+      socket.off("rematchRequested", handleRematchRequested);
+      socket.off("error", handleError);
+    };
+  }, [
+    socket,
+    username,
+    playerSymbol,
+    selectedColor,
+    onMessage,
+    onGameStateUpdate,
+    onPlayerSymbolAssigned,
+    onOpponentUpdate,
+    onRematchState,
+  ]);
+
+  /**
+   * Cleanup socket connection
+   */
+  const disconnectSocket = useCallback(() => {
+    if (socket) {
+      console.log("Disconnecting socket...");
+      if (socket.connected) {
+        socket.disconnect();
+      }
+      setSocket(null);
+    }
+  }, [socket]);
+
+  /**
+   * Make a move in an online game
+   */
+  const makeMove = useCallback(
+    (index: number) => {
+      if (socket && socket.connected) {
+        socket.emit("move", index);
+      } else {
+        onMessage("Not connected to server.");
+      }
+    },
+    [socket, onMessage]
+  );
+
+  /**
+   * Request a rematch
+   */
+  const requestRematch = useCallback(() => {
+    if (socket && socket.connected) {
+      console.log("Requesting rematch...");
+      socket.emit(Events.REQUEST_REMATCH);
+      onRematchState(false, true);
+      onMessage("Rematch requested. Waiting for opponent...");
+    }
+  }, [socket, onMessage, onRematchState]);
+
+  /**
+   * Accept a rematch request
+   */
+  const acceptRematch = useCallback(() => {
+    if (socket && socket.connected) {
+      console.log("Accepting rematch...");
+      socket.emit(Events.ACCEPT_REMATCH);
+      onRematchState(false, false);
+    }
+  }, [socket, onRematchState]);
+
+  /**
+   * Decline a rematch request
+   */
+  const declineRematch = useCallback(() => {
+    if (socket && socket.connected) {
+      console.log("Declining rematch...");
+      socket.emit(Events.DECLINE_REMATCH);
+      onRematchState(false, false);
+      onMessage("Rematch declined.");
+    }
+  }, [socket, onMessage, onRematchState]);
+
+  /**
+   * Leave the current room
+   */
+  const leaveRoom = useCallback(() => {
+    if (socket && socket.connected) {
+      console.log("Leaving room...");
+      socket.emit(Events.LEAVE_ROOM);
+    }
+  }, [socket]);
+
+  /**
+   * Reset the game (admin operation)
+   */
+  const resetGame = useCallback(() => {
+    if (socket && socket.connected) {
+      socket.emit("reset");
+    } else {
+      onMessage("Not connected to server.");
+    }
+  }, [socket, onMessage]);
+
+  return {
+    socket,
+    playerSymbol,
+    lastAssignedColor,
+    connected: !!socket?.connected,
+    initializeSocket,
+    disconnectSocket,
+    makeMove,
+    requestRematch,
+    acceptRematch,
+    declineRematch,
+    leaveRoom,
+    resetGame,
+  };
 }
