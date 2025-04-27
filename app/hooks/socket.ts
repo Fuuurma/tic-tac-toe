@@ -130,6 +130,55 @@ export function useGameSocket({
       setSocket(null);
     };
 
+    // --- Game Event Handling ---
+    const handlePlayerAssigned = (payload: {
+      symbol: PlayerSymbol;
+      roomId: string;
+      assignedColor: Color;
+    }) => {
+      console.log("Player assigned:", payload);
+      setPlayerSymbol(payload.symbol);
+      onPlayerSymbolAssigned(payload.symbol);
+      setLastAssignedColor(payload.assignedColor);
+    };
+
+    const handleColorChanged = (payload: {
+      newColor: Color;
+      reason: string;
+    }) => {
+      console.log("Color changed by server:", payload);
+      onMessage(
+        `Your color was changed to ${payload.newColor} (${payload.reason})`
+      );
+      setLastAssignedColor(payload.newColor);
+    };
+
+    const handlePlayerJoined = (payload: {
+      username: string;
+      symbol: PlayerSymbol;
+    }) => {
+      console.log("Player joined:", payload);
+      onMessage(`${payload.username} (${payload.symbol}) joined.`);
+
+      // Update opponent name in state if needed
+      if (playerSymbol && payload.symbol !== playerSymbol) {
+        onOpponentUpdate(payload.username);
+      }
+    };
+
+    const handlePlayerLeft = (payload: { symbol: PlayerSymbol | null }) => {
+      console.log("Player left:", payload);
+      onMessage(`Player ${payload.symbol || "?"} left the game. Waiting...`);
+      onOpponentUpdate("");
+      onRematchState(false, false);
+
+      onGameStateUpdate((prevState) => ({
+        ...prevState,
+        gameStatus: GameStatus.WAITING,
+        winner: null,
+      }));
+    };
+
     const handleGameStart = (initialGameState: GameState) => {
       console.log("Game start received:", initialGameState);
       onGameStateUpdate(initialGameState);
