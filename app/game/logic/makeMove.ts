@@ -41,7 +41,6 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
     }
 
     // Switch player
-    // newGameState.currentPlayer = player === "X" ? "O" : "X";
     newGameState.currentPlayer =
       player === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
   }

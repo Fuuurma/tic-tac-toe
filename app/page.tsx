@@ -22,6 +22,7 @@ import {
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
+  TURN_DURATION_MS,
 } from "./game/constants/constants";
 import DevPanel from "@/components/game/devPanel";
 import { createFreshGameState } from "./game/logic/newGameState";
@@ -386,7 +387,7 @@ export default function Home() {
     if (isAITurn(gameState)) {
       return handleAI_Move(gameState, setGameState, aiDifficulty);
     }
-  }, [gameState]); // [gameState, gameMode, loggedIn, aiDifficulty]); // Add aiDifficulty dependency
+  }, [gameState]);
 
   // ----- USER LOGIN ----- //
   const handleLogin = () => {
@@ -451,7 +452,10 @@ export default function Home() {
     }
     // LOCAL
     else {
-      if (!isValidMove(gameState, index, loggedIn)) return;
+      if (!isValidMove(gameState, index, loggedIn)) {
+        setMessage("Invalid move.");
+        return;
+      }
 
       if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
         const newState = makeMove(gameState, index);
@@ -465,6 +469,13 @@ export default function Home() {
 
   // ----- TURN TIMEOUT ----- //
   const handleTurnTimeout = () => {
+    if (!isGameActive(gameState)) {
+      console.log(
+        "Timeout handler skipped - already processing or game not active"
+      );
+      return;
+    }
+
     console.log(
       `Time out for player ${gameState.currentPlayer}! Making random move.`
     );
@@ -497,10 +508,14 @@ export default function Home() {
       } else {
         // For local modes (VS_COMPUTER, VS_FRIEND)
         // Ensure it's a valid move context (though timeout implies it should be)
-        if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
+        if (
+          !isAITurn(gameState) &&
+          CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)
+        ) {
           // Check if it's Player vs Player or Player vs Computer?
           // The current structure might make this check complex here.
           // Assuming any local timeout triggers the makeMove
+          console.log("Making random move to: ", randomMoveIndex);
           const newState = makeMove(gameState, randomMoveIndex);
           setGameState(newState);
         } else {
@@ -515,10 +530,41 @@ export default function Home() {
     }
   };
 
+  // NEW TIMEOUT
+
+  const generateTimeoutMove = (gameState: GameState): GameState => {
+    if (!isGameActive(gameState)) {
+      return gameState;
+    }
+
+    const randomMoveIndex = findRandomValidMove(gameState);
+
+    if (
+      randomMoveIndex !== null &&
+      !isAITurn(gameState) &&
+      CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)
+    ) {
+      console.log(
+        `Time out for player ${gameState.currentPlayer}! Making random move to: ${randomMoveIndex}`
+      );
+
+      // Create and return new state
+      return makeMove(gameState, randomMoveIndex);
+    }
+
+    // If no move was made, return original state
+    return gameState;
+  };
+
   // More timer //
 
   // useEffect for managing the turn timer
   useEffect(() => {
+    const shouldRunTimer =
+      isGameActive(gameState) &&
+      gameState.turnTimeRemaining !== undefined &&
+      !isAITurn(gameState);
+
     // Clear any existing timer before setting a new one
     if (timerIntervalId) {
       clearInterval(timerIntervalId);
@@ -526,15 +572,16 @@ export default function Home() {
     }
 
     // Only run the timer if the game is active and time is set
-    if (
-      isGameActive(gameState) &&
-      gameState.turnTimeRemaining !== undefined &&
-      gameState.turnTimeRemaining > 0
-    ) {
+    if (shouldRunTimer && gameState.turnTimeRemaining! > 0) {
       const intervalId = setInterval(() => {
         setGameState((prevGameState) => {
           // Ensure game hasn't ended while timer was running
-          if (!isGameActive(prevGameState)) {
+          const stillShouldRunTimer =
+            isGameActive(prevGameState) &&
+            !isAITurn(prevGameState) &&
+            prevGameState.turnTimeRemaining !== undefined;
+
+          if (!stillShouldRunTimer) {
             clearInterval(intervalId); // Stop timer if game ended
             setTimerIntervalId(null);
             return prevGameState; // Return unchanged state
@@ -542,21 +589,48 @@ export default function Home() {
 
           const newTimeRemaining = (prevGameState.turnTimeRemaining ?? 0) - 100; // Decrement by 100ms for smoother updates
 
+          // STILL NOT WORKING
+          // Then in your timer effect:
           if (newTimeRemaining <= 0) {
             clearInterval(intervalId);
             setTimerIntervalId(null);
-            // Trigger timeout action *after* state update
-            setTimeout(handleTurnTimeout, 0); // Use setTimeout to ensure state update completes
-            return {
-              ...prevGameState,
-              turnTimeRemaining: 0,
-            };
+
+            // Use the pure function to generate the new state
+            const newGameState = generateTimeoutMove(prevGameState);
+
+            // Handle any messaging (this is a side effect)
+            if (newGameState !== prevGameState) {
+              setMessage(
+                `Time ran out for ${
+                  prevGameState.players[prevGameState.currentPlayer]?.username
+                }! Making random move...`
+              );
+            }
+
+            return newGameState;
           } else {
             return {
               ...prevGameState,
               turnTimeRemaining: newTimeRemaining,
             };
           }
+
+          // if (newTimeRemaining <= 0) {
+          //   clearInterval(intervalId);
+          //   setTimerIntervalId(null);
+          //   // Trigger timeout action *after* state update
+          //   // setTimeout(handleTurnTimeout, 0); // Use setTimeout to ensure state update completes
+          //   handleTurnTimeout();
+          //   return {
+          //     ...prevGameState,
+          //     turnTimeRemaining: 0,
+          //   };
+          // } else {
+          //   return {
+          //     ...prevGameState,
+          //     turnTimeRemaining: newTimeRemaining,
+          //   };
+          // }
         });
       }, 100); // Run every 100 milliseconds
 
@@ -593,6 +667,7 @@ export default function Home() {
         setMessage("Not connected to server.");
       }
     } else {
+      setMessage("");
       setGameState(
         createInitialGameState(username, gameMode, {
           opponentName,
