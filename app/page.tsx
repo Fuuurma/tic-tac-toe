@@ -559,103 +559,103 @@ export default function Home() {
   // More timer //
 
   // useEffect for managing the turn timer
-  useEffect(() => {
-    const shouldRunTimer =
-      isGameActive(gameState) &&
-      gameState.turnTimeRemaining !== undefined &&
-      !isAITurn(gameState);
+  // useEffect(() => {
+  //   const shouldRunTimer =
+  //     isGameActive(gameState) &&
+  //     gameState.turnTimeRemaining !== undefined &&
+  //     !isAITurn(gameState);
 
-    // Clear any existing timer before setting a new one
-    if (timerIntervalId) {
-      clearInterval(timerIntervalId);
-      setTimerIntervalId(null);
-    }
+  //   // Clear any existing timer before setting a new one
+  //   if (timerIntervalId) {
+  //     clearInterval(timerIntervalId);
+  //     setTimerIntervalId(null);
+  //   }
 
-    // Only run the timer if the game is active and time is set
-    if (shouldRunTimer && gameState.turnTimeRemaining! > 0) {
-      const intervalId = setInterval(() => {
-        setGameState((prevGameState) => {
-          // Ensure game hasn't ended while timer was running
-          const stillShouldRunTimer =
-            isGameActive(prevGameState) &&
-            !isAITurn(prevGameState) &&
-            prevGameState.turnTimeRemaining !== undefined;
+  //   // Only run the timer if the game is active and time is set
+  //   if (shouldRunTimer && gameState.turnTimeRemaining! > 0) {
+  //     const intervalId = setInterval(() => {
+  //       setGameState((prevGameState) => {
+  //         // Ensure game hasn't ended while timer was running
+  //         const stillShouldRunTimer =
+  //           isGameActive(prevGameState) &&
+  //           !isAITurn(prevGameState) &&
+  //           prevGameState.turnTimeRemaining !== undefined;
 
-          if (!stillShouldRunTimer) {
-            clearInterval(intervalId); // Stop timer if game ended
-            setTimerIntervalId(null);
-            return prevGameState; // Return unchanged state
-          }
+  //         if (!stillShouldRunTimer) {
+  //           clearInterval(intervalId); // Stop timer if game ended
+  //           setTimerIntervalId(null);
+  //           return prevGameState; // Return unchanged state
+  //         }
 
-          const newTimeRemaining = (prevGameState.turnTimeRemaining ?? 0) - 100; // Decrement by 100ms for smoother updates
+  //         const newTimeRemaining = (prevGameState.turnTimeRemaining ?? 0) - 100; // Decrement by 100ms for smoother updates
 
-          // STILL NOT WORKING
-          // Then in your timer effect:
-          if (newTimeRemaining <= 0) {
-            clearInterval(intervalId);
-            setTimerIntervalId(null);
+  //         // STILL NOT WORKING
+  //         // Then in your timer effect:
+  //         if (newTimeRemaining <= 0) {
+  //           clearInterval(intervalId);
+  //           setTimerIntervalId(null);
 
-            // Use the pure function to generate the new state
-            const newGameState = generateTimeoutMove(prevGameState);
+  //           // Use the pure function to generate the new state
+  //           const newGameState = generateTimeoutMove(prevGameState);
 
-            // Handle any messaging (this is a side effect)
-            if (newGameState !== prevGameState) {
-              setMessage(
-                `Time ran out for ${
-                  prevGameState.players[prevGameState.currentPlayer]?.username
-                }! Making random move...`
-              );
-            }
+  //           // Handle any messaging (this is a side effect)
+  //           if (newGameState !== prevGameState) {
+  //             setMessage(
+  //               `Time ran out for ${
+  //                 prevGameState.players[prevGameState.currentPlayer]?.username
+  //               }! Making random move...`
+  //             );
+  //           }
 
-            return newGameState;
-          } else {
-            return {
-              ...prevGameState,
-              turnTimeRemaining: newTimeRemaining,
-            };
-          }
+  //           return newGameState;
+  //         } else {
+  //           return {
+  //             ...prevGameState,
+  //             turnTimeRemaining: newTimeRemaining,
+  //           };
+  //         }
 
-          // if (newTimeRemaining <= 0) {
-          //   clearInterval(intervalId);
-          //   setTimerIntervalId(null);
-          //   // Trigger timeout action *after* state update
-          //   // setTimeout(handleTurnTimeout, 0); // Use setTimeout to ensure state update completes
-          //   handleTurnTimeout();
-          //   return {
-          //     ...prevGameState,
-          //     turnTimeRemaining: 0,
-          //   };
-          // } else {
-          //   return {
-          //     ...prevGameState,
-          //     turnTimeRemaining: newTimeRemaining,
-          //   };
-          // }
-        });
-      }, 100); // Run every 100 milliseconds
+  //         // if (newTimeRemaining <= 0) {
+  //         //   clearInterval(intervalId);
+  //         //   setTimerIntervalId(null);
+  //         //   // Trigger timeout action *after* state update
+  //         //   // setTimeout(handleTurnTimeout, 0); // Use setTimeout to ensure state update completes
+  //         //   handleTurnTimeout();
+  //         //   return {
+  //         //     ...prevGameState,
+  //         //     turnTimeRemaining: 0,
+  //         //   };
+  //         // } else {
+  //         //   return {
+  //         //     ...prevGameState,
+  //         //     turnTimeRemaining: newTimeRemaining,
+  //         //   };
+  //         // }
+  //       });
+  //     }, 100); // Run every 100 milliseconds
 
-      setTimerIntervalId(intervalId);
-    }
+  //     setTimerIntervalId(intervalId);
+  //   }
 
-    // Cleanup function: clear interval when effect re-runs or component unmounts
-    return () => {
-      if (timerIntervalId) {
-        clearInterval(timerIntervalId);
-        setTimerIntervalId(null);
-      }
-    };
-    // Dependencies: Run when the current player changes, game status changes,
-    // or the timer value is explicitly reset (e.g., by makeMove updating gameState).
-    // Also include dependencies used inside handleTurnTimeout if they aren't stable refs/functions.
-  }, [
-    gameState.currentPlayer,
-    gameState.gameStatus,
-    gameState.turnTimeRemaining,
-    gameState.winner,
-    gameMode,
-    socket,
-    playerSymbol,
-  ]); // Add necessary dependencies
+  //   // Cleanup function: clear interval when effect re-runs or component unmounts
+  //   return () => {
+  //     if (timerIntervalId) {
+  //       clearInterval(timerIntervalId);
+  //       setTimerIntervalId(null);
+  //     }
+  //   };
+  //   // Dependencies: Run when the current player changes, game status changes,
+  //   // or the timer value is explicitly reset (e.g., by makeMove updating gameState).
+  //   // Also include dependencies used inside handleTurnTimeout if they aren't stable refs/functions.
+  // }, [
+  //   gameState.currentPlayer,
+  //   gameState.gameStatus,
+  //   gameState.turnTimeRemaining,
+  //   gameState.winner,
+  //   gameMode,
+  //   socket,
+  //   playerSymbol,
+  // ]); // Add necessary dependencies
 
   // ----- RESET GAME ----- //
   const resetGame = () => {
