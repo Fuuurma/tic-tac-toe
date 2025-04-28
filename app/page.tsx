@@ -69,7 +69,6 @@ export default function Home() {
   );
   const [isTimeoutMoveMade, setIsTimeoutMoveMade] = useState(false);
 
-
   // ----- SOCKET ----- //
 
   const initializeSocket = useCallback(() => {
@@ -557,70 +556,73 @@ export default function Home() {
 
   // More timer //
 
-  useEffect(() => {
-    // Clear any existing timer first
-    if (timerIntervalId) {
-      clearInterval(timerIntervalId);
-      setTimerIntervalId(null);
-    }
-
-    // Only start a new timer if game is active and no winner
-    const isActive = isGameActive(gameState) && !gameState.winner;
-
-    if (
-      isActive &&
-      gameState.turnTimeRemaining &&
-      gameState.turnTimeRemaining > 0
-    ) {
-      console.log("Starting new timer for player", gameState.currentPlayer);
-
-      const intervalId = setInterval(() => {
-        setGameState((prevGameState) => {
-          const newTime = prevGameState.turnTimeRemaining! - 100;
-
-          if (newTime <= 0) {
-            clearInterval(intervalId);
-            setTimerIntervalId(null);
-            console.log(
-              "Timer ended. Random Move generated for",
-              prevGameState.currentPlayer
-            );
-
-            const randomMoveIndex = findRandomValidMove(prevGameState);
-
-            if (
-              randomMoveIndex !== null &&
-              !isAITurn(prevGameState) &&
-              CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
-            ) {
-              // Make move directly in this state update
-              return makeMove(prevGameState, randomMoveIndex);
-            }
-
-            return { ...prevGameState, turnTimeRemaining: 0 };
-          }
-
-          return { ...prevGameState, turnTimeRemaining: newTime };
-        });
-      }, 100);
-
-      setTimerIntervalId(intervalId);
-    }
-
-    return () => {
+  useEffect(
+    () => {
+      // Clear any existing timer first
       if (timerIntervalId) {
         clearInterval(timerIntervalId);
         setTimerIntervalId(null);
       }
-    };
-  }, [
-    // Only include specific parts of gameState that should trigger timer reset
-    gameState.currentPlayer,
-    gameState.gameStatus,
-    gameState.winner,
-    gameMode,
-    playerSymbol,
-  ]);
+
+      // Only start a new timer if game is active and no winner
+      const isActive = isGameActive(gameState) && !gameState.winner;
+
+      if (
+        isActive &&
+        gameState.turnTimeRemaining &&
+        gameState.turnTimeRemaining > 0
+      ) {
+        console.log("Starting new timer for player", gameState.currentPlayer);
+
+        const intervalId = setInterval(() => {
+          setGameState((prevGameState) => {
+            const newTime = prevGameState.turnTimeRemaining! - 100;
+
+            if (newTime <= 0) {
+              clearInterval(intervalId);
+              setTimerIntervalId(null);
+              console.log(
+                "Timer ended. Random Move generated for",
+                prevGameState.currentPlayer
+              );
+
+              const randomMoveIndex = findRandomValidMove(prevGameState);
+
+              if (
+                randomMoveIndex !== null &&
+                !isAITurn(prevGameState) &&
+                CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
+              ) {
+                // Make move directly in this state update
+                return makeMove(prevGameState, randomMoveIndex);
+              }
+
+              return { ...prevGameState, turnTimeRemaining: 0 };
+            }
+
+            return { ...prevGameState, turnTimeRemaining: newTime };
+          });
+        }, 100);
+
+        setTimerIntervalId(intervalId);
+      }
+
+      return () => {
+        if (timerIntervalId) {
+          clearInterval(timerIntervalId);
+          setTimerIntervalId(null);
+        }
+      };
+    },
+    [
+      // Only include specific parts of gameState that should trigger timer reset
+      // gameState.currentPlayer,
+      // gameState.gameStatus,
+      // gameState.winner,
+      // gameMode,
+      // playerSymbol,
+    ]
+  );
 
   // // Reset the flag when the player changes or a manual move is made
   // useEffect(() => {
