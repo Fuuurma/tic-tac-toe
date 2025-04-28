@@ -69,7 +69,6 @@ export default function Home() {
   );
   const [isTimeoutMoveMade, setIsTimeoutMoveMade] = useState(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // ----- SOCKET ----- //
 
@@ -534,47 +533,6 @@ export default function Home() {
   };
 
   // NEW TIMEOUT
-  // Simplified timeout handler
-  const handleTimeout = useCallback(() => {
-    if (!isGameActive(gameState) || gameState.turnTimeRemaining! > 0) return;
-
-    console.log("Processing timeout move");
-    setGameState((prev) => {
-      if (!isGameActive(prev)) return prev;
-
-      const randomIndex = findRandomValidMove(prev);
-      if (randomIndex === null) return prev;
-
-      return makeMove(prev, randomIndex);
-    });
-  }, [gameState]);
-
-  // Unified timer effect
-  useEffect(() => {
-    // Clear any existing timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    // Only start timer when game is active and not AI's turn
-    if (isGameActive(gameState) && !isAITurn(gameState)) {
-      timerRef.current = setInterval(() => {
-        setGameState((prev) => {
-          const newTime = Math.max(0, (prev.turnTimeRemaining || 0) - 100);
-
-          // Update time or trigger timeout
-          return newTime > 0
-            ? { ...prev, turnTimeRemaining: newTime }
-            : makeMove(prev, findRandomValidMove(prev)!);
-        });
-      }, 100);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [gameState.currentPlayer, gameState.gameStatus]);
 
   const generateTimeoutMove = (gameState: GameState): GameState => {
     if (!isGameActive(gameState)) {
@@ -599,52 +557,70 @@ export default function Home() {
 
   // More timer //
 
-  // useEffect(() => {
-  //   // Clear any existing interval to prevent overlap
-  //   if (timerIntervalId) {
-  //     clearInterval(timerIntervalId);
-  //     setTimerIntervalId(null);
-  //   }
+  useEffect(() => {
+    // Clear any existing timer first
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      setTimerIntervalId(null);
+    }
 
-  //   // Only start the timer if game is active, time remains, and no timeout move has been made yet
-  //   if (
-  //     isGameActive(gameState) &&
-  //     !isAITurn(gameState) &&
-  //     gameState.turnTimeRemaining &&
-  //     gameState.turnTimeRemaining > 0 &&
-  //     !isTimeoutMoveMade
-  //   ) {
-  //     const intervalId = setInterval(() => {
-  //       setGameState((prevGameState) => {
-  //         if (!isGameActive(prevGameState)) {
-  //           clearInterval(intervalId);
-  //           setTimerIntervalId(null);
-  //           return prevGameState;
-  //         }
+    // Only start a new timer if game is active and no winner
+    const isActive = isGameActive(gameState) && !gameState.winner;
 
-  //         const newTime = prevGameState.turnTimeRemaining! - 100;
-  //         if (newTime <= 0) {
-  //           clearInterval(intervalId);
-  //           setTimerIntervalId(null);
-  //           setIsTimeoutMoveMade(true); // Mark timeout move as made
-  //           console.log("Timer ended. Random Move generated");
-  //           setMessage("Timer ended. Random Move generated");
-  //           return generateTimeoutMove(prevGameState);
-  //         }
-  //         return { ...prevGameState, turnTimeRemaining: newTime };
-  //       });
-  //     }, 100);
-  //     setTimerIntervalId(intervalId);
-  //   }
+    if (
+      isActive &&
+      gameState.turnTimeRemaining &&
+      gameState.turnTimeRemaining > 0
+    ) {
+      console.log("Starting new timer for player", gameState.currentPlayer);
 
-  //   // Cleanup on unmount or when gameState changes
-  //   return () => {
-  //     if (timerIntervalId) {
-  //       clearInterval(timerIntervalId);
-  //       setTimerIntervalId(null);
-  //     }
-  //   };
-  // }, [gameState, isTimeoutMoveMade]); // Add isTimeoutMoveMade to dependencies
+      const intervalId = setInterval(() => {
+        setGameState((prevGameState) => {
+          const newTime = prevGameState.turnTimeRemaining! - 100;
+
+          if (newTime <= 0) {
+            clearInterval(intervalId);
+            setTimerIntervalId(null);
+            console.log(
+              "Timer ended. Random Move generated for",
+              prevGameState.currentPlayer
+            );
+
+            const randomMoveIndex = findRandomValidMove(prevGameState);
+
+            if (
+              randomMoveIndex !== null &&
+              !isAITurn(prevGameState) &&
+              CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
+            ) {
+              // Make move directly in this state update
+              return makeMove(prevGameState, randomMoveIndex);
+            }
+
+            return { ...prevGameState, turnTimeRemaining: 0 };
+          }
+
+          return { ...prevGameState, turnTimeRemaining: newTime };
+        });
+      }, 100);
+
+      setTimerIntervalId(intervalId);
+    }
+
+    return () => {
+      if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        setTimerIntervalId(null);
+      }
+    };
+  }, [
+    // Only include specific parts of gameState that should trigger timer reset
+    gameState.currentPlayer,
+    gameState.gameStatus,
+    gameState.winner,
+    gameMode,
+    playerSymbol,
+  ]);
 
   // // Reset the flag when the player changes or a manual move is made
   // useEffect(() => {
