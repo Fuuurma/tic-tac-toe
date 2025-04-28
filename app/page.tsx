@@ -558,6 +558,39 @@ export default function Home() {
 
   // More timer //
 
+  useEffect(() => {
+    // Start the timer if the game is active
+    if (gameState.turnTimeRemaining && gameState.turnTimeRemaining > 0) {
+      const intervalId = setInterval(() => {
+        setGameState((prevGameState) => {
+          const newTime = prevGameState.turnTimeRemaining! - 100; // Reduce by 100ms
+
+          if (newTime <= 0) {
+            // Timer hits zero, stop the interval and make a random move
+            clearInterval(intervalId);
+            setTimerIntervalId(null);
+            console.log("Timer ended. Random Move generated");
+            setMessage("Timer ended. Random Move generated");
+            return generateTimeoutMove(prevGameState);
+          }
+
+          // Update the timer and keep going
+          return { ...prevGameState, turnTimeRemaining: newTime };
+        });
+      }, 100); // Run every 100ms
+
+      setTimerIntervalId(intervalId);
+    }
+
+    // Cleanup: Stop the interval when the component unmounts or gameState changes
+    return () => {
+      if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        setTimerIntervalId(null);
+      }
+    };
+  }, [gameState]); // Depend on gameState so it restarts after a move
+
   // useEffect for managing the turn timer
   // useEffect(() => {
   //   const shouldRunTimer =
