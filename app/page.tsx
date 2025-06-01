@@ -36,6 +36,7 @@ import { findRandomValidMove } from "./game/logic/makeRandomMove";
 import { isGameActive } from "./game/logic/isGameActive";
 import { AppSidebar } from "@/components/navbar/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
+import PlayersPanel from "@/components/game/playersPanel";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -825,20 +826,22 @@ export default function Home() {
                   handleLogin={handleLogin}
                 />
               ) : (
-                <GameBoard
-                  gameState={gameState}
-                  message={message}
-                  handleCellClick={handleCellClick}
-                  resetGame={resetGame}
-                  exitGame={exitGame}
-                  isGameOver={isGameOver}
-                  rematchOffered={rematchOffered}
-                  rematchRequested={rematchRequested}
-                  onRequestRematch={handleRequestRematchClick}
-                  onAcceptRematch={handleAcceptRematchClick}
-                  onDeclineRematch={handleDeclineRematchClick}
-                  onLeaveRoom={handleLeaveRoomClick}
-                />
+                <div className="flex flex-col gap-2">
+                  <PlayersPanel gameState={gameState} message={message} />
+                  <GameBoard
+                    gameState={gameState}
+                    handleCellClick={handleCellClick}
+                    resetGame={resetGame}
+                    exitGame={exitGame}
+                    isGameOver={isGameOver}
+                    rematchOffered={rematchOffered}
+                    rematchRequested={rematchRequested}
+                    onRequestRematch={handleRequestRematchClick}
+                    onAcceptRematch={handleAcceptRematchClick}
+                    onDeclineRematch={handleDeclineRematchClick}
+                    onLeaveRoom={handleLeaveRoomClick}
+                  />
+                </div>
               )}
             </main>
 

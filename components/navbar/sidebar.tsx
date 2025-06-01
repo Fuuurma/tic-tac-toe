@@ -74,7 +74,7 @@ const gameModes = [
     title: "Online",
     url: "#",
     icon: Globe,
-    description: "Play with friends online",
+    description: "Play with friends",
   },
   {
     title: "Multiplayer",
@@ -156,7 +156,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
         </button>
       </SidebarHeader>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="mx-0" />
 
       {/* Content with Game Modes */}
       <SidebarContent className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -204,16 +204,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="mx-0" />
 
       {/* Footer with Player Data */}
       <SidebarFooter className="p-4 bg-gradient-to-t from-gray-100 to-gray-50 border-t-2 border-gray-200 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700">
         <div className="bg-gradient-to-b from-white to-gray-50 border-2 border-gray-300 rounded-xl shadow-lg p-4 dark:from-gray-700 dark:to-gray-800 dark:border-gray-600">
-          {!isCollapsed && (
+          {/* {!isCollapsed && (
             <h3 className="text-sm font-semibold text-gray-700 mb-3 drop-shadow-sm dark:text-gray-200">
               Players
             </h3>
-          )}
+          )} */}
           <div className={`${isCollapsed ? "space-y-2" : "space-y-3"}`}>
             {/* Player 1 */}
             <div

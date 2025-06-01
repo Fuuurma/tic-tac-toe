@@ -1,11 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 import { GameState, PlayerType } from "@/app/types/types";
 import {
@@ -16,16 +9,11 @@ import {
   TURN_DURATION_MS,
 } from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
-import { PlayerInfoBadge } from "./playerBadge";
-import { GameStatusMessage } from "./gameStatusMessage";
 import GameButtons from "./gameButtons";
-import { Progress } from "@/components/ui/progress";
 import { useEffect, useState } from "react";
 
 interface GameBoardProps {
   gameState: GameState;
-  message: string | null;
-  playerType?: PlayerType | null;
   handleCellClick: (index: number) => void;
   resetGame: () => void;
   exitGame: () => void;
@@ -40,8 +28,6 @@ interface GameBoardProps {
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   gameState,
-  message,
-  playerType,
   handleCellClick,
   resetGame,
   exitGame,
@@ -121,57 +107,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <Card className="w-full max-w-md shadow-lg mx-4 md:mx-0">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-semibold">{gameMode}</CardTitle>
-        {playerType && (
-          <CardDescription>
-            Playing as: <span className="font-medium">{playerType}</span>
-          </CardDescription>
-        )}
-      </CardHeader>
-
       <CardContent className="md:p-6">
-        <div className="flex justify-around items-center gap-2 flex-wrap px-1">
-          <PlayerInfoBadge
-            symbol={PlayerSymbol.X}
-            username={players.X.username}
-            type={players.X.type}
-            color={players.X.color}
-            isCurrentPlayer={currentPlayer === PlayerSymbol.X && isGameActive}
-          />
-          <span className="text-muted-foreground font-bold text-lg">vs</span>
-          <PlayerInfoBadge
-            symbol={PlayerSymbol.O}
-            username={players.O.username}
-            type={players.O.type}
-            color={players.O.color}
-            isCurrentPlayer={currentPlayer === PlayerSymbol.O && isGameActive}
-          />
-        </div>
-
-        {/* Timer Display Area */}
-        {isGameActive && turnTimeRemaining !== undefined && (
-          <div className="my-2 text-center">
-            <p className="text-sm text-muted-foreground mb-1">
-              Time Remaining:{" "}
-              <span className="font-semibold text-lg">{displayTime}s</span>
-            </p>
-            {/* Optional: Progress Bar visual */}
-            <Progress value={progressValue} className="w-3/4 mx-auto h-2" />
-          </div>
-        )}
-
-        {/* Game Status / Winner Message Area */}
-        <div className="min-h-[50px] flex items-center justify-center text-center">
-          <GameStatusMessage
-            message={isGameActive ? message : null}
-            winner={winner}
-            winningPlayerName={winnerName}
-          />
-        </div>
-
         {/* Tic Tac Toe Grid */}
-        <div className="grid grid-cols-3 gap-2 aspect-square w-full bg-border/40 p-1 rounded-lg">
+        <div className="grid grid-cols-3 gap-2 aspect-square w-full  p-1 rounded-lg">
           {board.map((cellValue, index) => {
             const isCellNextToRemove =
               nextToRemove.X === index || nextToRemove.O === index;
