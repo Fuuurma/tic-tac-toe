@@ -784,58 +784,60 @@ export default function Home() {
   const isGameOver = gameState.gameStatus === GameStatus.COMPLETED;
 
   return (
-    <div
-      className="h-screen flex flex-col items-center p-4 gap-4 
+    <>
+      <AppSidebar gameState={gameState} />
+      <div
+        className="h-screen flex flex-col items-center p-4 gap-4 
     bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
     overflow-y-auto"
-    >
-      <header className="w-full max-w-4xl flex justify-center items-center gap-4 mb-4">
-        <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
-        <UserMenu
-          username={username}
-          selectedColor={selectedColor}
-          setSelectedColor={setSelectedColor}
-        />
-      </header>
-      <AppSidebar />
-
-      <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
-        {!loggedIn ? (
-          <LoginForm
+      >
+        {/* <header className="w-full max-w-4xl flex justify-center items-center gap-4 mb-4">
+          <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
+          <UserMenu
             username={username}
-            setUsername={setUsername}
-            gameMode={gameMode}
-            setGameMode={setGameMode}
             selectedColor={selectedColor}
             setSelectedColor={setSelectedColor}
-            opponentName={opponentName}
-            setOpponentName={setOpponentName}
-            opponentColor={opponentColor}
-            setOpponentColor={setOpponentColor}
-            aiDifficulty={aiDifficulty}
-            setAiDifficulty={setAI_Difficulty}
-            handleLogin={handleLogin}
           />
-        ) : (
-          <GameBoard
-            gameState={gameState}
-            message={message}
-            handleCellClick={handleCellClick}
-            resetGame={resetGame}
-            exitGame={exitGame}
-            isGameOver={isGameOver}
-            rematchOffered={rematchOffered}
-            rematchRequested={rematchRequested}
-            onRequestRematch={handleRequestRematchClick}
-            onAcceptRematch={handleAcceptRematchClick}
-            onDeclineRematch={handleDeclineRematchClick}
-            onLeaveRoom={handleLeaveRoomClick}
-          />
-        )}
-      </main>
-      <DevPanel gameState={gameState} username={username} socket={socket} />
+        </header> */}
 
-      <PageFooter />
-    </div>
+        <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
+          {!loggedIn ? (
+            <LoginForm
+              username={username}
+              setUsername={setUsername}
+              gameMode={gameMode}
+              setGameMode={setGameMode}
+              selectedColor={selectedColor}
+              setSelectedColor={setSelectedColor}
+              opponentName={opponentName}
+              setOpponentName={setOpponentName}
+              opponentColor={opponentColor}
+              setOpponentColor={setOpponentColor}
+              aiDifficulty={aiDifficulty}
+              setAiDifficulty={setAI_Difficulty}
+              handleLogin={handleLogin}
+            />
+          ) : (
+            <GameBoard
+              gameState={gameState}
+              message={message}
+              handleCellClick={handleCellClick}
+              resetGame={resetGame}
+              exitGame={exitGame}
+              isGameOver={isGameOver}
+              rematchOffered={rematchOffered}
+              rematchRequested={rematchRequested}
+              onRequestRematch={handleRequestRematchClick}
+              onAcceptRematch={handleAcceptRematchClick}
+              onDeclineRematch={handleDeclineRematchClick}
+              onLeaveRoom={handleLeaveRoomClick}
+            />
+          )}
+        </main>
+        <DevPanel gameState={gameState} username={username} socket={socket} />
+
+        <PageFooter />
+      </div>
+    </>
   );
 }
