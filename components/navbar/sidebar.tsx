@@ -94,6 +94,13 @@ const playerData = {
   },
 };
 
+// if sidebar state === collapsed,
+// then show header buttons as vertical instead of horizontal
+// Use Tailwind styles for both (light & dark modes)
+// shadcn styles have already by default styles for both.
+// take that into account.
+// Header - Home will be 1 full container (icon + title)
+// like the content ones.
 export function AppSidebar() {
   return (
     <Sidebar
