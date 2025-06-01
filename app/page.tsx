@@ -34,6 +34,7 @@ import PageFooter from "@/components/common/pageFooter";
 import { createInitialGameState } from "./game/logic/createInitialGameState";
 import { findRandomValidMove } from "./game/logic/makeRandomMove";
 import { isGameActive } from "./game/logic/isGameActive";
+import { AppSidebar } from "@/components/navbar/sidebar";
 
 export default function Home() {
   const [socket, setSocket] = useState<Socket<
@@ -796,6 +797,8 @@ export default function Home() {
           setSelectedColor={setSelectedColor}
         />
       </header>
+      <AppSidebar />
+
       <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
         {!loggedIn ? (
           <LoginForm

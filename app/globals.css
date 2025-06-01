@@ -175,3 +175,118 @@
 .animate-pulse {
   animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+.neumorphic-bg {
+  background-color: #e0e5ec; /* Match body or a subtle variant */
+}
+
+.neumorphic-border {
+  border-color: rgba(0, 0, 0, 0.05); /* Very subtle border */
+}
+
+/* General neumorphic button style */
+.neumorphic-button {
+  background: #e0e5ec;
+  border-radius: 10px;
+  color: #334155; /* Slater-700 for text */
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 5px 5px 10px #a3b1c6, /* Darker shadow */ -5px -5px 10px #ffffff; /* Lighter shadow */
+  /* Ensure transparent border for consistent sizing on active */
+  border: 1px solid transparent;
+}
+
+.neumorphic-button:hover {
+  color: #0f172a; /* Slater-900 */
+  box-shadow: 4px 4px 8px #a3b1c6, -4px -4px 8px #ffffff;
+}
+
+.neumorphic-button:active {
+  box-shadow: inset 5px 5px 10px #a3b1c6, inset -5px -5px 10px #ffffff;
+  color: #1e293b; /* Slater-800 */
+}
+
+/* For icon-only buttons, often smaller and squarer */
+.neumorphic-button-iconOnly {
+  background: #e0e5ec;
+  border-radius: 8px; /* Or 50% for circular */
+  padding: 0.5rem; /* Adjust as needed */
+  color: #475569; /* Slater-600 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 3px 3px 6px #a3b1c6, -3px -3px 6px #ffffff;
+  border: 1px solid transparent;
+}
+.neumorphic-button-iconOnly:hover {
+  color: #1e293b; /* Slater-800 */
+  box-shadow: 2px 2px 4px #a3b1c6, -2px -2px 4px #ffffff;
+}
+.neumorphic-button-iconOnly:active {
+  box-shadow: inset 3px 3px 6px #a3b1c6, inset -3px -3px 6px #ffffff;
+  color: #0f172a; /* Slater-900 */
+}
+
+.neumorphic-separator {
+  height: 1px;
+  border: none;
+  background-image: linear-gradient(
+    to right,
+    transparent,
+    #a3b1c6 30%,
+    #a3b1c6 70%,
+    transparent
+  );
+  margin: 0.5rem 0; /* Reduced margin for separators */
+}
+.sidebar-open .neumorphic-separator {
+  /* Only show separator when open if desired */
+  margin: 1rem 0; /* Slightly more margin when open */
+}
+
+.neumorphic-player-indicator {
+  border-radius: 50%;
+  box-shadow: inset 2px 2px 4px rgba(163, 177, 198, 0.7),
+    /* Inner dark shadow */ inset -2px -2px 4px rgba(255, 255, 255, 0.9); /* Inner light shadow */
+  border: 2px solid #e0e5ec; /* Border matching the background to lift it */
+}
+.neumorphic-player-indicator-small {
+  /* For rail */
+  border-radius: 50%;
+  box-shadow: 1px 1px 2px #a3b1c6, -1px -1px 2px #ffffff;
+}
+
+/* Element that looks pressed in, like the player info background */
+.neumorphic-inset-element {
+  background: #e0e5ec;
+  border-radius: 8px;
+  box-shadow: inset 4px 4px 8px #a3b1c6, inset -4px -4px 8px #ffffff;
+}
+
+/* Subtle shadows for header/footer areas if they need to stand out slightly */
+.neumorphic-header-shadow {
+  box-shadow: 0px 2px 5px #a3b1c660; /* Soft bottom shadow */
+}
+.neumorphic-footer-shadow {
+  box-shadow: 0px -2px 5px #a3b1c660; /* Soft top shadow */
+}
+
+/* Styling based on data-state from shadcn/ui SidebarProvider */
+/* This is generally preferred over custom classes like 'sidebar-open' */
+
+/* Hide elements when sidebar is closed */
+[data-state="closed"] .sidebar-title,
+[data-state="closed"] .sidebar-menu-item-text,
+[data-state="closed"] .sidebar-main-footer {
+  display: none;
+}
+
+/* Show elements when sidebar is open */
+[data-state="open"] .sidebar-title,
+[data-state="open"] .sidebar-menu-item-text {
+  display: inline; /* Or block, flex as needed */
+}
+[data-state="open"] .sidebar-main-footer {
+  display: block; /* Or flex, grid */
+}
