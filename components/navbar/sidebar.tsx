@@ -109,7 +109,7 @@ interface AppSidebarProps {
   gameState: GameState;
 }
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({}) => {
+export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
   const {
     state,
     open,
@@ -119,6 +119,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({}) => {
     isMobile,
     toggleSidebar,
   } = useSidebar();
+
+  if (state === "collapsed") {
+    // the sidebarHeaderButtons will be Vertical, otherwise horizontal: 2 components:
+  }
 
   return (
     <Sidebar
@@ -211,12 +215,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({}) => {
             <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-lg shadow-inner dark:from-gray-800 dark:to-gray-700 dark:border-gray-600">
               <div
                 className="w-8 h-8 rounded-full border-2 border-gray-300 shadow-md flex items-center justify-center dark:border-gray-600"
-                style={{ backgroundColor: playerData.player1.color }}
+                style={{ backgroundColor: gameState.players.X.color }}
               >
                 <playerData.player1.icon className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {playerData.player1.name}
+                {gameState.players.X.username}
               </span>
             </div>
 
@@ -227,12 +231,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({}) => {
             <div className="flex items-center gap-3 p-2 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-lg shadow-inner dark:from-gray-800 dark:to-gray-700 dark:border-gray-600">
               <div
                 className="w-8 h-8 rounded-full border-2 border-gray-300 shadow-md flex items-center justify-center dark:border-gray-600"
-                style={{ backgroundColor: playerData.player2.color }}
+                style={{ backgroundColor: gameState.players.O.color }}
               >
                 <playerData.player2.icon className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {playerData.player2.name}
+                {gameState.players.O.username}
               </span>
             </div>
           </div>
@@ -243,12 +247,3 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({}) => {
     </Sidebar>
   );
 };
-
-const PlayerInfoDisplay: React.FC<{ player: PlayerData }> = ({ player }) => (
-  <div className="flex items-center space-x-3 p-2 rounded-md neumorphic-inset-element">
-    <div
-      className={`h-7 w-7 rounded-full ${player.colorClass} neumorphic-player-indicator flex-shrink-0 border-2 border-white/50`}
-    ></div>
-    <span className="text-sm font-medium truncate">{player.name}</span>
-  </div>
-);
