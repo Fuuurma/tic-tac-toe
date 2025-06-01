@@ -1,5 +1,13 @@
+import { Menu, User } from "lucide-react";
+import ThemeTogglerButton from "../menu/themeToggler";
+import { SidebarTrigger } from "../ui/sidebar";
+
 // Separate component for header buttons to handle different layouts
-const SidebarHeaderButtons = ({ isCollapsed }: { isCollapsed: boolean }) => {
+export const SidebarHeaderButtons = ({
+  isCollapsed,
+}: {
+  isCollapsed: boolean;
+}) => {
   const baseButtonClass =
     "p-2 bg-gradient-to-b from-white to-gray-100 border-2 border-gray-300 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:from-gray-50 hover:to-gray-200 active:shadow-inner active:from-gray-200 active:to-gray-100 dark:from-gray-700 dark:to-gray-800 dark:border-gray-600 dark:hover:from-gray-600 dark:hover:to-gray-700 dark:active:bg-gray-800";
 
