@@ -40,7 +40,7 @@ export const GameStatusMessage: React.FC<GameStatusMessageProps> = React.memo(
 
     // Apply styling based on the variant
     const containerClasses = cn(
-      "flex items-center justify-center gap-2 text-center p-3 rounded-md font-medium text-base w-full shadow-sm",
+      "flex items-center justify-center gap-2 text-center p-3 rounded-md font-medium text-base w-full shadow-sm z-10",
       {
         // Conditional classes based on statusVariant
         "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border border-green-200 dark:border-green-700":

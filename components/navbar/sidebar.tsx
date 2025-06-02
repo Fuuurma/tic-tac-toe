@@ -98,14 +98,6 @@ const playerData = {
   },
 };
 
-// if sidebar state === collapsed,
-// then show header buttons as vertical instead of horizontal
-// Use Tailwind styles for both (light & dark modes)
-// shadcn styles have already by default styles for both.
-// take that into account.
-// Header - Home will be 1 full container (icon + title)
-// like the content ones.
-
 interface AppSidebarProps {
   gameState: GameState;
 }
@@ -129,7 +121,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
       className="border-r-2 border-gray-300 shadow-lg dark:border-gray-700 dark:bg-gray-900"
     >
       {/* Header with Dynamic Layout */}
-      <SidebarHeader className="p-4 bg-gradient-to-b from-gray-50 to-gray-100 border-b-2 border-gray-200 dark:from-gray-800 dark:to-gray-900 dark:border-gray-700">
+      <SidebarHeader className="p-4  bg-gradient-to-b from-gray-50 to-gray-100 border-b-2 border-gray-200 dark:from-gray-800 dark:to-gray-900 dark:border-gray-700">
         {/* Top Section: Header Buttons with Dynamic Layout */}
         <div className="mb-4">
           <SidebarHeaderButtons isCollapsed={isCollapsed} />

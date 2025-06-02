@@ -35,7 +35,10 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const [displayTime, setDisplayTime] = useState(0);
   const [progressValue, setProgressValue] = useState(100);
 
-  // --- Effect to update display time based on prop ---
+  // --- State for Transient Message ---
+  const [showMessage, setShowMessage] = useState(false);
+
+  // --- Effect to update display time ---
   useEffect(() => {
     if (gameStatus === GameStatus.ACTIVE && turnTimeRemaining !== undefined) {
       const secondsLeft = Math.ceil(turnTimeRemaining / 1000);
@@ -51,20 +54,51 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     }
   }, [turnTimeRemaining, gameStatus]);
 
+  // --- Effect to handle transient message ---
+  useEffect(() => {
+    if (message && gameStatus === GameStatus.ACTIVE) {
+      setShowMessage(true);
+      const timer = setTimeout(() => setShowMessage(false), 10000); // Hide after 10 seconds
+      return () => clearTimeout(timer); // Cleanup on unmount or message change
+    } else {
+      setShowMessage(false);
+    }
+  }, [message, gameStatus]);
+
   // --- Pre-computation ---
   const winnerName =
     winner && winner !== "draw" ? players[winner]?.username : null;
   const isGameActive = !winner;
 
   return (
-    <div className="w-full max-w-md mx-4 md:mx-0 bg-gradient-to-b from-white to-gray-50 border-2 border-gray-300 rounded-xl shadow-lg p-6 dark:from-gray-700 dark:to-gray-800 dark:border-gray-600">
+    <div className="relative w-full max-w-md mx-4 md:mx-0 bg-gradient-to-b from-white to-gray-50 border-2 border-gray-300 rounded-xl shadow-lg p-4 dark:from-gray-700 dark:to-gray-800 dark:border-gray-600">
+      {/* Transient Game Status Message */}
+      {showMessage && message && isGameActive && (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 shadow-md text-sm text-gray-800 dark:text-gray-200 animate-fade-in">
+          <GameStatusMessage
+            message={message}
+            winner={null}
+            winningPlayerName={null}
+          />
+        </div>
+      )}
+      {!isGameActive && winner && (
+        <div className="absolute top-2 left-1/2 z-50 transform -translate-x-1/2 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-600 dark:to-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg  shadow-md text-sm text-gray-800 dark:text-gray-200">
+          <GameStatusMessage
+            message={null}
+            winner={winner}
+            winningPlayerName={winnerName}
+          />
+        </div>
+      )}
+
       {/* Game Mode and Player Type */}
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 drop-shadow-sm">
+      <div className="text-center mb-3">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 drop-shadow-sm">
           {gameMode}
         </h2>
         {playerType && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-xs text-gray-600 dark:text-gray-400">
             Playing as: <span className="font-medium">{playerType}</span>
           </p>
         )}
@@ -79,7 +113,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
           color={players.X.color}
           isCurrentPlayer={currentPlayer === PlayerSymbol.X && isGameActive}
         />
-        <span className="text-gray-500 dark:text-gray-400 font-bold text-lg">
+        <span className="text-gray-500 dark:text-gray-400 font-bold text-base">
           vs
         </span>
         <PlayerInfoBadge
@@ -93,26 +127,17 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
 
       {/* Timer Display Area */}
       {isGameActive && turnTimeRemaining !== undefined && (
-        <div className="my-4 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-            Time Remaining:{" "}
-            <span className="font-semibold text-lg">{displayTime}s</span>
+        <div className="mt-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+            Time:{" "}
+            <span className="font-semibold text-base">{displayTime}s</span>
           </p>
           <Progress
             value={progressValue}
-            className="w-3/4 mx-auto h-2 bg-gray-200 dark:bg-gray-600"
+            className="w-2/3 mx-auto h-1.5 bg-gray-200 dark:bg-gray-600"
           />
         </div>
       )}
-
-      {/* Game Status / Winner Message Area */}
-      <div className="min-h-[50px] flex items-center justify-center text-center">
-        <GameStatusMessage
-          message={isGameActive ? message : null}
-          winner={winner}
-          winningPlayerName={winnerName}
-        />
-      </div>
     </div>
   );
 };
