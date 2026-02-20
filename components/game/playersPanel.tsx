@@ -65,21 +65,21 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     winner && winner !== "draw" ? players[winner]?.username : null;
 
   const getWinnerColor = () => {
-    if (!winner || winner === "draw") return "from-amber-500 to-orange-500";
+    if (!winner || winner === "draw") return "from-amber-500 to-orange-600";
     const playerColor = players[winner]?.color;
-    if (!playerColor) return "from-amber-500 to-orange-500";
+    if (!playerColor) return "from-amber-500 to-orange-600";
     
     const colorMap: Record<string, string> = {
-      BLUE: "from-blue-500 to-blue-700",
-      RED: "from-red-500 to-red-700",
-      GREEN: "from-green-500 to-green-700",
-      YELLOW: "from-yellow-500 to-yellow-700",
-      PURPLE: "from-purple-500 to-purple-700",
-      PINK: "from-pink-500 to-pink-700",
-      ORANGE: "from-orange-500 to-orange-700",
-      GRAY: "from-gray-500 to-gray-700",
+      BLUE: "from-blue-400 to-blue-600",
+      RED: "from-red-400 to-red-600",
+      GREEN: "from-green-400 to-green-600",
+      YELLOW: "from-yellow-400 to-yellow-600",
+      PURPLE: "from-purple-400 to-purple-600",
+      PINK: "from-pink-400 to-pink-600",
+      ORANGE: "from-orange-400 to-orange-600",
+      GRAY: "from-gray-400 to-gray-600",
     };
-    return colorMap[playerColor] || "from-amber-500 to-orange-500";
+    return colorMap[playerColor] || "from-amber-500 to-orange-600";
   };
 
   const getWinnerSymbolColor = () => {
@@ -88,14 +88,14 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     if (!playerColor) return "text-white";
     
     const colorMap: Record<string, string> = {
-      BLUE: "text-blue-200",
-      RED: "text-red-200",
-      GREEN: "text-green-200",
-      YELLOW: "text-yellow-200",
-      PURPLE: "text-purple-200",
-      PINK: "text-pink-200",
-      ORANGE: "text-orange-200",
-      GRAY: "text-gray-200",
+      BLUE: "text-blue-100",
+      RED: "text-red-100",
+      GREEN: "text-green-100",
+      YELLOW: "text-yellow-100",
+      PURPLE: "text-purple-100",
+      PINK: "text-pink-100",
+      ORANGE: "text-orange-100",
+      GRAY: "text-gray-100",
     };
     return colorMap[playerColor] || "text-white";
   };
@@ -104,7 +104,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     <div className="w-full max-w-lg mx-2 sm:mx-4 md:mx-0">
       {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
-        <div className={`mb-4 bg-gradient-to-r ${getWinnerColor()} text-white px-4 py-3 rounded-xl shadow-lg animate-in zoom-in-95`}>
+        <div className={`mb-4 bg-gradient-to-r ${getWinnerColor()} text-white px-4 py-3 rounded-xl shadow-lg animate-in zoom-in-95 border-2 border-white/30`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center justify-center gap-3 flex-1">
               {winner !== "draw" && (
@@ -155,25 +155,28 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               </p>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onNewGame}
-              className="gap-1"
-            >
-              <RotateCcw className="h-3 w-3" />
-              New
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onExit}
-              className="gap-1 text-muted-foreground hover:text-destructive"
-            >
-              <LogOut className="h-3 w-3" />
-            </Button>
-          </div>
+          {/* Hide buttons when game is over (shown in banner instead) */}
+          {isGameActive && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onNewGame}
+                className="gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                New
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onExit}
+                className="gap-1 text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Player Badges */}
