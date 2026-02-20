@@ -5,8 +5,6 @@ import {
   Cpu,
   Globe,
   Users,
-  PanelLeftClose,
-  PanelRightClose,
 } from "lucide-react";
 
 import {
@@ -21,6 +19,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import ThemeTogglerButton from "../menu/themeToggler";
@@ -55,18 +54,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
 
   return (
     <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="flex flex-row items-center justify-between py-4">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Home">
-              <Link href="/">
-                <Home className="h-5 w-5" />
-                <span>Home</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <ThemeTogglerButton />
+      <SidebarHeader className={isCollapsed ? "py-3" : "py-4"}>
+        <div className="flex items-center gap-2">
+          <SidebarTrigger className="h-9 w-9" />
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Home">
+                <Link href="/">
+                  <Home className="h-5 w-5" />
+                  {!isCollapsed && <span>Home</span>}
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          {!isCollapsed && <ThemeTogglerButton />}
+        </div>
+        {isCollapsed && (
+          <div className="mt-2">
+            <ThemeTogglerButton />
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarSeparator />
@@ -92,7 +99,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
 
       <SidebarSeparator />
 
-      <SidebarFooter className="mt-auto">
+      <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -100,10 +107,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
               className="h-10"
             >
               <div
-                className="h-6 w-6 rounded-full flex items-center justify-center border"
+                className="h-6 w-6 rounded-full flex items-center justify-center border shrink-0"
                 style={{ backgroundColor: gameState.players.X.color }}
               />
-              <span className="truncate">
+              <span className="truncate text-sm">
                 {gameState.players.X.username || "Player X"}
               </span>
             </SidebarMenuButton>
@@ -114,10 +121,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState }) => {
               className="h-10"
             >
               <div
-                className="h-6 w-6 rounded-full flex items-center justify-center border"
+                className="h-6 w-6 rounded-full flex items-center justify-center border shrink-0"
                 style={{ backgroundColor: gameState.players.O.color }}
               />
-              <span className="truncate">
+              <span className="truncate text-sm">
                 {gameState.players.O.username || "Player O"}
               </span>
             </SidebarMenuButton>
