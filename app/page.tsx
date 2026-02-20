@@ -471,66 +471,59 @@ export default function Home() {
 
 
   // Timer - only run for human player's turn
-  useEffect(
-    () => {
-      // Don't run timer during AI turn
-      if (isAITurn(gameState)) {
-        return;
-      }
+  useEffect(() => {
+    // Don't run timer during AI turn
+    if (isAITurn(gameState)) {
+      return;
+    }
 
-      // Only start a new timer if game is active and no winner
-      const isActive = isGameActive(gameState) && !gameState.winner;
+    // Only start a new timer if game is active and no winner
+    const isActive = isGameActive(gameState) && !gameState.winner;
 
-      if (
-        isActive &&
-        gameState.turnTimeRemaining &&
-        gameState.turnTimeRemaining > 0
-      ) {
-        console.log("Starting timer for player", gameState.currentPlayer);
+    if (
+      isActive &&
+      gameState.turnTimeRemaining &&
+      gameState.turnTimeRemaining > 0
+    ) {
+      console.log("Starting timer for player", gameState.currentPlayer);
 
-        const intervalId = setInterval(() => {
-          setGameState((prevGameState) => {
-            const newTime = prevGameState.turnTimeRemaining! - 100;
+      const intervalId = setInterval(() => {
+        setGameState((prevGameState) => {
+          const newTime = (prevGameState.turnTimeRemaining || 0) - 100;
 
-            if (newTime <= 0) {
-              clearInterval(intervalId);
-              console.log(
-                "Timer ended. Random Move generated for",
-                prevGameState.currentPlayer
-              );
+          if (newTime <= 0) {
+            console.log(
+              "Timer ended. Random Move generated for",
+              prevGameState.currentPlayer
+            );
 
-              const randomMoveIndex = findRandomValidMove(prevGameState);
+            const randomMoveIndex = findRandomValidMove(prevGameState);
 
-              if (
-                randomMoveIndex !== null &&
-                CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
-              ) {
-                return makeMove(prevGameState, randomMoveIndex);
-              }
-
-              return { ...prevGameState, turnTimeRemaining: 0 };
+            if (
+              randomMoveIndex !== null &&
+              CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
+            ) {
+              return makeMove(prevGameState, randomMoveIndex);
             }
 
-            return { ...prevGameState, turnTimeRemaining: newTime };
-          });
-        }, 100);
+            return { ...prevGameState, turnTimeRemaining: 0 };
+          }
 
-        setTimerIntervalId(intervalId);
+          return { ...prevGameState, turnTimeRemaining: newTime };
+        });
+      }, 100);
 
-        return () => {
-          clearInterval(intervalId);
-        };
-      }
-    },
-    [
-      gameState.currentPlayer,
-      gameState.gameStatus,
-      gameState.winner,
-      gameState.turnTimeRemaining,
-      gameMode,
-      playerSymbol,
-    ]
-  );
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
+  }, [
+    gameState.currentPlayer,
+    gameState.gameStatus,
+    gameState.winner,
+    gameMode,
+    playerSymbol,
+  ]);
 
   // // Reset the flag when the player changes or a manual move is made
   // useEffect(() => {
