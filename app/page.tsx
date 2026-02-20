@@ -719,7 +719,7 @@ export default function Home() {
               />
             </header> */}
 
-            <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
+            <main className="w-full max-w-5xl flex-1 flex flex-col items-center justify-center gap-6">
               {!loggedIn ? (
                 <LoginForm
                   username={username}
@@ -737,8 +737,13 @@ export default function Home() {
                   handleLogin={handleLogin}
                 />
               ) : (
-                <div className="flex flex-col gap-2">
-                  <PlayersPanel gameState={gameState} message={message} />
+                <>
+                  <PlayersPanel 
+                    gameState={gameState} 
+                    message={message}
+                    onNewGame={resetGame}
+                    onExit={exitGame}
+                  />
                   <GameBoard
                     gameState={gameState}
                     handleCellClick={handleCellClick}
@@ -752,7 +757,7 @@ export default function Home() {
                     onDeclineRematch={handleDeclineRematchClick}
                     onLeaveRoom={handleLeaveRoomClick}
                   />
-                </div>
+                </>
               )}
             </main>
 

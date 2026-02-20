@@ -11,18 +11,23 @@ import {
   PlayerTypes,
 } from "@/app/game/constants/constants";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCcw, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PlayersPanelProps {
   gameState: GameState;
   message: string | null;
   playerType?: PlayerType | null;
+  onNewGame: () => void;
+  onExit: () => void;
 }
 
 export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   gameState,
   message,
   playerType,
+  onNewGame,
+  onExit,
 }) => {
   const {
     players,
@@ -35,7 +40,6 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
 
   const [displayTime, setDisplayTime] = useState(0);
   const [progressValue, setProgressValue] = useState(100);
-  const [showMessage, setShowMessage] = useState(false);
 
   useEffect(() => {
     if (gameStatus === GameStatus.ACTIVE && turnTimeRemaining !== undefined) {
@@ -52,35 +56,19 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     }
   }, [turnTimeRemaining, gameStatus]);
 
-  useEffect(() => {
-    if (message && gameStatus === GameStatus.ACTIVE) {
-      setShowMessage(true);
-      const timer = setTimeout(() => setShowMessage(false), 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowMessage(false);
-    }
-  }, [message, gameStatus]);
-
-  const winnerName =
-    winner && winner !== "draw" ? players[winner]?.username : null;
   const isGameActive = !winner;
-
   const isXTurn = currentPlayer === PlayerSymbol.X && isGameActive;
   const isOTurn = currentPlayer === PlayerSymbol.O && isGameActive;
   const isAITurn = isOTurn && players.O.type === PlayerTypes.COMPUTER;
 
+  const winnerName =
+    winner && winner !== "draw" ? players[winner]?.username : null;
+
   return (
-    <div className="relative w-full max-w-md mx-4 md:mx-0 bg-card border-2 rounded-xl shadow-lg p-4">
-      {/* Status Messages */}
-      {showMessage && message && isGameActive && (
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in slide-in-from-top-2 fade-in">
-          {message}
-        </div>
-      )}
-      
+    <div className="w-full max-w-lg mx-4 md:mx-0">
+      {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-2 rounded-lg shadow-lg text-sm font-bold animate-in zoom-in-95">
+        <div className="mb-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-4 rounded-xl shadow-lg text-center animate-in zoom-in-95">
           <GameStatusMessage
             message={null}
             winner={winner}
@@ -89,72 +77,96 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
         </div>
       )}
 
-      {/* Game Mode Header */}
-      <div className="text-center mb-4">
-        <h2 className="text-lg font-bold text-foreground uppercase tracking-wider">
-          {gameMode.replace("_", " ")}
-        </h2>
-        {playerType && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Playing as: <span className="font-medium">{playerType}</span>
-          </p>
-        )}
-      </div>
-
-      {/* Player Badges - Enhanced */}
-      <div className="flex justify-between items-center gap-3">
-        <PlayerInfoBadge
-          symbol={PlayerSymbol.X}
-          username={players.X.username}
-          type={players.X.type}
-          color={players.X.color}
-          isCurrentPlayer={isXTurn}
-        />
-        
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-sm font-bold text-muted-foreground">VS</span>
-          {isGameActive && (
-            <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-          )}
+      {/* Main Info Card */}
+      <div className="bg-card border-2 rounded-xl shadow-lg p-4">
+        {/* Header with Game Mode and Actions */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground uppercase tracking-wider">
+              {gameMode.replace("_", " ")}
+            </h2>
+            {playerType && (
+              <p className="text-xs text-muted-foreground">
+                Playing as: <span className="font-medium">{playerType}</span>
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onNewGame}
+              className="gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              New
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onExit}
+              className="gap-1 text-muted-foreground hover:text-destructive"
+            >
+              <LogOut className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
 
-        <PlayerInfoBadge
-          symbol={PlayerSymbol.O}
-          username={players.O.username}
-          type={players.O.type}
-          color={players.O.color}
-          isCurrentPlayer={isOTurn}
-        />
-      </div>
-
-      {/* Timer - Enhanced */}
-      {isGameActive && turnTimeRemaining !== undefined && (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              {isAITurn ? (
-                <span className="flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  AI thinking...
-                </span>
-              ) : (
-                `${players[currentPlayer]?.username}'s turn`
-              )}
-            </span>
-            <span className={`font-mono font-bold ${
-              displayTime <= 3 ? "text-destructive" : "text-foreground"
-            }`}>
-              {displayTime}s
-            </span>
+        {/* Player Badges */}
+        <div className="flex justify-between items-center gap-3">
+          <PlayerInfoBadge
+            symbol={PlayerSymbol.X}
+            username={players.X.username}
+            type={players.X.type}
+            color={players.X.color}
+            isCurrentPlayer={isXTurn}
+          />
+          
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-sm font-bold text-muted-foreground">VS</span>
+            {isGameActive && (
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            )}
           </div>
-          <Progress 
-            value={progressValue} 
-            className={`h-2 ${
-              displayTime <= 3 ? "[&>div]:bg-destructive" : "[&>div]:bg-primary"
-            }`}
+
+          <PlayerInfoBadge
+            symbol={PlayerSymbol.O}
+            username={players.O.username}
+            type={players.O.type}
+            color={players.O.color}
+            isCurrentPlayer={isOTurn}
           />
         </div>
-      )}
+
+        {/* Timer */}
+        {isGameActive && turnTimeRemaining !== undefined && (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {isAITurn ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    AI thinking...
+                  </span>
+                ) : (
+                  `${players[currentPlayer]?.username}'s turn`
+                )}
+              </span>
+              <span className={`font-mono font-bold ${
+                displayTime <= 3 ? "text-destructive" : "text-foreground"
+              }`}>
+                {displayTime}s
+              </span>
+            </div>
+            <Progress 
+              value={progressValue} 
+              className={`h-2 ${
+                displayTime <= 3 ? "[&>div]:bg-destructive" : "[&>div]:bg-primary"
+              }`}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
