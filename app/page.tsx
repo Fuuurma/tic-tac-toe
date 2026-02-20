@@ -382,9 +382,12 @@ export default function Home() {
 
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
-    if (isAITurn(gameState)) {
-      handleAI_Move(gameState, setGameState, aiDifficulty);
+    if (!isAITurn(gameState)) {
+      return;
     }
+
+    const cleanup = handleAI_Move(gameState, setGameState, aiDifficulty);
+    return cleanup;
   }, [gameState, aiDifficulty]);
 
   // ----- USER LOGIN ----- //
