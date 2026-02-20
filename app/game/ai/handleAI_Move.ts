@@ -1,7 +1,6 @@
 import { GameState } from "@/app/types/types";
 import { findRandomValidMove } from "../logic/makeRandomMove";
-import { CanMakeMove } from "../logic/canMakeMove";
-import { AI_Difficulty, GameModes, PlayerSymbol } from "../constants/constants";
+import { AI_Difficulty, PlayerSymbol, TURN_DURATION_MS } from "../constants/constants";
 
 export async function handleAI_Move(
   gameState: GameState,
@@ -14,7 +13,8 @@ export async function handleAI_Move(
 
   const randomMoveIndex = findRandomValidMove(gameState);
 
-  if (randomMoveIndex !== null && CanMakeMove(GameModes.VS_COMPUTER, gameState.currentPlayer, PlayerSymbol.O)) {
+  // AI can always move when it's AI's turn in VS_COMPUTER mode
+  if (randomMoveIndex !== null) {
     const newState = await makeAIMove(gameState, randomMoveIndex);
     setGameState(newState);
   }
@@ -49,6 +49,8 @@ async function makeAIMove(
       if (!newState.winner) {
         newState.currentPlayer = PlayerSymbol.X;
       }
+
+      newState.turnTimeRemaining = TURN_DURATION_MS;
 
       resolve(newState);
     }, 500);
