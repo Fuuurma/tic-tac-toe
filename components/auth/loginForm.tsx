@@ -15,7 +15,7 @@ import {
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
-import { User, Users } from "lucide-react";
+import { User, Users, Play } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
@@ -53,9 +53,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setAiDifficulty,
   handleLogin,
 }) => {
-  const [error, setError] = useState<string | null>(null); // Use null for no error
+  const [error, setError] = useState<string | null>(null);
 
-  // Memoize validation logic - recalculates only when dependencies change
   const validationResult = useMemo(() => {
     return VallidateUserInput(
       username.trim().toLowerCase(),
@@ -66,48 +65,48 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     );
   }, [username, opponentName, gameMode, selectedColor, opponentColor]);
 
-  // Clear error when relevant fields change - useCallback prevents recreation
   const handleInputChange = useCallback(
     <T extends unknown>(setter: (value: T) => void) => {
       return (value: T) => {
-        setError(null); // Clear error on any input change
+        setError(null);
         setter(value);
       };
     },
-    [] // No dependencies needed as setters are stable refs (usually)
+    []
   );
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Prevent default form submission
+    event.preventDefault();
     if (validationResult.isValid) {
-      setError(null); // Clear any previous error just in case
-      handleLogin(); // Call the parent handler to proceed
+      setError(null);
+      handleLogin();
     } else {
-      setError(validationResult.message); // Set the specific error message
+      setError(validationResult.message);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
-      <Card className="w-full mx-auto md:max-w-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl">Welcome to Tic Tac Toe</CardTitle>
+    <form onSubmit={handleSubmit} className="w-full max-w-md">
+      <Card className="shadow-xl border-2 overflow-hidden">
+        <div className="bg-gradient-to-r from-primary to-primary/80 h-2" />
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-2xl font-bold">Tic Tac Toe</CardTitle>
           <CardDescription>
-            Enter your details and select game mode to start playing
+            Choose your settings and start playing
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-4">
           <ErrorMessage message={error} />
 
           <PlayerInputSection
             idPrefix="player1"
-            title="Your Details"
+            title="You"
             Icon={User}
-            usernameLabel="Username"
+            usernameLabel="Your name"
             usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.X].label}
             usernameValue={username}
             onUsernameChange={handleInputChange(setUsername)}
-            colorLabel="Choose your color"
+            colorLabel="Your color"
             selectedColor={selectedColor}
             onColorChange={handleInputChange(setSelectedColor)}
           />
@@ -118,7 +117,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           />
 
           {gameMode === GameModes.VS_COMPUTER && (
-            <div className="pt-4 border-t">
+            <div className="space-y-3 pt-2">
+              <label className="text-sm font-medium text-foreground">
+                AI Difficulty
+              </label>
               <AI_DifficultySelector
                 selectedDifficulty={aiDifficulty}
                 onDifficultyChange={handleInputChange(setAiDifficulty)}
@@ -127,29 +129,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           )}
 
           {gameMode === GameModes.VS_FRIEND && (
-            <div className="pt-4 border-t">
-              <PlayerInputSection
-                idPrefix="opponent"
-                title="Opponent Details"
-                Icon={Users}
-                usernameLabel="Opponent's Username"
-                usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.O].label}
-                usernameValue={opponentName}
-                onUsernameChange={handleInputChange(setOpponentName)}
-                colorLabel="Opponent's color"
-                selectedColor={opponentColor}
-                onColorChange={handleInputChange(setOpponentColor)}
-                disabledColor={selectedColor}
-              />
-            </div>
+            <PlayerInputSection
+              idPrefix="opponent"
+              title="Opponent"
+              Icon={Users}
+              usernameLabel="Opponent's name"
+              usernamePlaceholder={PLAYER_CONFIG[PlayerSymbol.O].label}
+              usernameValue={opponentName}
+              onUsernameChange={handleInputChange(setOpponentName)}
+              colorLabel="Opponent's color"
+              selectedColor={opponentColor}
+              onColorChange={handleInputChange(setOpponentColor)}
+              disabledColor={selectedColor}
+            />
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className="pb-6">
           <Button
             type="submit"
-            className="w-full"
+            size="lg"
+            className="w-full gap-2 text-lg"
             disabled={!validationResult.isValid}
           >
+            <Play className="h-5 w-5" />
             Start Game
           </Button>
         </CardFooter>

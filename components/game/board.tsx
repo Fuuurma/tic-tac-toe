@@ -106,10 +106,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
 
   return (
-    <Card className="w-full max-w-md shadow-lg mx-4 md:mx-0">
-      <CardContent className="md:p-6">
+    <Card className="w-full max-w-md mx-4 md:mx-0 shadow-xl border-2 rounded-xl overflow-hidden">
+      <CardContent className="p-2 md:p-4">
         {/* Tic Tac Toe Grid */}
-        <div className="grid grid-cols-3 gap-2 aspect-square w-full  p-1 rounded-lg">
+        <div className="grid grid-cols-3 gap-2 md:gap-3 aspect-square w-full">
           {board.map((cellValue, index) => {
             const isCellNextToRemove =
               nextToRemove.X === index || nextToRemove.O === index;
@@ -132,7 +132,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
       </CardContent>
 
-      <CardFooter className="flex justify-between pt-4 border-t">
+      <CardFooter className="flex justify-center py-4 border-t bg-muted/20">
         <GameButtons
           isOnlineGame={isOnlineGame}
           isLocalGame={isLocalGame}

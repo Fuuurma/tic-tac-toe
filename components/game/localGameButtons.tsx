@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "../ui/button";
+import { RotateCcw, LogOut } from "lucide-react";
 import ConfirmationDialog from "./confirmDialog";
 
 interface LocalGameButtonsProps {
@@ -15,44 +16,43 @@ const LocalGameButtons: React.FC<LocalGameButtonsProps> = ({
 }) => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  
   return (
     <>
-      <div className="flex gap-2 w-full">
+      <div className="flex gap-3 w-full justify-center">
         <Button
           onClick={() => setShowResetConfirm(true)}
           variant="outline"
-          className="flex-1"
+          className="gap-2"
         >
-          Reset Game
+          <RotateCcw className="h-4 w-4" />
+          New Game
         </Button>
         <Button
           onClick={() => setShowExitConfirm(true)}
           variant="destructive"
-          className="flex-1"
+          className="gap-2"
         >
-          Exit Game
+          <LogOut className="h-4 w-4" />
+          Exit
         </Button>
       </div>
 
       <ConfirmationDialog
         isOpen={showResetConfirm}
         onClose={() => setShowResetConfirm(false)}
-        onConfirm={() => {
-          resetGame();
-        }}
-        title="Reset Game"
-        description="Are you sure you want to reset the game? Current progress will be lost."
-        confirmText="Reset"
+        onConfirm={() => resetGame()}
+        title="New Game"
+        description="Start a fresh game? Current progress will be lost."
+        confirmText="New Game"
       />
 
       <ConfirmationDialog
         isOpen={showExitConfirm}
         onClose={() => setShowExitConfirm(false)}
-        onConfirm={() => {
-          exitGame();
-        }}
+        onConfirm={() => exitGame()}
         title="Exit Game"
-        description="Are you sure you want to exit the game? Current progress will be lost."
+        description="Are you sure you want to exit? Current progress will be lost."
         confirmText="Exit"
       />
     </>
