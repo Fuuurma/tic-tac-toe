@@ -470,10 +470,14 @@ export default function Home() {
 
 
 
-  // More timer //
-
+  // Timer - only run for human player's turn
   useEffect(
     () => {
+      // Don't run timer during AI turn
+      if (isAITurn(gameState)) {
+        return;
+      }
+
       // Only start a new timer if game is active and no winner
       const isActive = isGameActive(gameState) && !gameState.winner;
 
@@ -482,7 +486,7 @@ export default function Home() {
         gameState.turnTimeRemaining &&
         gameState.turnTimeRemaining > 0
       ) {
-        console.log("Starting new timer for player", gameState.currentPlayer);
+        console.log("Starting timer for player", gameState.currentPlayer);
 
         const intervalId = setInterval(() => {
           setGameState((prevGameState) => {
@@ -499,7 +503,6 @@ export default function Home() {
 
               if (
                 randomMoveIndex !== null &&
-                !isAITurn(prevGameState) &&
                 CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
               ) {
                 return makeMove(prevGameState, randomMoveIndex);
@@ -695,7 +698,7 @@ export default function Home() {
 
         {/* Main Content Area */}
         <SidebarInset className="flex-1">
-          <div
+        <div
             className="h-screen flex flex-col items-center p-4 gap-4 
             bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
             overflow-y-auto w-full"
