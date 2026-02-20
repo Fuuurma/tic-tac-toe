@@ -64,16 +64,80 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const winnerName =
     winner && winner !== "draw" ? players[winner]?.username : null;
 
+  const getWinnerColor = () => {
+    if (!winner || winner === "draw") return "from-amber-500 to-orange-500";
+    const playerColor = players[winner]?.color;
+    if (!playerColor) return "from-amber-500 to-orange-500";
+    
+    const colorMap: Record<string, string> = {
+      BLUE: "from-blue-500 to-blue-700",
+      RED: "from-red-500 to-red-700",
+      GREEN: "from-green-500 to-green-700",
+      YELLOW: "from-yellow-500 to-yellow-700",
+      PURPLE: "from-purple-500 to-purple-700",
+      PINK: "from-pink-500 to-pink-700",
+      ORANGE: "from-orange-500 to-orange-700",
+      GRAY: "from-gray-500 to-gray-700",
+    };
+    return colorMap[playerColor] || "from-amber-500 to-orange-500";
+  };
+
+  const getWinnerSymbolColor = () => {
+    if (!winner || winner === "draw") return "text-white";
+    const playerColor = players[winner]?.color;
+    if (!playerColor) return "text-white";
+    
+    const colorMap: Record<string, string> = {
+      BLUE: "text-blue-200",
+      RED: "text-red-200",
+      GREEN: "text-green-200",
+      YELLOW: "text-yellow-200",
+      PURPLE: "text-purple-200",
+      PINK: "text-pink-200",
+      ORANGE: "text-orange-200",
+      GRAY: "text-gray-200",
+    };
+    return colorMap[playerColor] || "text-white";
+  };
+
   return (
     <div className="w-full max-w-lg mx-2 sm:mx-4 md:mx-0">
       {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
-        <div className="mb-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-4 rounded-xl shadow-lg text-center animate-in zoom-in-95">
-          <GameStatusMessage
-            message={null}
-            winner={winner}
-            winningPlayerName={winnerName}
-          />
+        <div className={`mb-4 bg-gradient-to-r ${getWinnerColor()} text-white px-4 py-3 rounded-xl shadow-lg animate-in zoom-in-95`}>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-center gap-3 flex-1">
+              {winner !== "draw" && (
+                <span className={`text-3xl font-bold ${getWinnerSymbolColor()}`}>
+                  {winner}
+                </span>
+              )}
+              <GameStatusMessage
+                message={null}
+                winner={winner}
+                winningPlayerName={winnerName}
+              />
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onNewGame}
+                className="gap-1 bg-white/20 hover:bg-white/30 border-0 text-white hover:text-white"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span className="hidden sm:inline">New</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onExit}
+                className="gap-1 text-white/80 hover:text-white hover:bg-white/20"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
