@@ -39,7 +39,6 @@ const LocalGameButtons: React.FC<LocalGameButtonsProps> = ({
         onClose={() => setShowResetConfirm(false)}
         onConfirm={() => {
           resetGame();
-          setShowResetConfirm(false);
         }}
         title="Reset Game"
         description="Are you sure you want to reset the game? Current progress will be lost."
@@ -51,7 +50,6 @@ const LocalGameButtons: React.FC<LocalGameButtonsProps> = ({
         onClose={() => setShowExitConfirm(false)}
         onConfirm={() => {
           exitGame();
-          setShowExitConfirm(false);
         }}
         title="Exit Game"
         description="Are you sure you want to exit the game? Current progress will be lost."

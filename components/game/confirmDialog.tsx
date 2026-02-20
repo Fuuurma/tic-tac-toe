@@ -28,8 +28,19 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   confirmText = "Confirm",
   cancelText = "Cancel",
 }) => {
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  const handleConfirm = () => {
+    onConfirm();
+    onClose();
+  };
+
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -37,7 +48,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelText}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
+          <AlertDialogAction onClick={handleConfirm}>
             {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
