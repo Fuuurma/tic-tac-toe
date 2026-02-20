@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ClientToServerEvents,
   GameMode,
@@ -61,6 +61,8 @@ export default function Home() {
   const [rematchOffered, setRematchOffered] = useState(false);
   const [rematchRequested, setRematchRequested] = useState(false);
   const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(null);
+
+  const timerMoveMadeRef = useRef<PlayerSymbol | null>(null);
 
   const [timerIntervalId, setTimerIntervalId] = useState<NodeJS.Timeout | null>(
     null
@@ -474,8 +476,12 @@ export default function Home() {
   useEffect(() => {
     // Don't run timer during AI turn
     if (isAITurn(gameState)) {
+      timerMoveMadeRef.current = null;
       return;
     }
+
+    // Reset the timer move flag when it's human's turn
+    timerMoveMadeRef.current = null;
 
     // Only start a new timer if game is active and no winner
     const isActive = isGameActive(gameState) && !gameState.winner;
@@ -492,6 +498,13 @@ export default function Home() {
           const newTime = (prevGameState.turnTimeRemaining || 0) - 100;
 
           if (newTime <= 0) {
+            // Prevent multiple auto-moves per turn
+            if (timerMoveMadeRef.current === prevGameState.currentPlayer) {
+              console.log("Timer move already made, skipping");
+              return { ...prevGameState, turnTimeRemaining: 0 };
+            }
+            
+            timerMoveMadeRef.current = prevGameState.currentPlayer;
             console.log(
               "Timer ended. Random Move generated for",
               prevGameState.currentPlayer
