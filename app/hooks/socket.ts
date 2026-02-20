@@ -20,7 +20,7 @@ interface UseGameSocketProps {
   username: string;
   selectedColor: Color;
   onMessage: (msg: string) => void;
-  onGameStateUpdate: (state: GameState) => void;
+  onGameStateUpdate: (state: GameState | ((prev: GameState) => GameState)) => void;
   onPlayerSymbolAssigned: (symbol: PlayerSymbol | null) => void;
   onOpponentUpdate: (name: string, color?: Color) => void;
   onRematchState: (offered: boolean, requested: boolean) => void;

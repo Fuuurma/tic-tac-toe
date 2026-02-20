@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ClientToServerEvents,
   GameMode,
@@ -13,7 +13,6 @@ import { io, Socket } from "socket.io-client";
 import { makeMove } from "./game/logic/makeMove";
 import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
-import UserMenu from "@/components/menu/menu";
 import {
   AI_Difficulty,
   Color,
@@ -22,9 +21,7 @@ import {
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
-  TURN_DURATION_MS,
 } from "./game/constants/constants";
-import DevPanel from "@/components/game/devPanel";
 import { createFreshGameState } from "./game/logic/newGameState";
 import { CanMakeMove } from "./game/logic/canMakeMove";
 import { isAITurn } from "./game/ai/canAI_MakeMove";
@@ -63,14 +60,11 @@ export default function Home() {
 
   const [rematchOffered, setRematchOffered] = useState(false);
   const [rematchRequested, setRematchRequested] = useState(false);
-  const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(
-    null
-  );
+  const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(null);
 
   const [timerIntervalId, setTimerIntervalId] = useState<NodeJS.Timeout | null>(
     null
   );
-  const [isTimeoutMoveMade, setIsTimeoutMoveMade] = useState(false);
 
   // ----- SOCKET ----- //
 
@@ -345,7 +339,7 @@ export default function Home() {
       socket.off("error", handleError);
     };
     // Dependencies need review - ensure all state used inside handlers that should trigger re-binding is listed
-  }, [socket, username, playerSymbol, selectedColor, opponentName]); // Added opponentName
+  }, [socket, username, playerSymbol, selectedColor, opponentColor, opponentName, gameState]); // Added opponentName
 
   // online click handlers
 
@@ -389,9 +383,9 @@ export default function Home() {
   // ----- COMPUTER MOVES ----- //
   useEffect(() => {
     if (isAITurn(gameState)) {
-      return handleAI_Move(gameState, setGameState, aiDifficulty);
+      handleAI_Move(gameState, setGameState, aiDifficulty);
     }
-  }, [gameState]);
+  }, [gameState, aiDifficulty]);
 
   // ----- USER LOGIN ----- //
   const handleLogin = () => {
@@ -471,91 +465,7 @@ export default function Home() {
     }
   };
 
-  // ----- TURN TIMEOUT ----- //
-  const handleTurnTimeout = () => {
-    if (!isGameActive(gameState)) {
-      console.log(
-        "Timeout handler skipped - already processing or game not active"
-      );
-      return;
-    }
 
-    console.log(
-      `Time out for player ${gameState.currentPlayer}! Making random move.`
-    );
-    setMessage(
-      `Time ran out for ${
-        gameState.players[gameState.currentPlayer]?.username
-      }! Making random move...`
-    );
-
-    const randomMoveIndex = findRandomValidMove(gameState);
-
-    if (randomMoveIndex !== null) {
-      // Use the existing move logic based on game mode
-      if (gameMode === GameModes.ONLINE) {
-        if (
-          socket &&
-          socket.connected &&
-          playerSymbol === gameState.currentPlayer
-        ) {
-          // Only emit if it's the client's turn according to their symbol
-          console.log("Emitting random move:", randomMoveIndex);
-          socket.emit("move", randomMoveIndex);
-          // Server's gameUpdate will ultimately update the state and timer
-        } else {
-          console.warn(
-            "Timeout occurred, but it's not this client's turn in online mode or socket disconnected."
-          );
-          // Optional: Request state sync from server if needed
-        }
-      } else {
-        // For local modes (VS_COMPUTER, VS_FRIEND)
-        // Ensure it's a valid move context (though timeout implies it should be)
-        if (
-          !isAITurn(gameState) &&
-          CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)
-        ) {
-          // Check if it's Player vs Player or Player vs Computer?
-          // The current structure might make this check complex here.
-          // Assuming any local timeout triggers the makeMove
-          console.log("Making random move to: ", randomMoveIndex);
-          const newState = makeMove(gameState, randomMoveIndex);
-          setGameState(newState);
-        } else {
-          // This case might happen if e.g. an AI move was already triggered
-          // but the timer somehow fired late. Safest to do nothing or log.
-          console.warn("Timeout occurred, but CanMakeMove returned false.");
-        }
-      }
-    } else {
-      console.error("Timeout occurred, but no valid random move found.");
-      // This might indicate a draw or an unexpected game state
-    }
-  };
-
-  // NEW TIMEOUT
-
-  const generateTimeoutMove = (gameState: GameState): GameState => {
-    if (!isGameActive(gameState)) {
-      return gameState;
-    }
-
-    const randomMoveIndex = findRandomValidMove(gameState);
-
-    if (
-      randomMoveIndex !== null &&
-      !isAITurn(gameState) &&
-      CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)
-    ) {
-      console.log(
-        `Time out for player ${gameState.currentPlayer}! Making random move to: ${randomMoveIndex}`
-      );
-      return makeMove(gameState, randomMoveIndex);
-    }
-
-    return gameState;
-  };
 
   // More timer //
 
@@ -619,11 +529,12 @@ export default function Home() {
     },
     [
       // Only include specific parts of gameState that should trigger timer reset
-      // gameState.currentPlayer,
-      // gameState.gameStatus,
-      // gameState.winner,
-      // gameMode,
-      // playerSymbol,
+      gameState.currentPlayer,
+      gameState.gameStatus,
+      gameState.winner,
+      gameMode,
+      playerSymbol,
+      timerIntervalId,
     ]
   );
 

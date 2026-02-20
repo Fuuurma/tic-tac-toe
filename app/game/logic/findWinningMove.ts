@@ -1,9 +1,9 @@
-import { GameState, PlayerType } from "@/app/types/types";
-import { WINNING_COMBINATIONS } from "../constants/constants";
+import { GameState } from "@/app/types/types";
+import { PlayerSymbol, WINNING_COMBINATIONS } from "../constants/constants";
 
 export const findWinningMove = (
   gameState: GameState,
-  player: PlayerType
+  player: PlayerSymbol
 ): number => {
   // Check each winning combination
   for (const combination of WINNING_COMBINATIONS) {
