@@ -27,7 +27,7 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
     return (
       <div
         className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-xl text-sm shadow-md border-2 transition-all duration-200",
+          "flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-md border-2 transition-all duration-200",
           colorScheme.bgLight,
           isCurrentPlayer 
             ? `${colorScheme.border} ring-2 ring-offset-2 ${colorScheme.border}` 
@@ -36,24 +36,24 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
         )}
         title={`${username} (${type}) - ${symbol}`}
       >
-        <span className={cn("font-bold text-xl", colorScheme.text)}>
+        <span className={cn("font-bold text-lg sm:text-xl", colorScheme.text)}>
           {symbol}
         </span>
 
         <div className="flex flex-col">
-          <span className="truncate max-w-[80px] md:max-w-[100px] font-semibold text-foreground text-sm leading-tight">
+          <span className="truncate max-w-[60px] sm:max-w-[80px] font-semibold text-foreground text-xs sm:text-sm leading-tight">
             {username || "Player"}
           </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="hidden xs:flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
             {type === PlayerTypes.COMPUTER ? (
               <>
-                <Bot className="h-3 w-3" />
-                AI
+                <Bot className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                <span className="hidden sm:inline">AI</span>
               </>
             ) : (
               <>
-                <User className="h-3 w-3" />
-                You
+                <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                <span className="hidden sm:inline">You</span>
               </>
             )}
           </span>
@@ -61,7 +61,7 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
 
         {isCurrentPlayer && (
           <span
-            className="ml-auto w-3 h-3 bg-green-500 rounded-full animate-pulse shrink-0 shadow-sm"
+            className="ml-auto w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse shrink-0 shadow-sm"
             title="Current Turn"
           />
         )}

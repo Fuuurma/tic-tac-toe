@@ -65,7 +65,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     winner && winner !== "draw" ? players[winner]?.username : null;
 
   return (
-    <div className="w-full max-w-lg mx-4 md:mx-0">
+    <div className="w-full max-w-lg mx-2 sm:mx-4 md:mx-0">
       {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
         <div className="mb-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-4 rounded-xl shadow-lg text-center animate-in zoom-in-95">
@@ -78,7 +78,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
       )}
 
       {/* Main Info Card */}
-      <div className="bg-card border-2 rounded-xl shadow-lg p-4">
+      <div className="bg-card border-2 rounded-xl shadow-lg p-3 sm:p-4">
         {/* Header with Game Mode and Actions */}
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -113,7 +113,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
         </div>
 
         {/* Player Badges */}
-        <div className="flex justify-between items-center gap-3">
+        <div className="flex justify-center items-center gap-2 sm:gap-3">
           <PlayerInfoBadge
             symbol={PlayerSymbol.X}
             username={players.X.username}
@@ -122,8 +122,8 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             isCurrentPlayer={isXTurn}
           />
           
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-sm font-bold text-muted-foreground">VS</span>
+          <div className="flex flex-col items-center gap-1 px-1">
+            <span className="text-xs sm:text-sm font-bold text-muted-foreground">VS</span>
             {isGameActive && (
               <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
             )}
