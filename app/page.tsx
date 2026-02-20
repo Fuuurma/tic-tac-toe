@@ -698,16 +698,16 @@ export default function Home() {
 
   return (
     <>
-      <div className="min-h-screen flex w-full">
+      <div className="h-screen flex w-full">
         {/* Sidebar */}
         <AppSidebar gameState={gameState} />
 
         {/* Main Content Area */}
         <SidebarInset className="flex-1">
-        <div
-            className="h-screen flex flex-col items-center p-4 gap-4 
+          <div
+            className="h-full flex flex-col items-center justify-center p-4 gap-4 
             bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
-            overflow-y-auto w-full"
+            w-full"
           >
             {/* Optional: Uncomment if you want the header back
             <header className="w-full max-w-4xl flex justify-center items-center gap-4 mb-4">
@@ -719,7 +719,7 @@ export default function Home() {
               />
             </header> */}
 
-            <main className="w-full max-w-5xl flex-1 flex flex-col items-center justify-center gap-6">
+            <main className="w-full max-w-5xl h-full flex flex-col items-center justify-center gap-6">
               {!loggedIn ? (
                 <LoginForm
                   username={username}
