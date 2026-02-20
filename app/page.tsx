@@ -471,12 +471,6 @@ export default function Home() {
 
   useEffect(
     () => {
-      // Clear any existing timer first
-      if (timerIntervalId) {
-        clearInterval(timerIntervalId);
-        setTimerIntervalId(null);
-      }
-
       // Only start a new timer if game is active and no winner
       const isActive = isGameActive(gameState) && !gameState.winner;
 
@@ -493,7 +487,6 @@ export default function Home() {
 
             if (newTime <= 0) {
               clearInterval(intervalId);
-              setTimerIntervalId(null);
               console.log(
                 "Timer ended. Random Move generated for",
                 prevGameState.currentPlayer
@@ -506,7 +499,6 @@ export default function Home() {
                 !isAITurn(prevGameState) &&
                 CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
               ) {
-                // Make move directly in this state update
                 return makeMove(prevGameState, randomMoveIndex);
               }
 
@@ -518,23 +510,19 @@ export default function Home() {
         }, 100);
 
         setTimerIntervalId(intervalId);
-      }
 
-      return () => {
-        if (timerIntervalId) {
-          clearInterval(timerIntervalId);
-          setTimerIntervalId(null);
-        }
-      };
+        return () => {
+          clearInterval(intervalId);
+        };
+      }
     },
     [
-      // Only include specific parts of gameState that should trigger timer reset
       gameState.currentPlayer,
       gameState.gameStatus,
       gameState.winner,
+      gameState.turnTimeRemaining,
       gameMode,
       playerSymbol,
-      timerIntervalId,
     ]
   );
 

@@ -2,9 +2,23 @@
 import { useTheme } from "next-themes";
 import { User, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 
 const ThemeTogglerButton = () => {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <Button variant="outline" size="icon">
+        <Moon className="w-5 h-5" />
+      </Button>
+    );
+  }
 
   return (
     <Button
