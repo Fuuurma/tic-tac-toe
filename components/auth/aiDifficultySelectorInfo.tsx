@@ -78,10 +78,10 @@ const AI_DifficultySelectorInfo = () => {
                 </span>
               </p>
               <p className="text-muted-foreground">
-                Plays optimally. Analyzes the game deeply to find the best
-                possible move every time. Very challenging!
+                Perfect play. Unbeatable - it will never lose. Analyzes every 
+                possible game outcome to find the optimal move.
                 <br />
-                Uses MiniMax Algorithm
+                Uses Minimax Algorithm (depth 9)
               </p>
             </div>
           </div>

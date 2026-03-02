@@ -60,7 +60,6 @@ export default function Home() {
 
   const [rematchOffered, setRematchOffered] = useState(false);
   const [rematchRequested, setRematchRequested] = useState(false);
-  const [lastAssignedColor, setLastAssignedColor] = useState<Color | null>(null);
 
   const timerMoveMadeRef = useRef<PlayerSymbol | null>(null);
 
@@ -158,7 +157,6 @@ export default function Home() {
       // Added assignedColor
       console.log("Player assigned:", payload);
       setPlayerSymbol(payload.symbol);
-      setLastAssignedColor(payload.assignedColor); // Store the color assigned by server
       // Update local color state if different from selectedColor (though server state is king)
       if (
         selectedColor !== payload.assignedColor &&
@@ -183,7 +181,6 @@ export default function Home() {
       setMessage(
         `Your color was changed to ${payload.newColor} (${payload.reason})`
       );
-      setLastAssignedColor(payload.newColor); // Update stored color
       // Update the primary color state based on current playerSymbol
       if (playerSymbol) {
         if (playerSymbol === PlayerSymbol.X) setSelectedColor(payload.newColor);
@@ -530,117 +527,7 @@ export default function Home() {
         clearInterval(intervalId);
       };
     }
-  }, [
-    gameState.currentPlayer,
-    gameState.gameStatus,
-    gameState.winner,
-    gameMode,
-    playerSymbol,
-  ]);
-
-  // // Reset the flag when the player changes or a manual move is made
-  // useEffect(() => {
-  //   setIsTimeoutMoveMade(false); // Reset for the next turn
-  // }, [gameState.currentPlayer]);
-
-  // useEffect for managing the turn timer
-  // useEffect(() => {
-  //   const shouldRunTimer =
-  //     isGameActive(gameState) &&
-  //     gameState.turnTimeRemaining !== undefined &&
-  //     !isAITurn(gameState);
-
-  //   // Clear any existing timer before setting a new one
-  //   if (timerIntervalId) {
-  //     clearInterval(timerIntervalId);
-  //     setTimerIntervalId(null);
-  //   }
-
-  //   // Only run the timer if the game is active and time is set
-  //   if (shouldRunTimer && gameState.turnTimeRemaining! > 0) {
-  //     const intervalId = setInterval(() => {
-  //       setGameState((prevGameState) => {
-  //         // Ensure game hasn't ended while timer was running
-  //         const stillShouldRunTimer =
-  //           isGameActive(prevGameState) &&
-  //           !isAITurn(prevGameState) &&
-  //           prevGameState.turnTimeRemaining !== undefined;
-
-  //         if (!stillShouldRunTimer) {
-  //           clearInterval(intervalId); // Stop timer if game ended
-  //           setTimerIntervalId(null);
-  //           return prevGameState; // Return unchanged state
-  //         }
-
-  //         const newTimeRemaining = (prevGameState.turnTimeRemaining ?? 0) - 100; // Decrement by 100ms for smoother updates
-
-  //         // STILL NOT WORKING
-  //         // Then in your timer effect:
-  //         if (newTimeRemaining <= 0) {
-  //           clearInterval(intervalId);
-  //           setTimerIntervalId(null);
-
-  //           // Use the pure function to generate the new state
-  //           const newGameState = generateTimeoutMove(prevGameState);
-
-  //           // Handle any messaging (this is a side effect)
-  //           if (newGameState !== prevGameState) {
-  //             setMessage(
-  //               `Time ran out for ${
-  //                 prevGameState.players[prevGameState.currentPlayer]?.username
-  //               }! Making random move...`
-  //             );
-  //           }
-
-  //           return newGameState;
-  //         } else {
-  //           return {
-  //             ...prevGameState,
-  //             turnTimeRemaining: newTimeRemaining,
-  //           };
-  //         }
-
-  //         // if (newTimeRemaining <= 0) {
-  //         //   clearInterval(intervalId);
-  //         //   setTimerIntervalId(null);
-  //         //   // Trigger timeout action *after* state update
-  //         //   // setTimeout(handleTurnTimeout, 0); // Use setTimeout to ensure state update completes
-  //         //   handleTurnTimeout();
-  //         //   return {
-  //         //     ...prevGameState,
-  //         //     turnTimeRemaining: 0,
-  //         //   };
-  //         // } else {
-  //         //   return {
-  //         //     ...prevGameState,
-  //         //     turnTimeRemaining: newTimeRemaining,
-  //         //   };
-  //         // }
-  //       });
-  //     }, 100); // Run every 100 milliseconds
-
-  //     setTimerIntervalId(intervalId);
-  //   }
-
-  //   // Cleanup function: clear interval when effect re-runs or component unmounts
-  //   return () => {
-  //     if (timerIntervalId) {
-  //       clearInterval(timerIntervalId);
-  //       setTimerIntervalId(null);
-  //     }
-  //   };
-  //   // Dependencies: Run when the current player changes, game status changes,
-  //   // or the timer value is explicitly reset (e.g., by makeMove updating gameState).
-  //   // Also include dependencies used inside handleTurnTimeout if they aren't stable refs/functions.
-  // }, [
-  //   gameState.currentPlayer,
-  //   gameState.gameStatus,
-  //   gameState.turnTimeRemaining,
-  //   gameState.winner,
-  //   gameMode,
-  //   socket,
-  //   playerSymbol,
-  // ]); // Add necessary dependencies
+  }, [gameState, gameMode, playerSymbol]);
 
   // ----- RESET GAME ----- //
   const resetGame = () => {
@@ -677,7 +564,6 @@ export default function Home() {
     setOpponentName("");
     setRematchOffered(false);
     setRematchRequested(false);
-    setLastAssignedColor(null);
     setAI_Difficulty(aiDifficulty || AI_Difficulty.NORMAL);
 
     if (socket) {
@@ -698,28 +584,18 @@ export default function Home() {
 
   return (
     <>
-      <div className="h-screen flex w-full">
+      <div className="h-[100vh] w-[100vw] overflow-hidden flex">
         {/* Sidebar */}
-        <AppSidebar gameState={gameState} />
+        <AppSidebar gameState={gameState} gameMode={gameMode} isLoggedIn={loggedIn} />
 
         {/* Main Content Area */}
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 h-full overflow-hidden">
           <div
-            className="h-full flex flex-col items-center justify-center p-4 gap-4 
+            className="h-full flex flex-col items-center justify-center p-2 sm:p-4 gap-2 sm:gap-4 
             bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
-            w-full"
+            w-full overflow-hidden"
           >
-            {/* Optional: Uncomment if you want the header back
-            <header className="w-full max-w-4xl flex justify-center items-center gap-4 mb-4">
-              <h1 className="text-4xl font-bold text-background">Tic Tac Toe</h1>
-              <UserMenu
-                username={username}
-                selectedColor={selectedColor}
-                setSelectedColor={setSelectedColor}
-              />
-            </header> */}
-
-            <main className="w-full max-w-5xl h-full flex flex-col items-center justify-center gap-6">
+            <main className="w-full max-w-2xl h-full flex flex-col items-center justify-center gap-2 sm:gap-4 overflow-hidden">
               {!loggedIn ? (
                 <LoginForm
                   username={username}
@@ -761,11 +637,6 @@ export default function Home() {
               )}
             </main>
 
-            {/* <DevPanel
-              gameState={gameState}
-              username={username}
-              socket={socket}
-            /> */}
             <PageFooter />
           </div>
         </SidebarInset>

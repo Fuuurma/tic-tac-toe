@@ -109,7 +109,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     <Card className="w-full max-w-lg mx-4 md:mx-0 shadow-xl border-2 rounded-xl overflow-hidden">
       <CardContent className="p-3 md:p-5">
         {/* Tic Tac Toe Grid */}
-        <div className="grid grid-cols-3 gap-2 md:gap-4 aspect-square w-full">
+        <div 
+          className="grid grid-cols-3 gap-2 md:gap-4 aspect-square w-full"
+          role="grid"
+          aria-label="Tic Tac Toe game board"
+        >
           {board.map((cellValue, index) => {
             const isCellNextToRemove =
               nextToRemove.X === index || nextToRemove.O === index;

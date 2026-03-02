@@ -71,16 +71,26 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
       }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleCellClick();
+      }
+    };
+
     return (
       <button
         type="button"
         key={index}
         className={cellClasses}
         onClick={handleCellClick}
+        onKeyDown={handleKeyDown}
         disabled={isDisabled || !!value}
         aria-label={`Cell ${index + 1}${
           value ? `, occupied by ${value}` : ", empty"
         }${isDisabled || !!value ? ", disabled" : ""}`}
+        aria-disabled={isDisabled || !!value}
+        tabIndex={isDisabled && !!value ? -1 : 0}
       >
         <span className={cn(
           "transition-all duration-200",

@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { Loader2, RotateCcw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ShareButton } from "../common/shareButton";
 
 interface PlayersPanelProps {
   gameState: GameState;
@@ -60,6 +61,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const isXTurn = currentPlayer === PlayerSymbol.X && isGameActive;
   const isOTurn = currentPlayer === PlayerSymbol.O && isGameActive;
   const isAITurn = isOTurn && players.O.type === PlayerTypes.COMPUTER;
+  const isWaiting = gameStatus === GameStatus.WAITING;
 
   const winnerName =
     winner && winner !== "draw" ? players[winner]?.username : null;
@@ -102,6 +104,32 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
 
   return (
     <div className="w-full max-w-lg mx-2 sm:mx-4 md:mx-0">
+      {/* Matchmaking Loading State */}
+      {isWaiting && (
+        <div className="bg-card border-2 rounded-xl shadow-lg p-6 animate-in fade-in">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-foreground">Waiting for Opponent</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {message || "Finding a player..."}
+              </p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExit}
+                className="gap-1"
+              >
+                <LogOut className="h-3 w-3" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
         <div className={`mb-4 bg-gradient-to-r ${getWinnerColor()} text-white px-4 py-3 rounded-xl shadow-lg animate-in zoom-in-95 border-2 border-white/30`}>
@@ -119,6 +147,10 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               />
             </div>
             <div className="flex gap-2 shrink-0">
+              <ShareButton 
+                title={winner === "draw" ? "Tic Tac Toe - Draw!" : `Tic Tac Toe - ${winnerName} Wins!`}
+                text={winner === "draw" ? "We tied! Can you beat me?" : `${winnerName} won! Can you beat me?`}
+              />
               <Button
                 variant="secondary"
                 size="sm"

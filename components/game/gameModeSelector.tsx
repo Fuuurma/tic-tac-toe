@@ -35,12 +35,12 @@ const defaultGameModes = Object.values(GAME_MODES);
 export const GameModeSelector: React.FC<GameModeSelectorProps> = React.memo(
   ({ selectedMode, onModeChange, gameModeOptions = defaultGameModes }) => {
     return (
-      <div className="space-y-3">
-        <Label className="text-base font-semibold">Game Mode</Label>
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Game Mode</Label>
         <RadioGroup
           value={selectedMode}
           onValueChange={(value) => onModeChange(value as GameModes)}
-          className="grid grid-cols-1 gap-2"
+          className="grid grid-cols-1 gap-1"
         >
           {gameModeOptions.map((mode) => {
             const Icon = getModeIcon(mode.id);
@@ -56,7 +56,7 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = React.memo(
                 <Label
                   htmlFor={mode.id}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200",
+                    "flex items-center gap-2 p-2 rounded-lg border-2 cursor-pointer transition-all duration-200",
                     "hover:bg-accent/50 hover:border-accent",
                     isSelected 
                       ? "border-primary bg-primary/10 ring-1 ring-primary" 
@@ -64,14 +64,14 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = React.memo(
                   )}
                 >
                   <div className={cn(
-                    "p-2 rounded-md",
+                    "p-1.5 rounded-md",
                     isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
                   )}>
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium">{mode.label}</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm font-medium">{mode.label}</div>
+                    <div className="text-xs text-muted-foreground">
                       {mode.description}
                     </div>
                   </div>

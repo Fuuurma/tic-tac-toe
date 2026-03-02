@@ -5,10 +5,21 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:static": "next build && next export",
     "start": "next start",
-    "lint": "next lint"
+    "start:prod": "NODE_ENV=production node server.js",
+    "lint": "next lint",
+    "cap:sync": "pnpm build && npx cap sync",
+    "cap:ios": "pnpm build && npx cap sync ios && npx cap open ios",
+    "cap:android": "pnpm build && npx cap sync android && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.1",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.2",
@@ -34,6 +45,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

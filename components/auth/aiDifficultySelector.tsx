@@ -21,18 +21,18 @@ const AI_DifficultySelector: React.FC<AI_DifficultySelectorProps> = ({
   onDifficultyChange,
 }) => {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <AI_DifficultySelectorInfo />
       <Select
         value={selectedDifficulty}
         onValueChange={(value) => onDifficultyChange(value as AI_Difficulty)}
       >
-        <SelectTrigger id="ai-difficulty" className="w-full md:w-[180px]">
+        <SelectTrigger id="ai-difficulty" className="w-full h-8 text-sm">
           <SelectValue placeholder="Select difficulty" />
         </SelectTrigger>
         <SelectContent>
           {Object.values(AI_Difficulty).map((difficulty) => (
-            <SelectItem key={difficulty} value={difficulty}>
+            <SelectItem key={difficulty} value={difficulty} className="text-sm">
               {capitalizeFirstLetter(difficulty)}
             </SelectItem>
           ))}
