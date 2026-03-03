@@ -17,6 +17,7 @@ export type GameMode = (typeof GameModes)[keyof typeof GameModes];
 export type BoardPosition = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type WinningLine = [BoardPosition, BoardPosition, BoardPosition];
 export type MovesHistory = number[];
+
 export interface PlayerConfig {
   username: string;
   color: Color;
@@ -30,6 +31,8 @@ export interface GameState {
   board: GameBoard;
   currentPlayer: PlayerSymbol;
   winner: PlayerSymbol | "draw" | null;
+  winningCombination: WinningLine | null;
+  lastMoveIndex: number | null;
   players: Record<PlayerSymbol, PlayerConfig>;
   moves: {
     [PlayerSymbol.X]: MovesHistory;
@@ -51,6 +54,8 @@ export const initialGameState: GameState = {
   board: Array(GAME_RULES.BOARD_SIZE).fill(null),
   currentPlayer: PlayerSymbol.X,
   winner: null,
+  winningCombination: null,
+  lastMoveIndex: null,
   players: {
     [PlayerSymbol.X]: {
       username: "",
@@ -86,15 +91,15 @@ export interface ServerToClientEvents {
     symbol: PlayerSymbol;
     roomId: string;
     assignedColor: Color;
-  }) => void; // Added assignedColor
+  }) => void;
   playerJoined: (payload: { username: string; symbol: PlayerSymbol }) => void;
-  playerLeft: (payload: { symbol: PlayerSymbol | null }) => void; // Send symbol of leaving player
-  gameStart: (gameState: GameState) => void; // Send initial state when game starts
+  playerLeft: (payload: { symbol: PlayerSymbol | null }) => void;
+  gameStart: (gameState: GameState) => void;
   rematchRequested: (payload: { requesterSymbol: PlayerSymbol }) => void;
   colorChanged: (payload: { newColor: Color; reason: string }) => void;
-  gameUpdate: (gameState: GameState) => void; // Send updated state after move/event
-  gameReset: (gameState: GameState) => void; // Send state after reset
-  error: (message: string) => void; // Send error messages
+  gameUpdate: (gameState: GameState) => void;
+  gameReset: (gameState: GameState) => void;
+  error: (message: string) => void;
 }
 
 export interface ClientToServerEvents {
@@ -105,17 +110,15 @@ export interface ClientToServerEvents {
   acceptRematch: () => void;
   declineRematch: () => void;
   leaveRoom: () => void;
-  disconnect: () => void; // Built-in event, but useful for typing
+  disconnect: () => void;
 }
 
 export interface GameRoom {
   id: string;
-  // Store socket IDs of players currently in the room
   playerSocketIds: Set<string>;
-  // Game state specific to this room
   state: GameState;
-  rematchState: "none" | "requested"; // Track rematch status
-  rematchRequesterSymbol: PlayerSymbol | null; // Who requested?
+  rematchState: "none" | "requested";
+  rematchRequesterSymbol: PlayerSymbol | null;
 }
 
 export interface SocketData {

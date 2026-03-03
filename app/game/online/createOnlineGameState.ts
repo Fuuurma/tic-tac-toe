@@ -56,6 +56,8 @@ export function createGameState(
     board: Array(9).fill(null),
     currentPlayer: PlayerSymbol.X,
     winner: null,
+    winningCombination: null,
+    lastMoveIndex: null,
     players,
     moves: {
       [PlayerSymbol.X]: [],

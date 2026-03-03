@@ -1,16 +1,18 @@
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+"use client";
 
-import { GameState, PlayerType } from "@/app/types/types";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { GameState, WinningLine } from "@/app/types/types";
 import {
   Color,
   GameModes,
   GameStatus,
   PlayerSymbol,
-  TURN_DURATION_MS,
 } from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
 import GameButtons from "./gameButtons";
-import { useEffect, useState } from "react";
+import WinLine from "./winLine";
+import ParticleEffects from "./particleEffects";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -24,6 +26,8 @@ interface GameBoardProps {
   onAcceptRematch: () => void;
   onDeclineRematch: () => void;
   onLeaveRoom: () => void;
+  winningCombination: WinningLine | null;
+  lastMoveIndex: number | null;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -38,6 +42,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onAcceptRematch,
   onDeclineRematch,
   onLeaveRoom,
+  winningCombination,
+  lastMoveIndex,
 }) => {
   const {
     board,
@@ -46,114 +52,140 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     winner,
     gameMode,
     nextToRemove,
-    turnTimeRemaining,
     gameStatus,
   } = gameState;
 
-  // --- State for Display Timer ---
-  // We use local state for the display value derived from the prop
-  // to potentially format it or handle smooth updates if desired.
-  const [displayTime, setDisplayTime] = useState(0);
-  const [progressValue, setProgressValue] = useState(100);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [showWinLine, setShowWinLine] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
+  const [previousWinner, setPreviousWinner] = useState<PlayerSymbol | "draw" | null>(null);
+  const [newMoveIndex, setNewMoveIndex] = useState<number | null>(null);
 
-  // --- Effect to update display time based on prop ---
   useEffect(() => {
-    if (gameStatus === GameStatus.ACTIVE && turnTimeRemaining !== undefined) {
-      const secondsLeft = Math.ceil(turnTimeRemaining / 1000);
-      setDisplayTime(secondsLeft);
-      // Calculate progress percentage
-      const progress = Math.max(
-        0,
-        (turnTimeRemaining / TURN_DURATION_MS) * 100
-      );
-      setProgressValue(progress);
-    } else {
-      // Reset or hide timer when game not running
-      setDisplayTime(0);
-      setProgressValue(0); // Or 100 if you prefer it full when inactive
+    if (lastMoveIndex !== undefined && lastMoveIndex !== null) {
+      setNewMoveIndex(lastMoveIndex);
+      const timer = setTimeout(() => setNewMoveIndex(null), 500);
+      return () => clearTimeout(timer);
     }
-  }, [turnTimeRemaining, gameStatus]); // Update when timer prop or status changes
+  }, [lastMoveIndex]);
 
-  // --- Pre-computation for cleaner rendering ---
+  useEffect(() => {
+    if (winner && winner !== previousWinner) {
+      setPreviousWinner(winner);
+      
+      if (winner !== "draw") {
+        const winLineTimer = setTimeout(() => setShowWinLine(true), 300);
+        const particleTimer = setTimeout(() => setShowParticles(true), 500);
+        
+        return () => {
+          clearTimeout(winLineTimer);
+          clearTimeout(particleTimer);
+        };
+      } else {
+        const particleTimer = setTimeout(() => setShowParticles(true), 300);
+        return () => clearTimeout(particleTimer);
+      }
+    } else if (!winner && previousWinner) {
+      setShowWinLine(false);
+      setShowParticles(false);
+      setPreviousWinner(null);
+    }
+  }, [winner, previousWinner]);
 
-  // 1. Create the map of PlayerSymbol -> Color enum for BoardCell styling
   const playerColorsMap: { [key in PlayerSymbol]?: Color } = {
     [PlayerSymbol.X]: players.X.color,
     [PlayerSymbol.O]: players.O.color,
   };
 
-  // 2. Determine the winner's name for a personalized message
-  const winnerName =
-    winner && winner !== "draw" ? players[winner]?.username : null;
-
-  // 3. Helper to find which symbol is being removed at a given index
   const getRemovalSymbol = (index: number): PlayerSymbol | null => {
     if (nextToRemove.X === index) return PlayerSymbol.X;
     if (nextToRemove.O === index) return PlayerSymbol.O;
     return null;
   };
 
-  // 4. Determine if the game is currently active (no winner)
   const isGameActive = !winner;
 
-  // 5. If game has finished update state
   if (!isGameActive && (winner === PlayerSymbol.O || winner === PlayerSymbol.X))
     gameState.gameStatus = GameStatus.COMPLETED;
 
   const isOnlineGame = gameMode === GameModes.ONLINE;
+  const isLocalGame = gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
 
-  const isLocalGame =
-    gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
+  const isWinningCell = useCallback(
+    (index: number): boolean => {
+      if (!winningCombination || !winner || winner === "draw") return false;
+      return winningCombination.includes(index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
+    },
+    [winningCombination, winner]
+  );
 
   return (
-    <Card className="w-full max-w-lg mx-4 md:mx-0 shadow-xl border-2 rounded-xl overflow-hidden">
-      <CardContent className="p-3 md:p-5">
-        {/* Tic Tac Toe Grid */}
-        <div 
-          className="grid grid-cols-3 gap-2 md:gap-4 aspect-square w-full"
-          role="grid"
-          aria-label="Tic Tac Toe game board"
-        >
-          {board.map((cellValue, index) => {
-            const isCellNextToRemove =
-              nextToRemove.X === index || nextToRemove.O === index;
-            const symbolToRemove = getRemovalSymbol(index);
-            const isCellDisabled = !!winner;
+    <div className="w-full" style={{ maxWidth: "100%" }}>
+      <Card className="shadow-2xl border-2 rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full">
+        <CardContent className="p-4 md:p-6">
+          <div
+            ref={boardRef}
+            className="grid grid-cols-3 gap-3 md:gap-4 aspect-square w-full relative"
+            role="grid"
+            aria-label="Tic Tac Toe game board"
+          >
+            {board.map((cellValue, index) => {
+              const isCellNextToRemove =
+                nextToRemove.X === index || nextToRemove.O === index;
+              const symbolToRemove = getRemovalSymbol(index);
+              const isCellDisabled = !!winner;
 
-            return (
-              <BoardCell
-                key={index}
-                index={index}
-                value={cellValue}
-                playerColors={playerColorsMap}
-                isNextToRemove={isCellNextToRemove}
-                removalSymbol={symbolToRemove}
-                isDisabled={isCellDisabled}
-                onClick={handleCellClick}
-              />
-            );
-          })}
-        </div>
-      </CardContent>
+              return (
+                <BoardCell
+                  key={index}
+                  index={index}
+                  value={cellValue}
+                  playerColors={playerColorsMap}
+                  currentPlayer={isGameActive ? currentPlayer : undefined}
+                  isNextToRemove={isCellNextToRemove}
+                  removalSymbol={symbolToRemove}
+                  isDisabled={isCellDisabled}
+                  isWinningCell={isWinningCell(index)}
+                  onClick={handleCellClick}
+                  isNewMove={newMoveIndex === index}
+                />
+              );
+            })}
 
-      {isOnlineGame && isGameOver && (
-        <CardFooter className="flex justify-center py-4 border-t bg-muted/20">
-          <GameButtons
-            isOnlineGame={isOnlineGame}
-            isLocalGame={isLocalGame}
-            isGameOver={isGameOver}
-            rematchOffered={rematchOffered}
-            rematchRequested={rematchRequested}
-            onAcceptRematch={onAcceptRematch}
-            onDeclineRematch={onDeclineRematch}
-            onLeaveRoom={onLeaveRoom}
-            onRequestRematch={onRequestRematch}
-            resetGame={resetGame}
-            exitGame={exitGame}
-          />
-        </CardFooter>
-      )}
-    </Card>
+            <WinLine
+              winningCombination={winningCombination}
+              boardRef={boardRef}
+              isVisible={showWinLine}
+            />
+
+            <ParticleEffects
+              isActive={showParticles}
+              originX={0.5}
+              originY={0.5}
+              particleCount={winner === "draw" ? 30 : 60}
+            />
+          </div>
+        </CardContent>
+
+        {isGameOver && (
+          <CardFooter className="flex justify-center py-3 md:py-4 border-t bg-muted/20">
+            <GameButtons
+              isOnlineGame={isOnlineGame}
+              isLocalGame={isLocalGame}
+              isGameOver={isGameOver}
+              rematchOffered={rematchOffered}
+              rematchRequested={rematchRequested}
+              onAcceptRematch={onAcceptRematch}
+              onDeclineRematch={onDeclineRematch}
+              onLeaveRoom={onLeaveRoom}
+              onRequestRematch={onRequestRematch}
+              resetGame={resetGame}
+              exitGame={exitGame}
+            />
+          </CardFooter>
+        )}
+      </Card>
+    </div>
   );
 };
 

@@ -14,7 +14,7 @@ import {
   Color,
   Events,
 } from "@/app/game/constants/constants";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface UseGameSocketProps {
   username: string;
@@ -46,6 +46,24 @@ export function useGameSocket({
     null
   );
   const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
+  
+  // Use refs to track current values without triggering effect re-runs
+  const playerSymbolRef = useRef<PlayerSymbol | null>(null);
+  const usernameRef = useRef(username);
+  const selectedColorRef = useRef(selectedColor);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    playerSymbolRef.current = playerSymbol;
+  }, [playerSymbol]);
+  
+  useEffect(() => {
+    usernameRef.current = username;
+  }, [username]);
+  
+  useEffect(() => {
+    selectedColorRef.current = selectedColor;
+  }, [selectedColor]);
 
   /**
    * Initialize socket connection
@@ -109,7 +127,8 @@ export function useGameSocket({
       console.log("Socket connected:", socket.id);
       onMessage("Connected! Waiting for opponent...");
       // Emit login *after* successful connection
-      socket.emit("login", username, selectedColor);
+      // Use refs for current values to avoid stale closure
+      socket.emit("login", usernameRef.current, selectedColorRef.current);
     };
 
     const handleDisconnect = (reason: Socket.DisconnectReason) => {
@@ -157,7 +176,8 @@ export function useGameSocket({
       onMessage(`${payload.username} (${payload.symbol}) joined.`);
 
       // Update opponent name in state if needed
-      if (playerSymbol && payload.symbol !== playerSymbol) {
+      // Use ref to get current value without dependency
+      if (playerSymbolRef.current && payload.symbol !== playerSymbolRef.current) {
         onOpponentUpdate(payload.username);
       }
     };
@@ -191,9 +211,10 @@ export function useGameSocket({
       );
 
       // Set opponent name/color from initial state
-      if (playerSymbol) {
+      // Use ref to get current value without dependency
+      if (playerSymbolRef.current) {
         const opponentSym =
-          playerSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+          playerSymbolRef.current === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
         const opponentData = initialGameState.players[opponentSym];
         if (opponentData?.username) {
           onOpponentUpdate(opponentData.username, opponentData.color);
@@ -249,7 +270,8 @@ export function useGameSocket({
       console.log("Rematch requested by:", payload.requesterSymbol);
 
       // Only show offer if it wasn't this player who requested it
-      if (payload.requesterSymbol !== playerSymbol) {
+      // Use ref to get current value without dependency
+      if (payload.requesterSymbol !== playerSymbolRef.current) {
         onRematchState(true, false);
         onMessage(`Opponent wants a rematch!`);
       }
@@ -297,15 +319,12 @@ export function useGameSocket({
     };
   }, [
     socket,
-    username,
-    playerSymbol,
-    selectedColor,
-    onMessage,
-    onGameStateUpdate,
-    onPlayerSymbolAssigned,
-    onOpponentUpdate,
-    onRematchState,
+    // Removed: username, playerSymbol, selectedColor - now using refs
+    // Removed: onMessage, onGameStateUpdate, onPlayerSymbolAssigned, onOpponentUpdate, onRematchState
+    // These should be wrapped in useCallback at the call site or use refs if they change frequently
   ]);
+  // Note: To prevent listener re-registration, wrap callbacks in useCallback at the call site
+  // or ensure they are stable references
 
   /**
    * Cleanup socket connection

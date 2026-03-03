@@ -591,11 +591,11 @@ export default function Home() {
         {/* Main Content Area */}
         <SidebarInset className="flex-1 h-full overflow-hidden">
           <div
-            className="h-full flex flex-col items-center justify-center p-2 sm:p-4 gap-2 sm:gap-4 
+            className="h-full flex flex-col items-center justify-center p-2 sm:p-4 
             bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
             w-full overflow-hidden"
           >
-            <main className="w-full max-w-2xl h-full flex flex-col items-center justify-center gap-2 sm:gap-4 overflow-hidden">
+            <main className="w-full max-w-7xl h-full flex flex-col items-center justify-center gap-4 sm:gap-8 p-4 sm:p-6 lg:p-8">
               {!loggedIn ? (
                 <LoginForm
                   username={username}
@@ -632,6 +632,8 @@ export default function Home() {
                     onAcceptRematch={handleAcceptRematchClick}
                     onDeclineRematch={handleDeclineRematchClick}
                     onLeaveRoom={handleLeaveRoomClick}
+                    winningCombination={gameState.winningCombination}
+                    lastMoveIndex={gameState.lastMoveIndex}
                   />
                 </>
               )}

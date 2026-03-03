@@ -9,6 +9,13 @@
     "start": "next start",
     "start:prod": "NODE_ENV=production node server.js",
     "lint": "next lint",
+    "test": "vitest run --config vitest.config.ts",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:load": "vitest run --config vitest.load.config.ts",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "cap:sync": "pnpm build && npx cap sync",
     "cap:ios": "pnpm build && npx cap sync ios && npx cap open ios",
     "cap:android": "pnpm build && npx cap sync android && npx cap open android"
@@ -40,6 +47,7 @@
     "react-dom": "^19.0.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.0.2",
     "tw-animate-css": "^1.2.5"
   },
@@ -50,9 +58,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/ui": "^4.0.18",
     "eslint": "^9",
     "eslint-config-next": "15.1.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }

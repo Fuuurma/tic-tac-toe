@@ -79,7 +79,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isL
     : "flex flex-col gap-2 py-4";
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader className={headerClass}>
         <div className={isCollapsed ? "flex flex-col items-center" : "flex items-center justify-between"}>
           <SidebarTrigger className="h-10 w-10" />

@@ -116,6 +116,7 @@ export class AI_MoveEngine {
     // Add the new move
     newState.board[position] = PlayerSymbol.O;
     previousMoves.push(position);
+    newState.lastMoveIndex = position;
 
     // Assign updated moves safely
     newState.moves[PlayerSymbol.O] = previousMoves;
@@ -128,7 +129,8 @@ export class AI_MoveEngine {
 
     // Winner check
     const winResult = checkWinner(newState.board);
-    newState.winner = winResult === "draw" ? "draw" : winResult ?? null;
+    newState.winner = winResult.winner;
+    newState.winningCombination = winResult.winningCombination;
 
     // Switch turn if game still active
     if (!newState.winner) {

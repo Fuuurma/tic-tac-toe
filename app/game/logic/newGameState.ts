@@ -12,6 +12,8 @@ export const createFreshGameState = (): GameState => {
     board: Array(9).fill(null),
     currentPlayer: PlayerSymbol.X,
     winner: null,
+    winningCombination: null,
+    lastMoveIndex: null,
     players: {
       [PlayerSymbol.X]: {
         username: "",
@@ -35,7 +37,6 @@ export const createFreshGameState = (): GameState => {
     gameMode: GameModes.VS_COMPUTER,
     nextToRemove: { [PlayerSymbol.X]: null, [PlayerSymbol.O]: null },
     maxMoves: 3,
-
     gameStatus: GameStatus.WAITING,
   };
 };
