@@ -31,7 +31,7 @@ A web-based TicTacToe game with a unique twist: each player can only have 3 piec
 ### Prerequisites
 
 - Node.js 18+ installed
-- npm or yarn package manager
+- pnpm package manager (recommended)
 
 ### Setup
 
@@ -43,12 +43,12 @@ cd TicTacToe/tic-tac-toe
 
 2. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 3. Run the development server:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser
@@ -179,10 +179,11 @@ For online multiplayer, a Socket.IO server is required:
 ### Available Scripts
 
 ```bash
-npm run dev          # Start development server with Turbopack
-npm run build        # Build for production
-npm start            # Start production server
-npm run lint         # Run ESLint
+pnpm dev          # Start development server with Turbopack
+pnpm build        # Build for production
+pnpm start        # Start production server
+pnpm lint         # Run ESLint
+pnpm test         # Run tests
 ```
 
 ### Adding New Features
@@ -200,23 +201,125 @@ Player colors are defined in `app/game/constants/constants.ts`:
 
 ## Deployment
 
-### Vercel (Recommended)
+### Railway Deployment (Recommended)
 
-1. Push code to GitHub
-2. Import project in Vercel
-3. Deploy
+Deploy to Railway - supports both Next.js frontend and Socket.IO backend in a single deployment!
 
-For online multiplayer, you'll need to:
-1. Deploy the Socket.IO server separately (or use a service like Socket.IO Cloud)
-2. Set `NEXT_PUBLIC_SOCKET_URL` environment variable
+#### Quick Deploy:
 
-### Docker
-
-Build and run with Docker:
 ```bash
+# 1. Install Railway CLI
+npm i -g @railway/cli
+
+# 2. Login to Railway
+railway login
+
+# 3. Initialize project (follow prompts)
+railway init
+
+# 4. Set environment variables
+railway variables set NEXT_PUBLIC_SOCKET_URL=https://your-app.railway.app
+railway variables set NODE_ENV=production
+
+# 5. Deploy
+railway up
+```
+
+Or deploy via GitHub:
+1. Push code to GitHub
+2. Go to [railway.app](https://railway.app)
+3. Create new project → Deploy from GitHub repo
+4. Add environment variables in Railway Dashboard
+
+#### Environment Variables (Railway Dashboard):
+
+| Variable | Value |
+|----------|-------|
+| `NODE_ENV` | `production` |
+| `NEXT_PUBLIC_SOCKET_URL` | `https://your-app-name.railway.app` |
+
+Railway automatically sets `PORT` environment variable.
+
+#### Custom Domain (Optional):
+
+1. Go to Railway Dashboard → Settings → Domains
+2. Add your custom domain
+3. Railway auto-generates SSL certificate
+4. Update `NEXT_PUBLIC_SOCKET_URL` with your custom domain
+
+---
+
+### Mobile App Deployment (Capacitor)
+
+#### Prerequisites:
+- For iOS: macOS with Xcode installed
+- For Android: Android Studio installed
+
+#### Build Steps:
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build Next.js app
+pnpm build
+
+# Sync to native platforms
+pnpm cap:sync
+
+# Build for iOS (opens Xcode)
+pnpm cap:ios
+
+# Build for Android (opens Android Studio)
+pnpm cap:android
+```
+
+#### Configure Production URL:
+
+Update `capacitor.config.ts` with your production URL:
+
+```typescript
+const config: CapacitorConfig = {
+  appId: 'com.tictactoe.app',
+  appName: 'TicTacToe',
+  webDir: 'out',
+  server: {
+    hostname: 'your-app.railway.app', // Your production URL
+    androidScheme: 'https'
+  }
+};
+```
+
+#### App Store Distribution:
+
+- **iOS**: Use Xcode to archive and upload to App Store Connect
+- **Android**: Build AAB/APK in Android Studio and upload to Google Play Console
+
+---
+
+### Docker Deployment
+
+```bash
+# Build Docker image
 docker build -t tictactoe .
+
+# Run container
 docker run -p 3000:3000 tictactoe
 ```
+
+### Vercel (Frontend Only)
+
+For web-only deployment without Socket.IO:
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
+```
+
+**Note**: For online multiplayer on Vercel, you'll need a separate Socket.IO server (like Railway or Heroku).
 
 ## Contributing
 
