@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useEffect } from "react";
 
-type SoundType = "place" | "win" | "draw" | "warning" | "click";
+type SoundType = "place" | "win" | "warning" | "click";
 
 interface SoundOptions {
   volume?: number;
@@ -60,10 +60,6 @@ export function useSound() {
           playTone(523.25, 0.15);
           setTimeout(() => playTone(659.25, 0.15), 150);
           setTimeout(() => playTone(783.99, 0.3), 300);
-          break;
-        case "draw":
-          playTone(392, 0.2);
-          setTimeout(() => playTone(349.23, 0.2), 200);
           break;
         case "warning":
           playTone(220, 0.1, "square");

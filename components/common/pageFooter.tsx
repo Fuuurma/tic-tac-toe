@@ -6,9 +6,9 @@ const adSlot = process.env.NEXT_PUBLIC_ADSENSE_BANNER_SLOT || "";
 
 const PageFooter = () => {
   return (
-    <footer className="w-full max-w-4xl flex flex-col items-center gap-2">
+    <footer className="w-full max-w-4xl flex flex-col items-center gap-1 mt-auto">
       {adClient && adSlot && <AdSenseBanner adClient={adClient} adSlot={adSlot} />}
-      <div className="py-4 text-center text-sm text-muted-foreground">
+      <div className="py-2 sm:py-3 text-center text-xs sm:text-sm text-muted-foreground">
         Created by{" "}
         <a
           href="https://github.com/fuuurma"

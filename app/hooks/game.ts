@@ -78,35 +78,36 @@ export function useGameLogic({
     (index: number) => {
       if (!loggedIn) return;
 
-      if (!isValidMove(gameState, index, loggedIn)) return;
+      setGameState((prevState) => {
+        if (!isValidMove(prevState, index, loggedIn)) return prevState;
 
-      if (
-        CanMakeMove(
-          gameMode,
-          gameState.currentPlayer,
-          playerSymbol || PlayerSymbol.X
-        )
-      ) {
-        const newState = makeMove(gameState, index);
-        setGameState(newState);
+        if (
+          !CanMakeMove(
+            gameMode,
+            prevState.currentPlayer,
+            playerSymbol || PlayerSymbol.X
+          )
+        ) {
+          onMessage("It's not your turn");
+          setTimeout(() => onMessage(""), 2000);
+          return prevState;
+        }
 
-        // Update message for game over
-        if (newState.winner) {
+        const newState = makeMove(prevState, index);
+
+        if (newState.winner && newState.winner !== "draw") {
           onMessage(
-            newState.winner === "draw"
-              ? "It's a draw!"
-              : `${
-                  newState.players[newState.winner]?.username ||
-                  `Player ${newState.winner}`
-                } wins!`
+            `${
+              newState.players[newState.winner]?.username ||
+              `Player ${newState.winner}`
+            } wins!`
           );
         }
-      } else {
-        onMessage("It's not your turn");
-        setTimeout(() => onMessage(""), 2000);
-      }
+
+        return newState;
+      });
     },
-    [gameState, loggedIn, gameMode, playerSymbol, onMessage]
+    [loggedIn, gameMode, playerSymbol, onMessage]
   );
 
   /**

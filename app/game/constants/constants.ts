@@ -166,7 +166,6 @@ export const GAME_RULES = {
   TIMEOUT_DURATION: 5000,
   MIN_MOVE_TIME: 200, // Minimum time in ms before computer makes a move
   WINNING_SCORE: 10,
-  DRAW_SCORE: 5,
 } as const;
 
 export const ERROR_MESSAGES = {

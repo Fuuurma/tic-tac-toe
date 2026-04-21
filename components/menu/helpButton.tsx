@@ -90,13 +90,6 @@ export default function HelpButton() {
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <XCircle className="mt-1 w-5 h-5 text-pink-500" />
-              <div>
-                <span className="font-semibold">No Draws:</span> Because of the
-                3-piece limit, games can't end in a tie.
-              </div>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

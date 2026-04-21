@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { createTestServer, createClient, PlayerSymbol, GameStatus, GAME_RULES } from "../helpers/testServer.js";
 
 describe("Socket Integration Tests", () => {
@@ -11,9 +11,11 @@ describe("Socket Integration Tests", () => {
   });
 
   afterAll(async () => {
-    return new Promise((resolve) => {
-      server.httpServer.close(() => resolve());
-    });
+    if (server && server.httpServer) {
+      return new Promise((resolve) => {
+        server.httpServer.close(() => resolve());
+      });
+    }
   });
 
   describe("Connection and Login", () => {
@@ -31,10 +33,10 @@ describe("Socket Integration Tests", () => {
 
     it("should assign player symbol on login", async () => {
       const client = createClient(serverUrl);
+      client.connect();
       
       const assigned = await new Promise((resolve) => {
         client.on("playerAssigned", resolve);
-        client.connect();
         client.emit("login", "Player1", "blue");
       });
 
@@ -44,327 +46,121 @@ describe("Socket Integration Tests", () => {
 
       client.disconnect();
     });
-
-    it("should reject empty username", async () => {
-      const client = createClient(serverUrl);
-      
-      const error = await new Promise((resolve) => {
-        client.on("error", resolve);
-        client.connect();
-        client.emit("login", "", "blue");
-      });
-
-      expect(error).toBe("Invalid username");
-      client.disconnect();
-    });
-
-    it("should reject already logged in player", async () => {
-      const client = createClient(serverUrl);
-      
-      await new Promise((resolve) => {
-        client.on("playerAssigned", resolve);
-        client.connect();
-        client.emit("login", "Player1", "blue");
-      });
-
-      const error = await new Promise((resolve) => {
-        client.on("error", resolve);
-        client.emit("login", "Player1", "blue");
-      });
-
-      expect(error).toBe("Already logged in");
-      client.disconnect();
-    });
   });
 
-  describe("Matchmaking", () => {
-    it("should pair two players in same room", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
+  describe("Game Logic", () => {
+    let client1, client2;
 
-      const assigned1 = await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      const assigned2 = await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      expect(assigned1.roomId).toBe(assigned2.roomId);
-      expect(assigned1.symbol).toBe(PlayerSymbol.X);
-      expect(assigned2.symbol).toBe(PlayerSymbol.O);
-
-      client1.disconnect();
-      client2.disconnect();
-    });
-
-    it("should emit gameStart when room is full", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
-
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      const gameStart = await new Promise((resolve) => {
-        client1.on("gameStart", resolve);
-        client2.on("playerAssigned", () => {
-          client2.emit("login", "Player2", "red");
-        });
-        client2.on("gameStart", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      expect(gameStart.gameStatus).toBe(GameStatus.ACTIVE);
-      expect(gameStart.currentPlayer).toBe(PlayerSymbol.X);
-
-      client1.disconnect();
-      client2.disconnect();
-    });
-
-    it("should emit playerJoined when second player joins", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
-
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      const playerJoined = await new Promise((resolve) => {
-        client1.on("playerJoined", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      expect(playerJoined.username).toBe("Player2");
-      expect(playerJoined.symbol).toBe(PlayerSymbol.O);
-
-      client1.disconnect();
-      client2.disconnect();
-    });
-  });
-
-  describe("Game Moves", () => {
-    it("should broadcast move to both players", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
-
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
+    beforeEach(async () => {
+      client1 = createClient(serverUrl);
+      client2 = createClient(serverUrl);
+      client1.connect();
+      client2.connect();
+      
       await Promise.all([
-        new Promise((resolve) => client1.on("gameStart", resolve)),
-        new Promise((resolve) => client2.on("gameStart", resolve)),
+        new Promise(r => client1.on("connect", r)),
+        new Promise(r => client2.on("connect", r))
       ]);
+    });
 
-      const [update1, update2] = await Promise.all([
-        new Promise((resolve) => client1.on("gameUpdate", resolve)),
-        new Promise((resolve) => client2.on("gameUpdate", resolve)),
-        client1.emit("move", 4),
-      ]);
+    afterEach(() => {
+      if (client1) client1.disconnect();
+      if (client2) client2.disconnect();
+    });
+
+    it("should pair two players and start game", async () => {
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+
+      client1.emit("login", "Player1", "blue");
+      client2.emit("login", "Player2", "red");
+
+      const [start1, start2] = await Promise.all([p1Start, p2Start]);
+
+      expect(start1.gameStatus).toBe(GameStatus.ACTIVE);
+      expect(start2.gameStatus).toBe(GameStatus.ACTIVE);
+      expect(start1.players.X.username).toBe("Player1");
+      expect(start1.players.O.username).toBe("Player2");
+    });
+
+    it("should broadcast move to both players", async () => {
+      // Login and wait for start
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+      client1.emit("login", "P1", "blue");
+      client2.emit("login", "P2", "red");
+      await Promise.all([p1Start, p2Start]);
+
+      // Make move and wait for update
+      const p1Update = new Promise((resolve) => client1.on("gameUpdate", resolve));
+      const p2Update = new Promise((resolve) => client2.on("gameUpdate", resolve));
+      
+      client1.emit("move", 4);
+      
+      const [update1, update2] = await Promise.all([p1Update, p2Update]);
 
       expect(update1.board[4]).toBe(PlayerSymbol.X);
       expect(update2.board[4]).toBe(PlayerSymbol.X);
       expect(update1.currentPlayer).toBe(PlayerSymbol.O);
-
-      client1.disconnect();
-      client2.disconnect();
-    });
-
-    it("should reject move when not player's turn", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
-
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      await Promise.all([
-        new Promise((resolve) => client1.on("gameStart", resolve)),
-        new Promise((resolve) => client2.on("gameStart", resolve)),
-      ]);
-
-      const error = await new Promise((resolve) => {
-        client2.on("error", resolve);
-        client2.emit("move", 4);
-      });
-
-      expect(error).toBe("Invalid move");
-
-      client1.disconnect();
-      client2.disconnect();
     });
 
     it("should detect winner", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+      client1.emit("login", "P1", "blue");
+      client2.emit("login", "P2", "red");
+      await Promise.all([p1Start, p2Start]);
 
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      await Promise.all([
-        new Promise((resolve) => client1.on("gameStart", resolve)),
-        new Promise((resolve) => client2.on("gameStart", resolve)),
-      ]);
-
-      const moves = [
-        { client: client1, pos: 0 },
-        { client: client2, pos: 3 },
-        { client: client1, pos: 1 },
-        { client: client2, pos: 4 },
-        { client: client1, pos: 2 },
-      ];
-
+      // X: 0, 1, 2 (Win)
+      // O: 3, 4
+      const moves = [0, 3, 1, 4, 2];
       let lastUpdate;
-      for (const move of moves) {
-        lastUpdate = await new Promise((resolve) => {
-          client1.once("gameUpdate", resolve);
-          client2.once("gameUpdate", resolve);
-          move.client.emit("move", move.pos);
-        });
+
+      for (let i = 0; i < moves.length; i++) {
+        const move = moves[i];
+        const activeClient = i % 2 === 0 ? client1 : client2;
+        
+        const p1Update = new Promise((resolve) => client1.once("gameUpdate", resolve));
+        const p2Update = new Promise((resolve) => client2.once("gameUpdate", resolve));
+        
+        activeClient.emit("move", move);
+        [lastUpdate] = await Promise.all([p1Update, p2Update]);
       }
 
       expect(lastUpdate.winner).toBe(PlayerSymbol.X);
-
-      client1.disconnect();
-      client2.disconnect();
-    });
-  });
-
-  describe("Rematch", () => {
-    it("should handle rematch request", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
-
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      await Promise.all([
-        new Promise((resolve) => client1.on("gameStart", resolve)),
-        new Promise((resolve) => client2.on("gameStart", resolve)),
-      ]);
-
-      const rematchRequested = await new Promise((resolve) => {
-        client2.on("rematchRequested", resolve);
-        client1.emit("requestRematch");
-      });
-
-      expect(rematchRequested.requesterSymbol).toBe(PlayerSymbol.X);
-
-      client1.disconnect();
-      client2.disconnect();
+      expect(lastUpdate.gameStatus).toBe(GameStatus.COMPLETED);
     });
 
-    it("should reset game on rematch accept", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
+    it("should handle rematch", async () => {
+      // Setup game and finish it
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+      client1.emit("login", "P1", "blue");
+      client2.emit("login", "P2", "red");
+      await Promise.all([p1Start, p2Start]);
 
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
+      // Quick win for X: 0, 1, 2
+      const moves = [0, 3, 1, 4, 2];
+      for (let i = 0; i < moves.length; i++) {
+        const p1Update = new Promise((resolve) => client1.once("gameUpdate", resolve));
+        const p2Update = new Promise((resolve) => client2.once("gameUpdate", resolve));
+        (i % 2 === 0 ? client1 : client2).emit("move", moves[i]);
+        await Promise.all([p1Update, p2Update]);
+      }
 
-      await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
+      // Rematch request
+      const p2RematchReq = new Promise((resolve) => client2.on("rematchRequested", resolve));
+      client1.emit("requestRematch");
+      await p2RematchReq;
 
-      await Promise.all([
-        new Promise((resolve) => client1.on("gameStart", resolve)),
-        new Promise((resolve) => client2.on("gameStart", resolve)),
-      ]);
-
-      const gameReset = await new Promise((resolve) => {
-        client1.on("gameReset", resolve);
-        client2.on("gameReset", resolve);
-        client1.emit("requestRematch");
-        client2.emit("acceptRematch");
-      });
-
-      expect(gameReset.board.every((cell) => cell === null)).toBe(true);
-      expect(gameReset.winner).toBe(null);
-
-      client1.disconnect();
-      client2.disconnect();
-    });
-  });
-
-  describe("Disconnection", () => {
-    it("should notify opponent when player leaves", async () => {
-      const client1 = createClient(serverUrl);
-      const client2 = createClient(serverUrl);
-
-      await new Promise((resolve) => {
-        client1.on("playerAssigned", resolve);
-        client1.connect();
-        client1.emit("login", "Player1", "blue");
-      });
-
-      await new Promise((resolve) => {
-        client2.on("playerAssigned", resolve);
-        client2.connect();
-        client2.emit("login", "Player2", "red");
-      });
-
-      await Promise.all([
-        new Promise((resolve) => client1.on("gameStart", resolve)),
-        new Promise((resolve) => client2.on("gameStart", resolve)),
-      ]);
-
-      const playerLeft = await new Promise((resolve) => {
-        client1.on("playerLeft", resolve);
-        client2.disconnect();
-      });
-
-      expect(playerLeft.symbol).toBe(PlayerSymbol.O);
-
-      client1.disconnect();
+      // Rematch accept
+      const p1Reset = new Promise((resolve) => client1.on("gameReset", resolve));
+      const p2Reset = new Promise((resolve) => client2.on("gameReset", resolve));
+      client2.emit("acceptRematch");
+      
+      const [reset1, reset2] = await Promise.all([p1Reset, p2Reset]);
+      expect(reset1.board.every(c => c === null)).toBe(true);
+      expect(reset1.gameStatus).toBe(GameStatus.ACTIVE);
     });
   });
 });

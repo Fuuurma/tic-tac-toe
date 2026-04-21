@@ -25,7 +25,7 @@ interface BoardCellProps {
 }
 
 const BASE_CELL_STYLE =
-  "relative aspect-square w-full rounded-2xl lg:rounded-3xl border-3 sm:border-4 md:border-5 flex items-center justify-center text-7xl sm:text-8xl md:text-9xl lg:text-[7rem] xl:text-[9rem] font-extrabold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
+  "relative aspect-square w-full rounded-lg md:rounded-2xl lg:rounded-3xl border-2 sm:border-3 md:border-4 lg:border-5 flex items-center justify-center text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-extrabold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 const EMPTY_CELL_STYLE =
   "bg-card/30 border-border/50 hover:bg-accent/40 hover:border-accent-foreground/40 cursor-pointer backdrop-blur-sm";
 const DEFAULT_FALLBACK_COLOR = Color.GRAY;
@@ -78,12 +78,6 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
     const removalBorderClasses = cn(
       "absolute inset-0 animate-wiggle border-4 rounded-xl z-10 pointer-events-none",
       removalColorScheme?.border
-    );
-
-    const removalIndicatorClasses = cn(
-      "absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full text-[10px] sm:text-xs font-bold flex items-center justify-center animate-bounce",
-      removalColorScheme?.bg,
-      removalColorScheme?.text
     );
 
     const handleCellClick = () => {
@@ -150,12 +144,6 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         )}
 
         {isNextToRemove && <div className={removalBorderClasses} />}
-
-        {isNextToRemove && (
-          <div className={removalIndicatorClasses} aria-label="Will be removed soon">
-            1
-          </div>
-        )}
       </button>
     );
   }

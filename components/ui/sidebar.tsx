@@ -69,29 +69,38 @@ function SidebarProvider({
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
+  // Internal open state - we track this with a ref to avoid stale closures
+  const openRef = React.useRef(defaultOpen)
   const [_open, _setOpen] = React.useState(defaultOpen)
   const open = openProp ?? _open
+
+  // Keep the ref always in sync
+  React.useEffect(() => {
+    openRef.current = open
+  }, [open])
+
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === "function" ? value(open) : value
+      // Compute next value first (no side effects in updater)
+      const nextValue = typeof value === "function" ? value(openRef.current) : value
+      // Side effects outside the state updater
+      document.cookie = `${SIDEBAR_COOKIE_NAME}=${nextValue}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
       if (setOpenProp) {
-        setOpenProp(openState)
-      } else {
-        _setOpen(openState)
+        setOpenProp(nextValue)
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      _setOpen(nextValue)
     },
-    [setOpenProp, open]
+    [setOpenProp]
   )
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
-  }, [isMobile])
+    if (isMobile) {
+      setOpenMobile((prev) => !prev)
+    } else {
+      setOpen((prev) => !prev)
+    }
+  }, [isMobile, setOpen, setOpenMobile])
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -122,7 +131,7 @@ function SidebarProvider({
       setOpenMobile,
       toggleSidebar,
     }),
-    [state, open, isMobile, openMobile, setOpenMobile]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
   )
 
   return (

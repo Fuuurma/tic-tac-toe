@@ -37,6 +37,7 @@ export function createMockGameState(overrides: Partial<GameState> = {}): GameSta
       [PlayerSymbol.O]: null,
     },
     maxMoves: GAME_RULES.MAX_MOVES_PER_PLAYER,
+    moveCount: 0,
     gameStatus: GameStatus.ACTIVE,
     ...overrides,
   };

@@ -228,14 +228,12 @@ export function useGameSocket({
       onRematchState(false, false);
 
       // Update message based on new state
-      if (updatedGameState.winner) {
+      if (updatedGameState.winner && updatedGameState.winner !== "draw") {
         onMessage(
-          updatedGameState.winner === "draw"
-            ? "It's a draw!"
-            : `${
-                updatedGameState.players[updatedGameState.winner]?.username ||
-                `Player ${updatedGameState.winner}`
-              } wins!`
+          `${
+            updatedGameState.players[updatedGameState.winner]?.username ||
+            `Player ${updatedGameState.winner}`
+          } wins!`
         );
       } else {
         onMessage(

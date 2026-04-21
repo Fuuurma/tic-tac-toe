@@ -69,6 +69,7 @@ export function createGameState(
       [PlayerSymbol.O]: null,
     },
     maxMoves: GAME_RULES.MAX_MOVES_PER_PLAYER,
+    moveCount: 0,
     gameStatus: GameStatus.WAITING,
   };
 }

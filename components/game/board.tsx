@@ -58,7 +58,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const boardRef = useRef<HTMLDivElement>(null);
   const [showWinLine, setShowWinLine] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
-  const [previousWinner, setPreviousWinner] = useState<PlayerSymbol | "draw" | null>(null);
+  const [previousWinner, setPreviousWinner] = useState<PlayerSymbol | null>(null);
   const [newMoveIndex, setNewMoveIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -70,21 +70,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   }, [lastMoveIndex]);
 
   useEffect(() => {
-    if (winner && winner !== previousWinner) {
+    if (winner && winner !== previousWinner && winner !== "draw") {
       setPreviousWinner(winner);
-      
-      if (winner !== "draw") {
-        const winLineTimer = setTimeout(() => setShowWinLine(true), 300);
-        const particleTimer = setTimeout(() => setShowParticles(true), 500);
-        
-        return () => {
-          clearTimeout(winLineTimer);
-          clearTimeout(particleTimer);
-        };
-      } else {
-        const particleTimer = setTimeout(() => setShowParticles(true), 300);
-        return () => clearTimeout(particleTimer);
-      }
+
+      const winLineTimer = setTimeout(() => setShowWinLine(true), 300);
+      const particleTimer = setTimeout(() => setShowParticles(true), 500);
+
+      return () => {
+        clearTimeout(winLineTimer);
+        clearTimeout(particleTimer);
+      };
     } else if (!winner && previousWinner) {
       setShowWinLine(false);
       setShowParticles(false);
@@ -105,29 +100,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   const isGameActive = !winner;
 
-  if (!isGameActive && (winner === PlayerSymbol.O || winner === PlayerSymbol.X))
-    gameState.gameStatus = GameStatus.COMPLETED;
-
   const isOnlineGame = gameMode === GameModes.ONLINE;
   const isLocalGame = gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
 
   const isWinningCell = useCallback(
     (index: number): boolean => {
-      if (!winningCombination || !winner || winner === "draw") return false;
+      if (!winningCombination || !winner) return false;
       return winningCombination.includes(index as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8);
     },
     [winningCombination, winner]
   );
 
   return (
-    <div className="w-full" style={{ maxWidth: "100%" }}>
-      <Card className="shadow-2xl border-2 rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full">
-        <CardContent className="p-4 md:p-6">
+    <div className="w-full max-w-lg h-full flex items-center justify-center overflow-hidden flex-shrink-0">
+      <Card className="shadow-2xl border-2 rounded-xl md:rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full">
+        <CardContent className="p-2 sm:p-3 md:p-6 h-full flex flex-col items-center justify-center">
           <div
             ref={boardRef}
-            className="grid grid-cols-3 gap-3 md:gap-4 aspect-square w-full relative"
+            className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 aspect-square w-full max-w-full relative"
             role="grid"
             aria-label="Tic Tac Toe game board"
+            style={{ touchAction: "manipulation" }}
           >
             {board.map((cellValue, index) => {
               const isCellNextToRemove =
@@ -162,13 +155,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               isActive={showParticles}
               originX={0.5}
               originY={0.5}
-              particleCount={winner === "draw" ? 30 : 60}
+              particleCount={60}
             />
           </div>
         </CardContent>
 
         {isGameOver && (
-          <CardFooter className="flex justify-center py-3 md:py-4 border-t bg-muted/20">
+          <CardFooter className="flex justify-center py-2 sm:py-3 md:py-4 border-t bg-muted/20">
             <GameButtons
               isOnlineGame={isOnlineGame}
               isLocalGame={isLocalGame}

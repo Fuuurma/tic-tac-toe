@@ -15,7 +15,7 @@ import {
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
-import { User, Users, Play } from "lucide-react";
+import { User, Users, Play, Ghost } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
@@ -36,6 +36,7 @@ interface LoginFormProps {
   aiDifficulty: AI_Difficulty;
   setAiDifficulty: (difficulty: AI_Difficulty) => void;
   handleLogin: () => void;
+  handleGuestPlay: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -52,6 +53,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   aiDifficulty,
   setAiDifficulty,
   handleLogin,
+  handleGuestPlay,
 }) => {
   const [error, setError] = useState<string | null>(null);
 
@@ -142,7 +144,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             />
           )}
         </CardContent>
-        <CardFooter className="pb-4 pt-2">
+        <CardFooter className="flex flex-col gap-3 pb-4 pt-2">
           <Button
             type="submit"
             size="lg"
@@ -159,6 +161,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           >
             <Play className="h-5 w-5" />
             {validationResult.isValid ? 'Start Game' : 'Fill in your name'}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleGuestPlay}
+            className="w-full py-4 text-xs md:text-sm font-medium opacity-80 hover:opacity-100 flex items-center justify-center gap-2"
+          >
+            <Ghost className="h-4 w-4" />
+            Play as Guest
           </Button>
         </CardFooter>
       </Card>

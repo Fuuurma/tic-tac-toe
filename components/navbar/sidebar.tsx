@@ -5,6 +5,7 @@ import {
   Cpu,
   Globe,
   Users,
+  Target,
 } from "lucide-react";
 
 import {
@@ -27,6 +28,8 @@ import { SoundToggle } from "../common/soundToggle";
 import { GameState } from "@/app/types/types";
 import { GameModes } from "@/app/game/constants/constants";
 import Link from "next/link";
+import { GameStats } from "../game/statsPanel";
+import { StatsDisplay } from "../common/statsDisplay";
 
 const gameModes = [
   {
@@ -53,9 +56,10 @@ interface AppSidebarProps {
   gameState: GameState;
   gameMode?: GameModes;
   isLoggedIn?: boolean;
+  stats?: GameStats;
 }
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isLoggedIn }) => {
+export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isLoggedIn, stats }) => {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -73,41 +77,29 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isL
   };
 
   const activeModeIndex = gameMode !== undefined ? getModeIndex(gameMode) : -1;
-  
-  const headerClass = isCollapsed 
-    ? "flex flex-col items-center gap-2 py-3 px-1" 
-    : "flex flex-col gap-2 py-4";
 
   return (
-    <Sidebar collapsible="offcanvas" variant="inset">
-      <SidebarHeader className={headerClass}>
-        <div className={isCollapsed ? "flex flex-col items-center" : "flex items-center justify-between"}>
-          <SidebarTrigger className="h-10 w-10" />
-          {!isCollapsed && (
-            <div className="flex items-center gap-1">
-              <ThemeTogglerButton />
-              <SoundToggle />
-            </div>
-          )}
+    <Sidebar collapsible="offcanvas" variant="inset" suppressHydrationWarning>
+      <SidebarHeader className="flex flex-col gap-2 py-2">
+        <div className="flex items-center justify-between">
+          <SidebarTrigger className="h-8 w-8" />
+          <div className="flex items-center gap-1">
+            <ThemeTogglerButton />
+            {!isCollapsed && <SoundToggle />}
+          </div>
         </div>
         {!isCollapsed && (
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="flex items-center gap-2 px-2 py-1.5 text-sm font-medium rounded-md hover:bg-accent text-foreground"
           >
             <Home className="h-4 w-4" />
             Home
           </Link>
         )}
-        {isCollapsed && (
-          <div className="flex flex-col items-center gap-1">
-            <ThemeTogglerButton />
-            <SoundToggle />
-          </div>
-        )}
       </SidebarHeader>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="mx-0" />
 
       <SidebarContent>
         <SidebarGroup>
@@ -130,9 +122,25 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isL
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {!isCollapsed && stats && (
+          <SidebarGroup>
+            <div className="px-2 py-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <Target className="h-3 w-3" />
+              Your Statistics
+            </div>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <StatsDisplay stats={stats} layout="list" />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="mx-0" />
 
       <SidebarFooter>
         <SidebarMenu>
@@ -145,9 +153,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isL
                 className="h-6 w-6 rounded-full flex items-center justify-center border shrink-0"
                 style={{ backgroundColor: gameState.players.X.color }}
               />
-              <span className="truncate text-sm">
-                {gameState.players.X.username || "Player X"}
-              </span>
+              <span className="truncate">{gameState.players.X.username || "Player X"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -159,9 +165,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isL
                 className="h-6 w-6 rounded-full flex items-center justify-center border shrink-0"
                 style={{ backgroundColor: gameState.players.O.color }}
               />
-              <span className="truncate text-sm">
-                {gameState.players.O.username || "Player O"}
-              </span>
+              <span className="truncate">{gameState.players.O.username || "Player O"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

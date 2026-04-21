@@ -6,7 +6,7 @@ interface WinnerResult {
   winningCombination: WinningLine | null;
 }
 
-export const checkWinner = (board: GameBoard): WinnerResult => {
+export const checkWinner = (board: GameBoard, currentPlayer?: PlayerSymbol): WinnerResult => {
   for (const combination of WINNING_COMBINATIONS) {
     const [a, b, c] = combination;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -17,8 +17,12 @@ export const checkWinner = (board: GameBoard): WinnerResult => {
     }
   }
 
+  // In the 3-piece variant, draws should be impossible.
+  // If board is somehow full with no winner, current player loses.
   if (board.every((cell) => cell !== null)) {
-    return { winner: "draw", winningCombination: null };
+    const loser = currentPlayer;
+    const winner = loser === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+    return { winner, winningCombination: null };
   }
 
   return { winner: null, winningCombination: null };

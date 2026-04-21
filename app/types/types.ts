@@ -44,6 +44,7 @@ export interface GameState {
     [PlayerSymbol.O]: number | null;
   };
   maxMoves: typeof GAME_RULES.MAX_MOVES_PER_PLAYER;
+  moveCount: number;
 
   turnTimeRemaining?: number;
   gameStatus: GameStatus;
@@ -82,6 +83,7 @@ export const initialGameState: GameState = {
     [PlayerSymbol.O]: null,
   },
   maxMoves: GAME_RULES.MAX_MOVES_PER_PLAYER,
+  moveCount: 0,
   gameStatus: GameStatus.WAITING,
 };
 

@@ -29,22 +29,18 @@ export const handleAI_Move = (
     const stateClone = structuredClone(state);
     const bestMoveIndex = getAIMove(stateClone, difficulty);
 
-    // Race condition check: Verify the move is still valid
-    // The cell must still be null and it must still be AI's turn
+    // Re-validate against current state right before making move
     if (bestMoveIndex !== -1 && 
         bestMoveIndex >= 0 && 
         bestMoveIndex < state.board.length &&
-        state.board[bestMoveIndex] === null &&
-        state.currentPlayer === expectedPlayer) {
-      
+        state.board[bestMoveIndex] === null) {
       console.log(`AI applying move ${bestMoveIndex} to current state.`);
       const newState = makeMove(state, bestMoveIndex as BoardPosition);
       onLocalUpdate(newState);
     } else {
       console.error(
         `AI failed to select a valid move (${bestMoveIndex}) or move was invalid. ` +
-        `Board[${bestMoveIndex}]=${state.board[bestMoveIndex]}, ` +
-        `CurrentPlayer=${state.currentPlayer}, Expected=${expectedPlayer}`
+        `Board[${bestMoveIndex}]=${state.board[bestMoveIndex]}`
       );
       
       // Attempt fallback
@@ -52,8 +48,7 @@ export const handleAI_Move = (
       if (fallbackMoveIndex !== -1 && 
           fallbackMoveIndex >= 0 &&
           fallbackMoveIndex < state.board.length &&
-          state.board[fallbackMoveIndex] === null &&
-          state.currentPlayer === expectedPlayer) {
+          state.board[fallbackMoveIndex] === null) {
         console.warn("AI calculation failed, using fallback easy move.");
         const newState = makeMove(state, fallbackMoveIndex as BoardPosition);
         onLocalUpdate(newState);

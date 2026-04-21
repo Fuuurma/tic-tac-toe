@@ -1,562 +1,69 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import {
-  ClientToServerEvents,
   GameMode,
   GameState,
   initialGameState,
-  ServerToClientEvents,
 } from "./types/types";
-import { io, Socket } from "socket.io-client";
 
-import { makeMove } from "./game/logic/makeMove";
 import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
 import {
   AI_Difficulty,
   Color,
-  Events,
   GameModes,
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "./game/constants/constants";
 import { createFreshGameState } from "./game/logic/newGameState";
-import { CanMakeMove } from "./game/logic/canMakeMove";
-import { isAITurn } from "./game/ai/canAI_MakeMove";
-import { handleAI_Move } from "./game/ai/handleAI_Move";
-import { isValidMove } from "./game/logic/isValidMove";
 import PageFooter from "@/components/common/pageFooter";
 import { createInitialGameState } from "./game/logic/createInitialGameState";
-import { findRandomValidMove } from "./game/logic/makeRandomMove";
-import { isGameActive } from "./game/logic/isGameActive";
 import { AppSidebar } from "@/components/navbar/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import PlayersPanel from "@/components/game/playersPanel";
 
+// Custom Hooks
+import { useGameStats } from "./hooks/game/useGameStats";
+import { useGameTimer } from "./hooks/game/useGameTimer";
+import { useLocalGame } from "./hooks/game/useLocalGame";
+import { useSocketGame } from "./hooks/game/useSocketGame";
+
 export default function Home() {
-  const [socket, setSocket] = useState<Socket<
-    ServerToClientEvents,
-    ClientToServerEvents
-  > | null>(null);
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
   const [opponentName, setOpponentName] = useState<string>("");
-  const [aiDifficulty, setAI_Difficulty] = useState<AI_Difficulty>(
-    AI_Difficulty.EASY
-  );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("tictactoe_username");
+      if (saved) setUsername(saved);
+    }
+  }, []);
+
+  const [aiDifficulty, setAI_Difficulty] = useState<AI_Difficulty>(AI_Difficulty.EASY);
 
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [playerSymbol, setPlayerSymbol] = useState<PlayerSymbol | null>(null);
   const [message, setMessage] = useState<string>("");
   const [gameMode, setGameMode] = useState<GameMode>(GameModes.VS_COMPUTER);
-  const [selectedColor, setSelectedColor] = useState<Color>(
-    PLAYER_CONFIG[PlayerSymbol.X].defaultColor
-  );
-  const [opponentColor, setOpponentColor] = useState<Color>(
-    PLAYER_CONFIG[PlayerSymbol.O].defaultColor
-  );
+  const [selectedColor, setSelectedColor] = useState<Color>(PLAYER_CONFIG[PlayerSymbol.X].defaultColor);
+  const [opponentColor, setOpponentColor] = useState<Color>(PLAYER_CONFIG[PlayerSymbol.O].defaultColor);
 
   const [rematchOffered, setRematchOffered] = useState(false);
   const [rematchRequested, setRematchRequested] = useState(false);
 
-  const timerMoveMadeRef = useRef<PlayerSymbol | null>(null);
-
-  const [timerIntervalId, setTimerIntervalId] = useState<NodeJS.Timeout | null>(
-    null
+  // ----- STATS HOOK -----
+  const { stats, refreshStats } = useGameStats(
+    gameState.gameStatus,
+    gameState.winner,
+    playerSymbol,
+    loggedIn
   );
 
-  // ----- SOCKET ----- //
-
-  const initializeSocket = useCallback(() => {
-    // Prevent multiple initializations
-    if (socket?.connected) return;
-
-    // Ensure username is set before connecting
-    if (!username.trim()) {
-      setMessage("Please enter a username first.");
-      return;
-    }
-
-    console.log("Attempting to initialize socket connection...");
-    setMessage("Connecting to server...");
-
-    // Fetch to ensure the server-side initialization logic runs
-    fetch("/api/socket")
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`API check failed: ${res.statusText}`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (data.status !== "running" && data.status !== "initializing") {
-          // Check status from API
-          throw new Error(`Socket server status: ${data.status || "unknown"}`);
-        }
-
-        // Determine Socket URL (use environment variables for production)
-        const socketUrl =
-          process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3009";
-        console.log("Connecting Socket.IO to:", socketUrl);
-
-        const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> =
-          io(socketUrl, {
-            // Optional: Add reconnection attempts, timeouts etc.
-            reconnectionAttempts: 5,
-            reconnectionDelay: 3000,
-            // Add query params if needed for auth, etc. (though login event is better)
-            // query: { username }
-          });
-
-        setSocket(newSocket);
-      })
-      .catch((err) => {
-        console.error("Socket initialization error:", err);
-        setMessage(
-          `Connection failed: ${err.message}. Ensure server is running.`
-        );
-        setSocket(null);
-      });
-  }, [username, socket]);
-
-  // ----- SOCKET EVENT LISTENERS ----- //
-  useEffect(() => {
-    if (!socket) return;
-
-    // --- Connection Handling ---
-    const handleConnect = () => {
-      console.log("Socket connected:", socket.id);
-      setMessage("Connected! Waiting for opponent...");
-      // Emit login *after* successful connection
-      socket.emit("login", username, selectedColor);
-    };
-
-    const handleDisconnect = (reason: Socket.DisconnectReason) => {
-      console.log("Socket disconnected:", reason);
-      setMessage(`Disconnected: ${reason}. Please log in again.`);
-      setPlayerSymbol(null);
-      setLoggedIn(false);
-      setRematchOffered(false);
-      setRematchRequested(false);
-    };
-
-    const handleConnectError = (err: Error) => {
-      console.error("Socket connection error:", err);
-      setMessage(`Connection error: ${err.message}`);
-      setSocket(null);
-    };
-
-    // --- Game Event Handling ---
-    const handlePlayerAssigned = (payload: {
-      symbol: PlayerSymbol;
-      roomId: string;
-      assignedColor: Color;
-    }) => {
-      // Added assignedColor
-      console.log("Player assigned:", payload);
-      setPlayerSymbol(payload.symbol);
-      // Update local color state if different from selectedColor (though server state is king)
-      if (
-        selectedColor !== payload.assignedColor &&
-        payload.symbol === PlayerSymbol.X
-      ) {
-        // Assuming X is 'self' initially
-        setSelectedColor(payload.assignedColor);
-      } else if (
-        opponentColor !== payload.assignedColor &&
-        payload.symbol === PlayerSymbol.O
-      ) {
-        // Assuming O is opponent
-        setOpponentColor(payload.assignedColor);
-      }
-    };
-
-    const handleColorChanged = (payload: {
-      newColor: Color;
-      reason: string;
-    }) => {
-      console.log("Color changed by server:", payload);
-      setMessage(
-        `Your color was changed to ${payload.newColor} (${payload.reason})`
-      );
-      // Update the primary color state based on current playerSymbol
-      if (playerSymbol) {
-        if (playerSymbol === PlayerSymbol.X) setSelectedColor(payload.newColor);
-        // No easy way to know opponent symbol here, rely on gameUpdate/Start
-      }
-      // Optionally update opponentColor if logic allows determination
-    };
-
-    const handlePlayerJoined = (payload: {
-      username: string;
-      symbol: PlayerSymbol;
-    }) => {
-      console.log("Player joined:", payload);
-      setMessage(`${payload.username} (${payload.symbol}) joined.`);
-      // Update opponent name in state if needed
-      if (playerSymbol && payload.symbol !== playerSymbol) {
-        setOpponentName(payload.username);
-      }
-      // Don't clear message immediately, wait for game start or update
-    };
-
-    const handlePlayerLeft = (payload: { symbol: PlayerSymbol | null }) => {
-      console.log("Player left:", payload);
-      setMessage(`Player ${payload.symbol || "?"} left the game. Waiting...`);
-      setOpponentName("");
-      setRematchOffered(false); // Reset rematch state
-      setRematchRequested(false);
-      setGameState((prev) => ({
-        ...prev,
-        gameStatus: GameStatus.WAITING, // Set state to waiting
-        winner: null,
-        // Reset opponent details in players state? Or rely on gameUpdate?
-        // Let's rely on gameUpdate from server for consistency
-      }));
-    };
-
-    const handleGameStart = (initialGameState: GameState) => {
-      console.log("Game start received:", initialGameState);
-      setGameState(initialGameState);
-      setRematchOffered(false); // Reset rematch state on new game
-      setRematchRequested(false);
-      setMessage(
-        `Game started! ${
-          initialGameState.players[initialGameState.currentPlayer]?.username
-        }'s turn.`
-      );
-      // Set opponent name/color from initial state
-      const selfSymbol = playerSymbol; // Get current player's symbol
-      if (selfSymbol) {
-        const opponentSym =
-          selfSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
-        const opponentData = initialGameState.players[opponentSym];
-        if (opponentData?.username) {
-          setOpponentName(opponentData.username);
-          setOpponentColor(opponentData.color); // Set opponent color from state
-        }
-        // Ensure self color matches game state (in case COLOR_CHANGED wasn't processed before game start)
-        if (initialGameState.players[selfSymbol]?.color) {
-          setSelectedColor(initialGameState.players[selfSymbol].color);
-        }
-      }
-    };
-
-    const handleGameUpdate = (updatedGameState: GameState) => {
-      console.log("Game update received:", updatedGameState);
-      setGameState(updatedGameState);
-      setRematchOffered(false); // Reset rematch state if game somehow updates during request
-      setRematchRequested(false);
-      // Update message based on new state
-      if (updatedGameState.winner) {
-        setMessage(
-          updatedGameState.winner === "draw"
-            ? "It's a draw!"
-            : `${
-                updatedGameState.players[updatedGameState.winner]?.username ||
-                `Player ${updatedGameState.winner}`
-              } wins!`
-        );
-        // Game is now completed, UI should allow rematch options
-      } else {
-        setMessage(
-          `${
-            updatedGameState.players[updatedGameState.currentPlayer]
-              ?.username || "Opponent"
-          }'s turn.`
-        );
-      }
-    };
-
-    const handleGameReset = (resetGameState: GameState) => {
-      console.log("Game reset (rematch accepted):", resetGameState);
-      setGameState(resetGameState);
-      setRematchOffered(false); // Reset rematch flags
-      setRematchRequested(false);
-      setMessage("Rematch started!");
-      setTimeout(
-        () =>
-          setMessage(
-            `${
-              resetGameState.players[resetGameState.currentPlayer]?.username
-            }'s turn.`
-          ),
-        1500
-      );
-    };
-
-    const handleRematchRequested = (payload: {
-      requesterSymbol: PlayerSymbol;
-    }) => {
-      console.log("Rematch requested by:", payload.requesterSymbol);
-      // Only show offer if it wasn't this player who requested it
-      if (payload.requesterSymbol !== playerSymbol) {
-        setRematchOffered(true);
-        setMessage(`${opponentName || "Opponent"} wants a rematch!`);
-      }
-    };
-
-    const handleError = (errorMessage: string) => {
-      console.error("Server error received:", errorMessage);
-      // Check if the error relates to a declined rematch
-      if (errorMessage.toLowerCase().includes("declined the rematch")) {
-        setRematchRequested(false); // Allow requesting again
-      }
-      setMessage(`Error: ${errorMessage}`);
-    };
-
-    // --- Register Listeners ---
-    socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
-    socket.on("connect_error", handleConnectError);
-    socket.on("playerAssigned", handlePlayerAssigned);
-    socket.on("colorChanged", handleColorChanged); // Listen for color changes
-    socket.on("playerJoined", handlePlayerJoined);
-    socket.on("playerLeft", handlePlayerLeft);
-    socket.on("gameStart", handleGameStart);
-    socket.on("gameUpdate", handleGameUpdate);
-    socket.on("gameReset", handleGameReset);
-    socket.on("rematchRequested", handleRematchRequested); // Listen for rematch offers
-    socket.on("error", handleError);
-
-    // --- Cleanup Function ---
-    return () => {
-      console.log("Cleaning up socket listeners...");
-      socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
-      socket.off("connect_error", handleConnectError);
-      socket.off("playerAssigned", handlePlayerAssigned);
-      socket.off("colorChanged", handleColorChanged);
-      socket.off("playerJoined", handlePlayerJoined);
-      socket.off("playerLeft", handlePlayerLeft);
-      socket.off("gameStart", handleGameStart);
-      socket.off("gameUpdate", handleGameUpdate);
-      socket.off("gameReset", handleGameReset);
-      socket.off("rematchRequested", handleRematchRequested);
-      socket.off("error", handleError);
-    };
-    // Dependencies need review - ensure all state used inside handlers that should trigger re-binding is listed
-  }, [socket, username, playerSymbol, selectedColor, opponentColor, opponentName, gameState]); // Added opponentName
-
-  // online click handlers
-
-  const handleRequestRematchClick = () => {
-    if (socket && gameState.gameStatus === GameStatus.COMPLETED) {
-      console.log("Requesting rematch...");
-      socket.emit(Events.REQUEST_REMATCH);
-      setRematchRequested(true); // Update own state
-      setMessage("Rematch requested. Waiting for opponent...");
-    }
-  };
-
-  const handleAcceptRematchClick = () => {
-    if (socket && rematchOffered) {
-      console.log("Accepting rematch...");
-      socket.emit(Events.ACCEPT_REMATCH);
-      setRematchOffered(false); // Clear offer state
-      // Game state will be updated by server via gameReset event
-    }
-  };
-
-  const handleDeclineRematchClick = () => {
-    if (socket && rematchOffered) {
-      console.log("Declining rematch...");
-      socket.emit(Events.DECLINE_REMATCH);
-      setRematchOffered(false); // Clear offer state
-      setMessage("Rematch declined.");
-      // Consider automatically leaving or letting user click Leave Room separately
-      // handleLeaveRoomClick(); // Option: leave immediately after declining
-    }
-  };
-
-  const handleLeaveRoomClick = () => {
-    if (socket) {
-      console.log("Leaving room...");
-      socket.emit(Events.LEAVE_ROOM);
-    }
-    exitGame(); // Call existing exit function to clean up client state/disconnect
-  };
-
-  // ----- COMPUTER MOVES ----- //
-  useEffect(() => {
-    if (!isAITurn(gameState)) {
-      return;
-    }
-
-    const cleanup = handleAI_Move(gameState, setGameState, aiDifficulty);
-    return cleanup;
-  }, [gameState, aiDifficulty]);
-
-  // ----- USER LOGIN ----- //
-  const handleLogin = () => {
-    if (!username.trim()) {
-      setMessage("Please enter a username.");
-      return;
-    }
-
-    if (gameMode === GameModes.ONLINE) {
-      // Initialize socket connection (will emit login on connect)
-      initializeSocket();
-      setLoggedIn(true); // Set loggedIn immediately for UI change
-      setMessage("Connecting...");
-    } else {
-      // cleanupSocketConnection(gameMode, socket);
-      setGameState(
-        createInitialGameState(username, gameMode, {
-          opponentName,
-          playerColor: selectedColor,
-          opponentColor,
-          // aiDifficulty: gameMode === GameModes.VS_COMPUTER ? aiDifficulty : undefined, // Pass difficulty only if relevant
-        })
-      );
-      setPlayerSymbol(PlayerSymbol.X);
-      setMessage("");
-
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-      }
-    }
-
-    setLoggedIn(true);
-  };
-
-  // ----- USER MOVES ----- //
-  const handleCellClick = (index: number) => {
-    if (!loggedIn) return;
-
-    // Clear timer immediately on attempted move
-    if (timerIntervalId) {
-      clearInterval(timerIntervalId);
-      setTimerIntervalId(null);
-    }
-
-    // ONLINE
-    if (gameMode === GameModes.ONLINE) {
-      if (!socket || !socket.connected) {
-        setMessage("Not connected to server.");
-        return;
-      }
-      if (playerSymbol !== gameState.currentPlayer) {
-        setMessage("It's not your turn.");
-        return;
-      }
-      if (gameState.board[index] !== null || gameState.winner) {
-        setMessage("Invalid move.");
-        return;
-      }
-      // If all checks pass, emit the move
-      socket.emit("move", index);
-    }
-    // LOCAL
-    else {
-      if (!isValidMove(gameState, index, loggedIn)) {
-        setMessage("Invalid move.");
-        return;
-      }
-
-      if (CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)) {
-        const newState = makeMove(gameState, index);
-        setGameState(newState);
-      } else {
-        setMessage("It's not your turn");
-        setTimeout(() => setMessage(""), 2000);
-      }
-    }
-  };
-
-
-
-  // Timer - only run for human player's turn
-  useEffect(() => {
-    // Don't run timer during AI turn
-    if (isAITurn(gameState)) {
-      timerMoveMadeRef.current = null;
-      return;
-    }
-
-    // Reset the timer move flag when it's human's turn
-    timerMoveMadeRef.current = null;
-
-    // Only start a new timer if game is active and no winner
-    const isActive = isGameActive(gameState) && !gameState.winner;
-
-    if (
-      isActive &&
-      gameState.turnTimeRemaining &&
-      gameState.turnTimeRemaining > 0
-    ) {
-      console.log("Starting timer for player", gameState.currentPlayer);
-
-      const intervalId = setInterval(() => {
-        setGameState((prevGameState) => {
-          const newTime = (prevGameState.turnTimeRemaining || 0) - 100;
-
-          if (newTime <= 0) {
-            // Prevent multiple auto-moves per turn
-            if (timerMoveMadeRef.current === prevGameState.currentPlayer) {
-              console.log("Timer move already made, skipping");
-              return { ...prevGameState, turnTimeRemaining: 0 };
-            }
-            
-            timerMoveMadeRef.current = prevGameState.currentPlayer;
-            console.log(
-              "Timer ended. Random Move generated for",
-              prevGameState.currentPlayer
-            );
-
-            const randomMoveIndex = findRandomValidMove(prevGameState);
-
-            if (
-              randomMoveIndex !== null &&
-              CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
-            ) {
-              return makeMove(prevGameState, randomMoveIndex);
-            }
-
-            return { ...prevGameState, turnTimeRemaining: 0 };
-          }
-
-          return { ...prevGameState, turnTimeRemaining: newTime };
-        });
-      }, 100);
-
-      return () => {
-        clearInterval(intervalId);
-      };
-    }
-  }, [gameState, gameMode, playerSymbol]);
-
-  // ----- RESET GAME ----- //
-  const resetGame = () => {
-    if (gameMode === GameModes.ONLINE) {
-      if (socket && socket.connected) {
-        // Optional: Add confirmation dialog?
-        socket.emit("reset"); // Emit 'reset'
-      } else {
-        setMessage("Not connected to server.");
-      }
-    } else {
-      setMessage("");
-      setGameState(
-        createInitialGameState(username, gameMode, {
-          opponentName,
-          playerColor: selectedColor,
-          opponentColor,
-        })
-      );
-    }
-    // Clear any active interval immediately on reset
-    if (timerIntervalId) {
-      clearInterval(timerIntervalId);
-      setTimerIntervalId(null);
-    }
-  };
-
-  // ----- EXIT GAME ----- //
-  const exitGame = () => {
+  // ----- EXIT GAME -----
+  const exitGame = useCallback(() => {
     setLoggedIn(false);
     setGameState(createFreshGameState());
     setPlayerSymbol(null);
@@ -564,19 +71,120 @@ export default function Home() {
     setOpponentName("");
     setRematchOffered(false);
     setRematchRequested(false);
-    setAI_Difficulty(aiDifficulty || AI_Difficulty.NORMAL);
+    refreshStats();
+  }, [refreshStats]);
 
-    if (socket) {
-      console.log("Disconnecting socket on exit...");
-      if (socket.connected) {
-        socket.disconnect();
-      }
-      setSocket(null);
+  // ----- SOCKET HOOK -----
+  const {
+    socket,
+    initializeSocket,
+    handleSocketMove,
+    requestRematch,
+    acceptRematch,
+    declineRematch,
+    leaveRoom,
+    resetSocketGame
+  } = useSocketGame(
+    username,
+    selectedColor,
+    playerSymbol,
+    setPlayerSymbol,
+    setGameState,
+    setOpponentName,
+    setOpponentColor,
+    setSelectedColor,
+    setMessage,
+    setLoggedIn,
+    setRematchOffered,
+    setRematchRequested,
+    exitGame
+  );
+
+  // ----- LOCAL GAME HOOK -----
+  const { handleLocalMove, resetLocalGame } = useLocalGame(
+    gameState,
+    setGameState,
+    gameMode,
+    aiDifficulty,
+    loggedIn,
+    playerSymbol,
+    setMessage
+  );
+
+  // ----- TIMER HOOK -----
+  useGameTimer(gameState, setGameState, gameMode, playerSymbol);
+
+  // ----- EVENT HANDLERS -----
+  const handleLogin = useCallback(() => {
+    if (!username.trim()) {
+      setMessage("Please enter a username.");
+      return;
     }
-    // Clear any active interval immediately on reset
-    if (timerIntervalId) {
-      clearInterval(timerIntervalId);
-      setTimerIntervalId(null);
+
+    localStorage.setItem("tictactoe_username", username.trim());
+
+    if (gameMode === GameModes.ONLINE) {
+      initializeSocket();
+    } else {
+      setGameState(
+        createInitialGameState(username, gameMode, {
+          opponentName,
+          playerColor: selectedColor,
+          opponentColor,
+        })
+      );
+      setPlayerSymbol(PlayerSymbol.X);
+      setMessage("");
+      if (socket) socket.disconnect();
+    }
+    setLoggedIn(true);
+  }, [username, gameMode, initializeSocket, opponentName, selectedColor, opponentColor, socket]);
+
+  const handleGuestPlay = useCallback(() => {
+    const guestName = `Guest-${Math.floor(Math.random() * 9000) + 1000}`;
+    setUsername(guestName);
+    localStorage.setItem("tictactoe_username", guestName);
+
+    if (gameMode === GameModes.ONLINE) {
+      setMessage("Connecting to server...");
+      // initializeSocket reads usernameRef.current internally, which will be updated
+      // on next render. For the guard check, pass guestName directly.
+      // We setLoggedIn after socket init since it's async.
+      initializeSocket();
+      setLoggedIn(true);
+    } else {
+      setGameState(
+        createInitialGameState(guestName, gameMode, {
+          opponentName,
+          playerColor: selectedColor,
+          opponentColor,
+        })
+      );
+      setPlayerSymbol(PlayerSymbol.X);
+      setMessage("");
+      if (socket) socket.disconnect();
+      setLoggedIn(true);
+    }
+  }, [gameMode, initializeSocket, opponentName, selectedColor, opponentColor, socket]);
+
+  const handleCellClick = (index: number) => {
+    if (!loggedIn) return;
+    if (gameMode === GameModes.ONLINE) {
+      if (playerSymbol !== gameState.currentPlayer) {
+        setMessage("It's not your turn.");
+        return;
+      }
+      handleSocketMove(index);
+    } else {
+      handleLocalMove(index);
+    }
+  };
+
+  const handleReset = () => {
+    if (gameMode === GameModes.ONLINE) {
+      resetSocketGame();
+    } else {
+      resetLocalGame(username, opponentName, selectedColor, opponentColor);
     }
   };
 
@@ -584,65 +192,53 @@ export default function Home() {
 
   return (
     <>
-      <div className="h-[100vh] w-[100vw] overflow-hidden flex">
-        {/* Sidebar */}
-        <AppSidebar gameState={gameState} gameMode={gameMode} isLoggedIn={loggedIn} />
-
-        {/* Main Content Area */}
-        <SidebarInset className="flex-1 h-full overflow-hidden">
-          <div
-            className="h-full flex flex-col items-center justify-center p-2 sm:p-4 
-            bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)]
-            w-full overflow-hidden"
-          >
+      <AppSidebar gameState={gameState} gameMode={gameMode} isLoggedIn={loggedIn} stats={stats} />
+      <SidebarInset className="flex-1 h-full overflow-hidden">
+        <div className="h-full flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden">
+          {!loggedIn ? (
             <main className="w-full max-w-7xl h-full flex flex-col items-center justify-center gap-4 sm:gap-8 p-4 sm:p-6 lg:p-8">
-              {!loggedIn ? (
-                <LoginForm
-                  username={username}
-                  setUsername={setUsername}
-                  gameMode={gameMode}
-                  setGameMode={setGameMode}
-                  selectedColor={selectedColor}
-                  setSelectedColor={setSelectedColor}
-                  opponentName={opponentName}
-                  setOpponentName={setOpponentName}
-                  opponentColor={opponentColor}
-                  setOpponentColor={setOpponentColor}
-                  aiDifficulty={aiDifficulty}
-                  setAiDifficulty={setAI_Difficulty}
-                  handleLogin={handleLogin}
-                />
-              ) : (
-                <>
-                  <PlayersPanel 
-                    gameState={gameState} 
-                    message={message}
-                    onNewGame={resetGame}
-                    onExit={exitGame}
-                  />
-                  <GameBoard
-                    gameState={gameState}
-                    handleCellClick={handleCellClick}
-                    resetGame={resetGame}
-                    exitGame={exitGame}
-                    isGameOver={isGameOver}
-                    rematchOffered={rematchOffered}
-                    rematchRequested={rematchRequested}
-                    onRequestRematch={handleRequestRematchClick}
-                    onAcceptRematch={handleAcceptRematchClick}
-                    onDeclineRematch={handleDeclineRematchClick}
-                    onLeaveRoom={handleLeaveRoomClick}
-                    winningCombination={gameState.winningCombination}
-                    lastMoveIndex={gameState.lastMoveIndex}
-                  />
-                </>
-              )}
+              <LoginForm
+                username={username}
+                setUsername={setUsername}
+                gameMode={gameMode}
+                setGameMode={setGameMode}
+                selectedColor={selectedColor}
+                setSelectedColor={setSelectedColor}
+                opponentName={opponentName}
+                setOpponentName={setOpponentName}
+                opponentColor={opponentColor}
+                setOpponentColor={setOpponentColor}
+                aiDifficulty={aiDifficulty}
+                setAiDifficulty={setAI_Difficulty}
+                handleLogin={handleLogin}
+                handleGuestPlay={handleGuestPlay}
+              />
+              <PageFooter />
             </main>
-
-            <PageFooter />
-          </div>
-        </SidebarInset>
-      </div>
+          ) : (
+            <main className="w-full h-full flex flex-col items-center justify-start md:justify-center gap-1 sm:gap-1.5 md:gap-3 p-1 sm:p-2 md:p-6 overflow-y-auto md:overflow-hidden">
+              <PlayersPanel gameState={gameState} message={message} onNewGame={handleReset} onExit={exitGame} />
+              <div className="flex-1 w-full flex items-center justify-center min-h-0">
+                <GameBoard
+                  gameState={gameState}
+                  handleCellClick={handleCellClick}
+                  resetGame={handleReset}
+                  exitGame={exitGame}
+                  isGameOver={isGameOver}
+                  rematchOffered={rematchOffered}
+                  rematchRequested={rematchRequested}
+                  onRequestRematch={requestRematch}
+                  onAcceptRematch={acceptRematch}
+                  onDeclineRematch={declineRematch}
+                  onLeaveRoom={leaveRoom}
+                  winningCombination={gameState.winningCombination}
+                  lastMoveIndex={gameState.lastMoveIndex}
+                />
+              </div>
+            </main>
+          )}
+        </div>
+      </SidebarInset>
     </>
   );
 }

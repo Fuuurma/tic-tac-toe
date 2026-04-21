@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/menu/themeProvider";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdProvider } from "@/components/common/adProvider";
 import { PWAWrapper } from "@/components/common/pwaWrapper";
 import { ClientSidebarWrapper } from "@/components/common/clientSidebarWrapper";

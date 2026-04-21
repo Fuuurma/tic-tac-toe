@@ -122,18 +122,18 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   };
 
   return (
-    <div className="w-full mx-2 sm:mx-4">
+    <div className="w-full px-1 sm:px-2 md:mx-4 flex-shrink-0">
       {/* Matchmaking Loading State */}
       {isWaiting && (
-        <div className="bg-card/80 backdrop-blur-md border-2 rounded-xl shadow-xl p-6 animate-in fade-in glassmorphism">
+        <div className="bg-card/80 backdrop-blur-md border-2 rounded-xl shadow-xl p-4 sm:p-6 animate-in fade-in glassmorphism">
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="relative">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <div className="absolute inset-0 h-12 w-12 animate-ping rounded-full bg-primary/20" />
+              <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-primary" />
+              <div className="absolute inset-0 h-8 w-8 sm:h-12 sm:w-12 animate-ping rounded-full bg-primary/20" />
             </div>
             <div className="text-center">
-              <h3 className="text-lg font-bold text-foreground">Waiting for Opponent</h3>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h3 className="text-base sm:text-lg font-bold text-foreground">Waiting for Opponent</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 {message || "Finding a player..."}
               </p>
             </div>
@@ -142,7 +142,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={onExit}
-                className="gap-1"
+                className="gap-1 text-xs sm:text-sm"
               >
                 <LogOut className="h-3 w-3" />
                 Cancel
@@ -155,13 +155,13 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
       {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
         <div className={cn(
-          "mb-4 bg-gradient-to-r text-white px-4 py-4 rounded-xl shadow-2xl animate-in zoom-in-95 border-2 border-white/30",
+          "mb-2 sm:mb-4 bg-gradient-to-r text-white px-3 sm:px-4 py-2 sm:py-4 rounded-lg sm:rounded-xl shadow-2xl animate-in zoom-in-95 border-2 border-white/30",
           getWinnerColor()
         )}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center justify-center gap-3 flex-1">
-              {winner !== "draw" && (
-                <span className={cn("text-4xl font-bold drop-shadow-lg", getWinnerSymbolColor())}>
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 flex-1 min-w-0">
+              {winner && (
+                <span className={cn("text-3xl sm:text-4xl font-bold drop-shadow-lg flex-shrink-0", getWinnerSymbolColor())}>
                   {winner}
                 </span>
               )}
@@ -169,18 +169,19 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 message={null}
                 winner={winner}
                 winningPlayerName={winnerName}
+                moveCount={gameState.moveCount}
               />
             </div>
-            <div className="flex gap-2 shrink-0">
-              <ShareButton 
-                title={winner === "draw" ? "Tic Tac Toe - Draw!" : `Tic Tac Toe - ${winnerName} Wins!`}
-                text={winner === "draw" ? "We tied! Can you beat me?" : `${winnerName} won! Can you beat me?`}
+            <div className="flex gap-1 sm:gap-2 shrink-0">
+              <ShareButton
+                title={`Tic Tac Toe - ${winnerName} Wins!`}
+                text={`${winnerName} won! Can you beat me?`}
               />
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={onNewGame}
-                className="gap-1 bg-white/20 hover:bg-white/30 border-0 text-white hover:text-white"
+                className="gap-1 bg-white/20 hover:bg-white/30 border-0 text-white hover:text-white text-xs"
               >
                 <RotateCcw className="h-3 w-3" />
                 <span className="hidden sm:inline">New</span>
@@ -189,7 +190,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onExit}
-                className="gap-1 text-white/80 hover:text-white hover:bg-white/20"
+                className="gap-1 text-white/80 hover:text-white hover:bg-white/20 text-xs"
               >
                 <LogOut className="h-3 w-3" />
               </Button>
@@ -199,36 +200,30 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
       )}
 
       {/* Main Info Card */}
-      <div className="bg-card/80 backdrop-blur-md border-2 rounded-xl shadow-xl p-3 sm:p-4 glassmorphism">
+      <div className="bg-card/80 backdrop-blur-md border-2 rounded-lg sm:rounded-xl shadow-xl p-1.5 sm:p-3 md:p-4 glassmorphism flex-shrink-0 w-full">
         {/* Header with Game Mode and Actions */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-bold text-foreground uppercase tracking-wider">
+        <div className="flex items-start sm:items-center justify-between mb-1.5 sm:mb-2 gap-1 sm:gap-2">
+          <div className="min-w-0">
+            <h2 className="text-xs sm:text-base font-bold text-foreground uppercase tracking-wider leading-tight">
               {gameMode.replace("_", " ")}
             </h2>
-            {playerType && (
-              <p className="text-xs text-muted-foreground">
-                Playing as: <span className="font-medium">{playerType}</span>
-              </p>
-            )}
           </div>
           {/* Hide buttons when game is over (shown in banner instead) */}
           {isGameActive && (
-            <div className="flex gap-2">
+            <div className="flex gap-0.5 sm:gap-1 flex-shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onNewGame}
-                className="gap-1 hover:bg-accent transition-colors"
+                className="gap-1 hover:bg-accent transition-colors text-xs p-1 h-6"
               >
                 <RotateCcw className="h-3 w-3" />
-                New
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onExit}
-                className="gap-1 text-muted-foreground hover:text-destructive transition-colors"
+                className="gap-1 text-muted-foreground hover:text-destructive transition-colors p-1 h-6"
               >
                 <LogOut className="h-3 w-3" />
               </Button>
@@ -237,7 +232,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
         </div>
 
         {/* Player Badges */}
-        <div className="flex justify-center items-center gap-2 sm:gap-3">
+        <div className="flex justify-center items-center gap-2 sm:gap-4 mb-1 sm:mb-2 flex-shrink-0">
           <PlayerInfoBadge
             symbol={PlayerSymbol.X}
             username={players.X.username}
@@ -245,13 +240,13 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             color={players.X.color}
             isCurrentPlayer={isXTurn}
           />
-          
-          <div className="flex flex-col items-center gap-1 px-1">
-            <span className="text-xs sm:text-sm font-bold text-muted-foreground">VS</span>
+
+          <div className="flex flex-col items-center gap-1 px-2">
+            <span className="text-sm sm:text-base font-bold text-muted-foreground leading-none">VS</span>
             {isGameActive && (
               <div className="relative">
-                <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                <div className="absolute inset-0 h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                <div className="h-1 w-1 rounded-full bg-amber-500 animate-pulse" />
+                <div className="absolute inset-0 h-1 w-1 rounded-full bg-amber-500 animate-ping" />
               </div>
             )}
           </div>
@@ -267,53 +262,38 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
 
         {/* Enhanced Timer */}
         {isGameActive && turnTimeRemaining !== undefined && (
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground flex items-center gap-2">
+          <div className="space-y-1 flex-shrink-0">
+            <div className="flex items-center justify-between text-[10px] sm:text-xs gap-1">
+              <span className="text-muted-foreground flex items-center gap-0.5 truncate">
                 {isAITurn ? (
-                  <span className="flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    AI thinking...
+                  <span className="flex items-center gap-0.5">
+                    <Loader2 className="h-2 w-2 animate-spin flex-shrink-0" />
+                    <span className="hidden xs:inline">AI</span>
                   </span>
                 ) : (
                   <>
-                    <Clock className="h-3 w-3" />
-                    {players[currentPlayer]?.username}&apos;s turn
+                    <Clock className="h-2 w-2 flex-shrink-0" />
                   </>
                 )}
               </span>
               <span className={cn(
-                "font-mono font-bold text-lg tabular-nums transition-colors duration-300",
+                "font-mono font-bold text-sm sm:text-base tabular-nums transition-colors duration-300 flex items-center gap-0.5 flex-shrink-0",
                 getTimerColor(),
                 timerPulse && "animate-timer-pulse"
               )}>
                 {displayTime}s
-                {timerPulse && <AlertCircle className="inline-block h-4 w-4 ml-1 animate-bounce" />}
               </span>
             </div>
             
             {/* Progress Bar with Gradient */}
-            <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+            <div className="relative h-1.5 bg-muted rounded-full overflow-hidden flex-shrink-0">
               <div 
                 className={cn(
                   "absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out bg-gradient-to-r",
                   getProgressGradient()
                 )}
                 style={{ width: `${progressValue}%` }}
-              >
-                {/* Shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-              </div>
-              
-              {/* Low time indicator segments */}
-              <div className="absolute inset-0 flex">
-                {[...Array(10)].map((_, i) => (
-                  <div 
-                    key={i} 
-                    className="flex-1 border-r border-background/20 last:border-r-0"
-                  />
-                ))}
-              </div>
+              />
             </div>
           </div>
         )}

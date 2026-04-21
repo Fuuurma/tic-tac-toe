@@ -60,14 +60,15 @@ function createInitialGameState(players = {}) {
   };
 }
 
-function checkWinner(board) {
+function checkWinner(board, currentPlayer) {
   for (const [a, b, c] of WINNING_COMBINATIONS) {
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
       return board[a];
     }
   }
   if (board.every((cell) => cell !== null)) {
-    return "draw";
+    // In the 3-piece variant, draws are impossible - current player loses
+    return currentPlayer === "X" ? "O" : "X";
   }
   return null;
 }
@@ -100,8 +101,9 @@ function makeMove(gameState, index) {
 
   playerMoves.push(index);
   newState.board[index] = player;
+  newState.lastMoveIndex = index;
 
-  newState.winner = checkWinner(newState.board);
+  newState.winner = checkWinner(newState.board, player);
 
   if (!newState.winner) {
     if (playerMoves.length === GAME_RULES.MAX_MOVES_PER_PLAYER) {
@@ -145,6 +147,14 @@ class GameRoom {
       this.gameState.players[player.symbol].username = "";
       this.players.delete(socketId);
     }
+    
+    // If room becomes empty, reset it completely
+    if (this.isEmpty()) {
+      this.gameState = createInitialGameState();
+      this.rematchState = "none";
+      this.rematchRequester = null;
+    }
+    
     return player;
   }
 
@@ -276,8 +286,8 @@ app.prepare().then(() => {
 
     // ========== LOGIN ==========
     socket.on("login", (username, color) => {
-      if (!username || typeof username !== "string" || username.trim().length === 0) {
-        socket.emit("error", "Invalid username");
+      if (!username || typeof username !== "string" || username.trim().length === 0 || username.length > 20) {
+        socket.emit("error", "Invalid username (max 20 characters)");
         return;
       }
 

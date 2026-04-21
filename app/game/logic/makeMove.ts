@@ -1,6 +1,6 @@
 import { GameState, WinningLine } from "@/app/types/types";
 import { checkWinner } from "./checkWinner";
-import { PlayerSymbol, TURN_DURATION_MS } from "../constants/constants";
+import { PlayerSymbol, TURN_DURATION_MS, GameStatus } from "../constants/constants";
 
 export const makeMove = (gameState: GameState, index: number): GameState => {
   // Validate index bounds
@@ -43,11 +43,17 @@ export const makeMove = (gameState: GameState, index: number): GameState => {
   playerMoves.push(index);
   newGameState.board[index] = player;
   newGameState.lastMoveIndex = index;
+  newGameState.moveCount = gameState.moveCount + 1;
 
   // Check for winner
-  const winnerResult = checkWinner(newGameState.board);
+  const winnerResult = checkWinner(newGameState.board, newGameState.currentPlayer);
   newGameState.winner = winnerResult.winner;
   newGameState.winningCombination = winnerResult.winningCombination;
+
+  // Set game status to COMPLETED if game is finished
+  if (newGameState.winner) {
+    newGameState.gameStatus = GameStatus.COMPLETED;
+  }
 
   // If no winner, switch player and update nextToRemove
   if (!newGameState.winner) {

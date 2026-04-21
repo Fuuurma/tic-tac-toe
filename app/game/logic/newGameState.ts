@@ -37,6 +37,7 @@ export const createFreshGameState = (): GameState => {
     gameMode: GameModes.VS_COMPUTER,
     nextToRemove: { [PlayerSymbol.X]: null, [PlayerSymbol.O]: null },
     maxMoves: 3,
+    moveCount: 0,
     gameStatus: GameStatus.WAITING,
   };
 };
