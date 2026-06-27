@@ -182,7 +182,7 @@ import GameBoard from "@/components/game/board";
 - Use typed events: `ServerToClientEvents`, `ClientToServerEvents`
 - Clean up listeners in useEffect cleanup function
 - Handle connection/disconnection gracefully
-- Default server URL: `http://localhost:3009` (configurable via NEXT_PUBLIC_SOCKET_URL)
+- Default server URL: current browser origin (configurable via NEXT_PUBLIC_SOCKET_URL when Socket.IO is hosted separately)
 - Production: use `pnpm start:prod` to run the custom server
 
 ### Styling
@@ -216,7 +216,7 @@ import GameBoard from "@/components/game/board";
 
 ## Environment Variables
 
-- `NEXT_PUBLIC_SOCKET_URL` - Socket.IO server URL (default: http://localhost:3009)
+- `NEXT_PUBLIC_SOCKET_URL` - Optional Socket.IO server URL when it is hosted separately from the Next.js app
 - `NODE_ENV` - Environment (development/production)
 
 ## Key Constants Reference

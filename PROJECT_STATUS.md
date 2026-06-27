@@ -23,7 +23,7 @@
 - [x] Client/Server logic synchronized
 
 ### Platform Support
-- [x] Web (Next.js 15)
+- [x] Web (Next.js 16)
 - [x] iOS (Capacitor)
 - [x] Android (Capacitor)
 - [x] PWA (Service Worker + Manifest)

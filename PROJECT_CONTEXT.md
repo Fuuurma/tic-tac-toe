@@ -15,7 +15,7 @@ High-performance TicTacToe implementation featuring a strategic 3-piece variant.
 ## Tech Stack
 
 ### Unified Frontend
-- **Framework:** Next.js 15+, React 19
+- **Framework:** Next.js 16, React 19
 - **Mobile:** Capacitor 8+ (iOS/Android)
 - **Styling:** Tailwind CSS 4+
 - **State Management:** Custom specialized hooks

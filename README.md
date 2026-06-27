@@ -15,7 +15,7 @@ A high-performance, multi-platform TicTacToe game featuring a unique strategic t
 
 ## Tech Stack
 
-- **Framework**: Next.js 15+, React 19, TypeScript
+- **Framework**: Next.js 16, React 19, TypeScript
 - **Mobile**: Capacitor 8+
 - **Styling**: Tailwind CSS 4+
 - **Real-time**: Socket.IO 4+
@@ -56,7 +56,7 @@ pnpm cap:sync         # Sync to mobile platforms
 ## Deployment
 
 ### Web & Backend (Railway)
-Deploy `server.js` to Railway or similar providers. Ensure `NEXT_PUBLIC_SOCKET_URL` is set to your deployment URL.
+Deploy `server.js` to Railway or similar providers. The Next.js app and Socket.IO server run on the same origin by default, so `NEXT_PUBLIC_SOCKET_URL` is only needed when the Socket.IO server is hosted separately.
 
 ### Mobile (Capacitor)
 1. `pnpm build`

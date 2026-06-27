@@ -22,9 +22,9 @@
    - Railway will auto-detect the Dockerfile
 
 3. **Configure Environment Variables**
-   In Railway project settings, add:
+   The app works without socket-specific environment variables when Next.js and Socket.IO are served from the same Railway service. Add these only when needed:
    ```
-   NEXT_PUBLIC_SOCKET_URL=https://your-app-name.up.railway.app
+   NEXT_PUBLIC_SOCKET_URL=https://your-socket-host.example.com  # Only if Socket.IO is hosted separately
    NEXT_PUBLIC_ADSENSE_CLIENT_ID=     # Add after getting AdSense approval
    NEXT_PUBLIC_ADSENSE_BANNER_SLOT=   # Add after getting AdSense approval
    ```
@@ -51,7 +51,7 @@
      - Start Command: `npm run start:prod`
 
 4. **Environment Variables**
-   Add same variables as Railway above
+   Add the same optional variables as Railway above
 
 5. **Deploy**
 
@@ -73,8 +73,9 @@
 ## Troubleshooting
 
 ### Socket.IO not working
-- Make sure `NEXT_PUBLIC_SOCKET_URL` matches your deployment URL
-- Check that both Next.js and Socket.IO are running on the same port
+- If Socket.IO is on the same service as Next.js, leave `NEXT_PUBLIC_SOCKET_URL` unset so the client uses the current origin.
+- If Socket.IO is hosted separately, make sure `NEXT_PUBLIC_SOCKET_URL` matches that separate server URL.
+- Check that the custom `server.js` process is running, not a static-only Next.js server.
 
 ### Build fails
 - Ensure pnpm is available: `corepack enable`
