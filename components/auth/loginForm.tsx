@@ -91,8 +91,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     <form onSubmit={handleSubmit} className="w-full max-w-[27rem]">
       <Card className="gap-0 overflow-hidden border-2 bg-card/90 py-0 shadow-2xl backdrop-blur-md">
         <div className="h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-amber-500" />
-        <CardHeader className="px-4 pb-3 pt-5 text-center sm:px-6">
-          <div className="mx-auto mb-3 grid h-12 w-12 grid-cols-3 gap-1 rounded-xl border bg-background/80 p-1 shadow-inner">
+        <CardHeader className="px-4 pb-2 pt-4 text-center sm:px-6 sm:pb-3 sm:pt-5">
+          <div className="mx-auto mb-2 grid h-10 w-10 grid-cols-3 gap-1 rounded-xl border bg-background/80 p-1 shadow-inner sm:mb-3 sm:h-12 sm:w-12">
             {["X", "", "O", "", "X", "", "O", "", "X"].map((mark, index) => (
               <span
                 key={`${mark}-${index}`}
@@ -106,11 +106,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           <CardTitle className="text-2xl font-black tracking-normal">
             Tic Tac Toe
           </CardTitle>
-          <CardDescription className="text-xs">
+          <CardDescription className="text-xs leading-tight">
             Pick a mode, choose your color, and jump in.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 px-4 pb-3 pt-0 sm:px-6">
+        <CardContent className="space-y-2.5 px-4 pb-3 pt-0 sm:space-y-3 sm:px-6">
           <ErrorMessage message={error} />
 
           <PlayerInputSection
@@ -156,12 +156,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             />
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-2 px-4 pb-4 pt-0 sm:px-6">
+        <CardFooter className="flex flex-col gap-2 px-4 pb-3 pt-0 sm:px-6 sm:pb-4">
           <Button
             type="submit"
             size="lg"
             className={`
-              h-12 w-full rounded-lg text-base font-bold
+              h-11 w-full rounded-lg text-base font-bold sm:h-12
               transition-all duration-200 ease-in-out
               flex items-center justify-center gap-2
               ${validationResult.isValid 

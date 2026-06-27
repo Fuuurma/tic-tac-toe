@@ -35,12 +35,12 @@ export const PlayerInputSection: React.FC<PlayerInputSectionProps> = React.memo(
     const usernameId = `${idPrefix}-username`;
 
     return (
-      <div className="space-y-2 rounded-lg border bg-background/40 p-3">
+      <div className="space-y-2 rounded-lg border bg-background/40 p-2.5 sm:p-3">
         <div className="flex items-center gap-2 text-foreground">
           <Icon className="h-4 w-4" />
           <h3 className="text-sm font-medium">{title}</h3>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_auto] sm:items-end sm:gap-3">
           <div className="space-y-1">
             <Label htmlFor={usernameId} className="text-xs">{usernameLabel}</Label>
             <Input

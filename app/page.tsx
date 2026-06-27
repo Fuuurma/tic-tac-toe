@@ -225,9 +225,9 @@ export default function Home() {
               <PageFooter />
             </main>
           ) : (
-            <main className="w-full min-h-0 h-full flex flex-col items-center justify-start md:justify-center gap-2 sm:gap-3 p-2 sm:p-3 md:p-6 overflow-hidden">
+            <main className="w-full min-h-0 h-full flex flex-col items-center justify-center gap-2 p-2 sm:gap-3 sm:p-3 md:p-6 overflow-y-auto md:overflow-hidden">
               <PlayersPanel gameState={gameState} message={message} onNewGame={handleReset} onExit={exitGame} />
-              <div className="flex-1 w-full flex items-start md:items-center justify-center min-h-0">
+              <div className="w-full flex flex-none items-center justify-center min-h-0 md:flex-1">
                 <GameBoard
                   gameState={gameState}
                   handleCellClick={handleCellClick}

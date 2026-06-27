@@ -95,7 +95,7 @@ export interface ServerToClientEvents {
     assignedColor: Color;
   }) => void;
   playerJoined: (payload: { username: string; symbol: PlayerSymbol }) => void;
-  playerLeft: (payload: { symbol: PlayerSymbol | null }) => void;
+  playerLeft: (payload: { symbol: PlayerSymbol | null; gameState?: GameState }) => void;
   gameStart: (gameState: GameState) => void;
   rematchRequested: (payload: { requesterSymbol: PlayerSymbol }) => void;
   colorChanged: (payload: { newColor: Color; reason: string }) => void;

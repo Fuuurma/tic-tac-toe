@@ -30,7 +30,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = React.memo(
     availableColors = defaultColors,
   }) => {
     return (
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {Object.entries(availableColors).map(([colorKey, colorValue]) => {
           const color = colorKey as Color;
           const isDisabled = color === disabledColor;

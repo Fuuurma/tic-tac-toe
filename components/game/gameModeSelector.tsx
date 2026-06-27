@@ -56,7 +56,7 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = React.memo(
                 <Label
                   htmlFor={mode.id}
                   className={cn(
-                    "flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 p-2 text-center transition-all duration-200",
+                    "flex min-h-20 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 p-2 text-center transition-all duration-200 sm:min-h-24 sm:gap-2",
                     "hover:bg-accent/50 hover:border-accent",
                     isSelected 
                       ? "border-primary bg-primary/10 ring-1 ring-primary" 
@@ -71,7 +71,7 @@ export const GameModeSelector: React.FC<GameModeSelectorProps> = React.memo(
                   </div>
                   <div className="space-y-0.5">
                     <div className="text-xs font-bold leading-tight sm:text-sm">{mode.label}</div>
-                    <div className="text-[11px] leading-tight text-muted-foreground">
+                    <div className="hidden text-[11px] leading-tight text-muted-foreground sm:block">
                       {mode.description}
                     </div>
                   </div>

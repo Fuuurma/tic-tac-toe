@@ -28,6 +28,48 @@ const WINNING_COMBINATIONS = [
 ];
 
 const DEFAULT_COLORS = { [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED };
+const AVAILABLE_COLORS = Object.values(Color);
+
+function normalizeColor(color, symbol) {
+  return AVAILABLE_COLORS.includes(color) ? color : DEFAULT_COLORS[symbol];
+}
+
+function resolvePlayerColor(room, symbol, preferredColor) {
+  const normalizedColor = normalizeColor(preferredColor, symbol);
+  const opponentSymbol = symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+  const opponentColor = room.gameState.players[opponentSymbol]?.isActive
+    ? room.gameState.players[opponentSymbol].color
+    : null;
+
+  if (!opponentColor || normalizedColor !== opponentColor) {
+    return { color: normalizedColor, wasChanged: normalizedColor !== preferredColor };
+  }
+
+  const fallbackColor =
+    DEFAULT_COLORS[symbol] !== opponentColor
+      ? DEFAULT_COLORS[symbol]
+      : AVAILABLE_COLORS.find((availableColor) => availableColor !== opponentColor);
+
+  return {
+    color: fallbackColor || normalizedColor,
+    wasChanged: true,
+  };
+}
+
+function getAvailableSymbol(room) {
+  return room.getPlayerBySymbol(PlayerSymbol.X) ? PlayerSymbol.O : PlayerSymbol.X;
+}
+
+function getPreservedPlayers(players) {
+  const preservedPlayers = {};
+  for (const player of players.values()) {
+    preservedPlayers[player.symbol] = {
+      username: player.username,
+      color: player.color,
+    };
+  }
+  return preservedPlayers;
+}
 
 // ============== GAME LOGIC ==============
 function createInitialGameState(players = {}) {
@@ -153,6 +195,13 @@ class GameRoom {
       this.gameState = createInitialGameState();
       this.rematchState = "none";
       this.rematchRequester = null;
+      this.rematchDeclined = false;
+    } else if (player) {
+      this.gameState = createInitialGameState(getPreservedPlayers(this.players));
+      this.gameState.gameStatus = GameStatus.WAITING;
+      this.rematchState = "none";
+      this.rematchRequester = null;
+      this.rematchDeclined = false;
     }
     
     return player;
@@ -224,11 +273,12 @@ class RoomManager {
     return this.playerRooms.get(socketId);
   }
 
-  addPlayerToRoom(room, socketId, username, color) {
-    const symbol = room.players.size === 0 ? PlayerSymbol.X : PlayerSymbol.O;
-    room.addPlayer(socketId, username, color, symbol);
+  addPlayerToRoom(room, socketId, username, preferredColor) {
+    const symbol = getAvailableSymbol(room);
+    const colorResult = resolvePlayerColor(room, symbol, preferredColor);
+    room.addPlayer(socketId, username, colorResult.color, symbol);
     this.playerRooms.set(socketId, room);
-    return symbol;
+    return { symbol, color: colorResult.color, wasColorChanged: colorResult.wasChanged };
   }
 
   removePlayerFromRoom(socketId) {
@@ -296,9 +346,9 @@ app.prepare().then(() => {
         return;
       }
 
-      const assignedColor = color || DEFAULT_COLORS[PlayerSymbol.X];
       const room = roomManager.findOrCreateRoom();
-      const symbol = roomManager.addPlayerToRoom(room, socket.id, username.trim(), assignedColor);
+      const assignment = roomManager.addPlayerToRoom(room, socket.id, username.trim(), color);
+      const { symbol, color: assignedColor, wasColorChanged } = assignment;
       currentRoom = room;
 
       socket.join(room.id);
@@ -310,6 +360,13 @@ app.prepare().then(() => {
         roomId: room.id,
         assignedColor,
       });
+
+      if (wasColorChanged) {
+        socket.emit("colorChanged", {
+          newColor: assignedColor,
+          reason: "Your preferred color was already taken.",
+        });
+      }
 
       const opponent = room.getPlayerBySymbol(symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X);
       if (opponent) {
@@ -462,7 +519,10 @@ app.prepare().then(() => {
       const result = roomManager.removePlayerFromRoom(socket.id);
 
       if (result && result.room) {
-        io.to(result.room.id).emit("playerLeft", { symbol: player.symbol });
+        io.to(result.room.id).emit("playerLeft", {
+          symbol: player.symbol,
+          gameState: result.room.gameState,
+        });
       }
 
       console.log(`[${new Date().toISOString()}] Player ${player.username} left room ${currentRoom?.id || "unknown"}`);
@@ -506,7 +566,10 @@ app.prepare().then(() => {
         }
 
         if (opponentSocketId) {
-          io.to(opponentSocketId).emit("playerLeft", { symbol: player?.symbol || null });
+          io.to(opponentSocketId).emit("playerLeft", {
+            symbol: player?.symbol || null,
+            gameState: currentRoom.gameState,
+          });
         }
 
         currentRoom = null;

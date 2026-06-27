@@ -106,8 +106,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   );
 
   return (
-    <div className="w-full h-full min-h-0 flex items-start md:items-center justify-center overflow-hidden">
-      <Card className="shadow-2xl border-2 rounded-xl md:rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full max-w-[min(100%,calc(100dvh-9.5rem))] md:max-w-lg max-h-full">
+    <div className="w-full h-auto md:h-full min-h-0 flex items-center justify-center overflow-hidden">
+      <Card className="shadow-2xl border-2 rounded-xl md:rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full max-w-[min(100%,calc(100dvh-11rem))] sm:max-w-[min(100%,calc(100dvh-10rem))] md:max-w-lg max-h-full">
         <CardContent className="p-2 sm:p-3 md:p-6 flex flex-col items-center justify-center">
           <div
             ref={boardRef}

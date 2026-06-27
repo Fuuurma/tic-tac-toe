@@ -29,6 +29,7 @@ const BASE_CELL_STYLE =
 const EMPTY_CELL_STYLE =
   "bg-card/30 border-border/50 hover:bg-accent/40 hover:border-accent-foreground/40 cursor-pointer backdrop-blur-sm";
 const DEFAULT_FALLBACK_COLOR = Color.GRAY;
+const NEXT_REMOVAL_LABEL = "Next out";
 
 export const BoardCell: React.FC<BoardCellProps> = React.memo(
   ({
@@ -65,7 +66,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text} shadow-lg`
         : EMPTY_CELL_STYLE,
       isWinningCell && "animate-winning-cell ring-2 ring-amber-300/70 ring-offset-1 ring-offset-background z-10",
-      isNextToRemove ? "opacity-80" : "",
+      isNextToRemove ? "opacity-90" : "",
       isNextToRemove && removalColorScheme?.pulse
         ? removalColorScheme.pulse
         : isNextToRemove
@@ -76,7 +77,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
     );
 
     const removalBorderClasses = cn(
-      "absolute inset-0 animate-wiggle border-4 rounded-xl z-10 pointer-events-none",
+      "absolute inset-0 animate-wiggle border-2 rounded-lg md:rounded-2xl lg:rounded-3xl z-10 pointer-events-none",
       removalColorScheme?.border
     );
 
@@ -116,10 +117,16 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         disabled={isDisabled || !!value}
         aria-label={`Cell ${index + 1}${
           value ? `, occupied by ${value}` : ", empty"
-        }${isDisabled || !!value ? ", disabled" : ""}`}
+        }${isNextToRemove && removalSymbol ? `, ${removalSymbol} piece next to be removed` : ""}${isDisabled || !!value ? ", disabled" : ""}`}
         aria-disabled={isDisabled || !!value}
         tabIndex={isDisabled && !!value ? -1 : 0}
       >
+        {isNextToRemove && (
+          <span className="absolute right-1 top-1 z-20 rounded-full bg-background/90 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none text-muted-foreground shadow-sm ring-1 ring-border sm:text-[10px]">
+            {NEXT_REMOVAL_LABEL}
+          </span>
+        )}
+
         <span
           className={cn(
             "transition-all duration-300 ease-out",

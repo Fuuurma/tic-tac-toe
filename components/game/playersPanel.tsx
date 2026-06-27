@@ -71,6 +71,12 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const winnerName =
     winner ? players[winner]?.username : null;
   const currentPlayerName = players[currentPlayer]?.username || `Player ${currentPlayer}`;
+  const activeStatusMessage =
+    message && !message.endsWith("'s turn.")
+      ? message
+      : isAITurn
+        ? `${currentPlayerName} thinking`
+        : `${currentPlayerName}'s turn`;
 
   const winnerGradientByColor: Record<Color, string> = {
     [Color.BLUE]: "from-blue-500 to-sky-600",
@@ -204,6 +210,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
       )}
 
       {/* Main Info Card */}
+      {!isWaiting && (
       <div className="bg-card/80 backdrop-blur-md border-2 rounded-lg sm:rounded-xl shadow-xl p-1.5 sm:p-3 md:p-4 glassmorphism flex-shrink-0 w-full">
         {/* Header with Game Mode and Actions */}
         <div className="flex items-start sm:items-center justify-between mb-1.5 sm:mb-2 gap-1 sm:gap-2">
@@ -212,8 +219,15 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               {gameMode.replace("_", " ")}
             </h2>
             {isGameActive && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                {isAITurn ? `${currentPlayerName} thinking` : `${currentPlayerName}'s turn`}
+              <p
+                className={cn(
+                  "text-[10px] sm:text-xs truncate",
+                  message && !message.endsWith("'s turn.")
+                    ? "font-medium text-amber-600 dark:text-amber-400"
+                    : "text-muted-foreground"
+                )}
+              >
+                {activeStatusMessage}
               </p>
             )}
           </div>
@@ -311,6 +325,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

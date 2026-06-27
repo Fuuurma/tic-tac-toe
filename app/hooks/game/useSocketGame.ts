@@ -96,7 +96,7 @@ export const useSocketGame = (
 
     const handlePlayerAssigned = (payload: { symbol: PlayerSymbol; roomId: string; assignedColor: Color }) => {
       setPlayerSymbol(payload.symbol);
-      if (payload.symbol === PlayerSymbol.X) setSelectedColor(payload.assignedColor);
+      setSelectedColor(payload.assignedColor);
     };
 
     const handleGameStart = (initialGameState: GameState) => {
@@ -130,16 +130,28 @@ export const useSocketGame = (
       }
     };
 
+    const handleColorChanged = (payload: { newColor: Color; reason: string }) => {
+      setSelectedColor(payload.newColor);
+      setMessage(payload.reason);
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("playerAssigned", handlePlayerAssigned);
     socket.on("gameStart", handleGameStart);
     socket.on("gameUpdate", handleGameUpdate);
     socket.on("rematchRequested", handleRematchRequested);
+    socket.on("colorChanged", handleColorChanged);
     socket.on("gameReset", handleGameStart);
-    socket.on("playerLeft", () => {
+    socket.on("playerLeft", (payload) => {
       setMessage("Opponent left. Waiting...");
-      setGameState(prev => ({ ...prev, gameStatus: GameStatus.WAITING, winner: null }));
+      if (payload.gameState) {
+        setGameState(payload.gameState);
+      } else {
+        setGameState(prev => ({ ...prev, gameStatus: GameStatus.WAITING, winner: null }));
+      }
+      setRematchOffered(false);
+      setRematchRequested(false);
     });
     socket.on("error", (err) => setMessage(`Error: ${err}`));
 
@@ -150,6 +162,7 @@ export const useSocketGame = (
       socket.off("gameStart");
       socket.off("gameUpdate");
       socket.off("rematchRequested");
+      socket.off("colorChanged");
       socket.off("gameReset");
       socket.off("playerLeft");
       socket.off("error");

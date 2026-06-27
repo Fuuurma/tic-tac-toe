@@ -7,6 +7,8 @@ const { io } = require("socket.io-client");
 const PlayerSymbol = { X: "X", O: "O" };
 const GameStatus = { WAITING: "Waiting", ACTIVE: "active", COMPLETED: "completed" };
 const Color = { BLUE: "blue", RED: "red" };
+const DEFAULT_COLORS = { [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED };
+const AVAILABLE_COLORS = Object.values(Color);
 const PlayerTypes = { HUMAN: "HUMAN", COMPUTER: "COMPUTER" };
 const GAME_RULES = { MAX_MOVES_PER_PLAYER: 3, BOARD_SIZE: 9 };
 const TURN_DURATION_MS = 10000;
@@ -17,6 +19,49 @@ const WINNING_COMBINATIONS = [
   [0, 4, 8], [2, 4, 6],
 ];
 
+function normalizeColor(color, symbol) {
+  return AVAILABLE_COLORS.includes(color) ? color : DEFAULT_COLORS[symbol];
+}
+
+function resolvePlayerColor(room, symbol, preferredColor) {
+  const normalizedColor = normalizeColor(preferredColor, symbol);
+  const opponentSymbol = symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+  const opponentColor = room.gameState.players[opponentSymbol]?.isActive
+    ? room.gameState.players[opponentSymbol].color
+    : null;
+
+  if (!opponentColor || normalizedColor !== opponentColor) {
+    return { color: normalizedColor, wasChanged: normalizedColor !== preferredColor };
+  }
+
+  const fallbackColor =
+    DEFAULT_COLORS[symbol] !== opponentColor
+      ? DEFAULT_COLORS[symbol]
+      : AVAILABLE_COLORS.find((availableColor) => availableColor !== opponentColor);
+
+  return {
+    color: fallbackColor || normalizedColor,
+    wasChanged: true,
+  };
+}
+
+function getAvailableSymbol(room) {
+  return Array.from(room.players.values()).some((player) => player.symbol === PlayerSymbol.X)
+    ? PlayerSymbol.O
+    : PlayerSymbol.X;
+}
+
+function getPreservedPlayers(players) {
+  const preservedPlayers = {};
+  for (const player of players.values()) {
+    preservedPlayers[player.symbol] = {
+      username: player.username,
+      color: player.color,
+    };
+  }
+  return preservedPlayers;
+}
+
 function createInitialGameState(players = {}) {
   return {
     board: Array(GAME_RULES.BOARD_SIZE).fill(null),
@@ -25,14 +70,14 @@ function createInitialGameState(players = {}) {
     players: {
       [PlayerSymbol.X]: {
         username: players[PlayerSymbol.X]?.username || "",
-        color: players[PlayerSymbol.X]?.color || Color.BLUE,
+        color: players[PlayerSymbol.X]?.color || DEFAULT_COLORS[PlayerSymbol.X],
         symbol: PlayerSymbol.X,
         type: PlayerTypes.HUMAN,
         isActive: !!players[PlayerSymbol.X],
       },
       [PlayerSymbol.O]: {
         username: players[PlayerSymbol.O]?.username || "",
-        color: players[PlayerSymbol.O]?.color || Color.RED,
+        color: players[PlayerSymbol.O]?.color || DEFAULT_COLORS[PlayerSymbol.O],
         symbol: PlayerSymbol.O,
         type: PlayerTypes.HUMAN,
         isActive: !!players[PlayerSymbol.O],
@@ -135,6 +180,11 @@ class GameRoom {
       this.gameState = createInitialGameState();
       this.rematchState = "none";
       this.rematchRequester = null;
+    } else if (player) {
+      this.gameState = createInitialGameState(getPreservedPlayers(this.players));
+      this.gameState.gameStatus = GameStatus.WAITING;
+      this.rematchState = "none";
+      this.rematchRequester = null;
     }
 
     return player;
@@ -199,11 +249,12 @@ class RoomManager {
     return this.playerRooms.get(socketId);
   }
 
-  addPlayerToRoom(room, socketId, username, color) {
-    const symbol = room.players.size === 0 ? PlayerSymbol.X : PlayerSymbol.O;
-    room.addPlayer(socketId, username, color, symbol);
+  addPlayerToRoom(room, socketId, username, preferredColor) {
+    const symbol = getAvailableSymbol(room);
+    const colorResult = resolvePlayerColor(room, symbol, preferredColor);
+    room.addPlayer(socketId, username, colorResult.color, symbol);
     this.playerRooms.set(socketId, room);
-    return symbol;
+    return { symbol, color: colorResult.color, wasColorChanged: colorResult.wasChanged };
   }
 
   removePlayerFromRoom(socketId) {
@@ -258,9 +309,9 @@ function createTestServer(port = 0) {
           return;
         }
 
-        const assignedColor = color || Color.BLUE;
         const room = roomManager.findOrCreateRoom();
-        const symbol = roomManager.addPlayerToRoom(room, socket.id, username.trim(), assignedColor);
+        const assignment = roomManager.addPlayerToRoom(room, socket.id, username.trim(), color);
+        const { symbol, color: assignedColor, wasColorChanged } = assignment;
         currentRoom = room;
 
         socket.join(room.id);
@@ -270,6 +321,13 @@ function createTestServer(port = 0) {
           roomId: room.id,
           assignedColor,
         });
+
+        if (wasColorChanged) {
+          socket.emit("colorChanged", {
+            newColor: assignedColor,
+            reason: "Your preferred color was already taken.",
+          });
+        }
 
         const opponent = room.players.size === 2 
           ? Array.from(room.players.entries()).find(([sid]) => sid !== socket.id)
@@ -371,7 +429,10 @@ function createTestServer(port = 0) {
         roomManager.removePlayerFromRoom(socket.id);
 
         if (opponentSocketId) {
-          ioServer.to(opponentSocketId).emit("playerLeft", { symbol: player.symbol });
+          ioServer.to(opponentSocketId).emit("playerLeft", {
+            symbol: player.symbol,
+            gameState: currentRoom.gameState,
+          });
         }
         currentRoom = null;
       });
@@ -383,7 +444,10 @@ function createTestServer(port = 0) {
           roomManager.removePlayerFromRoom(socket.id);
 
           if (player && opponentSocketId) {
-            ioServer.to(opponentSocketId).emit("playerLeft", { symbol: player.symbol });
+            ioServer.to(opponentSocketId).emit("playerLeft", {
+              symbol: player.symbol,
+              gameState: currentRoom.gameState,
+            });
           }
           currentRoom = null;
         }

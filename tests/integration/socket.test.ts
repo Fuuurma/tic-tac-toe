@@ -83,6 +83,26 @@ describe("Socket Integration Tests", () => {
       expect(start1.players.O.username).toBe("Player2");
     });
 
+    it("should assign a different color when online players request the same color", async () => {
+      const p1Assigned = new Promise((resolve) => client1.on("playerAssigned", resolve));
+      const p2Assigned = new Promise((resolve) => client2.on("playerAssigned", resolve));
+      const p2ColorChanged = new Promise((resolve) => client2.on("colorChanged", resolve));
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+
+      client1.emit("login", "Player1", "blue");
+      client2.emit("login", "Player2", "blue");
+
+      const [assigned1, assigned2, colorChanged, start1, start2] =
+        await Promise.all([p1Assigned, p2Assigned, p2ColorChanged, p1Start, p2Start]);
+
+      expect(assigned1.assignedColor).toBe("blue");
+      expect(assigned2.assignedColor).not.toBe("blue");
+      expect(colorChanged.newColor).toBe(assigned2.assignedColor);
+      expect(start1.players.X.color).not.toBe(start1.players.O.color);
+      expect(start2.players.X.color).not.toBe(start2.players.O.color);
+    });
+
     it("should broadcast move to both players", async () => {
       // Login and wait for start
       const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
@@ -161,6 +181,54 @@ describe("Socket Integration Tests", () => {
       const [reset1] = await Promise.all([p1Reset, p2Reset]);
       expect(reset1.board.every(c => c === null)).toBe(true);
       expect(reset1.gameStatus).toBe(GameStatus.ACTIVE);
+    });
+
+    it("should reset a room and reuse the vacant symbol after a player leaves", async () => {
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+      client1.emit("login", "P1", "blue");
+      client2.emit("login", "P2", "red");
+      await Promise.all([p1Start, p2Start]);
+
+      const p1Update = new Promise((resolve) => client1.once("gameUpdate", resolve));
+      const p2Update = new Promise((resolve) => client2.once("gameUpdate", resolve));
+      client1.emit("move", 4);
+      await Promise.all([p1Update, p2Update]);
+
+      const p2PlayerLeft = new Promise((resolve) => client2.once("playerLeft", resolve));
+      client1.emit("leaveRoom");
+      const leftPayload = await p2PlayerLeft;
+
+      expect(leftPayload.symbol).toBe(PlayerSymbol.X);
+      expect(leftPayload.gameState.gameStatus).toBe(GameStatus.WAITING);
+      expect(leftPayload.gameState.board.every((cell) => cell === null)).toBe(true);
+      expect(leftPayload.gameState.players.O.username).toBe("P2");
+
+      const client3 = createClient(serverUrl);
+      client3.connect();
+      await new Promise((resolve) => client3.on("connect", resolve));
+
+      try {
+        const p3Assigned = new Promise((resolve) => client3.on("playerAssigned", resolve));
+        const p2Restart = new Promise((resolve) => client2.once("gameStart", resolve));
+        const p3Start = new Promise((resolve) => client3.once("gameStart", resolve));
+
+        client3.emit("login", "P3", "green");
+
+        const [assigned3, restart2, start3] = await Promise.all([
+          p3Assigned,
+          p2Restart,
+          p3Start,
+        ]);
+
+        expect(assigned3.symbol).toBe(PlayerSymbol.X);
+        expect(start3.players.X.username).toBe("P3");
+        expect(start3.players.O.username).toBe("P2");
+        expect(restart2.board.every((cell) => cell === null)).toBe(true);
+        expect(start3.gameStatus).toBe(GameStatus.ACTIVE);
+      } finally {
+        client3.disconnect();
+      }
     });
   });
 });

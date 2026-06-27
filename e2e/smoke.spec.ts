@@ -22,6 +22,28 @@ test("loads the playable shell", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Play as Guest" })).toBeVisible();
 });
 
+test("keeps the mobile setup actions comfortably in view", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  const setupMetrics = await page.evaluate(() => {
+    const form = document.querySelector("form")?.getBoundingClientRect();
+    const guestButton = [...document.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("Play as Guest"))
+      ?.getBoundingClientRect();
+
+    return {
+      formHeight: form?.height ?? 0,
+      guestTop: guestButton?.top ?? window.innerHeight,
+      guestBottom: guestButton?.bottom ?? window.innerHeight,
+    };
+  });
+
+  expect(setupMetrics.formHeight).toBeLessThan(680);
+  expect(setupMetrics.guestTop).toBeLessThan(700);
+  expect(setupMetrics.guestBottom).toBeLessThan(730);
+});
+
 test("starts an AI game", async ({ page }) => {
   await page.goto("/");
 
@@ -29,6 +51,30 @@ test("starts an AI game", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "VS COMPUTER" })).toBeVisible();
   await expect(page.getByRole("gridcell")).toHaveCount(9);
+});
+
+test("keeps the mobile game board centered in the viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Play as Guest" }).click();
+  await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+
+  const stackMetrics = await page.evaluate(() => {
+    const gameMain = document.querySelectorAll("main")[1];
+    const children = Array.from(gameMain?.children ?? []).map((child) =>
+      child.getBoundingClientRect()
+    );
+    const top = Math.min(...children.map((rect) => rect.top));
+    const bottom = Math.max(...children.map((rect) => rect.bottom));
+    const centerOffset = Math.abs((top + bottom) / 2 - window.innerHeight / 2);
+
+    return { top, bottom, centerOffset };
+  });
+
+  expect(stackMetrics.top).toBeGreaterThan(80);
+  expect(stackMetrics.bottom).toBeLessThan(780);
+  expect(stackMetrics.centerOffset).toBeLessThan(80);
 });
 
 test("starts a local two-player game", async ({ page }) => {
@@ -102,7 +148,7 @@ test("pairs two online players, completes a match, and rematches", async ({ brow
     await playerTwo.getByLabel("Your name").fill("Online O");
 
     await playerOne.getByRole("button", { name: "Start Game" }).click();
-    await expect(playerOne.getByText("Waiting for Opponent")).toBeVisible();
+    await expect(playerOne.getByRole("heading", { name: "Waiting for Opponent" })).toBeVisible();
 
     await playerTwo.getByRole("button", { name: "Start Game" }).click();
 
