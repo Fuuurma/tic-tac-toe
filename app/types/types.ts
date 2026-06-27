@@ -30,7 +30,7 @@ export interface PlayerConfig {
 export interface GameState {
   board: GameBoard;
   currentPlayer: PlayerSymbol;
-  winner: PlayerSymbol | "draw" | null;
+  winner: PlayerSymbol | null;
   winningCombination: WinningLine | null;
   lastMoveIndex: number | null;
   players: Record<PlayerSymbol, PlayerConfig>;

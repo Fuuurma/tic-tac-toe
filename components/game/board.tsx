@@ -64,7 +64,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   }, [lastMoveIndex]);
 
   useEffect(() => {
-    if (winner && winner !== previousWinner && winner !== "draw") {
+    if (winner && winner !== previousWinner) {
       setPreviousWinner(winner);
 
       const winLineTimer = setTimeout(() => setShowWinLine(true), 300);
@@ -149,7 +149,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               isActive={showParticles}
               originX={0.5}
               originY={0.5}
-              particleCount={60}
+              particleCount={24}
             />
           </div>
         </CardContent>

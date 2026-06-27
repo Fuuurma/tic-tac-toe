@@ -5,6 +5,7 @@ import { PlayerInfoBadge } from "./playerBadge";
 import { GameStatusMessage } from "./gameStatusMessage";
 import { GameState, PlayerType } from "@/app/types/types";
 import {
+  Color,
   GameStatus,
   PlayerSymbol,
   TURN_DURATION_MS,
@@ -68,42 +69,43 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const isWaiting = gameStatus === GameStatus.WAITING;
 
   const winnerName =
-    winner && winner !== "draw" ? players[winner]?.username : null;
+    winner ? players[winner]?.username : null;
+  const currentPlayerName = players[currentPlayer]?.username || `Player ${currentPlayer}`;
+
+  const winnerGradientByColor: Record<Color, string> = {
+    [Color.BLUE]: "from-blue-500 to-sky-600",
+    [Color.RED]: "from-red-500 to-rose-600",
+    [Color.GREEN]: "from-emerald-500 to-green-600",
+    [Color.YELLOW]: "from-yellow-400 to-amber-500",
+    [Color.PURPLE]: "from-purple-500 to-violet-600",
+    [Color.PINK]: "from-pink-500 to-rose-500",
+    [Color.ORANGE]: "from-orange-500 to-amber-600",
+    [Color.GRAY]: "from-slate-500 to-gray-600",
+  };
+
+  const winnerSymbolColorByColor: Record<Color, string> = {
+    [Color.BLUE]: "text-blue-100",
+    [Color.RED]: "text-red-100",
+    [Color.GREEN]: "text-green-100",
+    [Color.YELLOW]: "text-yellow-50",
+    [Color.PURPLE]: "text-purple-100",
+    [Color.PINK]: "text-pink-100",
+    [Color.ORANGE]: "text-orange-100",
+    [Color.GRAY]: "text-gray-100",
+  };
 
   const getWinnerColor = () => {
-    if (!winner || winner === "draw") return "from-amber-500 to-orange-600";
+    if (!winner) return "from-amber-500 to-orange-600";
     const playerColor = players[winner]?.color;
     if (!playerColor) return "from-amber-500 to-orange-600";
-    
-    const colorMap: Record<string, string> = {
-      BLUE: "from-blue-400 to-blue-600",
-      RED: "from-red-400 to-red-600",
-      GREEN: "from-green-400 to-green-600",
-      YELLOW: "from-yellow-400 to-yellow-600",
-      PURPLE: "from-purple-400 to-purple-600",
-      PINK: "from-pink-400 to-pink-600",
-      ORANGE: "from-orange-400 to-orange-600",
-      GRAY: "from-gray-400 to-gray-600",
-    };
-    return colorMap[playerColor] || "from-amber-500 to-orange-600";
+    return winnerGradientByColor[playerColor] || "from-amber-500 to-orange-600";
   };
 
   const getWinnerSymbolColor = () => {
-    if (!winner || winner === "draw") return "text-white";
+    if (!winner) return "text-white";
     const playerColor = players[winner]?.color;
     if (!playerColor) return "text-white";
-    
-    const colorMap: Record<string, string> = {
-      BLUE: "text-blue-100",
-      RED: "text-red-100",
-      GREEN: "text-green-100",
-      YELLOW: "text-yellow-100",
-      PURPLE: "text-purple-100",
-      PINK: "text-pink-100",
-      ORANGE: "text-orange-100",
-      GRAY: "text-gray-100",
-    };
-    return colorMap[playerColor] || "text-white";
+    return winnerSymbolColorByColor[playerColor] || "text-white";
   };
 
   // Get timer color based on remaining time
@@ -141,6 +143,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={onExit}
+                aria-label="Cancel matchmaking"
                 className="gap-1 text-xs sm:text-sm"
               >
                 <LogOut className="h-3 w-3" />
@@ -173,13 +176,14 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             </div>
             <div className="flex gap-1 sm:gap-2 shrink-0">
               <ShareButton
-                title={`Tic Tac Toe - ${winnerName} Wins!`}
-                text={`${winnerName} won! Can you beat me?`}
+                title={`Tic Tac Toe - ${winnerName || "Winner"} Wins!`}
+                text={`${winnerName || "I"} won! Can you beat me?`}
               />
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={onNewGame}
+                aria-label="Start a new game"
                 className="gap-1 bg-white/20 hover:bg-white/30 border-0 text-white hover:text-white text-xs"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -189,6 +193,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onExit}
+                aria-label="Exit game"
                 className="gap-1 text-white/80 hover:text-white hover:bg-white/20 text-xs"
               >
                 <LogOut className="h-3 w-3" />
@@ -206,6 +211,11 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             <h2 className="text-xs sm:text-base font-bold text-foreground uppercase tracking-wider leading-tight">
               {gameMode.replace("_", " ")}
             </h2>
+            {isGameActive && (
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                {isAITurn ? `${currentPlayerName} thinking` : `${currentPlayerName}'s turn`}
+              </p>
+            )}
           </div>
           {/* Hide buttons when game is over (shown in banner instead) */}
           {isGameActive && (
@@ -214,6 +224,8 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={onNewGame}
+                aria-label="Start a new game"
+                title="Start a new game"
                 className="gap-1 hover:bg-accent transition-colors text-xs p-1 h-6"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -222,6 +234,8 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onExit}
+                aria-label="Exit game"
+                title="Exit game"
                 className="gap-1 text-muted-foreground hover:text-destructive transition-colors p-1 h-6"
               >
                 <LogOut className="h-3 w-3" />

@@ -124,7 +124,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             colorLabel="Your color"
             selectedColor={selectedColor}
             onColorChange={handleInputChange(setSelectedColor)}
-            disabledColor={gameMode === GameModes.VS_COMPUTER ? opponentColor : undefined}
           />
 
           <GameModeSelector

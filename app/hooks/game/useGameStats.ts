@@ -7,7 +7,7 @@ import { PlayerSymbol } from "@/app/game/constants/constants";
 
 export const useGameStats = (
   gameStatus: GameStatus,
-  winner: PlayerSymbol | "draw" | null,
+  winner: PlayerSymbol | null,
   playerSymbol: PlayerSymbol | null,
   isLoggedIn: boolean
 ) => {

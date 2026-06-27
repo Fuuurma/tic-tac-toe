@@ -67,7 +67,7 @@ function checkWinner(board, currentPlayer) {
     }
   }
   if (board.every((cell) => cell !== null)) {
-    // In the 3-piece variant, draws are impossible - current player loses
+    // In the 3-piece variant, a full-board stalemate is not a valid result.
     return currentPlayer === "X" ? "O" : "X";
   }
   return null;

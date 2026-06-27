@@ -64,7 +64,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
       value && colorScheme
         ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text} shadow-lg`
         : EMPTY_CELL_STYLE,
-      isWinningCell && "animate-winning-cell ring-4 ring-amber-400 ring-offset-2 ring-offset-background scale-105 z-10",
+      isWinningCell && "animate-winning-cell ring-2 ring-amber-300/70 ring-offset-1 ring-offset-background z-10",
       isNextToRemove ? "opacity-80" : "",
       isNextToRemove && removalColorScheme?.pulse
         ? removalColorScheme.pulse
@@ -123,8 +123,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         <span
           className={cn(
             "transition-all duration-300 ease-out",
-            value ? "scale-100 opacity-100 animate-pop-in" : "scale-0 opacity-0",
-            isWinningCell && "animate-win-glow"
+            value ? "scale-100 opacity-100 animate-pop-in" : "scale-0 opacity-0"
           )}
         >
           {value}

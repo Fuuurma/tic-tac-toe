@@ -71,7 +71,7 @@ describe("checkWinner", () => {
     });
   });
 
-  describe("Draw-free fallback", () => {
+  describe("Full-board fallback", () => {
     it("should award O when X has no moves left on a full board", () => {
       const board = createBoardWithMoves([0, 2, 5, 6, 7], [1, 3, 4, 8]);
       const result = checkWinner(board, PlayerSymbol.X);
@@ -143,7 +143,7 @@ describe("checkWinner", () => {
       expect(result.winningCombination).toBeNull();
     });
 
-    it("should prioritize win over draw detection", () => {
+    it("should prioritize a winning line over full-board fallback", () => {
       const board = createBoardWithMoves([0, 1, 2, 3, 4], [5, 6, 7, 8]);
       const result = checkWinner(board);
       expect(result.winner).toBe(PlayerSymbol.X);

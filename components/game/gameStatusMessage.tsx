@@ -3,7 +3,7 @@ import { PlayerSymbol } from "@/app/game/constants/constants";
 
 interface GameStatusMessageProps {
   message: string | null;
-  winner: PlayerSymbol | "draw" | null;
+  winner: PlayerSymbol | null;
   winningPlayerName?: string | null;
   moveCount?: number;
 }
@@ -13,7 +13,7 @@ export const GameStatusMessage: React.FC<GameStatusMessageProps> = React.memo(
     let statusText: string | null = null;
     let subtitleText: string | null = null;
 
-    if (winner && winner !== "draw") {
+    if (winner) {
       statusText = `${winningPlayerName || `Player ${winner}`} Wins!`;
       if (moveCount !== undefined && moveCount > 0) {
         subtitleText = `Won in ${moveCount} move${moveCount === 1 ? "" : "s"}`;

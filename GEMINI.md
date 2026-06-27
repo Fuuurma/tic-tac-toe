@@ -4,7 +4,7 @@ This document provides foundational mandates and essential context for AI agents
 
 ## Project Overview
 
-TicTacToe is a multi-platform game implementation with a unique **3-piece strategic variant**: each player can have a maximum of 3 pieces on the board; placing a 4th piece automatically removes their oldest one. This variant prevents draws and ensures fast-paced gameplay.
+TicTacToe is a multi-platform game implementation with a unique **3-piece strategic variant**: each player can have a maximum of 3 pieces on the board; placing a 4th piece automatically removes their oldest one. This variant keeps the board moving until someone wins and ensures fast-paced gameplay.
 
 ### Core Architecture
 - **Unified App:** Next.js 15+ application using the App Router.

@@ -28,6 +28,7 @@ import PlayersPanel from "@/components/game/playersPanel";
 import { useGameStats } from "./hooks/game/useGameStats";
 import { useGameTimer } from "./hooks/game/useGameTimer";
 import { useLocalGame } from "./hooks/game/useLocalGame";
+import { resolveOpponentColor } from "./utils/colors/resolveOpponentColor";
 import { useSocketGame } from "./hooks/game/useSocketGame";
 
 export default function Home() {
@@ -130,7 +131,7 @@ export default function Home() {
         createInitialGameState(username, gameMode, {
           opponentName,
           playerColor: selectedColor,
-          opponentColor,
+          opponentColor: resolveOpponentColor(gameMode, selectedColor, opponentColor),
         })
       );
       setPlayerSymbol(PlayerSymbol.X);
@@ -157,7 +158,7 @@ export default function Home() {
         createInitialGameState(guestName, gameMode, {
           opponentName,
           playerColor: selectedColor,
-          opponentColor,
+          opponentColor: resolveOpponentColor(gameMode, selectedColor, opponentColor),
         })
       );
       setPlayerSymbol(PlayerSymbol.X);

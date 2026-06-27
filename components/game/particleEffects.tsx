@@ -41,9 +41,20 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
   colors = DEFAULT_COLORS,
 }) => {
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
-    if (!isActive) {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isActive || prefersReducedMotion) {
       setParticles([]);
       return;
     }
@@ -52,18 +63,18 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
     const newParticles: Particle[] = [];
     for (let i = 0; i < particleCount; i++) {
       const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
-      const velocity = 2 + Math.random() * 4;
+      const velocity = 1.4 + Math.random() * 2.6;
       
       newParticles.push({
         id: i,
         x: originX * 100,
         y: originY * 100,
         vx: Math.cos(angle) * velocity,
-        vy: Math.sin(angle) * velocity - 2, // Slight upward bias
+        vy: Math.sin(angle) * velocity - 1.2,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: 4 + Math.random() * 6,
+        size: 2 + Math.random() * 4,
         life: 1,
-        maxLife: 60 + Math.random() * 30,
+        maxLife: 45 + Math.random() * 25,
       });
     }
 
@@ -91,7 +102,7 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
         );
       }
 
-      if (frameCount < 200) {
+      if (frameCount < 150) {
         animationId = requestAnimationFrame(animate);
       }
     };
@@ -101,7 +112,7 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [isActive, originX, originY, particleCount, colors]);
+  }, [isActive, prefersReducedMotion, originX, originY, particleCount, colors]);
 
   if (!isActive || particles.length === 0) return null;
 

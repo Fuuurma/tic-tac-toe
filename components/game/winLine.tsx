@@ -52,15 +52,15 @@ export const WinLine: React.FC<WinLineProps> = ({
       left: `${x1}px`,
       top: `${y1}px`,
       width: `${length}px`,
-      height: "6px",
+      height: "4px",
       transform: `rotate(${angle}deg)`,
       transformOrigin: "0 50%",
-      background: "linear-gradient(90deg, #fbbf24, #f59e0b, #fbbf24)",
+      background: "linear-gradient(90deg, rgba(251, 191, 36, 0.78), rgba(245, 158, 11, 0.88), rgba(251, 191, 36, 0.78))",
       borderRadius: "3px",
-      boxShadow: "0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.4)",
+      boxShadow: "0 0 10px rgba(251, 191, 36, 0.35)",
       zIndex: 50,
       opacity: 1,
-      animation: "winLineDraw 0.6s ease-out forwards, winLineGlow 1.5s ease-in-out infinite alternate",
+      animation: "winLineDraw 0.45s ease-out forwards",
     });
   }, [winningCombination, boardRef, isVisible]);
 

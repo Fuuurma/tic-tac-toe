@@ -14,6 +14,7 @@ import { handleAI_Move } from "@/app/game/ai/handleAI_Move";
 import { isValidMove } from "@/app/game/logic/isValidMove";
 import { CanMakeMove } from "@/app/game/logic/canMakeMove";
 import { makeMove } from "@/app/game/logic/makeMove";
+import { resolveOpponentColor } from "@/app/utils/colors/resolveOpponentColor";
 
 export const useLocalGame = (
   gameState: GameState,
@@ -60,7 +61,7 @@ export const useLocalGame = (
       createInitialGameState(username, gameMode, {
         opponentName,
         playerColor: selectedColor,
-        opponentColor,
+        opponentColor: resolveOpponentColor(gameMode, selectedColor, opponentColor),
       })
     );
   }, [gameMode, setGameState, setMessage]);

@@ -116,7 +116,7 @@ export const useSocketGame = (
 
     const handleGameUpdate = (updatedGameState: GameState) => {
       setGameState(updatedGameState);
-      if (updatedGameState.winner && updatedGameState.winner !== "draw") {
+      if (updatedGameState.winner) {
         setMessage(`${updatedGameState.players[updatedGameState.winner]?.username || "Opponent"} wins!`);
       } else {
         setMessage(`${updatedGameState.players[updatedGameState.currentPlayer]?.username || "Opponent"}'s turn.`);

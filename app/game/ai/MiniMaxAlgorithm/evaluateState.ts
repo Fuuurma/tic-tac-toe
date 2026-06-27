@@ -13,9 +13,9 @@ export function evaluateState(
 
   if (winner === aiSymbol) {
     return 1000 - depth; // AI wins - prefer winning sooner
-  } else if (winner && winner !== "draw") {
+  } else if (winner) {
     return -1000 + depth; // Opponent wins - prefer losing later
   } else {
-    return 0; // Draw
+    return 0; // Non-terminal or depth-limited state
   }
 }

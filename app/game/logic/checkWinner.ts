@@ -2,7 +2,7 @@ import { GameBoard, WinningLine } from "@/app/types/types";
 import { PlayerSymbol, WINNING_COMBINATIONS } from "../constants/constants";
 
 interface WinnerResult {
-  winner: PlayerSymbol | "draw" | null;
+  winner: PlayerSymbol | null;
   winningCombination: WinningLine | null;
 }
 
@@ -17,8 +17,8 @@ export const checkWinner = (board: GameBoard, currentPlayer?: PlayerSymbol): Win
     }
   }
 
-  // In the 3-piece variant, draws should be impossible.
-  // If board is somehow full with no winner, current player loses.
+  // In the 3-piece variant, a full-board stalemate is not a valid result.
+  // If the board somehow fills with no winner, current player loses.
   if (board.every((cell) => cell !== null)) {
     const loser = currentPlayer;
     const winner = loser === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
@@ -29,6 +29,6 @@ export const checkWinner = (board: GameBoard, currentPlayer?: PlayerSymbol): Win
 };
 
 // Backward compatibility helper
-export const checkWinnerLegacy = (board: GameBoard): PlayerSymbol | "draw" | null => {
+export const checkWinnerLegacy = (board: GameBoard): PlayerSymbol | null => {
   return checkWinner(board).winner;
 };

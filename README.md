@@ -1,6 +1,6 @@
 # TicTacToe - Strategic 3-Piece Variant
 
-A high-performance, multi-platform TicTacToe game featuring a unique strategic twist: players are limited to 3 pieces on the board at any time. When a player places their 4th piece, their oldest one is automatically removed, creating a dynamic, draw-free experience.
+A high-performance, multi-platform TicTacToe game featuring a unique strategic twist: players are limited to 3 pieces on the board at any time. When a player places their 4th piece, their oldest one is automatically removed, creating a dynamic match that keeps moving until someone wins.
 
 ## Features
 
@@ -8,7 +8,7 @@ A high-performance, multi-platform TicTacToe game featuring a unique strategic t
 - **Multi-Platform**: Seamlessly deployed as a Web App (Next.js) and Native Mobile App (iOS/Android via Capacitor).
 - **Minimal Anonymous Auth**: Play instantly as a guest or with a simple username; no registration required.
 - **AI Opponent**: Multiple difficulty levels (Easy, Normal, Hard, Insane) powered by MCTS and Minimax.
-- **Real-time Statistics**: Detailed tracking of wins, losses, draws, and win streaks (current and best).
+- **Real-time Statistics**: Detailed tracking of wins, losses, and win streaks (current and best).
 - **Online Multiplayer**: Real-time play via Socket.IO with rematch and room management.
 - **Turn Timer**: 10-second turns with automatic random moves on timeout.
 - **Modern UI**: Built with Tailwind CSS 4, Radix UI, and shadcn/ui with full dark mode support.

@@ -53,9 +53,6 @@ function checkWinner(board) {
       return board[a];
     }
   }
-  if (board.every((cell) => cell !== null)) {
-    return "draw";
-  }
   return null;
 }
 

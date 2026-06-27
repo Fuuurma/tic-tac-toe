@@ -85,7 +85,7 @@ describe("isValidMove", () => {
           PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.O,
           PlayerSymbol.O, PlayerSymbol.X, PlayerSymbol.X,
         ],
-        winner: "draw",
+        winner: PlayerSymbol.X,
         gameStatus: GameStatus.COMPLETED,
       });
       

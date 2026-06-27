@@ -85,7 +85,8 @@ export default function HelpButton() {
               <Flame className="mt-1 w-5 h-5 text-orange-500" />
               <div>
                 <span className="font-semibold">Winning:</span> First to get 3
-                in a row wins. There are no ties!
+                in a row wins. The 3-piece rule keeps the match moving until
+                someone wins.
               </div>
             </div>
 

@@ -27,12 +27,12 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
     return (
       <div
         className={cn(
-          "flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-md border-2 transition-all duration-200",
+          "flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-sm border-2 transition-all duration-200",
           colorScheme.bgLight,
           isCurrentPlayer 
-            ? `${colorScheme.border} ring-2 ring-offset-2 ${colorScheme.border}` 
+            ? `${colorScheme.border} ring-2 ring-primary/35 ring-offset-1 ring-offset-background` 
             : colorScheme.border,
-          isCurrentPlayer && "scale-105"
+          isCurrentPlayer && "scale-[1.02]"
         )}
         title={`${username} (${type}) - ${symbol}`}
       >
@@ -53,7 +53,7 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
             ) : (
               <>
                 <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                <span className="hidden sm:inline">You</span>
+                <span className="hidden sm:inline">Human</span>
               </>
             )}
           </span>

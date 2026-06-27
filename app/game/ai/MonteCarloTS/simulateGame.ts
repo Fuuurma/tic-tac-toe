@@ -7,8 +7,8 @@ import { isGameActive } from "../../logic/isGameActive";
 /**
  * Simulates a random game from the given state until a terminal state is reached.
  * @param state The starting state for the simulation.
- * @param perspectivePlayer The player from whose perspective the result (+1 win, 0 draw, -1 loss) is calculated.
- * @returns 1 if perspectivePlayer wins, 0 for a draw, -1 if perspectivePlayer loses.
+ * @param perspectivePlayer The player from whose perspective the result (+1 win, 0 unresolved, -1 loss) is calculated.
+ * @returns 1 if perspectivePlayer wins, 0 if the simulation cannot resolve a winner, -1 if perspectivePlayer loses.
  */
 
 export function simulateRandomGame(
@@ -31,7 +31,7 @@ export function simulateRandomGame(
 
   if (simulationState.winner === perspectivePlayer) {
     return 1;
-  } else if (simulationState.winner === "draw") {
+  } else if (!simulationState.winner) {
     return 0;
   } else {
     return -1;
