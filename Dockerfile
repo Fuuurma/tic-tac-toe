@@ -28,17 +28,17 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/next.config.ts ./next.config.ts
 
 USER nextjs
 
-# Expose both the Next.js port and Socket.IO port
-EXPOSE 3000 3009
+# Expose the HTTP server. Socket.IO is attached to the same server.
+EXPOSE 3000
 
-# Start both servers
-# The Socket.IO server needs to run alongside Next.js
-# We'll use a custom start script
+# Start the custom Next.js + Socket.IO server.
 CMD ["node", "server.js"]

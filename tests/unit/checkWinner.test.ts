@@ -71,22 +71,22 @@ describe("checkWinner", () => {
     });
   });
 
-  describe("Draw conditions", () => {
-    it("should detect draw when board is full with no winner", () => {
+  describe("Draw-free fallback", () => {
+    it("should award O when X has no moves left on a full board", () => {
       const board = createBoardWithMoves([0, 2, 5, 6, 7], [1, 3, 4, 8]);
-      const result = checkWinner(board);
-      expect(result.winner).toBe("draw");
+      const result = checkWinner(board, PlayerSymbol.X);
+      expect(result.winner).toBe(PlayerSymbol.O);
       expect(result.winningCombination).toBeNull();
     });
 
-    it("should detect draw with alternating pattern", () => {
+    it("should award X when O has no moves left on a full board", () => {
       const board: (PlayerSymbol | null)[] = [
         PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.X,
         PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.O,
         PlayerSymbol.O, PlayerSymbol.X, PlayerSymbol.X,
       ];
-      const result = checkWinner(board);
-      expect(result.winner).toBe("draw");
+      const result = checkWinner(board, PlayerSymbol.O);
+      expect(result.winner).toBe(PlayerSymbol.X);
       expect(result.winningCombination).toBeNull();
     });
   });

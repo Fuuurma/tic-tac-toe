@@ -1,4 +1,4 @@
-import { GameBoard, PlayerType, WinningLine } from "@/app/types/types";
+import { GameBoard, WinningLine } from "@/app/types/types";
 import { PlayerSymbol, WINNING_COMBINATIONS } from "../constants/constants";
 
 interface WinnerResult {
