@@ -6,6 +6,17 @@ const { Server } = require("socket.io");
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);
+const LOG_LEVEL = process.env.LOG_LEVEL || (dev ? "debug" : "info");
+const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
+
+function shouldLog(level) {
+  return (LOG_LEVELS[LOG_LEVEL] ?? LOG_LEVELS.info) >= LOG_LEVELS[level];
+}
+
+function log(level, message) {
+  if (!shouldLog(level)) return;
+  console.log(`[${new Date().toISOString()}] ${message}`);
+}
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -331,7 +342,7 @@ app.prepare().then(() => {
   });
 
   io.on("connection", (socket) => {
-    console.log(`[${new Date().toISOString()}] Client connected: ${socket.id}`);
+    log("debug", `Client connected: ${socket.id}`);
     let currentRoom = null;
 
     // ========== LOGIN ==========
@@ -353,7 +364,7 @@ app.prepare().then(() => {
 
       socket.join(room.id);
 
-      console.log(`[${new Date().toISOString()}] Player "${username}" (${symbol}) joined ${room.id}`);
+      log("info", `Player "${username}" (${symbol}) joined ${room.id}`);
 
       socket.emit("playerAssigned", {
         symbol,
@@ -375,7 +386,7 @@ app.prepare().then(() => {
       }
 
       if (room.isFull()) {
-        console.log(`[${new Date().toISOString()}] Game starting in ${room.id}`);
+        log("info", `Game starting in ${room.id}`);
         room.gameState.gameStatus = GameStatus.ACTIVE;
         io.to(room.id).emit("gameStart", room.gameState);
       }
@@ -411,12 +422,12 @@ app.prepare().then(() => {
       }
 
       currentRoom.gameState = newState;
-      console.log(`[${new Date().toISOString()}] Move ${index} by ${player.symbol} in ${currentRoom.id}`);
+      log("debug", `Move ${index} by ${player.symbol} in ${currentRoom.id}`);
 
       io.to(currentRoom.id).emit("gameUpdate", newState);
 
       if (newState.winner) {
-        console.log(`[${new Date().toISOString()}] Game ended in ${currentRoom.id}: ${newState.winner}`);
+        log("info", `Game ended in ${currentRoom.id}: ${newState.winner}`);
       }
     });
 
@@ -446,7 +457,7 @@ app.prepare().then(() => {
       currentRoom.rematchState = "requested";
       currentRoom.rematchRequester = player.symbol;
 
-      console.log(`[${new Date().toISOString()}] Rematch requested by ${player.symbol} in ${currentRoom.id}`);
+      log("info", `Rematch requested by ${player.symbol} in ${currentRoom.id}`);
 
       const opponentSocketId = currentRoom.getOpponentSocket(socket.id);
       if (opponentSocketId) {
@@ -477,7 +488,7 @@ app.prepare().then(() => {
       }
 
       currentRoom.resetForRematch();
-      console.log(`[${new Date().toISOString()}] Rematch accepted in ${currentRoom.id}`);
+      log("info", `Rematch accepted in ${currentRoom.id}`);
 
       io.to(currentRoom.id).emit("gameReset", currentRoom.gameState);
     });
@@ -498,7 +509,7 @@ app.prepare().then(() => {
       currentRoom.rematchState = "none";
       currentRoom.rematchRequester = null;
 
-      console.log(`[${new Date().toISOString()}] Rematch declined by ${player.symbol} in ${currentRoom.id}`);
+      log("info", `Rematch declined by ${player.symbol} in ${currentRoom.id}`);
 
       io.to(currentRoom.id).emit("error", `Rematch declined by ${player.username}`);
     });
@@ -525,7 +536,7 @@ app.prepare().then(() => {
         });
       }
 
-      console.log(`[${new Date().toISOString()}] Player ${player.username} left room ${currentRoom?.id || "unknown"}`);
+      log("info", `Player ${player.username} left room ${currentRoom?.id || "unknown"}`);
       currentRoom = null;
     });
 
@@ -547,13 +558,13 @@ app.prepare().then(() => {
       currentRoom.rematchState = "none";
       currentRoom.rematchRequester = null;
 
-      console.log(`[${new Date().toISOString()}] Game reset by ${player.username} in ${currentRoom.id}`);
+      log("info", `Game reset by ${player.username} in ${currentRoom.id}`);
       io.to(currentRoom.id).emit("gameReset", currentRoom.gameState);
     });
 
     // ========== DISCONNECT ==========
     socket.on("disconnect", (reason) => {
-      console.log(`[${new Date().toISOString()}] Client disconnected: ${socket.id} (${reason})`);
+      log("debug", `Client disconnected: ${socket.id} (${reason})`);
 
       if (currentRoom) {
         const player = currentRoom.getPlayerBySocket(socket.id);
@@ -562,7 +573,7 @@ app.prepare().then(() => {
         roomManager.removePlayerFromRoom(socket.id);
 
         if (player) {
-          console.log(`[${new Date().toISOString()}] Player ${player.username} disconnected from ${currentRoom.id}`);
+          log("info", `Player ${player.username} disconnected from ${currentRoom.id}`);
         }
 
         if (opponentSocketId) {
@@ -578,15 +589,15 @@ app.prepare().then(() => {
   });
 
   httpServer.listen(port, () => {
-    console.log(`[${new Date().toISOString()}] Server ready on http://${hostname}:${port}`);
-    console.log(`[${new Date().toISOString()}] Socket.IO server running`);
+    log("info", `Server ready on http://${hostname}:${port}`);
+    log("info", "Socket.IO server running");
   });
 
   // Periodic stats logging
   setInterval(() => {
     const stats = roomManager.getStats();
     if (stats.totalRooms > 0) {
-      console.log(`[Stats] Rooms: ${stats.totalRooms}, Players: ${stats.totalPlayers}, Active: ${stats.activeGames}, Waiting: ${stats.waitingGames}`);
+      log("debug", `Stats: Rooms: ${stats.totalRooms}, Players: ${stats.totalPlayers}, Active: ${stats.activeGames}, Waiting: ${stats.waitingGames}`);
     }
   }, 30000);
 });

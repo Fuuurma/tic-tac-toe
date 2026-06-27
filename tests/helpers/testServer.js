@@ -12,6 +12,13 @@ const AVAILABLE_COLORS = Object.values(Color);
 const PlayerTypes = { HUMAN: "HUMAN", COMPUTER: "COMPUTER" };
 const GAME_RULES = { MAX_MOVES_PER_PLAYER: 3, BOARD_SIZE: 9 };
 const TURN_DURATION_MS = 10000;
+const DEBUG_TEST_SERVER = process.env.DEBUG_TEST_SERVER === "1";
+
+function testLog(message) {
+  if (DEBUG_TEST_SERVER) {
+    console.log(message);
+  }
+}
 
 const WINNING_COMBINATIONS = [
   [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -346,43 +353,43 @@ function createTestServer(port = 0) {
       });
 
       socket.on("move", (index) => {
-        console.log(`[TestServer] Move event from ${socket.id} for index ${index}`);
+        testLog(`[TestServer] Move event from ${socket.id} for index ${index}`);
         if (!currentRoom) {
-          console.log(`[TestServer] Move failed: Not in a game`);
+          testLog("[TestServer] Move failed: Not in a game");
           socket.emit("error", "Not in a game");
           return;
         }
 
         const player = currentRoom.getPlayerBySocket(socket.id);
         if (!player) {
-          console.log(`[TestServer] Move failed: Player not found`);
+          testLog("[TestServer] Move failed: Player not found");
           socket.emit("error", "Player not found");
           return;
         }
 
         if (typeof index !== "number" || index < 0 || index >= GAME_RULES.BOARD_SIZE) {
-          console.log(`[TestServer] Move failed: Invalid index ${index}`);
+          testLog(`[TestServer] Move failed: Invalid index ${index}`);
           socket.emit("error", "Invalid move index");
           return;
         }
 
         if (!isValidMove(currentRoom.gameState, index, player.symbol)) {
-          console.log(`[TestServer] Move failed: isValidMove returned false for ${player.symbol} at ${index}`);
-          console.log(`[TestServer] Current board: ${JSON.stringify(currentRoom.gameState.board)}`);
-          console.log(`[TestServer] Current player: ${currentRoom.gameState.currentPlayer}`);
+          testLog(`[TestServer] Move failed: isValidMove returned false for ${player.symbol} at ${index}`);
+          testLog(`[TestServer] Current board: ${JSON.stringify(currentRoom.gameState.board)}`);
+          testLog(`[TestServer] Current player: ${currentRoom.gameState.currentPlayer}`);
           socket.emit("error", "Invalid move");
           return;
         }
 
         const newState = makeMove(currentRoom.gameState, index);
         if (!newState) {
-          console.log(`[TestServer] Move failed: makeMove returned null`);
+          testLog("[TestServer] Move failed: makeMove returned null");
           socket.emit("error", "Move failed");
           return;
         }
 
         currentRoom.gameState = newState;
-        console.log(`[TestServer] Move success. Broadcasting gameUpdate to room ${currentRoom.id}`);
+        testLog(`[TestServer] Move success. Broadcasting gameUpdate to room ${currentRoom.id}`);
         ioServer.to(currentRoom.id).emit("gameUpdate", newState);
       });
 
