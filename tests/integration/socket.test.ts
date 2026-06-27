@@ -103,6 +103,26 @@ describe("Socket Integration Tests", () => {
       expect(start2.players.X.color).not.toBe(start2.players.O.color);
     });
 
+    it("should preserve distinct non-default online colors", async () => {
+      const p1Assigned = new Promise((resolve) => client1.on("playerAssigned", resolve));
+      const p2Assigned = new Promise((resolve) => client2.on("playerAssigned", resolve));
+      const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+      const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+
+      client1.emit("login", "Player1", "green");
+      client2.emit("login", "Player2", "purple");
+
+      const [assigned1, assigned2, start1, start2] =
+        await Promise.all([p1Assigned, p2Assigned, p1Start, p2Start]);
+
+      expect(assigned1.assignedColor).toBe("green");
+      expect(assigned2.assignedColor).toBe("purple");
+      expect(start1.players.X.color).toBe("green");
+      expect(start1.players.O.color).toBe("purple");
+      expect(start2.players.X.color).toBe("green");
+      expect(start2.players.O.color).toBe("purple");
+    });
+
     it("should broadcast move to both players", async () => {
       // Login and wait for start
       const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));

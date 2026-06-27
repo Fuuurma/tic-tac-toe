@@ -6,7 +6,16 @@ const { io } = require("socket.io-client");
 
 const PlayerSymbol = { X: "X", O: "O" };
 const GameStatus = { WAITING: "Waiting", ACTIVE: "active", COMPLETED: "completed" };
-const Color = { BLUE: "blue", RED: "red" };
+const Color = {
+  BLUE: "blue",
+  GREEN: "green",
+  YELLOW: "yellow",
+  ORANGE: "orange",
+  RED: "red",
+  PINK: "pink",
+  PURPLE: "purple",
+  GRAY: "gray",
+};
 const DEFAULT_COLORS = { [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED };
 const AVAILABLE_COLORS = Object.values(Color);
 const PlayerTypes = { HUMAN: "HUMAN", COMPUTER: "COMPUTER" };
