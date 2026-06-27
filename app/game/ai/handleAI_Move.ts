@@ -1,12 +1,8 @@
 import { BoardPosition, GameState } from "@/app/types/types";
-import {
-  AI_Difficulty,
-  PlayerSymbol,
-} from "../constants/constants";
+import { AI_Difficulty } from "../constants/constants";
 import { getAIMove } from "./getAI_Move";
 import { makeMove } from "../logic/makeMove";
 import { findBestMoveEasyAI } from "./simpleAI/findBestMove";
-import { isValidMove } from "../logic/isValidMove";
 
 export const handleAI_Move = (
   state: GameState,
@@ -17,7 +13,6 @@ export const handleAI_Move = (
 
   // Store the expected game state snapshot to detect race conditions
   const expectedPlayer = state.currentPlayer;
-  const expectedBoardHash = state.board.join(",");
 
   const timerId = setTimeout(() => {
     console.log(

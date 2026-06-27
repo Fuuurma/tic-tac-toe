@@ -2,7 +2,6 @@ import { GameState } from "@/app/types/types";
 import { MonteCarloTreeSearchNode } from "./monteCarloTreeSearch";
 import { simulateRandomGame } from "./simulateGame";
 import { isGameActive } from "../../logic/isGameActive";
-import { getValidMoves } from "../../logic/getValidMoves";
 import { backpropagate } from "./backPropagate";
 import { makeMove } from "../../logic/makeMove";
 import { PlayerSymbol } from "../../constants/constants";
@@ -28,8 +27,6 @@ export function findBestMoveMCTS(
 
   const rootNode = new MonteCarloTreeSearchNode(currentState);
   const rootState = structuredClone(currentState);
-
-  const rootPlayer = rootNode.playerTurn;
 
   const immediateWin = findImmediateWinOrBlock(
     rootState,

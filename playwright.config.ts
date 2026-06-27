@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `PORT=${port} pnpm dev`,
+        command: `PORT=${port} NODE_ENV=development node server.js`,
         url: baseURL,
         reuseExistingServer: false,
         timeout: 30_000,

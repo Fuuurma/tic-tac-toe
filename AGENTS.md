@@ -50,8 +50,7 @@ pnpm test:coverage
   - `game/constants/` - Game constants, enums, and configurations
   - `types/` - TypeScript type definitions
   - `utils/` - Utility functions
-  - `hooks/` - Custom React hooks (game.ts, socket.ts, useSound.ts, useAnalytics.ts, useServiceWorker.ts)
-  - `api/` - Socket connection helpers (initSocketConnection, cleanSocketConnection)
+  - `hooks/` - Custom React hooks (`game/`, useSound.ts, useAnalytics.ts, useServiceWorker.ts)
 - `components/` - React components organized by feature
   - `ui/` - shadcn/ui reusable components
   - `game/` - Game-specific components (board, buttons, panels)
@@ -179,7 +178,7 @@ import GameBoard from "@/components/game/board";
 ### Socket.IO (Online Multiplayer)
 
 - Socket server is in root `server.js` (custom Next.js server, not App Router API route)
-- Client socket hook in `app/hooks/socket.ts`
+- Client socket hook in `app/hooks/game/useSocketGame.ts`
 - Use typed events: `ServerToClientEvents`, `ClientToServerEvents`
 - Clean up listeners in useEffect cleanup function
 - Handle connection/disconnection gracefully

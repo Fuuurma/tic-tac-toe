@@ -53,7 +53,6 @@ export const viewport: Viewport = {
 };
 
 const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "";
-const adSlot = process.env.NEXT_PUBLIC_ADSENSE_BANNER_SLOT || "";
 
 export default function RootLayout({
   children,

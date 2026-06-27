@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 interface StatsDisplayProps {
   stats: GameStats;
   layout?: "grid" | "list"; // "grid" for sidebar, "list" for panel
-  compact?: boolean;
   className?: string;
 }
 
@@ -18,7 +17,6 @@ interface StatsDisplayProps {
 export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   stats,
   layout = "grid",
-  compact = false,
   className,
 }) => {
   const winRate =

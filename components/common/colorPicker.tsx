@@ -11,6 +11,17 @@ interface ColorPickerProps {
 
 const defaultColors = COLOR_VARIANTS;
 
+const SWATCH_COLORS: Record<Color, string> = {
+  [Color.BLUE]: "#2563eb",
+  [Color.GREEN]: "#16a34a",
+  [Color.YELLOW]: "#eab308",
+  [Color.ORANGE]: "#f97316",
+  [Color.RED]: "#dc2626",
+  [Color.PINK]: "#db2777",
+  [Color.PURPLE]: "#9333ea",
+  [Color.GRAY]: "#64748b",
+};
+
 export const ColorPicker: React.FC<ColorPickerProps> = React.memo(
   ({
     selectedColor,
@@ -31,8 +42,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = React.memo(
               type="button" // Add type="button" to prevent form submission
               disabled={isDisabled}
               className={`
-                w-8 h-8 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                ${colorValue.bg}
+                h-7 w-7 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-8 sm:w-8
                 ${colorValue.border}
                 ${
                   isSelected
@@ -42,6 +52,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = React.memo(
                 ${isDisabled ? "opacity-30 cursor-not-allowed" : ""}
                 ${!isSelected && !isDisabled ? "hover:scale-105" : ""}
               `}
+              style={{ backgroundColor: SWATCH_COLORS[color] }}
               onClick={() => !isDisabled && onColorSelect(color)}
               title={capitalizeFirstLetter(color)}
               aria-label={`Select color ${capitalizeFirstLetter(color)}${

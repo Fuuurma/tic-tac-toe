@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { GameState, GameMode } from "@/app/types/types";
-import { PlayerSymbol, GameStatus } from "@/app/game/constants/constants";
+import { PlayerSymbol } from "@/app/game/constants/constants";
 import { isAITurn } from "@/app/game/ai/canAI_MakeMove";
 import { isGameActive } from "@/app/game/logic/isGameActive";
 import { findRandomValidMove } from "@/app/game/logic/makeRandomMove";
@@ -64,7 +64,7 @@ export const useGameTimer = (
 
       return () => clearInterval(intervalId);
     }
-  }, [gameState.currentPlayer, gameState.winner, gameState.turnTimeRemaining, gameState.gameStatus, gameMode, playerSymbol, setGameState]);
+  }, [gameState, gameMode, playerSymbol, setGameState]);
 
   return { timerMoveMadeRef };
 };

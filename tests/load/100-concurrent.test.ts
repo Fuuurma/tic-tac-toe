@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestServer, createClient, PlayerSymbol } from "../helpers/testServer.js";
+import { createTestServer, createClient } from "../helpers/testServer.js";
 
 describe("Load Tests - 100 Concurrent Connections", () => {
   let server;

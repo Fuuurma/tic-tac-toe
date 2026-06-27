@@ -24,10 +24,7 @@ export function minimax(
     return evaluateActiveState(state, aiSymbol);
   }
 
-  const humanSymbol =
-    aiSymbol === PlayerSymbol.O ? PlayerSymbol.X : PlayerSymbol.O;
   const validMoves = getValidMoves(state);
-  const currentPlayer = isMaximizingPlayer ? aiSymbol : humanSymbol;
 
   if (isMaximizingPlayer) {
     // AI's turn - try to maximize score

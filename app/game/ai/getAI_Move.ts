@@ -3,13 +3,11 @@ import { isGameActive } from "../logic/isGameActive";
 import {
   AI_Difficulty,
   MCTS_ITERATIONS,
-  MCTS_TIME_LIMIT,
   PlayerTypes,
 } from "../constants/constants";
 import { findBestMoveMCTS } from "./MonteCarloTS/findBestMove";
 import { findBestMoveMinimax } from "./MiniMaxAlgorithm/findBestMove";
 import { findBestMoveEasyAI } from "./simpleAI/findBestMove";
-import { getValidMoves } from "../logic/getValidMoves";
 
 /**
  * Gets the AI's next move based on the difficulty level.
@@ -43,7 +41,6 @@ export function getAIMove(
       case AI_Difficulty.HARD:
         console.log(`AI Difficulty: ${difficulty.toUpperCase()} (MCTS)`);
         const iterations = MCTS_ITERATIONS[difficulty];
-        const timeLimit = MCTS_TIME_LIMIT[difficulty];
         // Pass both iterations and time limit to MCTS
         bestMove = findBestMoveMCTS(gameState, iterations);
         break;

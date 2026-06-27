@@ -6,11 +6,9 @@ import {
   GameModes, 
   AI_Difficulty, 
   Color, 
-  PlayerSymbol,
-  GameStatus 
+  PlayerSymbol
 } from "@/app/game/constants/constants";
 import { createInitialGameState } from "@/app/game/logic/createInitialGameState";
-import { createFreshGameState } from "@/app/game/logic/newGameState";
 import { isAITurn } from "@/app/game/ai/canAI_MakeMove";
 import { handleAI_Move } from "@/app/game/ai/handleAI_Move";
 import { isValidMove } from "@/app/game/logic/isValidMove";
@@ -34,7 +32,7 @@ export const useLocalGame = (
 
     const cleanup = handleAI_Move(gameState, setGameState, aiDifficulty);
     return cleanup;
-  }, [gameState.currentPlayer, gameState.winner, gameState.board, aiDifficulty, gameMode, setGameState]);
+  }, [gameState, aiDifficulty, gameMode, setGameState]);
 
   const handleLocalMove = useCallback((index: number) => {
     if (!isValidMove(gameState, index, loggedIn)) {

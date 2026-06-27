@@ -2,11 +2,6 @@
 
 import { useCallback } from "react";
 
-interface AnalyticsEvent {
-  name: string;
-  params?: Record<string, string | number | boolean>;
-}
-
 export function useAnalytics() {
   const trackEvent = useCallback((name: string, params?: Record<string, string | number | boolean>) => {
     console.log("[Analytics]", { name, params });

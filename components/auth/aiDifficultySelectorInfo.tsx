@@ -14,7 +14,7 @@ import { AI_Difficulty } from "@/app/game/constants/constants";
 const AI_DifficultySelectorInfo = () => {
   return (
     <div className="flex items-center gap-2">
-      <Label htmlFor="ai-difficulty">AI Difficulty</Label>
+      <Label htmlFor="ai-difficulty" className="text-sm font-semibold">AI Difficulty</Label>
       <Dialog>
         <DialogTrigger asChild>
           <Button variant="ghost" size="icon" className="h-5 w-5 p-0">

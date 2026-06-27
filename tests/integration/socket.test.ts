@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
-import { createTestServer, createClient, PlayerSymbol, GameStatus, GAME_RULES } from "../helpers/testServer.js";
+import { createTestServer, createClient, PlayerSymbol, GameStatus } from "../helpers/testServer.js";
 
 describe("Socket Integration Tests", () => {
   let server;
@@ -158,7 +158,7 @@ describe("Socket Integration Tests", () => {
       const p2Reset = new Promise((resolve) => client2.on("gameReset", resolve));
       client2.emit("acceptRematch");
       
-      const [reset1, reset2] = await Promise.all([p1Reset, p2Reset]);
+      const [reset1] = await Promise.all([p1Reset, p2Reset]);
       expect(reset1.board.every(c => c === null)).toBe(true);
       expect(reset1.gameStatus).toBe(GameStatus.ACTIVE);
     });

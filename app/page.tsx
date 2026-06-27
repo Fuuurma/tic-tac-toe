@@ -201,10 +201,10 @@ export default function Home() {
   return (
     <>
       <AppSidebar gameState={gameState} gameMode={gameMode} isLoggedIn={loggedIn} stats={stats} />
-      <SidebarInset className="flex-1 h-full overflow-hidden">
-        <div className="h-full flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden">
+      <SidebarInset className="flex-1 min-h-dvh overflow-hidden">
+        <div className="min-h-dvh h-dvh flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden">
           {!loggedIn ? (
-            <main className="w-full max-w-7xl h-full flex flex-col items-center justify-center gap-4 sm:gap-8 p-4 sm:p-6 lg:p-8">
+            <main className="flex h-full w-full max-w-7xl flex-col items-center justify-center gap-3 p-3 sm:gap-4 sm:p-6 lg:p-8">
               <LoginForm
                 username={username}
                 setUsername={setUsername}
@@ -224,9 +224,9 @@ export default function Home() {
               <PageFooter />
             </main>
           ) : (
-            <main className="w-full h-full flex flex-col items-center justify-start md:justify-center gap-1 sm:gap-1.5 md:gap-3 p-1 sm:p-2 md:p-6 overflow-y-auto md:overflow-hidden">
+            <main className="w-full min-h-0 h-full flex flex-col items-center justify-start md:justify-center gap-2 sm:gap-3 p-2 sm:p-3 md:p-6 overflow-hidden">
               <PlayersPanel gameState={gameState} message={message} onNewGame={handleReset} onExit={exitGame} />
-              <div className="flex-1 w-full flex items-center justify-center min-h-0">
+              <div className="flex-1 w-full flex items-start md:items-center justify-center min-h-0">
                 <GameBoard
                   gameState={gameState}
                   handleCellClick={handleCellClick}

@@ -1,4 +1,4 @@
-import { GameState, WinningLine } from "@/app/types/types";
+import { GameState } from "@/app/types/types";
 import { checkWinner } from "./checkWinner";
 import { PlayerSymbol, TURN_DURATION_MS, GameStatus } from "../constants/constants";
 

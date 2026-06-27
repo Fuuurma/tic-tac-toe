@@ -15,7 +15,7 @@ import {
   PLAYER_CONFIG,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
-import { User, Users, Play, Ghost } from "lucide-react";
+import { User, Users, Play, Shuffle } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
@@ -68,7 +68,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   }, [username, opponentName, gameMode, selectedColor, opponentColor]);
 
   const handleInputChange = useCallback(
-    <T extends unknown>(setter: (value: T) => void) => {
+    <T,>(setter: (value: T) => void) => {
       return (value: T) => {
         setError(null);
         setter(value);
@@ -88,16 +88,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-md">
-      <Card className="shadow-xl border-2 overflow-hidden">
-        <div className="bg-gradient-to-r from-primary to-primary/80 h-1" />
-        <CardHeader className="text-center pb-2 space-y-1">
-          <CardTitle className="text-xl font-bold">Tic Tac Toe</CardTitle>
+    <form onSubmit={handleSubmit} className="w-full max-w-[27rem]">
+      <Card className="gap-0 overflow-hidden border-2 bg-card/90 py-0 shadow-2xl backdrop-blur-md">
+        <div className="h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-amber-500" />
+        <CardHeader className="px-4 pb-3 pt-5 text-center sm:px-6">
+          <div className="mx-auto mb-3 grid h-12 w-12 grid-cols-3 gap-1 rounded-xl border bg-background/80 p-1 shadow-inner">
+            {["X", "", "O", "", "X", "", "O", "", "X"].map((mark, index) => (
+              <span
+                key={`${mark}-${index}`}
+                className="flex items-center justify-center rounded bg-muted/80 text-[10px] font-black text-muted-foreground"
+                aria-hidden="true"
+              >
+                {mark}
+              </span>
+            ))}
+          </div>
+          <CardTitle className="text-2xl font-black tracking-normal">
+            Tic Tac Toe
+          </CardTitle>
           <CardDescription className="text-xs">
-            Choose settings and start playing
+            Pick a mode, choose your color, and jump in.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 pt-2">
+        <CardContent className="space-y-3 px-4 pb-3 pt-0 sm:px-6">
           <ErrorMessage message={error} />
 
           <PlayerInputSection
@@ -120,7 +133,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           />
 
           {gameMode === GameModes.VS_COMPUTER && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2">
               <AI_DifficultySelector
                 selectedDifficulty={aiDifficulty}
                 onDifficultyChange={handleInputChange(setAiDifficulty)}
@@ -144,16 +157,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             />
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-3 pb-4 pt-2">
+        <CardFooter className="flex flex-col gap-2 px-4 pb-4 pt-0 sm:px-6">
           <Button
             type="submit"
             size="lg"
             className={`
-              w-full py-6 rounded-xl text-lg font-bold
+              h-12 w-full rounded-lg text-base font-bold
               transition-all duration-200 ease-in-out
               flex items-center justify-center gap-2
               ${validationResult.isValid 
-                ? 'bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
+                ? 'bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl' 
                 : 'opacity-50 cursor-not-allowed'
               }
             `}
@@ -168,9 +181,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             variant="outline"
             size="sm"
             onClick={handleGuestPlay}
-            className="w-full py-4 text-xs md:text-sm font-medium opacity-80 hover:opacity-100 flex items-center justify-center gap-2"
+            className="flex h-9 w-full items-center justify-center gap-2 text-xs font-medium opacity-85 hover:opacity-100 md:text-sm"
           >
-            <Ghost className="h-4 w-4" />
+            <Shuffle className="h-4 w-4" />
             Play as Guest
           </Button>
         </CardFooter>

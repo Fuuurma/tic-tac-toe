@@ -10,7 +10,7 @@ import {
   TURN_DURATION_MS,
   PlayerTypes,
 } from "@/app/game/constants/constants";
-import { Loader2, RotateCcw, LogOut, Clock, AlertCircle } from "lucide-react";
+import { Loader2, RotateCcw, LogOut, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShareButton } from "../common/shareButton";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,6 @@ interface PlayersPanelProps {
 export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   gameState,
   message,
-  playerType,
   onNewGame,
   onExit,
 }) => {
@@ -122,7 +121,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   };
 
   return (
-    <div className="w-full px-1 sm:px-2 md:mx-4 flex-shrink-0">
+    <div className="w-full max-w-lg px-0 sm:px-2 md:mx-4 flex-shrink-0">
       {/* Matchmaking Loading State */}
       {isWaiting && (
         <div className="bg-card/80 backdrop-blur-md border-2 rounded-xl shadow-xl p-4 sm:p-6 animate-in fade-in glassmorphism">

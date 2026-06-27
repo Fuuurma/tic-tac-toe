@@ -183,7 +183,6 @@ export const SESSION_CONFIG = {
   MAX_GAMES_PER_USER: 5,
 } as const;
 
-// At the top of GameServer.ts or in a shared constants file
 export const Events = {
   CONNECTION: "connection",
   DISCONNECT: "disconnect",

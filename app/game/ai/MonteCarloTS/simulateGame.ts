@@ -1,7 +1,6 @@
 import { GameState } from "@/app/types/types";
 import { PlayerSymbol } from "../../constants/constants";
 import { makeMove } from "../../logic/makeMove";
-import { checkWinner } from "../../logic/checkWinner";
 import { getValidMoves } from "../../logic/getValidMoves";
 import { isGameActive } from "../../logic/isGameActive";
 

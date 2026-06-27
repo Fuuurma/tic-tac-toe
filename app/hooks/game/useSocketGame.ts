@@ -74,12 +74,13 @@ export const useSocketGame = (
         transports: ["websocket", "polling"], // Ensure multiple transports
       });
       setSocket(newSocket);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
       console.error("Socket connection error:", err);
-      setMessage(`Connection failed: ${err.message}`);
+      setMessage(`Connection failed: ${message}`);
       setSocket(null);
     }
-  }, [username, socket, setMessage]);
+  }, [socket, setMessage]);
 
   useEffect(() => {
     if (!socket) return;

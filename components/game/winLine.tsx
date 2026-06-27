@@ -27,7 +27,7 @@ export const WinLine: React.FC<WinLineProps> = ({
     
     if (cells.length !== 9) return;
 
-    const [a, b, c] = winningCombination;
+    const [a, , c] = winningCombination;
     const cellA = cells[a] as HTMLElement;
     const cellC = cells[c] as HTMLElement;
 

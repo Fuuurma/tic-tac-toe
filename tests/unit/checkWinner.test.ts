@@ -62,7 +62,7 @@ describe("checkWinner", () => {
     });
 
     it("should detect winner for all 8 winning combinations", () => {
-      WINNING_COMBINATIONS.forEach((combo, index) => {
+      WINNING_COMBINATIONS.forEach((combo) => {
         const board = createBoardWithMoves(combo, []);
         const result = checkWinner(board);
         expect(result.winner).toBe(PlayerSymbol.X);

@@ -2,12 +2,7 @@
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { GameState, WinningLine } from "@/app/types/types";
-import {
-  Color,
-  GameModes,
-  GameStatus,
-  PlayerSymbol,
-} from "@/app/game/constants/constants";
+import { Color, GameModes, PlayerSymbol } from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
 import GameButtons from "./gameButtons";
 import WinLine from "./winLine";
@@ -52,7 +47,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     winner,
     gameMode,
     nextToRemove,
-    gameStatus,
   } = gameState;
 
   const boardRef = useRef<HTMLDivElement>(null);
@@ -112,9 +106,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   );
 
   return (
-    <div className="w-full max-w-lg h-full flex items-center justify-center overflow-hidden flex-shrink-0">
-      <Card className="shadow-2xl border-2 rounded-xl md:rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full">
-        <CardContent className="p-2 sm:p-3 md:p-6 h-full flex flex-col items-center justify-center">
+    <div className="w-full h-full min-h-0 flex items-start md:items-center justify-center overflow-hidden">
+      <Card className="shadow-2xl border-2 rounded-xl md:rounded-2xl overflow-hidden backdrop-blur-md bg-card/80 w-full max-w-[min(100%,calc(100dvh-9.5rem))] md:max-w-lg max-h-full">
+        <CardContent className="p-2 sm:p-3 md:p-6 flex flex-col items-center justify-center">
           <div
             ref={boardRef}
             className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 aspect-square w-full max-w-full relative"

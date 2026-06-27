@@ -1,8 +1,6 @@
 import {
   BoardPosition,
-  CellValue,
   GameState,
-  MovesHistory,
   WinningLine,
 } from "@/app/types/types";
 import {
@@ -138,10 +136,6 @@ export class AI_MoveEngine {
     }
 
     return newState;
-  }
-
-  private getNextToRemove(moves: number[]): number | null {
-    return moves.length >= GAME_RULES.MAX_MOVES_PER_PLAYER ? moves[0] : null;
   }
 }
 

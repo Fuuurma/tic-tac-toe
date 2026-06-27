@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const { io } = require("socket.io-client");
@@ -165,7 +167,7 @@ class GameRoom {
 
   resetForRematch() {
     const preservedPlayers = {};
-    for (const [socketId, player] of this.players) {
+    for (const player of this.players.values()) {
       preservedPlayers[player.symbol] = { username: player.username, color: player.color };
     }
     this.gameState = createInitialGameState(preservedPlayers);
@@ -182,7 +184,7 @@ class RoomManager {
   }
 
   findOrCreateRoom() {
-    for (const [roomId, room] of this.rooms) {
+    for (const room of this.rooms.values()) {
       if (!room.isFull() && room.rematchState === "none") {
         return room;
       }
@@ -237,7 +239,7 @@ class RoomManager {
 }
 
 function createTestServer(port = 0) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const httpServer = createServer();
     const ioServer = new Server(httpServer, {
       cors: { origin: "*", methods: ["GET", "POST"] },

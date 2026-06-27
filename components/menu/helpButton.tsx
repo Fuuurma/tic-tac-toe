@@ -14,7 +14,6 @@ import {
   Clock,
   ArrowUpCircle,
   Eye,
-  XCircle,
 } from "lucide-react";
 
 export default function HelpButton() {
@@ -69,7 +68,7 @@ export default function HelpButton() {
               <Eye className="mt-1 w-5 h-5 text-yellow-500" />
               <div>
                 <span className="font-semibold">Visual Cues:</span> The next
-                piece to disappear wiggles before it's removed, helping you
+                piece to disappear wiggles before it is removed, helping you
                 track your oldest piece.
               </div>
             </div>
@@ -78,7 +77,7 @@ export default function HelpButton() {
               <Clock className="mt-1 w-5 h-5 text-red-500" />
               <div>
                 <span className="font-semibold">Countdown:</span> Each turn has
-                a timer. If you don't move in time, your turn is skipped.
+                a timer. If you do not move in time, your turn is skipped.
               </div>
             </div>
 

@@ -4,10 +4,6 @@ import { useCallback, useRef, useEffect } from "react";
 
 type SoundType = "place" | "win" | "warning" | "click";
 
-interface SoundOptions {
-  volume?: number;
-}
-
 export function useSound() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const enabledRef = useRef(true);

@@ -1,7 +1,6 @@
 "use client";
 import { AI_Difficulty } from "@/app/game/constants/constants";
 import capitalizeFirstLetter from "@/app/utils/capitalize";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -27,7 +26,7 @@ const AI_DifficultySelector: React.FC<AI_DifficultySelectorProps> = ({
         value={selectedDifficulty}
         onValueChange={(value) => onDifficultyChange(value as AI_Difficulty)}
       >
-        <SelectTrigger id="ai-difficulty" className="w-full h-8 text-sm">
+        <SelectTrigger id="ai-difficulty" className="h-9 w-full text-sm">
           <SelectValue placeholder="Select difficulty" />
         </SelectTrigger>
         <SelectContent>
