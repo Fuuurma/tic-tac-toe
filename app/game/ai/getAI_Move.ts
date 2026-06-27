@@ -27,26 +27,22 @@ export function getAIMove(
     return -1;
   }
 
-  const startTime = performance.now();
   let bestMove = -1;
 
   try {
     switch (difficulty) {
       case AI_Difficulty.EASY:
-        console.log("AI Difficulty: EASY (Rule-Based)");
         bestMove = findBestMoveEasyAI(gameState, aiSymbol);
         break;
 
       case AI_Difficulty.NORMAL:
       case AI_Difficulty.HARD:
-        console.log(`AI Difficulty: ${difficulty.toUpperCase()} (MCTS)`);
         const iterations = MCTS_ITERATIONS[difficulty];
         // Pass both iterations and time limit to MCTS
         bestMove = findBestMoveMCTS(gameState, iterations);
         break;
 
       case AI_Difficulty.INSANE:
-        console.log("AI Difficulty: INSANE (Minimax)");
         bestMove = findBestMoveMinimax(gameState, aiSymbol, 9);
         break;
 
@@ -60,16 +56,8 @@ export function getAIMove(
   } catch (error) {
     console.error(`Error during AI calculation (${difficulty}):`, error);
     // Fallback to easy move on any error during calculation
-    console.log("Falling back to EASY due to error.");
     bestMove = findBestMoveEasyAI(gameState, aiSymbol);
   }
-
-  const endTime = performance.now();
-  console.log(
-    `AI (${difficulty}) chose move ${bestMove} in ${(
-      endTime - startTime
-    ).toFixed(2)} ms`
-  );
 
   return bestMove;
 }

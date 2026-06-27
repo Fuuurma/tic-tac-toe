@@ -15,10 +15,6 @@ export const handleAI_Move = (
   const expectedPlayer = state.currentPlayer;
 
   const timerId = setTimeout(() => {
-    console.log(
-      `AI (${difficulty}) is thinking... Current state turn: ${expectedPlayer}`
-    );
-
     // Call the main AI wrapper function to get the best move index
     // Clone state for calculation to prevent any mutations
     const stateClone = structuredClone(state);
@@ -29,7 +25,6 @@ export const handleAI_Move = (
         bestMoveIndex >= 0 && 
         bestMoveIndex < state.board.length &&
         state.board[bestMoveIndex] === null) {
-      console.log(`AI applying move ${bestMoveIndex} to current state.`);
       const newState = makeMove(state, bestMoveIndex as BoardPosition);
       onLocalUpdate(newState);
     } else {

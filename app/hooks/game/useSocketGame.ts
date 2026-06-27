@@ -58,14 +58,10 @@ export const useSocketGame = (
     let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
     
     if (!socketUrl && typeof window !== "undefined") {
-      // In development, if no env var is set, try to use the current origin
-      // server.js hosts both Next.js and Socket.IO on the same port
-      socketUrl = window.location.origin.replace(":3000", ":3000"); // Ensure it's 3000 if not specified
+      socketUrl = window.location.origin;
     }
     
     if (!socketUrl) socketUrl = "http://localhost:3000";
-
-    console.log("Connecting to Socket.IO server at:", socketUrl);
 
     try {
       const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> = io(socketUrl, {

@@ -11,10 +11,10 @@ export function findAlternativeColor(
   existingColor: Color,
   allColors: Color[] = Object.values(Color)
 ): Color {
-  // Find the first color that differs from the existing one
-  // TODO: change to random color better
-  const alternativeColor = allColors.find((color) => color !== existingColor);
+  const availableColors = allColors.filter((color) => color !== existingColor);
 
   // This should never happen if there are at least 2 colors, but provide a fallback
-  return alternativeColor || allColors[0];
+  if (availableColors.length === 0) return allColors[0];
+
+  return availableColors[Math.floor(Math.random() * availableColors.length)];
 }

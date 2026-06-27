@@ -4,8 +4,6 @@ import { useCallback } from "react";
 
 export function useAnalytics() {
   const trackEvent = useCallback((name: string, params?: Record<string, string | number | boolean>) => {
-    console.log("[Analytics]", { name, params });
-    
     if (typeof window !== "undefined" && (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag) {
       (window as unknown as { gtag: (...args: unknown[]) => void }).gtag("event", name, params);
     }
