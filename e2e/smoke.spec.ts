@@ -44,7 +44,48 @@ test("starts a local two-player game", async ({ page }) => {
   await expect(page.getByRole("gridcell")).toHaveCount(9);
 });
 
-test("pairs two online players", async ({ browser }) => {
+async function playOnlineMove(
+  page: import("@playwright/test").Page,
+  cellIndex: number,
+) {
+  await page.getByRole("gridcell").nth(cellIndex).click();
+}
+
+async function expectCellOccupied(
+  pages: import("@playwright/test").Page[],
+  cellIndex: number,
+  symbol: "X" | "O",
+  timeout = 10_000,
+) {
+  await Promise.all(
+    pages.map((page) =>
+      expect(page.getByRole("gridcell").nth(cellIndex)).toHaveAccessibleName(
+        new RegExp(`occupied by ${symbol}`, "i"),
+        { timeout },
+      ),
+    ),
+  );
+}
+
+async function playMoveFromEitherPage(
+  pages: import("@playwright/test").Page[],
+  cellIndex: number,
+  symbol: "X" | "O",
+) {
+  for (const page of pages) {
+    await playOnlineMove(page, cellIndex);
+    try {
+      await expectCellOccupied(pages, cellIndex, symbol, 1_500);
+      return;
+    } catch {
+      // Try the other tab; only the active player's client can make this move.
+    }
+  }
+
+  await expectCellOccupied(pages, cellIndex, symbol);
+}
+
+test("pairs two online players, completes a match, and rematches", async ({ browser }) => {
   const playerOneContext = await browser.newContext();
   const playerTwoContext = await browser.newContext();
   const playerOne = await playerOneContext.newPage();
@@ -65,10 +106,27 @@ test("pairs two online players", async ({ browser }) => {
 
     await playerTwo.getByRole("button", { name: "Start Game" }).click();
 
-    await expect(playerOne.getByText("ONLINE")).toBeVisible();
-    await expect(playerTwo.getByText("ONLINE")).toBeVisible();
+    await expect(playerOne.getByRole("heading", { name: "ONLINE" })).toBeVisible();
+    await expect(playerTwo.getByRole("heading", { name: "ONLINE" })).toBeVisible();
     await expect(playerOne.getByRole("gridcell")).toHaveCount(9);
     await expect(playerTwo.getByRole("gridcell")).toHaveCount(9);
+
+    const pages = [playerOne, playerTwo];
+    await playMoveFromEitherPage(pages, 0, "X");
+    await playMoveFromEitherPage(pages, 3, "O");
+    await playMoveFromEitherPage(pages, 1, "X");
+    await playMoveFromEitherPage(pages, 4, "O");
+    await playMoveFromEitherPage(pages, 2, "X");
+
+    await expect(playerOne.getByText(/wins!/i)).toBeVisible();
+    await expect(playerTwo.getByText(/wins!/i)).toBeVisible();
+
+    await playerOne.getByRole("button", { name: "Request Rematch" }).click();
+    await expect(playerTwo.getByRole("button", { name: "Accept Rematch" })).toBeVisible();
+    await playerTwo.getByRole("button", { name: "Accept Rematch" }).click();
+
+    await expect(playerOne.getByRole("gridcell").first()).toHaveAccessibleName(/empty/i);
+    await expect(playerTwo.getByRole("gridcell").first()).toHaveAccessibleName(/empty/i);
   } finally {
     await playerOneContext.close();
     await playerTwoContext.close();

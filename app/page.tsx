@@ -170,7 +170,15 @@ export default function Home() {
   const handleCellClick = (index: number) => {
     if (!loggedIn) return;
     if (gameMode === GameModes.ONLINE) {
-      if (playerSymbol !== gameState.currentPlayer) {
+      const effectivePlayerSymbol =
+        playerSymbol ??
+        (gameState.players.X.username === username
+          ? PlayerSymbol.X
+          : gameState.players.O.username === username
+            ? PlayerSymbol.O
+            : null);
+
+      if (effectivePlayerSymbol !== gameState.currentPlayer) {
         setMessage("It's not your turn.");
         return;
       }
