@@ -1,7 +1,7 @@
 import { GameMode } from "@/app/types/types";
 import { Color, GameModes } from "../constants/constants";
 
-export const VallidateUserInput = (
+export const ValidateUserInput = (
   username: string,
   opponentName: string,
   gameMode: GameMode,

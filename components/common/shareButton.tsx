@@ -50,6 +50,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       onClick={share}
       className="gap-1 text-foreground"
       title="Share"
+      aria-label={copied ? "Share link copied" : "Share game"}
     >
       {copied ? (
         <>

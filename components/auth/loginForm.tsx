@@ -19,7 +19,7 @@ import { User, Users, Play, Shuffle } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
-import { VallidateUserInput } from "@/app/game/auth/validateInput";
+import { ValidateUserInput } from "@/app/game/auth/validateInput";
 import AI_DifficultySelector from "./aiDifficultySelector";
 
 interface LoginFormProps {
@@ -58,7 +58,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const validationResult = useMemo(() => {
-    return VallidateUserInput(
+    return ValidateUserInput(
       username.trim().toLowerCase(),
       opponentName.trim().toLowerCase(),
       gameMode,
