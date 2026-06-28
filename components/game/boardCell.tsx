@@ -65,8 +65,8 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
       value && colorScheme
         ? `${colorScheme.bg} ${colorScheme.border} ${colorScheme.text} shadow-lg`
         : EMPTY_CELL_STYLE,
-      isWinningCell && "animate-winning-cell ring-2 ring-amber-300/70 ring-offset-1 ring-offset-background z-10",
-      isNextToRemove ? "opacity-90" : "",
+      isWinningCell && "animate-winning-cell ring-1 ring-amber-300/55 ring-offset-1 ring-offset-background z-10",
+      isNextToRemove ? "opacity-95" : "",
       isNextToRemove && removalColorScheme?.pulse
         ? removalColorScheme.pulse
         : isNextToRemove
@@ -77,7 +77,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
     );
 
     const removalBorderClasses = cn(
-      "absolute inset-0 animate-wiggle border-2 rounded-lg md:rounded-2xl lg:rounded-3xl z-10 pointer-events-none",
+      "absolute inset-0 animate-wiggle border rounded-lg md:rounded-2xl lg:rounded-3xl z-10 pointer-events-none opacity-70",
       removalColorScheme?.border
     );
 
@@ -122,8 +122,9 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         tabIndex={isDisabled && !!value ? -1 : 0}
       >
         {isNextToRemove && (
-          <span className="absolute right-1 top-1 z-20 rounded-full bg-background/90 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none text-muted-foreground shadow-sm ring-1 ring-border sm:text-[10px]">
-            {NEXT_REMOVAL_LABEL}
+          <span className="absolute right-1 top-1 z-20 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-background/90 px-1 text-[8px] font-bold uppercase leading-none text-muted-foreground shadow-sm ring-1 ring-border sm:h-5 sm:min-w-0 sm:px-1.5 sm:text-[9px]">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current sm:hidden" />
+            <span className="sr-only sm:not-sr-only">{NEXT_REMOVAL_LABEL}</span>
           </span>
         )}
 

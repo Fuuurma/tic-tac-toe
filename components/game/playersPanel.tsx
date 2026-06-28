@@ -132,30 +132,28 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
     <div className="w-full max-w-lg px-0 sm:px-2 md:mx-4 flex-shrink-0">
       {/* Matchmaking Loading State */}
       {isWaiting && (
-        <div className="bg-card/80 backdrop-blur-md border-2 rounded-xl shadow-xl p-4 sm:p-6 animate-in fade-in glassmorphism">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <div className="relative">
-              <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-primary" />
-              <div className="absolute inset-0 h-8 w-8 sm:h-12 sm:w-12 animate-ping rounded-full bg-primary/20" />
+        <div className="rounded-xl border bg-card/85 p-3 shadow-lg backdrop-blur-md animate-in fade-in sm:p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary sm:h-11 sm:w-11">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="absolute h-2 w-2 rounded-full bg-emerald-500 right-1.5 top-1.5" />
             </div>
-            <div className="text-center">
-              <h3 className="text-base sm:text-lg font-bold text-foreground">Waiting for Opponent</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold text-foreground sm:text-base">Waiting for Opponent</h3>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">
                 {message || "Finding a player..."}
               </p>
             </div>
-            <div className="flex gap-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onExit}
-                aria-label="Cancel matchmaking"
-                className="gap-1 text-xs sm:text-sm"
-              >
-                <LogOut className="h-3 w-3" />
-                Cancel
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExit}
+              aria-label="Cancel matchmaking"
+              className="h-8 shrink-0 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Cancel
+            </Button>
           </div>
         </div>
       )}

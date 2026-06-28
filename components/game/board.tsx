@@ -149,7 +149,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               isActive={showParticles}
               originX={0.5}
               originY={0.5}
-              particleCount={24}
+              particleCount={12}
             />
           </div>
         </CardContent>
