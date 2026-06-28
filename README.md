@@ -44,6 +44,12 @@ pnpm test:unit        # Run unit tests
 pnpm cap:sync         # Sync to mobile platforms
 ```
 
+## Environment Variables
+
+- `NEXT_PUBLIC_SOCKET_URL`: optional Socket.IO server URL when the realtime server is hosted separately from the web app.
+- `SOCKET_CORS_ORIGIN`: optional comma-separated list of allowed Socket.IO origins, for example `https://example.com,https://www.example.com`. Defaults to `*`.
+- `LOG_LEVEL`: optional server log level: `silent`, `error`, `warn`, `info`, or `debug`.
+
 ## Project Structure
 
 - `app/`: Next.js App Router and core logic.

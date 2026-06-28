@@ -9,6 +9,17 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const LOG_LEVEL = process.env.LOG_LEVEL || (dev ? "debug" : "info");
 const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
 
+function parseSocketCorsOrigin(value) {
+  if (!value) return "*";
+  const origins = value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (origins.length === 0) return "*";
+  return origins.length === 1 ? origins[0] : origins;
+}
+
 function shouldLog(level) {
   return (LOG_LEVELS[LOG_LEVEL] ?? LOG_LEVELS.info) >= LOG_LEVELS[level];
 }
@@ -17,6 +28,8 @@ function log(level, message) {
   if (!shouldLog(level)) return;
   console.log(`[${new Date().toISOString()}] ${message}`);
 }
+
+const socketCorsOrigin = parseSocketCorsOrigin(process.env.SOCKET_CORS_ORIGIN);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -329,7 +342,7 @@ app.prepare().then(() => {
   });
 
   const io = new Server(httpServer, {
-    cors: { origin: "*", methods: ["GET", "POST"] },
+    cors: { origin: socketCorsOrigin, methods: ["GET", "POST"] },
   });
 
   const roomManager = new RoomManager();
