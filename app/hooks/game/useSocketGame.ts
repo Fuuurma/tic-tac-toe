@@ -95,20 +95,28 @@ export const useSocketGame = (
 
     const handleConnect = () => {
       setMessage("Connected! Waiting for opponent...");
+      setLoggedIn(true);
       socket.emit("login", usernameRef.current, selectedColorRef.current);
     };
 
     const handleDisconnect = (reason: string) => {
-      setMessage(`Disconnected: ${reason}. Please log in again.`);
-      setPlayerSymbol(null);
-      setLoggedIn(false);
+      if (reason === "io client disconnect" || reason === "io server disconnect") {
+        setMessage(`Disconnected: ${reason}. Please log in again.`);
+        setPlayerSymbol(null);
+        setLoggedIn(false);
+      } else {
+        setMessage("Connection lost. Reconnecting...");
+      }
       setRematchOffered(false);
       setRematchRequested(false);
     };
 
     const handlePlayerAssigned = (payload: { symbol: PlayerSymbol; roomId: string; assignedColor: Color }) => {
+      playerSymbolRef.current = payload.symbol;
+      selectedColorRef.current = payload.assignedColor;
       setPlayerSymbol(payload.symbol);
       setSelectedColor(payload.assignedColor);
+      setLoggedIn(true);
     };
 
     const handleGameStart = (initialGameState: GameState) => {
@@ -143,6 +151,7 @@ export const useSocketGame = (
     };
 
     const handleColorChanged = (payload: { newColor: Color; reason: string }) => {
+      selectedColorRef.current = payload.newColor;
       setSelectedColor(payload.newColor);
       setMessage(payload.reason);
     };
