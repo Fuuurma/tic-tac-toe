@@ -90,6 +90,15 @@ test("starts a local two-player game", async ({ page }) => {
   await expect(page.getByRole("gridcell")).toHaveCount(9);
 });
 
+test("starts online matchmaking as a guest", async ({ page }) => {
+  await page.goto("/");
+
+  await chooseMode(page, "Online Multiplayer");
+  await page.getByRole("button", { name: "Play as Guest" }).click();
+
+  await expect(page.getByRole("heading", { name: "Waiting for Opponent" })).toBeVisible();
+});
+
 async function playOnlineMove(
   page: import("@playwright/test").Page,
   cellIndex: number,

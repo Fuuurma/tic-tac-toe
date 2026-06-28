@@ -14,6 +14,11 @@ import {
   PlayerSymbol,
 } from "@/app/game/constants/constants";
 
+interface SocketLoginOptions {
+  username?: string;
+  color?: Color;
+}
+
 export const useSocketGame = (
   username: string,
   selectedColor: Color,
@@ -45,14 +50,19 @@ export const useSocketGame = (
     playerSymbolRef.current = playerSymbol;
   }, [username, selectedColor, playerSymbol]);
 
-  const initializeSocket = useCallback(() => {
-    if (socket?.connected) return;
+  const initializeSocket = useCallback((options: SocketLoginOptions = {}) => {
+    if (socket?.connected) return true;
 
-    if (!usernameRef.current.trim()) {
+    const loginUsername = options.username ?? usernameRef.current;
+    const loginColor = options.color ?? selectedColorRef.current;
+
+    if (!loginUsername.trim()) {
       setMessage("Please enter a username first.");
-      return;
+      return false;
     }
 
+    usernameRef.current = loginUsername.trim();
+    selectedColorRef.current = loginColor;
     setMessage("Connecting to server...");
 
     let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -70,11 +80,13 @@ export const useSocketGame = (
         transports: ["websocket", "polling"], // Ensure multiple transports
       });
       setSocket(newSocket);
+      return true;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       console.error("Socket connection error:", err);
       setMessage(`Connection failed: ${message}`);
       setSocket(null);
+      return false;
     }
   }, [socket, setMessage]);
 

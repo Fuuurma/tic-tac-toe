@@ -125,7 +125,10 @@ export default function Home() {
     localStorage.setItem("tictactoe_username", username.trim());
 
     if (gameMode === GameModes.ONLINE) {
-      initializeSocket();
+      if (!initializeSocket({ username: username.trim(), color: selectedColor })) {
+        return;
+      }
+      setLoggedIn(true);
     } else {
       setGameState(
         createInitialGameState(username, gameMode, {
@@ -137,8 +140,8 @@ export default function Home() {
       setPlayerSymbol(PlayerSymbol.X);
       setMessage("");
       if (socket) socket.disconnect();
+      setLoggedIn(true);
     }
-    setLoggedIn(true);
   }, [username, gameMode, initializeSocket, opponentName, selectedColor, opponentColor, socket]);
 
   const handleGuestPlay = useCallback(() => {
@@ -148,11 +151,9 @@ export default function Home() {
 
     if (gameMode === GameModes.ONLINE) {
       setMessage("Connecting to server...");
-      // initializeSocket reads usernameRef.current internally, which will be updated
-      // on next render. For the guard check, pass guestName directly.
-      // We setLoggedIn after socket init since it's async.
-      initializeSocket();
-      setLoggedIn(true);
+      if (initializeSocket({ username: guestName, color: selectedColor })) {
+        setLoggedIn(true);
+      }
     } else {
       setGameState(
         createInitialGameState(guestName, gameMode, {
