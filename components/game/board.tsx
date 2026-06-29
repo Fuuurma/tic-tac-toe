@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { GameState, WinningLine } from "@/app/types/types";
-import { Color, GameModes, PlayerSymbol } from "@/app/game/constants/constants";
+import { Color, GameModes, GameStatus, PlayerSymbol } from "@/app/game/constants/constants";
 import { BoardCell } from "./boardCell";
 import GameButtons from "./gameButtons";
 import WinLine from "./winLine";
@@ -47,6 +47,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     players,
     winner,
     gameMode,
+    gameStatus,
     nextToRemove,
   } = gameState;
 
@@ -93,7 +94,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     return null;
   };
 
-  const isGameActive = !winner;
+  const isGameActive = gameStatus === GameStatus.ACTIVE && !winner;
 
   const isOnlineGame = gameMode === GameModes.ONLINE;
   const isLocalGame = gameMode === GameModes.VS_COMPUTER || gameMode === GameModes.VS_FRIEND;
@@ -121,7 +122,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               const isCellNextToRemove =
                 nextToRemove.X === index || nextToRemove.O === index;
               const symbolToRemove = getRemovalSymbol(index);
-              const isCellDisabled = !!winner;
+              const isCellDisabled = !isGameActive || (!cellValue && !previewPlayer);
 
               return (
                 <BoardCell

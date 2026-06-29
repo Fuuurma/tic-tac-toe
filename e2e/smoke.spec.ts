@@ -128,6 +128,11 @@ async function playMoveFromEitherPage(
   symbol: "X" | "O",
 ) {
   for (const page of pages) {
+    const cell = page.getByRole("gridcell").nth(cellIndex);
+    if (!(await cell.isEnabled())) {
+      continue;
+    }
+
     await playOnlineMove(page, cellIndex);
     try {
       await expectCellOccupied(pages, cellIndex, symbol, 1_500);

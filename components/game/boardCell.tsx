@@ -73,7 +73,8 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         ? "animate-pulse-slow"
         : "",
       isNewMove && "animate-place-piece",
-      !value && !isDisabled && "hover:scale-[1.02] hover:shadow-xl"
+      !value && !isDisabled && "hover:scale-[1.02] hover:shadow-xl",
+      !value && isDisabled && "cursor-default opacity-70"
     );
 
     const removalBorderClasses = cn(

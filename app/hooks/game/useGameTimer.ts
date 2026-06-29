@@ -16,10 +16,13 @@ export const useGameTimer = (
   playerSymbol: PlayerSymbol | null
 ) => {
   const timerMoveMadeRef = useRef<PlayerSymbol | null>(null);
+  const isCurrentTurnAi = isAITurn(gameState);
+  const isCurrentGameActive = isGameActive(gameState);
+  const currentPlayer = gameState.currentPlayer;
 
   useEffect(() => {
     // Don't run timer during AI turn
-    if (isAITurn(gameState)) {
+    if (isCurrentTurnAi) {
       timerMoveMadeRef.current = null;
       return;
     }
@@ -28,43 +31,46 @@ export const useGameTimer = (
     timerMoveMadeRef.current = null;
 
     // Only start a new timer if game is active and no winner
-    const isActive = isGameActive(gameState) && !gameState.winner;
+    if (!isCurrentGameActive) {
+      return;
+    }
 
-    if (
-      isActive &&
-      gameState.turnTimeRemaining &&
-      gameState.turnTimeRemaining > 0
-    ) {
-      const intervalId = setInterval(() => {
-        setGameState((prevGameState) => {
-          const newTime = (prevGameState.turnTimeRemaining || 0) - 100;
+    const intervalId = setInterval(() => {
+      setGameState((prevGameState) => {
+        if ((prevGameState.turnTimeRemaining || 0) <= 0) {
+          clearInterval(intervalId);
+          return prevGameState;
+        }
 
-          if (newTime <= 0) {
-            // Prevent multiple auto-moves per turn
-            if (timerMoveMadeRef.current === prevGameState.currentPlayer) {
-              return { ...prevGameState, turnTimeRemaining: 0 };
-            }
+        const newTime = (prevGameState.turnTimeRemaining || 0) - 100;
 
-            timerMoveMadeRef.current = prevGameState.currentPlayer;
-            const randomMoveIndex = findRandomValidMove(prevGameState);
-
-            if (
-              randomMoveIndex !== null &&
-              CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
-            ) {
-              return makeMove(prevGameState, randomMoveIndex);
-            }
-
+        if (newTime <= 0) {
+          // Prevent multiple auto-moves per turn
+          if (timerMoveMadeRef.current === prevGameState.currentPlayer) {
+            clearInterval(intervalId);
             return { ...prevGameState, turnTimeRemaining: 0 };
           }
 
-          return { ...prevGameState, turnTimeRemaining: newTime };
-        });
-      }, 100);
+          timerMoveMadeRef.current = prevGameState.currentPlayer;
+          const randomMoveIndex = findRandomValidMove(prevGameState);
 
-      return () => clearInterval(intervalId);
-    }
-  }, [gameState, gameMode, playerSymbol, setGameState]);
+          if (
+            randomMoveIndex !== null &&
+            CanMakeMove(gameMode, prevGameState.currentPlayer, playerSymbol)
+          ) {
+            return makeMove(prevGameState, randomMoveIndex);
+          }
+
+          clearInterval(intervalId);
+          return { ...prevGameState, turnTimeRemaining: 0 };
+        }
+
+        return { ...prevGameState, turnTimeRemaining: newTime };
+      });
+    }, 100);
+
+    return () => clearInterval(intervalId);
+  }, [currentPlayer, gameMode, isCurrentGameActive, isCurrentTurnAi, playerSymbol, setGameState]);
 
   return { timerMoveMadeRef };
 };
