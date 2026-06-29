@@ -30,6 +30,7 @@ import { useGameTimer } from "./hooks/game/useGameTimer";
 import { useLocalGame } from "./hooks/game/useLocalGame";
 import { resolveOpponentColor } from "./utils/colors/resolveOpponentColor";
 import { useSocketGame } from "./hooks/game/useSocketGame";
+import { CanMakeMove } from "./game/logic/canMakeMove";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
@@ -199,6 +200,13 @@ export default function Home() {
   };
 
   const isGameOver = gameState.gameStatus === GameStatus.COMPLETED;
+  const previewPlayer =
+    loggedIn &&
+    gameState.gameStatus === GameStatus.ACTIVE &&
+    !gameState.winner &&
+    CanMakeMove(gameMode, gameState.currentPlayer, playerSymbol)
+      ? gameState.currentPlayer
+      : undefined;
 
   return (
     <>
@@ -243,6 +251,7 @@ export default function Home() {
                   onLeaveRoom={leaveRoom}
                   winningCombination={gameState.winningCombination}
                   lastMoveIndex={gameState.lastMoveIndex}
+                  previewPlayer={previewPlayer}
                 />
               </div>
             </main>

@@ -15,7 +15,7 @@ interface BoardCellProps {
   index: number;
   value: PlayerSymbol | null;
   playerColors: { [key in PlayerSymbol]?: Color };
-  currentPlayer?: PlayerSymbol;
+  previewPlayer?: PlayerSymbol;
   isNextToRemove: boolean;
   removalSymbol?: PlayerSymbol | null;
   isDisabled: boolean;
@@ -36,7 +36,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
     index,
     value,
     playerColors,
-    currentPlayer,
+    previewPlayer,
     isNextToRemove,
     removalSymbol,
     isDisabled,
@@ -56,7 +56,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
     const removalColorScheme =
       COLOR_VARIANTS[removalColorEnum || DEFAULT_FALLBACK_COLOR];
 
-    const hoverColorEnum = currentPlayer ? playerColors[currentPlayer] : undefined;
+    const hoverColorEnum = previewPlayer ? playerColors[previewPlayer] : undefined;
     const hoverColorScheme =
       COLOR_VARIANTS[hoverColorEnum || DEFAULT_FALLBACK_COLOR];
 
@@ -137,7 +137,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
           {value}
         </span>
 
-        {!value && !isDisabled && isHovered && currentPlayer && (
+        {!value && !isDisabled && isHovered && previewPlayer && (
           <span
             className={cn(
               "absolute inset-0 flex items-center justify-center text-7xl sm:text-8xl md:text-9xl lg:text-[7rem] xl:text-[9rem] font-extrabold transition-all duration-200",
@@ -146,7 +146,7 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
             )}
             aria-hidden="true"
           >
-            {currentPlayer}
+            {previewPlayer}
           </span>
         )}
 

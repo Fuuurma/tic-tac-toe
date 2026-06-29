@@ -23,6 +23,7 @@ interface GameBoardProps {
   onLeaveRoom: () => void;
   winningCombination: WinningLine | null;
   lastMoveIndex: number | null;
+  previewPlayer?: PlayerSymbol;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -39,11 +40,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onLeaveRoom,
   winningCombination,
   lastMoveIndex,
+  previewPlayer,
 }) => {
   const {
     board,
     players,
-    currentPlayer,
     winner,
     gameMode,
     nextToRemove,
@@ -128,7 +129,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   index={index}
                   value={cellValue}
                   playerColors={playerColorsMap}
-                  currentPlayer={isGameActive ? currentPlayer : undefined}
+                  previewPlayer={isGameActive ? previewPlayer : undefined}
                   isNextToRemove={isCellNextToRemove}
                   removalSymbol={symbolToRemove}
                   isDisabled={isCellDisabled}

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { PlayerInfoBadge } from "./playerBadge";
 import { GameStatusMessage } from "./gameStatusMessage";
-import { GameState, PlayerType } from "@/app/types/types";
+import { GameState } from "@/app/types/types";
 import {
   Color,
   GameStatus,
@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 interface PlayersPanelProps {
   gameState: GameState;
   message: string | null;
-  playerType?: PlayerType | null;
   onNewGame: () => void;
   onExit: () => void;
 }
