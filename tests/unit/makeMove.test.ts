@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { makeMove } from "@/app/game/logic/makeMove";
 import { PlayerSymbol, GAME_RULES } from "@/app/game/constants/constants";
 import { GameState } from "@/app/types/types";
@@ -10,6 +10,18 @@ describe("makeMove", () => {
   beforeEach(() => {
     gameState = createMockGameState();
   });
+
+  const withMockedConsoleError = (testFn: (consoleError: ReturnType<typeof vi.spyOn>) => void) => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      testFn(consoleError);
+    } finally {
+      consoleError.mockRestore();
+    }
+  };
 
   describe("Valid moves", () => {
     it("should place X in center position", () => {
@@ -50,13 +62,21 @@ describe("makeMove", () => {
 
   describe("Invalid moves", () => {
     it("should return unchanged state for negative index", () => {
-      const newState = makeMove(gameState, -1);
-      expect(newState).toEqual(gameState);
+      withMockedConsoleError((consoleError) => {
+        const newState = makeMove(gameState, -1);
+
+        expect(newState).toEqual(gameState);
+        expect(consoleError).toHaveBeenCalledWith("Invalid move index: -1");
+      });
     });
 
     it("should return unchanged state for index out of bounds", () => {
-      const newState = makeMove(gameState, 9);
-      expect(newState).toEqual(gameState);
+      withMockedConsoleError((consoleError) => {
+        const newState = makeMove(gameState, 9);
+
+        expect(newState).toEqual(gameState);
+        expect(consoleError).toHaveBeenCalledWith("Invalid move index: 9");
+      });
     });
 
     it("should return unchanged state when cell is already occupied", () => {

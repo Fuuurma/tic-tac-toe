@@ -257,16 +257,18 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
         </div>
 
         {/* Player Badges */}
-        <div className="flex justify-center items-center gap-2 sm:gap-4 mb-1 sm:mb-2 flex-shrink-0">
-          <PlayerInfoBadge
-            symbol={PlayerSymbol.X}
-            username={players.X.username}
-            type={players.X.type}
-            color={players.X.color}
-            isCurrentPlayer={isXTurn}
-          />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-3 mb-1 sm:mb-2 flex-shrink-0">
+          <div className="min-w-0">
+            <PlayerInfoBadge
+              symbol={PlayerSymbol.X}
+              username={players.X.username}
+              type={players.X.type}
+              color={players.X.color}
+              isCurrentPlayer={isXTurn}
+            />
+          </div>
 
-          <div className="flex flex-col items-center gap-1 px-2">
+          <div className="flex flex-col items-center gap-1 px-1 sm:px-2">
             <span className="text-sm sm:text-base font-bold text-muted-foreground leading-none">VS</span>
             {isGameActive && (
               <div className="relative">
@@ -276,13 +278,15 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             )}
           </div>
 
-          <PlayerInfoBadge
-            symbol={PlayerSymbol.O}
-            username={players.O.username}
-            type={players.O.type}
-            color={players.O.color}
-            isCurrentPlayer={isOTurn}
-          />
+          <div className="min-w-0">
+            <PlayerInfoBadge
+              symbol={PlayerSymbol.O}
+              username={players.O.username}
+              type={players.O.type}
+              color={players.O.color}
+              isCurrentPlayer={isOTurn}
+            />
+          </div>
         </div>
 
         {/* Enhanced Timer */}

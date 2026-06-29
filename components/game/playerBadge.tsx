@@ -27,7 +27,7 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
     return (
       <div
         className={cn(
-          "flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-sm border-2 transition-all duration-200",
+          "flex min-w-0 items-center gap-1 rounded-lg border-2 px-2 py-1.5 text-xs shadow-sm transition-all duration-200 sm:gap-2 sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm",
           colorScheme.bgLight,
           isCurrentPlayer 
             ? `${colorScheme.border} ring-2 ring-primary/35 ring-offset-1 ring-offset-background` 
@@ -40,8 +40,8 @@ export const PlayerInfoBadge: React.FC<PlayerInfoBadgeProps> = React.memo(
           {symbol}
         </span>
 
-        <div className="flex flex-col">
-          <span className="truncate max-w-[60px] sm:max-w-[80px] font-semibold text-foreground text-xs sm:text-sm leading-tight">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate font-semibold leading-tight text-foreground text-xs sm:text-sm">
             {username || "Player"}
           </span>
           <span className="hidden xs:flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
