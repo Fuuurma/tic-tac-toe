@@ -105,6 +105,19 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
       setIsHovered(false);
     };
 
+    const isOccupied = !!value;
+    const isPlayable = !isOccupied && !isDisabled;
+    const cellStateLabel = value
+      ? `occupied by ${value}`
+      : isPlayable && previewPlayer
+        ? `empty. Play ${previewPlayer}`
+        : "empty. Waiting";
+    const removalLabel =
+      isNextToRemove && removalSymbol
+        ? `, ${removalSymbol} piece next to be removed`
+        : "";
+    const disabledLabel = !isPlayable ? ", disabled" : "";
+
     return (
       <button
         type="button"
@@ -115,12 +128,9 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         onKeyDown={handleKeyDown}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        disabled={isDisabled || !!value}
-        aria-label={`Cell ${index + 1}${
-          value ? `, occupied by ${value}` : ", empty"
-        }${isNextToRemove && removalSymbol ? `, ${removalSymbol} piece next to be removed` : ""}${isDisabled || !!value ? ", disabled" : ""}`}
-        aria-disabled={isDisabled || !!value}
-        tabIndex={isDisabled && !!value ? -1 : 0}
+        disabled={!isPlayable}
+        aria-label={`Cell ${index + 1}, ${cellStateLabel}${removalLabel}${disabledLabel}`}
+        aria-disabled={!isPlayable}
       >
         {isNextToRemove && (
           <span className="absolute right-1 top-1 z-20 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-background/90 px-1 text-[8px] font-bold uppercase leading-none text-muted-foreground shadow-sm ring-1 ring-border sm:h-5 sm:min-w-0 sm:px-1.5 sm:text-[9px]">

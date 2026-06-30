@@ -88,6 +88,8 @@ test("starts a local two-player game", async ({ page }) => {
   await expect(page.getByText("VS FRIEND")).toBeVisible();
   await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
   await expect(page.getByRole("gridcell")).toHaveCount(9);
+  await expect(page.getByRole("gridcell").first()).toHaveAccessibleName(/empty\. Play [XO]/);
+  await expect(page.getByRole("progressbar", { name: "Turn time remaining" })).toBeVisible();
 });
 
 test("starts online matchmaking as a guest", async ({ page }) => {

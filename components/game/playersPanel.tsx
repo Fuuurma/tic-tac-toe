@@ -314,7 +314,14 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             </div>
             
             {/* Progress Bar with Gradient */}
-            <div className="relative h-1.5 bg-muted rounded-full overflow-hidden flex-shrink-0">
+            <div
+              className="relative h-1.5 bg-muted rounded-full overflow-hidden flex-shrink-0"
+              role="progressbar"
+              aria-label="Turn time remaining"
+              aria-valuemin={0}
+              aria-valuemax={TURN_DURATION_MS / 1000}
+              aria-valuenow={displayTime}
+            >
               <div 
                 className={cn(
                   "absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out bg-gradient-to-r",
