@@ -115,6 +115,18 @@ function isValidMove(gameState, index, playerSymbol) {
   return true;
 }
 
+function findRandomValidMove(gameState) {
+  const validMoves = [];
+  for (let index = 0; index < GAME_RULES.BOARD_SIZE; index++) {
+    if (isValidMove(gameState, index, gameState.currentPlayer)) {
+      validMoves.push(index);
+    }
+  }
+
+  if (validMoves.length === 0) return null;
+  return validMoves[Math.floor(Math.random() * validMoves.length)];
+}
+
 function makeMove(gameState, index) {
   if (!isValidMove(gameState, index, gameState.currentPlayer)) {
     return null;
@@ -235,6 +247,38 @@ class GameRoom {
     this.rematchRequester = null;
     this.rematchDeclined = false;
   }
+
+  tickTurn(deltaMs) {
+    if (!this.isFull() || this.gameState.gameStatus !== GameStatus.ACTIVE || this.gameState.winner) {
+      return { changed: false, timedOut: false, move: null };
+    }
+
+    const currentTime = this.gameState.turnTimeRemaining ?? TURN_DURATION_MS;
+    if (currentTime <= 0) {
+      return { changed: false, timedOut: false, move: null };
+    }
+
+    const nextTime = Math.max(0, currentTime - deltaMs);
+    if (nextTime > 0) {
+      this.gameState = { ...this.gameState, turnTimeRemaining: nextTime };
+      return { changed: true, timedOut: false, move: null };
+    }
+
+    const move = findRandomValidMove(this.gameState);
+    if (move === null) {
+      this.gameState = { ...this.gameState, turnTimeRemaining: 0 };
+      return { changed: true, timedOut: true, move: null };
+    }
+
+    const nextState = makeMove(this.gameState, move);
+    if (!nextState) {
+      this.gameState = { ...this.gameState, turnTimeRemaining: 0 };
+      return { changed: true, timedOut: true, move: null };
+    }
+
+    this.gameState = nextState;
+    return { changed: true, timedOut: true, move };
+  }
 }
 
 class RoomManager {
@@ -307,6 +351,7 @@ module.exports = {
   GAME_RULES,
   TURN_DURATION_MS,
   createInitialGameState,
+  findRandomValidMove,
   isValidMove,
   makeMove,
   GameRoom,

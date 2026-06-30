@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
-import { createTestServer, createClient, PlayerSymbol, GameStatus } from "../helpers/testServer.js";
+import {
+  createTestServer,
+  createClient,
+  PlayerSymbol,
+  GameStatus,
+  TURN_DURATION_MS,
+} from "../helpers/testServer.js";
 
 describe("Socket Integration Tests", () => {
   let server;
@@ -248,6 +254,49 @@ describe("Socket Integration Tests", () => {
         expect(start3.gameStatus).toBe(GameStatus.ACTIVE);
       } finally {
         client3.disconnect();
+      }
+    });
+  });
+
+  describe("Server Timers", () => {
+    it("should broadcast a server-authoritative timeout move to both players", async () => {
+      const timedServer = await createTestServer(0, {
+        turnTimerIntervalMs: 10,
+        turnTimerStepMs: TURN_DURATION_MS,
+      });
+      const timedServerUrl = `http://localhost:${timedServer.port}`;
+      const client1 = createClient(timedServerUrl);
+      const client2 = createClient(timedServerUrl);
+
+      try {
+        client1.connect();
+        client2.connect();
+
+        await Promise.all([
+          new Promise((resolve) => client1.on("connect", resolve)),
+          new Promise((resolve) => client2.on("connect", resolve)),
+        ]);
+
+        const p1Start = new Promise((resolve) => client1.once("gameStart", resolve));
+        const p2Start = new Promise((resolve) => client2.once("gameStart", resolve));
+        const p1Update = new Promise((resolve) => client1.once("gameUpdate", resolve));
+        const p2Update = new Promise((resolve) => client2.once("gameUpdate", resolve));
+
+        client1.emit("login", "Timer1", "blue");
+        client2.emit("login", "Timer2", "red");
+
+        await Promise.all([p1Start, p2Start]);
+        const [update1, update2] = await Promise.all([p1Update, p2Update]);
+
+        expect(update1.board.filter(Boolean)).toHaveLength(1);
+        expect(update1.currentPlayer).toBe(PlayerSymbol.O);
+        expect(update1.turnTimeRemaining).toBe(TURN_DURATION_MS);
+        expect(update2.board).toEqual(update1.board);
+        expect(update2.currentPlayer).toBe(update1.currentPlayer);
+      } finally {
+        client1.disconnect();
+        client2.disconnect();
+        await new Promise((resolve) => timedServer.httpServer.close(() => resolve(undefined)));
       }
     });
   });

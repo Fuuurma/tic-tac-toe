@@ -6,6 +6,7 @@ const {
   PlayerSymbol,
   GameStatus,
   GAME_RULES,
+  TURN_DURATION_MS,
   createInitialGameState,
   isValidMove,
   makeMove,
@@ -17,6 +18,7 @@ const hostname = "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);
 const LOG_LEVEL = process.env.LOG_LEVEL || (dev ? "debug" : "info");
 const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
+const TURN_TICK_MS = 1000;
 
 function parseSocketCorsOrigin(value) {
   if (!value) return "*";
@@ -55,6 +57,24 @@ app.prepare().then(() => {
   });
 
   const roomManager = new RoomManager();
+
+  setInterval(() => {
+    for (const room of roomManager.rooms.values()) {
+      const result = room.tickTurn(TURN_TICK_MS);
+      if (!result.changed) continue;
+
+      io.to(room.id).emit("gameUpdate", room.gameState);
+
+      if (result.timedOut) {
+        const moveLabel = result.move === null ? "no valid move" : `move ${result.move}`;
+        log("debug", `Turn timed out in ${room.id}; ${moveLabel}`);
+      }
+
+      if (room.gameState.winner) {
+        log("info", `Game ended in ${room.id}: ${room.gameState.winner}`);
+      }
+    }
+  }, TURN_TICK_MS);
 
   // Stats endpoint
   io.of("/stats").on("connection", (socket) => {
@@ -321,5 +341,5 @@ app.prepare().then(() => {
     if (stats.totalRooms > 0) {
       log("debug", `Stats: Rooms: ${stats.totalRooms}, Players: ${stats.totalPlayers}, Active: ${stats.activeGames}, Waiting: ${stats.waitingGames}`);
     }
-  }, 30000);
+  }, Math.max(30000, TURN_DURATION_MS));
 });

@@ -6,7 +6,6 @@ import { GameStatusMessage } from "./gameStatusMessage";
 import { GameState } from "@/app/types/types";
 import {
   Color,
-  GameModes,
   GameStatus,
   PlayerSymbol,
   TURN_DURATION_MS,
@@ -67,7 +66,6 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const isOTurn = currentPlayer === PlayerSymbol.O && isGameActive;
   const isAITurn = isOTurn && players.O.type === PlayerTypes.COMPUTER;
   const isWaiting = gameStatus === GameStatus.WAITING;
-  const shouldShowTimer = gameMode !== GameModes.ONLINE;
 
   const winnerName =
     winner ? players[winner]?.username : null;
@@ -291,7 +289,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
         </div>
 
         {/* Enhanced Timer */}
-        {isGameActive && shouldShowTimer && turnTimeRemaining !== undefined && (
+        {isGameActive && turnTimeRemaining !== undefined && (
           <div className="space-y-1 flex-shrink-0">
             <div className="flex items-center justify-between text-[10px] sm:text-xs gap-1">
               <span className="text-muted-foreground flex items-center gap-0.5 truncate">

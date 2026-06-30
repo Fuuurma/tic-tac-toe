@@ -8,6 +8,7 @@ const {
   GameStatus,
   Color,
   GAME_RULES,
+  TURN_DURATION_MS,
   isValidMove,
   makeMove,
   RoomManager,
@@ -21,7 +22,7 @@ function testLog(message) {
   }
 }
 
-function createTestServer(port = 0) {
+function createTestServer(port = 0, options = {}) {
   return new Promise((resolve) => {
     const httpServer = createServer();
     const ioServer = new Server(httpServer, {
@@ -29,6 +30,29 @@ function createTestServer(port = 0) {
     });
 
     const roomManager = new RoomManager();
+    const turnTimerIntervalMs = options.turnTimerIntervalMs ?? null;
+    const turnTimerStepMs = options.turnTimerStepMs ?? turnTimerIntervalMs;
+    let turnTimer = null;
+
+    if (turnTimerIntervalMs && turnTimerStepMs) {
+      turnTimer = setInterval(() => {
+        for (const room of roomManager.rooms.values()) {
+          const result = room.tickTurn(turnTimerStepMs);
+          if (result.changed) {
+            ioServer.to(room.id).emit("gameUpdate", room.gameState);
+          }
+        }
+      }, turnTimerIntervalMs);
+    }
+
+    const stopTurnTimer = () => {
+      if (turnTimer) {
+        clearInterval(turnTimer);
+        turnTimer = null;
+      }
+    };
+
+    httpServer.on("close", stopTurnTimer);
 
     ioServer.on("connection", (socket) => {
       let currentRoom = null;
@@ -189,7 +213,7 @@ function createTestServer(port = 0) {
 
     httpServer.listen(port, () => {
       const actualPort = httpServer.address().port;
-      resolve({ ioServer, httpServer, port: actualPort, roomManager });
+      resolve({ ioServer, httpServer, port: actualPort, roomManager, stopTurnTimer });
     });
   });
 }
@@ -209,4 +233,5 @@ module.exports = {
   GameStatus,
   Color,
   GAME_RULES,
+  TURN_DURATION_MS,
 };
