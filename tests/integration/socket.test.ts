@@ -87,6 +87,9 @@ describe("Socket Integration Tests", () => {
       expect(start2.gameStatus).toBe(GameStatus.ACTIVE);
       expect(start1.players.X.username).toBe("Player1");
       expect(start1.players.O.username).toBe("Player2");
+      expect(start1.winningCombination).toBeNull();
+      expect(start1.lastMoveIndex).toBeNull();
+      expect(start1.moveCount).toBe(0);
     });
 
     it("should assign a different color when online players request the same color", async () => {
@@ -148,6 +151,8 @@ describe("Socket Integration Tests", () => {
       expect(update1.board[4]).toBe(PlayerSymbol.X);
       expect(update2.board[4]).toBe(PlayerSymbol.X);
       expect(update1.currentPlayer).toBe(PlayerSymbol.O);
+      expect(update1.lastMoveIndex).toBe(4);
+      expect(update1.moveCount).toBe(1);
     });
 
     it("should detect winner", async () => {
@@ -174,6 +179,9 @@ describe("Socket Integration Tests", () => {
       }
 
       expect(lastUpdate.winner).toBe(PlayerSymbol.X);
+      expect(lastUpdate.winningCombination).toEqual([0, 1, 2]);
+      expect(lastUpdate.lastMoveIndex).toBe(2);
+      expect(lastUpdate.moveCount).toBe(5);
       expect(lastUpdate.gameStatus).toBe(GameStatus.COMPLETED);
     });
 
@@ -290,6 +298,9 @@ describe("Socket Integration Tests", () => {
 
         expect(update1.board.filter(Boolean)).toHaveLength(1);
         expect(update1.currentPlayer).toBe(PlayerSymbol.O);
+        expect(update1.lastMoveIndex).not.toBeNull();
+        expect(update1.moveCount).toBe(1);
+        expect(update1.winningCombination).toBeNull();
         expect(update1.turnTimeRemaining).toBe(TURN_DURATION_MS);
         expect(update2.board).toEqual(update1.board);
         expect(update2.currentPlayer).toBe(update1.currentPlayer);

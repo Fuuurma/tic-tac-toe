@@ -19,6 +19,42 @@ interface SocketLoginOptions {
   color?: Color;
 }
 
+interface OnlineStatusSnapshot {
+  currentPlayer: PlayerSymbol;
+  winner: PlayerSymbol | null;
+  gameStatus: GameStatus;
+  lastMoveIndex: number | null;
+}
+
+const getOnlineStatusSnapshot = (gameState: GameState): OnlineStatusSnapshot => ({
+  currentPlayer: gameState.currentPlayer,
+  winner: gameState.winner,
+  gameStatus: gameState.gameStatus,
+  lastMoveIndex: gameState.lastMoveIndex,
+});
+
+const getOnlineStatusMessage = (gameState: GameState): string => {
+  if (gameState.winner) {
+    return `${gameState.players[gameState.winner]?.username || "Opponent"} wins!`;
+  }
+
+  if (gameState.gameStatus === GameStatus.WAITING) {
+    return "Waiting for opponent...";
+  }
+
+  return `${gameState.players[gameState.currentPlayer]?.username || "Opponent"}'s turn.`;
+};
+
+const shouldAnnounceOnlineUpdate = (
+  previous: OnlineStatusSnapshot | null,
+  next: OnlineStatusSnapshot
+) =>
+  !previous ||
+  previous.currentPlayer !== next.currentPlayer ||
+  previous.winner !== next.winner ||
+  previous.gameStatus !== next.gameStatus ||
+  previous.lastMoveIndex !== next.lastMoveIndex;
+
 export const useSocketGame = (
   username: string,
   selectedColor: Color,
@@ -43,6 +79,7 @@ export const useSocketGame = (
   const usernameRef = useRef(username);
   const selectedColorRef = useRef(selectedColor);
   const playerSymbolRef = useRef(playerSymbol);
+  const onlineStatusSnapshotRef = useRef<OnlineStatusSnapshot | null>(null);
 
   useEffect(() => {
     usernameRef.current = username;
@@ -107,6 +144,7 @@ export const useSocketGame = (
       } else {
         setMessage("Connection lost. Reconnecting...");
       }
+      onlineStatusSnapshotRef.current = null;
       setRematchOffered(false);
       setRematchRequested(false);
     };
@@ -121,6 +159,8 @@ export const useSocketGame = (
 
     const handleGameStart = (initialGameState: GameState) => {
       setGameState(initialGameState);
+      onlineStatusSnapshotRef.current = getOnlineStatusSnapshot(initialGameState);
+      setMessage(getOnlineStatusMessage(initialGameState));
       setRematchOffered(false);
       setRematchRequested(false);
       const selfSymbol = playerSymbolRef.current;
@@ -136,10 +176,10 @@ export const useSocketGame = (
 
     const handleGameUpdate = (updatedGameState: GameState) => {
       setGameState(updatedGameState);
-      if (updatedGameState.winner) {
-        setMessage(`${updatedGameState.players[updatedGameState.winner]?.username || "Opponent"} wins!`);
-      } else {
-        setMessage(`${updatedGameState.players[updatedGameState.currentPlayer]?.username || "Opponent"}'s turn.`);
+      const nextSnapshot = getOnlineStatusSnapshot(updatedGameState);
+      if (shouldAnnounceOnlineUpdate(onlineStatusSnapshotRef.current, nextSnapshot)) {
+        setMessage(getOnlineStatusMessage(updatedGameState));
+        onlineStatusSnapshotRef.current = nextSnapshot;
       }
     };
 
@@ -173,8 +213,13 @@ export const useSocketGame = (
       }
       setRematchOffered(false);
       setRematchRequested(false);
+      onlineStatusSnapshotRef.current = payload.gameState
+        ? getOnlineStatusSnapshot(payload.gameState)
+        : null;
     });
-    socket.on("error", (err) => setMessage(`Error: ${err}`));
+    socket.on("error", (err) => {
+      setMessage(`Error: ${err}`);
+    });
 
     return () => {
       socket.off("connect");
@@ -190,6 +235,7 @@ export const useSocketGame = (
       if (socket.connected) {
         socket.disconnect();
       }
+      onlineStatusSnapshotRef.current = null;
     };
   }, [socket, setGameState, setLoggedIn, setMessage, setOpponentColor, setOpponentName, setPlayerSymbol, setRematchOffered, setRematchRequested, setSelectedColor]);
 

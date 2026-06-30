@@ -69,6 +69,8 @@ function createInitialGameState(players = {}) {
     board: Array(GAME_RULES.BOARD_SIZE).fill(null),
     currentPlayer: PlayerSymbol.X,
     winner: null,
+    winningCombination: null,
+    lastMoveIndex: null,
     players: {
       [PlayerSymbol.X]: {
         username: players[PlayerSymbol.X]?.username || "",
@@ -89,21 +91,30 @@ function createInitialGameState(players = {}) {
     gameMode: "ONLINE",
     nextToRemove: { [PlayerSymbol.X]: null, [PlayerSymbol.O]: null },
     maxMoves: GAME_RULES.MAX_MOVES_PER_PLAYER,
+    moveCount: 0,
     gameStatus: GameStatus.ACTIVE,
     turnTimeRemaining: TURN_DURATION_MS,
   };
 }
 
-function checkWinner(board, currentPlayer) {
-  for (const [a, b, c] of WINNING_COMBINATIONS) {
+function getWinnerResult(board, currentPlayer) {
+  for (const combination of WINNING_COMBINATIONS) {
+    const [a, b, c] = combination;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-      return board[a];
+      return { winner: board[a], winningCombination: combination };
     }
   }
   if (board.every((cell) => cell !== null)) {
-    return currentPlayer === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+    return {
+      winner: currentPlayer === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X,
+      winningCombination: null,
+    };
   }
-  return null;
+  return { winner: null, winningCombination: null };
+}
+
+function checkWinner(board, currentPlayer) {
+  return getWinnerResult(board, currentPlayer).winner;
 }
 
 function isValidMove(gameState, index, playerSymbol) {
@@ -147,8 +158,11 @@ function makeMove(gameState, index) {
   playerMoves.push(index);
   newState.board[index] = player;
   newState.lastMoveIndex = index;
+  newState.moveCount = gameState.moveCount + 1;
 
-  newState.winner = checkWinner(newState.board, player);
+  const winnerResult = getWinnerResult(newState.board, player);
+  newState.winner = winnerResult.winner;
+  newState.winningCombination = winnerResult.winningCombination;
 
   if (!newState.winner) {
     if (playerMoves.length === GAME_RULES.MAX_MOVES_PER_PLAYER) {
@@ -352,6 +366,7 @@ module.exports = {
   TURN_DURATION_MS,
   createInitialGameState,
   findRandomValidMove,
+  getWinnerResult,
   isValidMove,
   makeMove,
   GameRoom,
