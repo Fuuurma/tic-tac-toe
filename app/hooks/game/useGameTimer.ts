@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { GameState, GameMode } from "@/app/types/types";
-import { PlayerSymbol } from "@/app/game/constants/constants";
+import { GameModes, PlayerSymbol } from "@/app/game/constants/constants";
 import { isAITurn } from "@/app/game/ai/canAI_MakeMove";
 import { isGameActive } from "@/app/game/logic/isGameActive";
 import { findRandomValidMove } from "@/app/game/logic/makeRandomMove";
@@ -21,6 +21,11 @@ export const useGameTimer = (
   const currentPlayer = gameState.currentPlayer;
 
   useEffect(() => {
+    if (gameMode === GameModes.ONLINE) {
+      timerMoveMadeRef.current = null;
+      return;
+    }
+
     // Don't run timer during AI turn
     if (isCurrentTurnAi) {
       timerMoveMadeRef.current = null;
