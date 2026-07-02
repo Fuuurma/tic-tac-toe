@@ -1,8 +1,8 @@
 # TicTacToe - Project Context
 
 **Project Type:** Multi-platform Web/Mobile Game
-**Status:** Consolidated & Optimized
-**Last Updated:** April 4, 2026
+**Status:** Web demo deploy-ready; public URL smoke pending
+**Last Updated:** July 2, 2026
 
 ---
 
@@ -22,7 +22,7 @@ High-performance TicTacToe implementation featuring a strategic 3-piece variant.
 
 ### Backend
 - **Real-time:** Socket.IO integrated via `server.js`
-- **Deployment:** Optimized for Railway (Next.js + Socket.IO)
+- **Deployment:** Docker-backed Railway config with `/healthz` healthcheck
 
 ---
 
@@ -30,6 +30,7 @@ High-performance TicTacToe implementation featuring a strategic 3-piece variant.
 
 - **3-Piece Strategic Variant**: Dynamic piece removal.
 - **Multiplayer**: Online and local VS modes.
+- **Server-authoritative timers**: Online matches use server ticks and timeout moves.
 - **AI Opponents**: MCTS and Minimax difficulty levels.
 - **Minimal Auth**: Anonymous guest play with persistence.
 - **Real-time Stats**: Streak and win rate tracking.
@@ -44,6 +45,13 @@ pnpm build            # Production build
 pnpm start:prod       # Full server (Next + Socket.IO)
 pnpm cap:sync         # Mobile sync
 ```
+
+## Deploy Notes
+
+- `railway.json` uses the Dockerfile builder and `/healthz` for healthchecks.
+- The custom server must run as a long-lived Node process because online mode depends on Socket.IO WebSockets.
+- `NEXT_PUBLIC_SOCKET_URL` should stay unset when web and Socket.IO share the same origin.
+- Public demo is not complete until a deployed two-browser online match and rematch pass.
 
 ---
 

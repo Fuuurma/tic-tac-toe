@@ -4,7 +4,7 @@
 FROM node:20-alpine AS base
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.30.2 --activate
 
 # Dependencies stage
 FROM base AS deps
@@ -33,6 +33,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/socketGameCore.js ./socketGameCore.js
 COPY --from=builder /app/next.config.ts ./next.config.ts
 
 USER nextjs

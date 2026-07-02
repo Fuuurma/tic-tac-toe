@@ -41,6 +41,8 @@ pnpm build            # Build for production
 pnpm start:prod       # Start production server with Socket.IO
 pnpm lint             # Run linting
 pnpm test:unit        # Run unit tests
+pnpm test:integration # Run Socket.IO integration tests
+pnpm test:e2e         # Run Playwright browser tests
 pnpm cap:sync         # Sync to mobile platforms
 ```
 
@@ -62,7 +64,23 @@ pnpm cap:sync         # Sync to mobile platforms
 ## Deployment
 
 ### Web & Backend (Railway)
-Deploy `server.js` to Railway or similar providers. The Next.js app and Socket.IO server run on the same origin by default, so `NEXT_PUBLIC_SOCKET_URL` is only needed when the Socket.IO server is hosted separately.
+Deploy to Railway or another long-running Node host with WebSocket support. The Next.js app and Socket.IO server run on the same origin by default, so `NEXT_PUBLIC_SOCKET_URL` is only needed when the Socket.IO server is hosted separately.
+
+This repo includes:
+
+- `Dockerfile`: builds the Next.js app and starts the custom Socket.IO server.
+- `railway.json`: selects the Dockerfile builder and uses `/healthz` as the healthcheck path.
+- `/healthz`: lightweight deployment health endpoint.
+
+Suggested pre-deploy check:
+
+```bash
+pnpm lint
+pnpm test:unit
+pnpm test:integration
+pnpm build
+pnpm test:e2e
+```
 
 ### Mobile (Capacitor)
 1. `pnpm build`

@@ -1,17 +1,17 @@
 # Project Status - TicTacToe
 
-**Last Updated:** April 4, 2026
-**Status:** Production Ready
+**Last Updated:** July 2, 2026
+**Status:** Web demo deploy-ready, public smoke pending
 
 ---
 
 ## Current Metrics
 
-- **Documentation:** Excellent (README, GEMINI.md, PROJECT_CONTEXT updated)
-- **Architecture:** Refactored (Hooks-based logic, Consolidated root structure)
-- **Test Coverage:** Unit tests passing (Vitest)
-- **Mobile Support:** Validated (Capacitor 8, dvh units, touch-optimized)
-- **Features:** Complete (3-piece logic, AI, Multiplayer, Stats, Minimal Auth)
+- **Documentation:** Current for WebSocket deployment and local commands.
+- **Architecture:** Next.js custom server with shared Socket.IO game core.
+- **Test Coverage:** Unit, Socket.IO integration, and Playwright smoke coverage.
+- **Mobile Support:** Capacitor 8 folders are present; post-web-deploy review still needed.
+- **Features:** AI, local 2P, online multiplayer, rematch, server-authoritative turn timers, stats, and anonymous guest play.
 
 ---
 
@@ -21,11 +21,13 @@
 - [x] Linting configured
 - [x] Logic extracted to hooks
 - [x] Client/Server logic synchronized
+- [x] Shared Socket.IO game core used by production and integration tests
 
 ### Platform Support
-- [x] Web (Next.js 16)
-- [x] iOS (Capacitor)
-- [x] Android (Capacitor)
+- [x] Web (Next.js 16 custom server)
+- [ ] Public WebSocket deployment smoke
+- [ ] iOS (Capacitor review after public web smoke)
+- [ ] Android (Capacitor review after public web smoke)
 - [x] PWA (Service Worker + Manifest)
 
 ### Core Features
@@ -39,5 +41,7 @@
 
 ## Next Actions
 
-1. [ ] Deploy to production (Railway)
-2. [ ] Submit to App Store / Play Store
+1. [ ] Deploy the Docker-backed custom server to Railway or another WebSocket-capable host.
+2. [ ] Smoke `/healthz`, AI/local play, two-browser online match, and rematch on the public URL.
+3. [ ] Update the planner project file with the live URL and caveats.
+4. [ ] Review Capacitor config after the web URL is public.
