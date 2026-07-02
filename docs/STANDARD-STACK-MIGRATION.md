@@ -114,6 +114,7 @@ Progress:
 - [x] `app/hooks/game/useGameTimer.ts` imports rules/state/AI through `src/game/core`.
 - [x] `app/hooks/game/useSocketGame.ts` imports game/socket types and online status selectors through `src/game/core`.
 - [x] Added `src/game/core/online.ts` selectors for Socket.IO status snapshots and messages.
+- [x] Centralized Socket.IO room resets so reset/rematch/leave flows preserve identity metadata.
 - [ ] Move shared `socketGameCore.js` rules behind the TypeScript core boundary.
 
 Keep the current app imports working through compatibility re-exports until the

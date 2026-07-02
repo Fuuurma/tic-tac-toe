@@ -7,7 +7,6 @@ const {
   GameStatus,
   GAME_RULES,
   TURN_DURATION_MS,
-  createInitialGameState,
   isValidDisplayName,
   isValidMove,
   makeMove,
@@ -302,13 +301,7 @@ app.prepare().then(() => {
       const player = currentRoom.getPlayerBySocket(socket.id);
       if (!player) return;
 
-      const preservedPlayers = {};
-      for (const [sid, p] of currentRoom.players) {
-        preservedPlayers[p.symbol] = { username: p.username, color: p.color };
-      }
-      currentRoom.gameState = createInitialGameState(preservedPlayers);
-      currentRoom.rematchState = "none";
-      currentRoom.rematchRequester = null;
+      currentRoom.resetGame(GameStatus.ACTIVE);
 
       log("info", `Game reset by ${player.username} in ${currentRoom.id}`);
       io.to(currentRoom.id).emit("gameReset", currentRoom.gameState);

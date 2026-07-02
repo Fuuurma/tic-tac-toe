@@ -294,8 +294,7 @@ class GameRoom {
       this.rematchRequester = null;
       this.rematchDeclined = false;
     } else if (player) {
-      this.gameState = createInitialGameState(getPreservedPlayers(this.players));
-      this.gameState.gameStatus = GameStatus.WAITING;
+      this.resetGame(GameStatus.WAITING);
       this.rematchState = "none";
       this.rematchRequester = null;
       this.rematchDeclined = false;
@@ -333,22 +332,17 @@ class GameRoom {
     return null;
   }
 
-  resetForRematch() {
-    const preservedPlayers = {};
-    for (const player of this.players.values()) {
-      preservedPlayers[player.symbol] = {
-        username: player.username,
-        color: player.color,
-        identityKind: player.identityKind,
-        guestId: player.guestId,
-        profileId: player.profileId,
-        userId: player.userId,
-      };
-    }
+  resetGame(gameStatus = GameStatus.ACTIVE) {
+    const preservedPlayers = getPreservedPlayers(this.players);
     this.gameState = createInitialGameState(preservedPlayers);
+    this.gameState.gameStatus = gameStatus;
     this.rematchState = "none";
     this.rematchRequester = null;
     this.rematchDeclined = false;
+  }
+
+  resetForRematch() {
+    this.resetGame(GameStatus.ACTIVE);
   }
 
   tickTurn(deltaMs) {
