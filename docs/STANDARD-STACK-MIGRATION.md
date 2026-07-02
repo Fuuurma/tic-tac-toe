@@ -32,6 +32,18 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [ ] Finish/smoke current WebSocket deploy on a public URL.
 - [ ] Keep unit, integration, build, and Playwright checks green.
 
+## Phase 1 Convex Profile Foundation
+
+- [x] Add `convex` dependency and setup scripts.
+- [x] Add schema for profiles, claims, rooms, room players, moves, matches, stats, and invites.
+- [x] Add guest profile upsert/get/update/claim functions.
+- [x] Add match result recording and stats query functions.
+- [ ] Configure a real Convex deployment with `pnpm convex:dev`.
+- [ ] Regenerate `convex/_generated/` from the configured deployment.
+- [ ] Wire app startup to upsert guest profiles.
+- [ ] Record completed Socket.IO matches into Convex.
+- [ ] Add Better Auth + Google after guest/profile claim semantics are proven.
+
 ## Core Extraction Boundary
 
 Initial folder now exists:
@@ -75,6 +87,11 @@ Current files to extract or adapt:
   - `app/utils/identity/gameIdentity.ts`
   - `app/page.tsx`
   - future Convex/Better Auth profile claim helpers
+- Convex profile/stats foundation:
+  - `convex/schema.ts`
+  - `convex/profiles.ts`
+  - `convex/stats.ts`
+  - `convex/model.ts`
 - UI adapters that should consume core selectors later:
   - `app/hooks/game/useLocalGame.ts`
   - `app/hooks/game/useGameTimer.ts`

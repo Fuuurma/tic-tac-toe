@@ -21,7 +21,9 @@
     "test:coverage": "vitest run --coverage",
     "cap:sync": "pnpm build && npx cap sync",
     "cap:ios": "pnpm build && npx cap sync ios && npx cap open ios",
-    "cap:android": "pnpm build && npx cap sync android && npx cap open android"
+    "cap:android": "pnpm build && npx cap sync android && npx cap open android",
+    "convex:dev": "convex dev",
+    "convex:codegen": "convex codegen --typecheck disable"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
@@ -43,6 +45,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.42.1",
     "lucide-react": "^0.486.0",
     "motion": "^12.42.2",
     "next": "^16.1.0",

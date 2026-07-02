@@ -11,6 +11,7 @@ const eslintConfig = [
       "node_modules/**",
       "android/**",
       "ios/**",
+      "convex/_generated/**",
       "*.js",
       "*.cjs",
       "*.mjs",
