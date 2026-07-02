@@ -83,11 +83,15 @@ export default defineSchema({
     loserGuestId: v.optional(v.string()),
     loserDisplayNameSnapshot: v.optional(v.string()),
     movesCount: v.number(),
+    dedupeKey: v.optional(v.string()),
     completedAt: v.number(),
     createdAt: v.number(),
   })
     .index("by_winnerGuestId", ["winnerGuestId"])
     .index("by_winnerProfileId", ["winnerProfileId"])
+    .index("by_loserGuestId", ["loserGuestId"])
+    .index("by_loserProfileId", ["loserProfileId"])
+    .index("by_dedupeKey", ["dedupeKey"])
     .index("by_completedAt", ["completedAt"]),
 
   playerStats: defineTable({

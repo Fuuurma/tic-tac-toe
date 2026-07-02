@@ -4,17 +4,23 @@ import { useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { GameState } from "@/app/types/types";
+import type { PlayerSymbol } from "@/src/game/core";
 import { buildMatchResultPayload } from "@/app/utils/convex/matchResultPayload";
 
 interface MatchResultRecorderProps {
   gameState: GameState;
+  localPlayerSymbol: PlayerSymbol | null;
 }
 
-export function MatchResultRecorder({ gameState }: MatchResultRecorderProps) {
+export function MatchResultRecorder({ gameState, localPlayerSymbol }: MatchResultRecorderProps) {
   const recordMatchResult = useMutation(api.stats.recordMatchResult);
   const recordedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!gameState.winner || localPlayerSymbol !== gameState.winner) {
+      return;
+    }
+
     const payload = buildMatchResultPayload(gameState);
 
     if (!payload) {
@@ -23,7 +29,7 @@ export function MatchResultRecorder({ gameState }: MatchResultRecorderProps) {
     }
 
     const recordKey = [
-      payload.gameMode,
+      payload.dedupeKey || payload.gameMode,
       payload.winner.profileId || payload.winner.guestId,
       payload.loser.profileId || payload.loser.guestId,
       payload.movesCount,
@@ -40,7 +46,7 @@ export function MatchResultRecorder({ gameState }: MatchResultRecorderProps) {
       recordedKeyRef.current = null;
       console.warn("Failed to record match result", error);
     });
-  }, [gameState, recordMatchResult]);
+  }, [gameState, localPlayerSymbol, recordMatchResult]);
 
   return null;
 }

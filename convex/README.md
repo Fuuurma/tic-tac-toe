@@ -9,7 +9,7 @@ path for now.
 - `profiles`: guest/account profile records.
 - `profileClaims`: future Better Auth account claim records.
 - `playerStats`: durable win/loss/streak stats by guest or profile.
-- `matches`: completed match result snapshots.
+- `matches`: completed match result snapshots and profile/guest history reads.
 - `rooms`, `roomPlayers`, `moves`, `roomInvites`: durable room, invite, player,
   and move primitives for the later Socket.IO-to-Convex bridge.
 
@@ -21,5 +21,6 @@ path for now.
    profiles and completed online match results to Convex.
 
 The checked-in `_generated` files are bootstrapping stubs so TypeScript can
-compile before the first real Convex deployment is configured. Regenerate them
+compile before the first real Convex deployment is configured. `pnpm
+convex:codegen` currently requires `CONVEX_DEPLOYMENT`; regenerate these files
 with Convex CLI after setup.

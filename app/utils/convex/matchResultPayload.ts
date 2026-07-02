@@ -14,6 +14,7 @@ export interface MatchResultPayload {
   gameMode: GameMode;
   source: MatchSource;
   movesCount: number;
+  dedupeKey?: string;
   winner: PlayerResultPayload;
   loser: PlayerResultPayload;
 }

@@ -31,6 +31,7 @@ import { resolveOpponentColor } from "./utils/colors/resolveOpponentColor";
 import { useSocketGame } from "./hooks/game/useSocketGame";
 import { GuestProfileSync } from "@/components/convex/guestProfileSync";
 import { MatchResultRecorder } from "@/components/convex/matchResultRecorder";
+import { ConvexStatsHydrator } from "@/components/convex/statsHydrator";
 import { isConvexConfigured } from "./utils/convex/config";
 import {
   getOrCreateGuestIdentity,
@@ -63,7 +64,7 @@ export default function Home() {
   const [rematchRequested, setRematchRequested] = useState(false);
 
   // ----- STATS HOOK -----
-  const { stats, refreshStats } = useGameStats(
+  const { stats, setStats, refreshStats } = useGameStats(
     gameState.gameStatus,
     gameState.winner,
     playerSymbol,
@@ -221,7 +222,8 @@ export default function Home() {
       {isConvexConfigured && (
         <>
           <GuestProfileSync displayName={username} />
-          <MatchResultRecorder gameState={gameState} />
+          <ConvexStatsHydrator onStatsLoaded={setStats} />
+          <MatchResultRecorder gameState={gameState} localPlayerSymbol={playerSymbol} />
         </>
       )}
       <AppSidebar gameState={gameState} gameMode={gameMode} isLoggedIn={loggedIn} stats={stats} />

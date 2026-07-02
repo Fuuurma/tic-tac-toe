@@ -77,12 +77,35 @@ export const getByProfile = query({
   },
 });
 
+export const getMine = query({
+  args: {
+    guestId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity) {
+      const accountProfile = await ctx.db
+        .query("profiles")
+        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
+        .unique();
+
+      if (accountProfile) {
+        return await getStatsDoc(ctx, { profileId: accountProfile._id });
+      }
+    }
+
+    if (!args.guestId) return null;
+    return await getStatsDoc(ctx, { guestId: args.guestId });
+  },
+});
+
 export const recordMatchResult = mutation({
   args: {
     roomId: v.optional(v.id("rooms")),
     gameMode: v.string(),
     source: v.optional(v.union(v.literal("socket"), v.literal("local"), v.literal("ai"), v.literal("manual"))),
     movesCount: v.number(),
+    dedupeKey: v.optional(v.string()),
     winner: v.object(playerResultArgs),
     loser: v.object(playerResultArgs),
   },
@@ -91,6 +114,17 @@ export const recordMatchResult = mutation({
     requireIdentity(args.loser);
 
     const now = Date.now();
+    if (args.dedupeKey) {
+      const existingMatch = await ctx.db
+        .query("matches")
+        .withIndex("by_dedupeKey", (q) => q.eq("dedupeKey", args.dedupeKey))
+        .unique();
+
+      if (existingMatch) {
+        return { matchId: existingMatch._id, winnerStatsId: null, loserStatsId: null, deduped: true };
+      }
+    }
+
     const matchId = await ctx.db.insert("matches", {
       roomId: args.roomId,
       gameMode: args.gameMode,
@@ -102,6 +136,7 @@ export const recordMatchResult = mutation({
       loserGuestId: args.loser.guestId,
       loserDisplayNameSnapshot: args.loser.displayNameSnapshot,
       movesCount: args.movesCount,
+      dedupeKey: args.dedupeKey,
       completedAt: now,
       createdAt: now,
     });
@@ -109,6 +144,6 @@ export const recordMatchResult = mutation({
     const winnerStatsId = await applyResult(ctx, args.winner, true, now);
     const loserStatsId = await applyResult(ctx, args.loser, false, now);
 
-    return { matchId, winnerStatsId, loserStatsId };
+    return { matchId, winnerStatsId, loserStatsId, deduped: false };
   },
 });
