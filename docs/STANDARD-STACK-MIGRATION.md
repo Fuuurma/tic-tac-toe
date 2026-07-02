@@ -45,6 +45,7 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [x] Wire app startup to upsert guest profiles when `NEXT_PUBLIC_CONVEX_URL` is configured.
 - [x] Record completed Socket.IO matches into Convex when both players have identity metadata.
 - [x] Hydrate sidebar stats from Convex when `NEXT_PUBLIC_CONVEX_URL` is configured.
+- [x] Bridge Socket.IO rooms, players, leaves, status changes, and moves to Convex when `CONVEX_URL` or `NEXT_PUBLIC_CONVEX_URL` is configured.
 - [ ] Add Better Auth + Google after guest/profile claim semantics are proven.
 
 ## Core Extraction Boundary

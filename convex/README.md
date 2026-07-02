@@ -19,6 +19,9 @@ path for now.
 2. Commit regenerated files under `convex/_generated/` if they change.
 3. Set `NEXT_PUBLIC_CONVEX_URL` only in environments that should sync guest
    profiles and completed online match results to Convex.
+4. Set `CONVEX_URL` on the Socket.IO server when server-side room, player,
+   leave, status, and move events should also be bridged to Convex. If
+   `CONVEX_URL` is omitted, the server falls back to `NEXT_PUBLIC_CONVEX_URL`.
 
 The checked-in `_generated` files are bootstrapping stubs so TypeScript can
 compile before the first real Convex deployment is configured. `pnpm

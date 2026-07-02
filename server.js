@@ -2,6 +2,7 @@ const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 const { Server } = require("socket.io");
+const { createSocketConvexBridge } = require("./server/convexBridge");
 const {
   PlayerSymbol,
   GameStatus,
@@ -64,6 +65,7 @@ app.prepare().then(() => {
   });
 
   const roomManager = new RoomManager();
+  const convexBridge = createSocketConvexBridge({ log });
 
   setInterval(() => {
     for (const room of roomManager.rooms.values()) {
@@ -75,10 +77,14 @@ app.prepare().then(() => {
       if (result.timedOut) {
         const moveLabel = result.move === null ? "no valid move" : `move ${result.move}`;
         log("debug", `Turn timed out in ${room.id}; ${moveLabel}`);
+        if (result.move !== null && result.playerSymbol) {
+          convexBridge.recordMove(room, room.gameState.players[result.playerSymbol], result.move);
+        }
       }
 
       if (room.gameState.winner) {
         log("info", `Game ended in ${room.id}: ${room.gameState.winner}`);
+        convexBridge.updateRoomStatus(room, "completed");
       }
     }
   }, TURN_TICK_MS);
@@ -112,6 +118,8 @@ app.prepare().then(() => {
       const assignment = roomManager.addPlayerToRoom(room, socket.id, loginPayload, loginPayload.color);
       const { symbol, color: assignedColor, wasColorChanged } = assignment;
       currentRoom = room;
+      const player = room.getPlayerBySocket(socket.id);
+      convexBridge.handlePlayerJoined(room, player);
 
       socket.join(room.id);
 
@@ -139,6 +147,7 @@ app.prepare().then(() => {
       if (room.isFull()) {
         log("info", `Game starting in ${room.id}`);
         room.gameState.gameStatus = GameStatus.ACTIVE;
+        convexBridge.updateRoomStatus(room, "active");
         io.to(room.id).emit("gameStart", room.gameState);
       }
     });
@@ -174,11 +183,13 @@ app.prepare().then(() => {
 
       currentRoom.gameState = newState;
       log("debug", `Move ${index} by ${player.symbol} in ${currentRoom.id}`);
+      convexBridge.recordMove(currentRoom, player, index);
 
       io.to(currentRoom.id).emit("gameUpdate", newState);
 
       if (newState.winner) {
         log("info", `Game ended in ${currentRoom.id}: ${newState.winner}`);
+        convexBridge.updateRoomStatus(currentRoom, "completed");
       }
     });
 
@@ -240,6 +251,7 @@ app.prepare().then(() => {
 
       currentRoom.resetForRematch();
       log("info", `Rematch accepted in ${currentRoom.id}`);
+      convexBridge.updateRoomStatus(currentRoom, "active");
 
       io.to(currentRoom.id).emit("gameReset", currentRoom.gameState);
     });
@@ -276,11 +288,16 @@ app.prepare().then(() => {
       if (!player) return;
 
       socket.leave(currentRoom.id);
-      const opponentSocketId = currentRoom.getOpponentSocket(socket.id);
+      convexBridge.handlePlayerLeft(currentRoom, player);
 
       const result = roomManager.removePlayerFromRoom(socket.id);
 
       if (result && result.room) {
+        if (result.room.isEmpty()) {
+          convexBridge.forgetRoom(result.room);
+        } else {
+          convexBridge.updateRoomStatus(result.room, "waiting");
+        }
         io.to(result.room.id).emit("playerLeft", {
           symbol: player.symbol,
           gameState: result.room.gameState,
@@ -302,6 +319,7 @@ app.prepare().then(() => {
       if (!player) return;
 
       currentRoom.resetGame(GameStatus.ACTIVE);
+      convexBridge.updateRoomStatus(currentRoom, "active");
 
       log("info", `Game reset by ${player.username} in ${currentRoom.id}`);
       io.to(currentRoom.id).emit("gameReset", currentRoom.gameState);
@@ -314,6 +332,9 @@ app.prepare().then(() => {
       if (currentRoom) {
         const player = currentRoom.getPlayerBySocket(socket.id);
         const opponentSocketId = currentRoom.getOpponentSocket(socket.id);
+        if (player) {
+          convexBridge.handlePlayerLeft(currentRoom, player);
+        }
 
         roomManager.removePlayerFromRoom(socket.id);
 
@@ -322,10 +343,13 @@ app.prepare().then(() => {
         }
 
         if (opponentSocketId) {
+          convexBridge.updateRoomStatus(currentRoom, "waiting");
           io.to(opponentSocketId).emit("playerLeft", {
             symbol: player?.symbol || null,
             gameState: currentRoom.gameState,
           });
+        } else {
+          convexBridge.forgetRoom(currentRoom);
         }
 
         currentRoom = null;

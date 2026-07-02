@@ -361,6 +361,7 @@ class GameRoom {
       return { changed: true, timedOut: false, move: null };
     }
 
+    const playerSymbol = this.gameState.currentPlayer;
     const move = findRandomValidMove(this.gameState);
     if (move === null) {
       this.gameState = { ...this.gameState, turnTimeRemaining: 0 };
@@ -374,7 +375,7 @@ class GameRoom {
     }
 
     this.gameState = nextState;
-    return { changed: true, timedOut: true, move };
+    return { changed: true, timedOut: true, move, playerSymbol };
   }
 }
 
