@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { PlayerInfoBadge } from "./playerBadge";
 import { GameStatusMessage } from "./gameStatusMessage";
 import { GameState } from "@/app/types/types";
@@ -41,6 +42,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const [displayTime, setDisplayTime] = useState(0);
   const [progressValue, setProgressValue] = useState(100);
   const [timerPulse, setTimerPulse] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (gameStatus === GameStatus.ACTIVE && turnTimeRemaining !== undefined) {
@@ -159,10 +161,15 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
 
       {/* Winner/Game Over Banner */}
       {!isGameActive && winner && (
-        <div className={cn(
-          "mb-2 sm:mb-4 bg-gradient-to-r text-white px-3 sm:px-4 py-2 sm:py-4 rounded-lg sm:rounded-xl shadow-2xl animate-in zoom-in-95 border-2 border-white/30",
-          getWinnerColor()
-        )}>
+        <motion.div
+          initial={prefersReducedMotion ? false : { opacity: 0, y: -10, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.28, ease: "easeOut" }}
+          className={cn(
+            "mb-2 sm:mb-4 bg-gradient-to-r text-white px-3 sm:px-4 py-2 sm:py-4 rounded-lg sm:rounded-xl shadow-2xl animate-in zoom-in-95 border-2 border-white/30",
+            getWinnerColor()
+          )}
+        >
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center justify-center gap-2 sm:gap-3 flex-1 min-w-0">
               {winner && (
@@ -203,7 +210,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Main Info Card */}
