@@ -23,12 +23,15 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 
 - [x] Create migration branch.
 - [x] Add Motion with one visible usage in the current app.
+- [x] Create initial `src/game/core` facade for state/rules/AI/selectors/validation.
+- [x] Point first local rule tests at `src/game/core`.
 - [ ] Finish/smoke current WebSocket deploy on a public URL.
 - [ ] Keep unit, integration, build, and Playwright checks green.
+- [ ] Add `ts-pattern` once pnpm store mismatch is settled.
 
 ## Core Extraction Boundary
 
-Target folder:
+Initial folder now exists:
 
 ```txt
 src/game/core/
@@ -74,9 +77,21 @@ Current files to extract or adapt:
 
 ## Next Extraction Step
 
-Create `src/game/core/state.ts`, `rules.ts`, and `validation.ts` first, then point
-existing local rules tests at those exports. Keep the current app imports working
-through compatibility re-exports until the UI and Socket.IO adapter are migrated.
+Keep migrating adapter-facing imports to `src/game/core`:
+
+1. `app/hooks/game/useLocalGame.ts`
+2. `app/hooks/game/useSocketGame.ts`
+3. `socketGameCore.js` / `server.js` shared logic
+4. AI callers under `app/hooks/game`
+
+Keep the current app imports working through compatibility re-exports until the
+UI and Socket.IO adapter are migrated.
+
+`ts-pattern` is still intended for game-mode/AI difficulty unions, but adding it
+is currently blocked by local pnpm store drift: this checkout's `node_modules`
+is linked from `/Users/sergi/Library/pnpm/store/v11`, while repo pnpm 10 wants
+`/Users/sergi/Library/pnpm/store/v10`. Avoid a broad reinstall in the middle of
+feature work; settle package manager/store state first.
 
 ## Later Phases
 

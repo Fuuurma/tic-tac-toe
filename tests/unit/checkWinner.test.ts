@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkWinner } from "@/app/game/logic/checkWinner";
-import { PlayerSymbol } from "@/app/game/constants/constants";
+import { checkWinner, PlayerSymbol } from "@/src/game/core";
 import { createBoardWithMoves, WINNING_COMBINATIONS } from "../helpers/gameUtils";
 
 describe("checkWinner", () => {

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { isValidMove } from "@/app/game/logic/isValidMove";
-import { PlayerSymbol, GameStatus } from "@/app/game/constants/constants";
+import { GameStatus, isValidMove, PlayerSymbol } from "@/src/game/core";
 import { GameState } from "@/app/types/types";
 import { createMockGameState } from "../helpers/gameUtils";
 

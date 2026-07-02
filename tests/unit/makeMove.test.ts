@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { makeMove } from "@/app/game/logic/makeMove";
-import { PlayerSymbol, GAME_RULES } from "@/app/game/constants/constants";
+import { GAME_RULES, makeMove, PlayerSymbol } from "@/src/game/core";
 import { GameState } from "@/app/types/types";
 import { createMockGameState } from "../helpers/gameUtils";
 
