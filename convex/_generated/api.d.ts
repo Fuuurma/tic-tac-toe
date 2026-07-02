@@ -12,11 +12,15 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as moves from "../moves.js";
 import type * as profiles from "../profiles.js";
+import type * as rooms from "../rooms.js";
 import type * as stats from "../stats.js";
 
 declare const fullApi: ApiFromModules<{
+  moves: typeof moves;
   profiles: typeof profiles;
+  rooms: typeof rooms;
   stats: typeof stats;
 }>;
 

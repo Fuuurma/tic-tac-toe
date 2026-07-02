@@ -10,8 +10,8 @@ path for now.
 - `profileClaims`: future Better Auth account claim records.
 - `playerStats`: durable win/loss/streak stats by guest or profile.
 - `matches`: completed match result snapshots.
-- `rooms`, `roomPlayers`, `moves`, `roomInvites`: schema scaffolding for the
-  later Socket.IO-to-Convex bridge.
+- `rooms`, `roomPlayers`, `moves`, `roomInvites`: durable room, invite, player,
+  and move primitives for the later Socket.IO-to-Convex bridge.
 
 ## Local Setup
 

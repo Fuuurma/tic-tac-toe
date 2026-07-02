@@ -49,10 +49,12 @@ export default defineSchema({
     roomId: v.id("rooms"),
     ...identityFields,
     symbol: v.union(v.literal("X"), v.literal("O")),
+    color: v.optional(v.string()),
     joinedAt: v.number(),
     leftAt: v.optional(v.number()),
   })
     .index("by_roomId", ["roomId"])
+    .index("by_roomId_symbol", ["roomId", "symbol"])
     .index("by_guestId", ["guestId"])
     .index("by_profileId", ["profileId"]),
 

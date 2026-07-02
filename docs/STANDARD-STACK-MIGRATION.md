@@ -38,6 +38,7 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [x] Add schema for profiles, claims, rooms, room players, moves, matches, stats, and invites.
 - [x] Add guest profile upsert/get/update/claim functions.
 - [x] Add match result recording and stats query functions.
+- [x] Add durable Convex room, invite, player, and move functions.
 - [ ] Configure a real Convex deployment with `pnpm convex:dev`.
 - [ ] Regenerate `convex/_generated/` from the configured deployment.
 - [x] Wire app startup to upsert guest profiles when `NEXT_PUBLIC_CONVEX_URL` is configured.
