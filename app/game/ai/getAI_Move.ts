@@ -8,6 +8,7 @@ import {
 import { findBestMoveMCTS } from "./MonteCarloTS/findBestMove";
 import { findBestMoveMinimax } from "./MiniMaxAlgorithm/findBestMove";
 import { findBestMoveEasyAI } from "./simpleAI/findBestMove";
+import { match } from "ts-pattern";
 
 /**
  * Gets the AI's next move based on the difficulty level.
@@ -27,37 +28,16 @@ export function getAIMove(
     return -1;
   }
 
-  let bestMove = -1;
-
   try {
-    switch (difficulty) {
-      case AI_Difficulty.EASY:
-        bestMove = findBestMoveEasyAI(gameState, aiSymbol);
-        break;
-
-      case AI_Difficulty.NORMAL:
-      case AI_Difficulty.HARD:
-        const iterations = MCTS_ITERATIONS[difficulty];
-        // Pass both iterations and time limit to MCTS
-        bestMove = findBestMoveMCTS(gameState, iterations);
-        break;
-
-      case AI_Difficulty.INSANE:
-        bestMove = findBestMoveMinimax(gameState, aiSymbol, 9);
-        break;
-
-      default:
-        console.warn(
-          `Unknown AI difficulty: ${difficulty}. Falling back to EASY.`
-        );
-        bestMove = findBestMoveEasyAI(gameState, aiSymbol);
-        break;
-    }
+    return match(difficulty)
+      .with(AI_Difficulty.EASY, () => findBestMoveEasyAI(gameState, aiSymbol))
+      .with(AI_Difficulty.NORMAL, AI_Difficulty.HARD, value => (
+        findBestMoveMCTS(gameState, MCTS_ITERATIONS[value])
+      ))
+      .with(AI_Difficulty.INSANE, () => findBestMoveMinimax(gameState, aiSymbol, 9))
+      .exhaustive();
   } catch (error) {
     console.error(`Error during AI calculation (${difficulty}):`, error);
-    // Fallback to easy move on any error during calculation
-    bestMove = findBestMoveEasyAI(gameState, aiSymbol);
+    return findBestMoveEasyAI(gameState, aiSymbol);
   }
-
-  return bestMove;
 }

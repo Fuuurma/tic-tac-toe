@@ -25,9 +25,10 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [x] Add Motion with one visible usage in the current app.
 - [x] Create initial `src/game/core` facade for state/rules/AI/selectors/validation.
 - [x] Point first local rule tests at `src/game/core`.
+- [x] Align package manager to pnpm 11.9.0.
+- [x] Add `ts-pattern` with real game-mode/action/AI routing usages.
 - [ ] Finish/smoke current WebSocket deploy on a public URL.
 - [ ] Keep unit, integration, build, and Playwright checks green.
-- [ ] Add `ts-pattern` once pnpm store mismatch is settled.
 
 ## Core Extraction Boundary
 
@@ -87,11 +88,8 @@ Keep migrating adapter-facing imports to `src/game/core`:
 Keep the current app imports working through compatibility re-exports until the
 UI and Socket.IO adapter are migrated.
 
-`ts-pattern` is still intended for game-mode/AI difficulty unions, but adding it
-is currently blocked by local pnpm store drift: this checkout's `node_modules`
-is linked from `/Users/sergi/Library/pnpm/store/v11`, while repo pnpm 10 wants
-`/Users/sergi/Library/pnpm/store/v10`. Avoid a broad reinstall in the middle of
-feature work; settle package manager/store state first.
+The repo now declares `packageManager: pnpm@11.9.0`, matching the local v11 store
+used by this checkout. Use pnpm 11 for future dependency changes.
 
 ## Later Phases
 
