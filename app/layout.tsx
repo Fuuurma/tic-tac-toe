@@ -6,6 +6,7 @@ import { AdProvider } from "@/components/common/adProvider";
 import { PWAWrapper } from "@/components/common/pwaWrapper";
 import { ClientSidebarWrapper } from "@/components/common/clientSidebarWrapper";
 import { ToastProvider } from "@/components/common/toastProvider";
+import { OptionalConvexProvider } from "@/components/convex/optionalConvexProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -79,11 +80,13 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <ToastProvider>
-                <AdProvider adClient={adClient}>
-                  {children}
-                </AdProvider>
-              </ToastProvider>
+              <OptionalConvexProvider>
+                <ToastProvider>
+                  <AdProvider adClient={adClient}>
+                    {children}
+                  </AdProvider>
+                </ToastProvider>
+              </OptionalConvexProvider>
             </ThemeProvider>
           </ClientSidebarWrapper>
         </PWAWrapper>

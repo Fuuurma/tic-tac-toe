@@ -17,8 +17,8 @@ path for now.
 
 1. Run `pnpm exec convex dev` and follow the Convex login/project prompts.
 2. Commit regenerated files under `convex/_generated/` if they change.
-3. Keep `NEXT_PUBLIC_CONVEX_URL` unset in production until the frontend starts
-   calling Convex functions.
+3. Set `NEXT_PUBLIC_CONVEX_URL` only in environments that should sync guest
+   profiles and completed online match results to Convex.
 
 The checked-in `_generated` files are bootstrapping stubs so TypeScript can
 compile before the first real Convex deployment is configured. Regenerate them

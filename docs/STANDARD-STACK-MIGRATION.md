@@ -40,8 +40,8 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [x] Add match result recording and stats query functions.
 - [ ] Configure a real Convex deployment with `pnpm convex:dev`.
 - [ ] Regenerate `convex/_generated/` from the configured deployment.
-- [ ] Wire app startup to upsert guest profiles.
-- [ ] Record completed Socket.IO matches into Convex.
+- [x] Wire app startup to upsert guest profiles when `NEXT_PUBLIC_CONVEX_URL` is configured.
+- [x] Record completed Socket.IO matches into Convex when both players have identity metadata.
 - [ ] Add Better Auth + Google after guest/profile claim semantics are proven.
 
 ## Core Extraction Boundary
