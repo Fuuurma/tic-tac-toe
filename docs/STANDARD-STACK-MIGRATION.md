@@ -108,6 +108,14 @@ Keep migrating adapter-facing imports to `src/game/core`:
 3. `socketGameCore.js` / `server.js` shared logic
 4. AI callers under `app/hooks/game`
 
+Progress:
+
+- [x] `app/hooks/game/useLocalGame.ts` imports rules/state/AI through `src/game/core`.
+- [x] `app/hooks/game/useGameTimer.ts` imports rules/state/AI through `src/game/core`.
+- [x] `app/hooks/game/useSocketGame.ts` imports game/socket types and online status selectors through `src/game/core`.
+- [x] Added `src/game/core/online.ts` selectors for Socket.IO status snapshots and messages.
+- [ ] Move shared `socketGameCore.js` rules behind the TypeScript core boundary.
+
 Keep the current app imports working through compatibility re-exports until the
 UI and Socket.IO adapter are migrated.
 

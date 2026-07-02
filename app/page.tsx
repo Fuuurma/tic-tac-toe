@@ -2,24 +2,23 @@
 
 import { useCallback, useState, useEffect } from "react";
 import {
+  AI_Difficulty,
+  CanMakeMove,
+  Color,
+  createFreshGameState,
+  createInitialGameState,
   GameMode,
+  GameModes,
   GameState,
+  GameStatus,
   initialGameState,
-} from "./types/types";
+  PLAYER_CONFIG,
+  PlayerSymbol,
+} from "@/src/game/core";
 
 import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
-import {
-  AI_Difficulty,
-  Color,
-  GameModes,
-  GameStatus,
-  PLAYER_CONFIG,
-  PlayerSymbol,
-} from "./game/constants/constants";
-import { createFreshGameState } from "./game/logic/newGameState";
 import PageFooter from "@/components/common/pageFooter";
-import { createInitialGameState } from "./game/logic/createInitialGameState";
 import { AppSidebar } from "@/components/navbar/sidebar";
 import { SidebarInset } from "@/components/ui/sidebar";
 import PlayersPanel from "@/components/game/playersPanel";
@@ -30,7 +29,6 @@ import { useGameTimer } from "./hooks/game/useGameTimer";
 import { useLocalGame } from "./hooks/game/useLocalGame";
 import { resolveOpponentColor } from "./utils/colors/resolveOpponentColor";
 import { useSocketGame } from "./hooks/game/useSocketGame";
-import { CanMakeMove } from "./game/logic/canMakeMove";
 import { GuestProfileSync } from "@/components/convex/guestProfileSync";
 import { MatchResultRecorder } from "@/components/convex/matchResultRecorder";
 import { isConvexConfigured } from "./utils/convex/config";

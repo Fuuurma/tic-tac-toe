@@ -1,19 +1,20 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
-import { GameState, GameMode } from "@/app/types/types";
-import { 
-  GameModes, 
-  AI_Difficulty, 
-  Color, 
-  PlayerSymbol
-} from "@/app/game/constants/constants";
-import { createInitialGameState } from "@/app/game/logic/createInitialGameState";
-import { isAITurn } from "@/app/game/ai/canAI_MakeMove";
-import { handleAI_Move } from "@/app/game/ai/handleAI_Move";
-import { isValidMove } from "@/app/game/logic/isValidMove";
-import { CanMakeMove } from "@/app/game/logic/canMakeMove";
-import { makeMove } from "@/app/game/logic/makeMove";
+import {
+  AI_Difficulty,
+  CanMakeMove,
+  Color,
+  createInitialGameState,
+  GameMode,
+  GameModes,
+  GameState,
+  handleAI_Move,
+  isAITurn,
+  isValidMove,
+  makeMove,
+  PlayerSymbol,
+} from "@/src/game/core";
 import { resolveOpponentColor } from "@/app/utils/colors/resolveOpponentColor";
 
 export const useLocalGame = (

@@ -1,5 +1,6 @@
 export { createInitialGameState } from "@/app/game/logic/createInitialGameState";
 export { createFreshGameState } from "@/app/game/logic/newGameState";
+export { initialGameState } from "@/app/types/types";
 
 export type {
   BoardPosition,

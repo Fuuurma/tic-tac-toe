@@ -4,57 +4,23 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import {
   ClientToServerEvents,
-  GameState,
-  LoginPayload,
-  ServerToClientEvents,
-} from "@/app/types/types";
-import {
   Color,
   Events,
+  GameState,
   GameStatus,
+  getOnlineStatusMessage,
+  getOnlineStatusSnapshot,
+  LoginPayload,
+  OnlineStatusSnapshot,
   PlayerSymbol,
-} from "@/app/game/constants/constants";
+  ServerToClientEvents,
+  shouldAnnounceOnlineUpdate,
+} from "@/src/game/core";
 import { sanitizeDisplayName } from "@/app/utils/identity/gameIdentity";
 
 interface SocketLoginOptions extends Partial<LoginPayload> {
   username?: string;
 }
-
-interface OnlineStatusSnapshot {
-  currentPlayer: PlayerSymbol;
-  winner: PlayerSymbol | null;
-  gameStatus: GameStatus;
-  lastMoveIndex: number | null;
-}
-
-const getOnlineStatusSnapshot = (gameState: GameState): OnlineStatusSnapshot => ({
-  currentPlayer: gameState.currentPlayer,
-  winner: gameState.winner,
-  gameStatus: gameState.gameStatus,
-  lastMoveIndex: gameState.lastMoveIndex,
-});
-
-const getOnlineStatusMessage = (gameState: GameState): string => {
-  if (gameState.winner) {
-    return `${gameState.players[gameState.winner]?.username || "Opponent"} wins!`;
-  }
-
-  if (gameState.gameStatus === GameStatus.WAITING) {
-    return "Waiting for opponent...";
-  }
-
-  return `${gameState.players[gameState.currentPlayer]?.username || "Opponent"}'s turn.`;
-};
-
-const shouldAnnounceOnlineUpdate = (
-  previous: OnlineStatusSnapshot | null,
-  next: OnlineStatusSnapshot
-) =>
-  !previous ||
-  previous.currentPlayer !== next.currentPlayer ||
-  previous.winner !== next.winner ||
-  previous.gameStatus !== next.gameStatus ||
-  previous.lastMoveIndex !== next.lastMoveIndex;
 
 export const useSocketGame = (
   username: string,

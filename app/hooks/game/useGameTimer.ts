@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { GameState, GameMode } from "@/app/types/types";
-import { GameModes, PlayerSymbol } from "@/app/game/constants/constants";
-import { isAITurn } from "@/app/game/ai/canAI_MakeMove";
-import { isGameActive } from "@/app/game/logic/isGameActive";
-import { findRandomValidMove } from "@/app/game/logic/makeRandomMove";
-import { CanMakeMove } from "@/app/game/logic/canMakeMove";
-import { makeMove } from "@/app/game/logic/makeMove";
+import {
+  CanMakeMove,
+  findRandomValidMove,
+  GameMode,
+  GameModes,
+  GameState,
+  isAITurn,
+  isGameActive,
+  makeMove,
+  PlayerSymbol,
+} from "@/src/game/core";
 
 export const useGameTimer = (
   gameState: GameState,
