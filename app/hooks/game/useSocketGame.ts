@@ -5,6 +5,7 @@ import { io, Socket } from "socket.io-client";
 import {
   ClientToServerEvents,
   GameState,
+  LoginPayload,
   ServerToClientEvents,
 } from "@/app/types/types";
 import {
@@ -13,10 +14,10 @@ import {
   GameStatus,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
+import { sanitizeDisplayName } from "@/app/utils/identity/gameIdentity";
 
-interface SocketLoginOptions {
+interface SocketLoginOptions extends Partial<LoginPayload> {
   username?: string;
-  color?: Color;
 }
 
 interface OnlineStatusSnapshot {
@@ -78,6 +79,9 @@ export const useSocketGame = (
   // Refs to avoid stale closures in socket handlers
   const usernameRef = useRef(username);
   const selectedColorRef = useRef(selectedColor);
+  const guestIdRef = useRef<string | undefined>(undefined);
+  const profileIdRef = useRef<string | undefined>(undefined);
+  const userIdRef = useRef<string | undefined>(undefined);
   const playerSymbolRef = useRef(playerSymbol);
   const onlineStatusSnapshotRef = useRef<OnlineStatusSnapshot | null>(null);
 
@@ -90,7 +94,9 @@ export const useSocketGame = (
   const initializeSocket = useCallback((options: SocketLoginOptions = {}) => {
     if (socket?.connected) return true;
 
-    const loginUsername = options.username ?? usernameRef.current;
+    const loginUsername = sanitizeDisplayName(
+      options.displayName ?? options.username ?? usernameRef.current
+    );
     const loginColor = options.color ?? selectedColorRef.current;
 
     if (!loginUsername.trim()) {
@@ -100,6 +106,9 @@ export const useSocketGame = (
 
     usernameRef.current = loginUsername.trim();
     selectedColorRef.current = loginColor;
+    guestIdRef.current = options.guestId ?? guestIdRef.current;
+    profileIdRef.current = options.profileId ?? profileIdRef.current;
+    userIdRef.current = options.userId ?? userIdRef.current;
     setMessage("Connecting to server...");
 
     let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -133,7 +142,13 @@ export const useSocketGame = (
     const handleConnect = () => {
       setMessage("Connected! Waiting for opponent...");
       setLoggedIn(true);
-      socket.emit("login", usernameRef.current, selectedColorRef.current);
+      socket.emit("login", {
+        displayName: usernameRef.current,
+        guestId: guestIdRef.current,
+        profileId: profileIdRef.current,
+        userId: userIdRef.current,
+        color: selectedColorRef.current,
+      });
     };
 
     const handleDisconnect = (reason: string) => {

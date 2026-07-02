@@ -22,6 +22,58 @@ const WINNING_COMBINATIONS = [
 
 const DEFAULT_COLORS = { [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED };
 const AVAILABLE_COLORS = Object.values(Color);
+const DISPLAY_NAME_MIN_LENGTH = 2;
+const DISPLAY_NAME_MAX_LENGTH = 20;
+const ID_PATTERN = /^[A-Za-z0-9:_-]{4,160}$/;
+
+function sanitizeDisplayName(value) {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[\u0000-\u001f\u007f<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, DISPLAY_NAME_MAX_LENGTH);
+}
+
+function isValidDisplayName(displayName) {
+  return displayName.length >= DISPLAY_NAME_MIN_LENGTH && displayName.length <= DISPLAY_NAME_MAX_LENGTH;
+}
+
+function normalizeIdentityId(value) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return ID_PATTERN.test(normalized) ? normalized : undefined;
+}
+
+function normalizeLoginPayload(usernameOrPayload, color) {
+  if (
+    usernameOrPayload &&
+    typeof usernameOrPayload === "object" &&
+    !Array.isArray(usernameOrPayload)
+  ) {
+    const displayName = sanitizeDisplayName(
+      usernameOrPayload.displayName || usernameOrPayload.username
+    );
+    const profileId = normalizeIdentityId(usernameOrPayload.profileId);
+    const userId = normalizeIdentityId(usernameOrPayload.userId);
+    const guestId = normalizeIdentityId(usernameOrPayload.guestId);
+
+    return {
+      displayName,
+      color: usernameOrPayload.color,
+      guestId,
+      profileId,
+      userId,
+      identityKind: profileId || userId ? "account" : "guest",
+    };
+  }
+
+  return {
+    displayName: sanitizeDisplayName(usernameOrPayload),
+    color,
+    identityKind: "guest",
+  };
+}
 
 function normalizeColor(color, symbol) {
   return AVAILABLE_COLORS.includes(color) ? color : DEFAULT_COLORS[symbol];
@@ -59,6 +111,10 @@ function getPreservedPlayers(players) {
     preservedPlayers[player.symbol] = {
       username: player.username,
       color: player.color,
+      identityKind: player.identityKind,
+      guestId: player.guestId,
+      profileId: player.profileId,
+      userId: player.userId,
     };
   }
   return preservedPlayers;
@@ -78,6 +134,10 @@ function createInitialGameState(players = {}) {
         symbol: PlayerSymbol.X,
         type: PlayerTypes.HUMAN,
         isActive: !!players[PlayerSymbol.X],
+        identityKind: players[PlayerSymbol.X]?.identityKind,
+        guestId: players[PlayerSymbol.X]?.guestId,
+        profileId: players[PlayerSymbol.X]?.profileId,
+        userId: players[PlayerSymbol.X]?.userId,
       },
       [PlayerSymbol.O]: {
         username: players[PlayerSymbol.O]?.username || "",
@@ -85,6 +145,10 @@ function createInitialGameState(players = {}) {
         symbol: PlayerSymbol.O,
         type: PlayerTypes.HUMAN,
         isActive: !!players[PlayerSymbol.O],
+        identityKind: players[PlayerSymbol.O]?.identityKind,
+        guestId: players[PlayerSymbol.O]?.guestId,
+        profileId: players[PlayerSymbol.O]?.profileId,
+        userId: players[PlayerSymbol.O]?.userId,
       },
     },
     moves: { [PlayerSymbol.X]: [], [PlayerSymbol.O]: [] },
@@ -187,14 +251,32 @@ class GameRoom {
     this.rematchDeclined = false;
   }
 
-  addPlayer(socketId, username, color, symbol) {
-    this.players.set(socketId, { username, color, symbol });
+  addPlayer(socketId, identity, color, symbol) {
+    const playerIdentity =
+      typeof identity === "string"
+        ? { displayName: identity, identityKind: "guest" }
+        : identity;
+    const player = {
+      username: playerIdentity.displayName,
+      color,
+      symbol,
+      identityKind: playerIdentity.identityKind,
+      guestId: playerIdentity.guestId,
+      profileId: playerIdentity.profileId,
+      userId: playerIdentity.userId,
+    };
+
+    this.players.set(socketId, player);
     this.gameState.players[symbol] = {
-      username,
+      username: player.username,
       color,
       symbol,
       type: PlayerTypes.HUMAN,
       isActive: true,
+      identityKind: player.identityKind,
+      guestId: player.guestId,
+      profileId: player.profileId,
+      userId: player.userId,
     };
   }
 
@@ -254,7 +336,14 @@ class GameRoom {
   resetForRematch() {
     const preservedPlayers = {};
     for (const player of this.players.values()) {
-      preservedPlayers[player.symbol] = { username: player.username, color: player.color };
+      preservedPlayers[player.symbol] = {
+        username: player.username,
+        color: player.color,
+        identityKind: player.identityKind,
+        guestId: player.guestId,
+        profileId: player.profileId,
+        userId: player.userId,
+      };
     }
     this.gameState = createInitialGameState(preservedPlayers);
     this.rematchState = "none";
@@ -320,10 +409,10 @@ class RoomManager {
     return this.playerRooms.get(socketId);
   }
 
-  addPlayerToRoom(room, socketId, username, preferredColor) {
+  addPlayerToRoom(room, socketId, identity, preferredColor) {
     const symbol = getAvailableSymbol(room);
     const colorResult = resolvePlayerColor(room, symbol, preferredColor);
-    room.addPlayer(socketId, username, colorResult.color, symbol);
+    room.addPlayer(socketId, identity, colorResult.color, symbol);
     this.playerRooms.set(socketId, room);
     return { symbol, color: colorResult.color, wasColorChanged: colorResult.wasChanged };
   }
@@ -367,8 +456,11 @@ module.exports = {
   createInitialGameState,
   findRandomValidMove,
   getWinnerResult,
+  isValidDisplayName,
   isValidMove,
   makeMove,
+  normalizeLoginPayload,
+  sanitizeDisplayName,
   GameRoom,
   RoomManager,
 };

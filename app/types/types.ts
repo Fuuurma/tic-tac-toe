@@ -24,7 +24,33 @@ export interface PlayerConfig {
   symbol: PlayerSymbol;
   type: PlayerTypes;
   isActive: boolean;
+  identityKind?: "guest" | "account";
+  guestId?: string;
+  profileId?: string;
+  userId?: string;
   lastMoveAt?: Date;
+}
+
+export type GameIdentity =
+  | {
+      kind: "guest";
+      guestId: string;
+      displayName: string;
+    }
+  | {
+      kind: "account";
+      userId: string;
+      profileId: string;
+      displayName: string;
+      claimedGuestId?: string;
+    };
+
+export interface LoginPayload {
+  displayName: string;
+  guestId?: string;
+  profileId?: string;
+  userId?: string;
+  color?: Color;
 }
 
 export interface GameState {
@@ -105,7 +131,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  login: (username: string, color: Color) => void;
+  login: (payload: LoginPayload) => void;
   move: (index: number) => void;
   reset: () => void;
   requestRematch: () => void;

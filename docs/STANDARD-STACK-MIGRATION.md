@@ -27,6 +27,8 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [x] Point first local rule tests at `src/game/core`.
 - [x] Align package manager to pnpm 11.9.0.
 - [x] Add `ts-pattern` with real game-mode/action/AI routing usages.
+- [x] Add guest identity helper with generated `guestId`, display-name persistence, and legacy username migration.
+- [x] Move Socket.IO login toward object payloads while keeping positional login compatibility.
 - [ ] Finish/smoke current WebSocket deploy on a public URL.
 - [ ] Keep unit, integration, build, and Playwright checks green.
 
@@ -69,6 +71,10 @@ Current files to extract or adapt:
   - `server.js`
   - `app/hooks/game/useSocketGame.ts`
   - `tests/helpers/testServer.js`
+- Identity:
+  - `app/utils/identity/gameIdentity.ts`
+  - `app/page.tsx`
+  - future Convex/Better Auth profile claim helpers
 - UI adapters that should consume core selectors later:
   - `app/hooks/game/useLocalGame.ts`
   - `app/hooks/game/useGameTimer.ts`

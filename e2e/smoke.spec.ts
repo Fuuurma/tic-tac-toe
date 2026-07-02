@@ -19,6 +19,7 @@ test("loads the playable shell", async ({ page }) => {
   await expect(page).toHaveTitle(/Tic Tac Toe/);
   await expect(page.getByText("Tic Tac Toe", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Game Mode")).toBeVisible();
+  await expect(page.getByLabel("Your name")).toHaveValue(/^(Guest|Player|Tactician)-\d{4}$/);
   await expect(page.getByRole("button", { name: "Play as Guest" })).toBeVisible();
 });
 

@@ -9,8 +9,10 @@ const {
   Color,
   GAME_RULES,
   TURN_DURATION_MS,
+  isValidDisplayName,
   isValidMove,
   makeMove,
+  normalizeLoginPayload,
   RoomManager,
 } = require("../../socketGameCore");
 
@@ -57,8 +59,10 @@ function createTestServer(port = 0, options = {}) {
     ioServer.on("connection", (socket) => {
       let currentRoom = null;
 
-      socket.on("login", (username, color) => {
-        if (!username || typeof username !== "string" || username.trim().length === 0) {
+      socket.on("login", (usernameOrPayload, color) => {
+        const loginPayload = normalizeLoginPayload(usernameOrPayload, color);
+
+        if (!isValidDisplayName(loginPayload.displayName)) {
           socket.emit("error", "Invalid username");
           return;
         }
@@ -69,7 +73,7 @@ function createTestServer(port = 0, options = {}) {
         }
 
         const room = roomManager.findOrCreateRoom();
-        const assignment = roomManager.addPlayerToRoom(room, socket.id, username.trim(), color);
+        const assignment = roomManager.addPlayerToRoom(room, socket.id, loginPayload, loginPayload.color);
         const { symbol, color: assignedColor, wasColorChanged } = assignment;
         currentRoom = room;
 
@@ -94,7 +98,10 @@ function createTestServer(port = 0, options = {}) {
 
         if (opponent) {
           socket.emit("playerJoined", { username: opponent.username, symbol: opponent.symbol });
-          ioServer.to(opponent.socketId).emit("playerJoined", { username: username.trim(), symbol });
+          ioServer.to(opponent.socketId).emit("playerJoined", {
+            username: loginPayload.displayName,
+            symbol,
+          });
         }
 
         if (room.isFull()) {

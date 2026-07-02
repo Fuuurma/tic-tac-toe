@@ -52,6 +52,54 @@ describe("Socket Integration Tests", () => {
 
       client.disconnect();
     });
+
+    it("should accept object login payloads with guest identity", async () => {
+      const client1 = createClient(serverUrl);
+      const client2 = createClient(serverUrl);
+      client1.connect();
+      client2.connect();
+
+      await Promise.all([
+        new Promise((resolve) => client1.on("connect", resolve)),
+        new Promise((resolve) => client2.on("connect", resolve)),
+      ]);
+
+      try {
+        const p1Assigned = new Promise((resolve) => client1.on("playerAssigned", resolve));
+        const p2Assigned = new Promise((resolve) => client2.on("playerAssigned", resolve));
+        const p1Start = new Promise((resolve) => client1.on("gameStart", resolve));
+        const p2Start = new Promise((resolve) => client2.on("gameStart", resolve));
+
+        client1.emit("login", {
+          displayName: "Guest Alpha",
+          guestId: "guest:alpha-1234",
+          color: "green",
+        });
+        client2.emit("login", {
+          displayName: "Guest Beta",
+          guestId: "guest:beta-1234",
+          color: "purple",
+        });
+
+        const [assigned1, assigned2, start1, start2] = await Promise.all([
+          p1Assigned,
+          p2Assigned,
+          p1Start,
+          p2Start,
+        ]);
+
+        expect(assigned1.assignedColor).toBe("green");
+        expect(assigned2.assignedColor).toBe("purple");
+        expect(start1.players.X.username).toBe("Guest Alpha");
+        expect(start1.players.X.guestId).toBe("guest:alpha-1234");
+        expect(start1.players.X.identityKind).toBe("guest");
+        expect(start1.players.O.username).toBe("Guest Beta");
+        expect(start2.players.O.guestId).toBe("guest:beta-1234");
+      } finally {
+        client1.disconnect();
+        client2.disconnect();
+      }
+    });
   });
 
   describe("Game Logic", () => {

@@ -8,8 +8,10 @@ const {
   GAME_RULES,
   TURN_DURATION_MS,
   createInitialGameState,
+  isValidDisplayName,
   isValidMove,
   makeMove,
+  normalizeLoginPayload,
   RoomManager,
 } = require("./socketGameCore");
 
@@ -94,8 +96,10 @@ app.prepare().then(() => {
     let currentRoom = null;
 
     // ========== LOGIN ==========
-    socket.on("login", (username, color) => {
-      if (!username || typeof username !== "string" || username.trim().length === 0 || username.length > 20) {
+    socket.on("login", (usernameOrPayload, color) => {
+      const loginPayload = normalizeLoginPayload(usernameOrPayload, color);
+
+      if (!isValidDisplayName(loginPayload.displayName)) {
         socket.emit("error", "Invalid username (max 20 characters)");
         return;
       }
@@ -106,13 +110,13 @@ app.prepare().then(() => {
       }
 
       const room = roomManager.findOrCreateRoom();
-      const assignment = roomManager.addPlayerToRoom(room, socket.id, username.trim(), color);
+      const assignment = roomManager.addPlayerToRoom(room, socket.id, loginPayload, loginPayload.color);
       const { symbol, color: assignedColor, wasColorChanged } = assignment;
       currentRoom = room;
 
       socket.join(room.id);
 
-      log("info", `Player "${username}" (${symbol}) joined ${room.id}`);
+      log("info", `Player "${loginPayload.displayName}" (${symbol}) joined ${room.id}`);
 
       socket.emit("playerAssigned", {
         symbol,
@@ -130,7 +134,7 @@ app.prepare().then(() => {
       const opponent = room.getPlayerBySymbol(symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X);
       if (opponent) {
         socket.emit("playerJoined", { username: opponent.username, symbol: opponent.symbol });
-        io.to(opponent.socketId).emit("playerJoined", { username: username.trim(), symbol });
+        io.to(opponent.socketId).emit("playerJoined", { username: loginPayload.displayName, symbol });
       }
 
       if (room.isFull()) {

@@ -31,6 +31,11 @@ import { useLocalGame } from "./hooks/game/useLocalGame";
 import { resolveOpponentColor } from "./utils/colors/resolveOpponentColor";
 import { useSocketGame } from "./hooks/game/useSocketGame";
 import { CanMakeMove } from "./game/logic/canMakeMove";
+import {
+  getOrCreateGuestIdentity,
+  identityForSocketLogin,
+  saveDisplayName,
+} from "./utils/identity/gameIdentity";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
@@ -39,8 +44,8 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("tictactoe_username");
-      if (saved) setUsername(saved);
+      const identity = getOrCreateGuestIdentity();
+      setUsername(identity.displayName);
     }
   }, []);
 
@@ -123,16 +128,18 @@ export default function Home() {
       return;
     }
 
-    localStorage.setItem("tictactoe_username", username.trim());
+    const identity = saveDisplayName(username);
+    const displayName = identity.displayName;
+    setUsername(displayName);
 
     if (gameMode === GameModes.ONLINE) {
-      if (!initializeSocket({ username: username.trim(), color: selectedColor })) {
+      if (!initializeSocket(identityForSocketLogin(identity, selectedColor))) {
         return;
       }
       setLoggedIn(true);
     } else {
       setGameState(
-        createInitialGameState(username, gameMode, {
+        createInitialGameState(displayName, gameMode, {
           opponentName,
           playerColor: selectedColor,
           opponentColor: resolveOpponentColor(gameMode, selectedColor, opponentColor),
@@ -146,18 +153,18 @@ export default function Home() {
   }, [username, gameMode, initializeSocket, opponentName, selectedColor, opponentColor, socket]);
 
   const handleGuestPlay = useCallback(() => {
-    const guestName = `Guest-${Math.floor(Math.random() * 9000) + 1000}`;
-    setUsername(guestName);
-    localStorage.setItem("tictactoe_username", guestName);
+    const identity = getOrCreateGuestIdentity();
+    const displayName = identity.displayName;
+    setUsername(displayName);
 
     if (gameMode === GameModes.ONLINE) {
       setMessage("Connecting to server...");
-      if (initializeSocket({ username: guestName, color: selectedColor })) {
+      if (initializeSocket(identityForSocketLogin(identity, selectedColor))) {
         setLoggedIn(true);
       }
     } else {
       setGameState(
-        createInitialGameState(guestName, gameMode, {
+        createInitialGameState(displayName, gameMode, {
           opponentName,
           playerColor: selectedColor,
           opponentColor: resolveOpponentColor(gameMode, selectedColor, opponentColor),
