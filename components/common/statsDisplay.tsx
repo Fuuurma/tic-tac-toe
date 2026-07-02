@@ -1,5 +1,5 @@
 import React from "react";
-import { Trophy, TrendingDown, Zap } from "lucide-react";
+import { Activity, Percent, Trophy, TrendingDown, Zap } from "lucide-react";
 import { GameStats } from "../game/statsPanel";
 import { cn } from "@/lib/utils";
 
@@ -27,44 +27,44 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   if (layout === "grid") {
     return (
       <div className={cn("grid grid-cols-2 gap-2 text-xs", className)}>
-        {/* Wins */}
         <div className="bg-amber-500/10 rounded p-2">
           <div className="text-lg font-bold text-amber-600">{stats.wins}</div>
           <div className="text-[10px] text-muted-foreground">Wins</div>
         </div>
 
-        {/* Losses */}
         <div className="bg-red-500/10 rounded p-2">
           <div className="text-lg font-bold text-red-600">{stats.losses}</div>
           <div className="text-[10px] text-muted-foreground">Losses</div>
         </div>
 
-        {/* Win Rate */}
         <div className="bg-blue-500/10 rounded p-2">
           <div className="text-lg font-bold text-blue-600">{winRate}%</div>
           <div className="text-[10px] text-muted-foreground">Win Rate</div>
         </div>
 
-        {/* Current Win Streak */}
+        <div className="bg-muted/70 rounded p-2">
+          <div className="text-lg font-bold">{stats.totalGames}</div>
+          <div className="text-[10px] text-muted-foreground">Games</div>
+        </div>
+
         {(stats.currentWinStreak || 0) > 0 && (
           <div className="col-span-2 bg-green-500/10 rounded p-2">
             <div className="text-lg font-bold text-green-600">
               {stats.currentWinStreak}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              Win Streak 🔥
+              Win Streak
             </div>
           </div>
         )}
 
-        {/* Best Win Streak */}
         {(stats.bestWinStreak || 0) > 0 && (
           <div className="col-span-2 bg-amber-500/10 rounded p-2">
             <div className="text-lg font-bold text-amber-600">
               {stats.bestWinStreak}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              Best Streak ⭐
+              Best Streak
             </div>
           </div>
         )}
@@ -75,7 +75,6 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   // List layout (sidebar)
   return (
     <div className={cn("space-y-1", className)}>
-      {/* Wins */}
       <div className="flex items-center justify-between px-3 py-1.5">
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-500" />
@@ -84,7 +83,6 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         <span className="text-sm font-bold">{stats.wins}</span>
       </div>
 
-      {/* Losses */}
       <div className="flex items-center justify-between px-3 py-1.5">
         <div className="flex items-center gap-2">
           <TrendingDown className="h-4 w-4 text-red-500" />
@@ -93,7 +91,22 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         <span className="text-sm font-bold">{stats.losses}</span>
       </div>
 
-      {/* Win Streak */}
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <div className="flex items-center gap-2">
+          <Percent className="h-4 w-4 text-blue-500" />
+          <span className="text-sm">Win Rate</span>
+        </div>
+        <span className="text-sm font-bold">{winRate}%</span>
+      </div>
+
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <div className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm">Games</span>
+        </div>
+        <span className="text-sm font-bold">{stats.totalGames}</span>
+      </div>
+
       <div className="flex items-center justify-between px-3 py-1.5 bg-accent/50 rounded-md mt-1">
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-amber-500" />

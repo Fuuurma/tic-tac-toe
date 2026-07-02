@@ -226,7 +226,13 @@ export default function Home() {
           <MatchResultRecorder gameState={gameState} localPlayerSymbol={playerSymbol} />
         </>
       )}
-      <AppSidebar gameState={gameState} gameMode={gameMode} isLoggedIn={loggedIn} stats={stats} />
+      <AppSidebar
+        gameState={gameState}
+        gameMode={gameMode}
+        isLoggedIn={loggedIn}
+        stats={stats}
+        durableStatsEnabled={isConvexConfigured}
+      />
       <SidebarInset className="flex-1 min-h-dvh overflow-hidden">
         <div className="min-h-dvh h-dvh flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden">
           {!loggedIn ? (

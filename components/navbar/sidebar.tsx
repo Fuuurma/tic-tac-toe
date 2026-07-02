@@ -6,6 +6,8 @@ import {
   Globe,
   Users,
   Target,
+  Cloud,
+  HardDrive,
 } from "lucide-react";
 
 import {
@@ -57,11 +59,19 @@ interface AppSidebarProps {
   gameMode?: GameModes;
   isLoggedIn?: boolean;
   stats?: GameStats;
+  durableStatsEnabled?: boolean;
 }
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isLoggedIn, stats }) => {
+export const AppSidebar: React.FC<AppSidebarProps> = ({
+  gameState,
+  gameMode,
+  isLoggedIn,
+  stats,
+  durableStatsEnabled = false,
+}) => {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const StatsSourceIcon = durableStatsEnabled ? Cloud : HardDrive;
 
   const getModeIndex = (mode: GameModes): number => {
     switch (mode) {
@@ -125,9 +135,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ gameState, gameMode, isL
 
         {!isCollapsed && stats && (
           <SidebarGroup>
-            <div className="px-2 py-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              <Target className="h-3 w-3" />
-              Your Statistics
+            <div className="px-2 py-2 flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="flex min-w-0 items-center gap-2">
+                <Target className="h-3 w-3 shrink-0" />
+                <span className="truncate">Your Statistics</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1 rounded-md border bg-background/70 px-1.5 py-0.5 normal-case tracking-normal text-[10px] font-medium">
+                <StatsSourceIcon className="h-3 w-3" />
+                <span>{durableStatsEnabled ? "Synced" : "Local"}</span>
+              </div>
             </div>
             <SidebarGroupContent>
               <SidebarMenu>
