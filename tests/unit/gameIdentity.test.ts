@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Color } from "@/app/game/constants/constants";
 import {
   getOrCreateGuestIdentity,
+  getStoredIdentityKind,
   identityForSocketLogin,
   IDENTITY_STORAGE_KEYS,
   sanitizeDisplayName,
@@ -44,6 +45,7 @@ describe("game identity", () => {
     expect(firstIdentity.guestId).toBe(secondIdentity.guestId);
     expect(secondIdentity.displayName).toBe(firstIdentity.displayName);
     expect(storage.getItem(IDENTITY_STORAGE_KEYS.lastIdentityKind)).toBe("guest");
+    expect(getStoredIdentityKind(storage)).toBe("guest");
   });
 
   it("migrates the legacy saved username key", () => {
@@ -92,6 +94,7 @@ describe("game identity", () => {
       claimedGuestId: "guest:existing",
     });
     expect(storage.getItem(IDENTITY_STORAGE_KEYS.lastIdentityKind)).toBe("account");
+    expect(getStoredIdentityKind(storage)).toBe("account");
     expect(identityForSocketLogin(identity, Color.PURPLE)).toEqual({
       displayName: "Ada Account",
       color: Color.PURPLE,

@@ -32,22 +32,27 @@ import { useSocketGame } from "./hooks/game/useSocketGame";
 import { GuestProfileSync } from "@/components/convex/guestProfileSync";
 import { MatchResultRecorder } from "@/components/convex/matchResultRecorder";
 import { ConvexStatsHydrator } from "@/components/convex/statsHydrator";
+import { isGoogleOAuthUiEnabled } from "./utils/auth/authConfig";
 import { isConvexConfigured } from "./utils/convex/config";
 import {
   getOrCreateGuestIdentity,
+  getStoredIdentityKind,
   identityForSocketLogin,
   saveDisplayName,
 } from "./utils/identity/gameIdentity";
+import type { GameIdentity } from "./types/types";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
+  const [identityKind, setIdentityKind] = useState<GameIdentity["kind"]>("guest");
   const [opponentName, setOpponentName] = useState<string>("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const identity = getOrCreateGuestIdentity();
       setUsername(identity.displayName);
+      setIdentityKind(getStoredIdentityKind());
     }
   }, []);
 
@@ -133,6 +138,7 @@ export default function Home() {
     const identity = saveDisplayName(username);
     const displayName = identity.displayName;
     setUsername(displayName);
+    setIdentityKind(identity.kind);
 
     if (gameMode === GameModes.ONLINE) {
       if (!initializeSocket(identityForSocketLogin(identity, selectedColor))) {
@@ -158,6 +164,7 @@ export default function Home() {
     const identity = getOrCreateGuestIdentity();
     const displayName = identity.displayName;
     setUsername(displayName);
+    setIdentityKind(identity.kind);
 
     if (gameMode === GameModes.ONLINE) {
       setMessage("Connecting to server...");
@@ -250,6 +257,9 @@ export default function Home() {
                 setOpponentColor={setOpponentColor}
                 aiDifficulty={aiDifficulty}
                 setAiDifficulty={setAI_Difficulty}
+                identityKind={identityKind}
+                durableProfileEnabled={isConvexConfigured}
+                googleSignInEnabled={isGoogleOAuthUiEnabled}
                 handleLogin={handleLogin}
                 handleGuestPlay={handleGuestPlay}
               />

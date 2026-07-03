@@ -64,6 +64,13 @@ export const getOrCreateGuestIdentity = (
   return { kind: "guest", guestId, displayName };
 };
 
+export const getStoredIdentityKind = (
+  storage: Storage | null = getBrowserStorage()
+): GameIdentity["kind"] => {
+  const identityKind = storage?.getItem(IDENTITY_STORAGE_KEYS.lastIdentityKind);
+  return identityKind === "account" ? "account" : "guest";
+};
+
 export const saveDisplayName = (
   displayName: string,
   storage: Storage | null = getBrowserStorage()

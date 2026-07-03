@@ -17,10 +17,12 @@ import {
 } from "@/app/game/constants/constants";
 import { User, Users, Play, Shuffle } from "lucide-react";
 import { ErrorMessage } from "../common/errorMessage";
+import { AccountStatus } from "./accountStatus";
 import { PlayerInputSection } from "./playerInput";
 import { GameModeSelector } from "../game/gameModeSelector";
 import { ValidateUserInput } from "@/app/game/auth/validateInput";
 import AI_DifficultySelector from "./aiDifficultySelector";
+import type { GameIdentity } from "@/app/types/types";
 
 interface LoginFormProps {
   username: string;
@@ -35,8 +37,12 @@ interface LoginFormProps {
   setOpponentColor: (color: Color) => void;
   aiDifficulty: AI_Difficulty;
   setAiDifficulty: (difficulty: AI_Difficulty) => void;
+  identityKind: GameIdentity["kind"];
+  durableProfileEnabled: boolean;
+  googleSignInEnabled?: boolean;
   handleLogin: () => void;
   handleGuestPlay: () => void;
+  handleGoogleSignIn?: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
@@ -52,8 +58,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setOpponentColor,
   aiDifficulty,
   setAiDifficulty,
+  identityKind,
+  durableProfileEnabled,
+  googleSignInEnabled = false,
   handleLogin,
   handleGuestPlay,
+  handleGoogleSignIn,
 }) => {
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +122,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </CardHeader>
         <CardContent className="space-y-2.5 px-4 pb-3 pt-0 sm:space-y-3 sm:px-6">
           <ErrorMessage message={error} />
+
+          <AccountStatus
+            displayName={username}
+            identityKind={identityKind}
+            durableProfileEnabled={durableProfileEnabled}
+            googleSignInEnabled={googleSignInEnabled}
+            onGoogleSignIn={handleGoogleSignIn}
+            className="hidden sm:flex"
+          />
 
           <PlayerInputSection
             idPrefix="player1"
