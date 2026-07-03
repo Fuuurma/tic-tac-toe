@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireDisplayName, requireIdentity } from "./model";
+import { mergeGuestStatsIntoProfile } from "./stats";
 
 export const upsertGuestProfile = mutation({
   args: {
@@ -102,6 +103,20 @@ export const claimGuestProfile = mutation({
     }
 
     const now = Date.now();
+    const existingClaim = await ctx.db
+      .query("profileClaims")
+      .withIndex("by_guestId", (q) => q.eq("guestId", args.guestId))
+      .first();
+
+    if (existingClaim) {
+      if (existingClaim.userId !== identity.subject) {
+        throw new Error("Guest profile is already claimed by another account.");
+      }
+
+      const claimedProfile = await ctx.db.get(existingClaim.profileId);
+      if (claimedProfile) return claimedProfile;
+    }
+
     const guestProfile = await ctx.db
       .query("profiles")
       .withIndex("by_guestId", (q) => q.eq("guestId", args.guestId))
@@ -112,6 +127,12 @@ export const claimGuestProfile = mutation({
       .unique();
 
     if (accountProfile) {
+      await mergeGuestStatsIntoProfile(ctx, {
+        guestId: args.guestId,
+        profileId: accountProfile._id,
+        displayNameSnapshot: accountProfile.displayName,
+        now,
+      });
       await ctx.db.insert("profileClaims", {
         profileId: accountProfile._id,
         guestId: args.guestId,
@@ -130,6 +151,14 @@ export const claimGuestProfile = mutation({
         updatedAt: now,
         lastSeenAt: now,
       });
+      await mergeGuestStatsIntoProfile(ctx, {
+        guestId: args.guestId,
+        profileId: guestProfile._id,
+        displayNameSnapshot: args.displayName
+          ? requireDisplayName(args.displayName)
+          : guestProfile.displayName,
+        now,
+      });
       await ctx.db.insert("profileClaims", {
         profileId: guestProfile._id,
         guestId: args.guestId,
@@ -146,6 +175,13 @@ export const claimGuestProfile = mutation({
       createdAt: now,
       updatedAt: now,
       lastSeenAt: now,
+    });
+
+    await mergeGuestStatsIntoProfile(ctx, {
+      guestId: args.guestId,
+      profileId,
+      displayNameSnapshot: requireDisplayName(args.displayName || "Player"),
+      now,
     });
 
     await ctx.db.insert("profileClaims", {

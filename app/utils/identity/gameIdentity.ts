@@ -78,6 +78,32 @@ export const saveDisplayName = (
   return { ...identity, displayName: sanitizedDisplayName };
 };
 
+export const saveAccountIdentity = (
+  identity: {
+    userId: string;
+    profileId: string;
+    displayName: string;
+    claimedGuestId?: string;
+  },
+  storage: Storage | null = getBrowserStorage()
+): GameIdentity & { kind: "account" } => {
+  const currentGuest = getOrCreateGuestIdentity(storage);
+  const displayName = sanitizeDisplayName(identity.displayName, currentGuest.displayName);
+  const claimedGuestId = identity.claimedGuestId || currentGuest.guestId;
+
+  storage?.setItem(IDENTITY_STORAGE_KEYS.displayName, displayName);
+  storage?.setItem(IDENTITY_STORAGE_KEYS.legacyUsername, displayName);
+  storage?.setItem(IDENTITY_STORAGE_KEYS.lastIdentityKind, "account");
+
+  return {
+    kind: "account",
+    userId: identity.userId,
+    profileId: identity.profileId,
+    displayName,
+    claimedGuestId,
+  };
+};
+
 export const identityForSocketLogin = (
   identity: GameIdentity,
   color: Color

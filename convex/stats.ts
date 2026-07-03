@@ -66,6 +66,75 @@ async function applyResult(
   });
 }
 
+export function combinePlayerStats(
+  profileStats: {
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    currentStreak: number;
+    bestStreak: number;
+  } | null,
+  guestStats: {
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    currentStreak: number;
+    bestStreak: number;
+  },
+  displayNameSnapshot: string,
+  now: number
+) {
+  return {
+    displayNameSnapshot,
+    gamesPlayed: (profileStats?.gamesPlayed || 0) + guestStats.gamesPlayed,
+    wins: (profileStats?.wins || 0) + guestStats.wins,
+    losses: (profileStats?.losses || 0) + guestStats.losses,
+    currentStreak: Math.max(profileStats?.currentStreak || 0, guestStats.currentStreak),
+    bestStreak: Math.max(profileStats?.bestStreak || 0, guestStats.bestStreak),
+    updatedAt: now,
+  };
+}
+
+export async function mergeGuestStatsIntoProfile(
+  ctx: MutationCtx,
+  args: {
+    guestId: string;
+    profileId: Id<"profiles">;
+    displayNameSnapshot: string;
+    now: number;
+  }
+) {
+  const guestStats = await getStatsDoc(ctx, { guestId: args.guestId });
+  if (!guestStats) return null;
+
+  const profileStats = await getStatsDoc(ctx, { profileId: args.profileId });
+
+  if (profileStats?._id === guestStats._id) {
+    await ctx.db.patch(guestStats._id, {
+      profileId: args.profileId,
+      displayNameSnapshot: args.displayNameSnapshot,
+      updatedAt: args.now,
+    });
+    return guestStats._id;
+  }
+
+  if (profileStats) {
+    await ctx.db.patch(
+      profileStats._id,
+      combinePlayerStats(profileStats, guestStats, args.displayNameSnapshot, args.now)
+    );
+    await ctx.db.delete(guestStats._id);
+    return profileStats._id;
+  }
+
+  await ctx.db.patch(guestStats._id, {
+    profileId: args.profileId,
+    displayNameSnapshot: args.displayNameSnapshot,
+    updatedAt: args.now,
+  });
+  return guestStats._id;
+}
+
 export const getByProfile = query({
   args: {
     profileId: v.optional(v.id("profiles")),

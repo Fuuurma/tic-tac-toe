@@ -5,6 +5,7 @@ import {
   identityForSocketLogin,
   IDENTITY_STORAGE_KEYS,
   sanitizeDisplayName,
+  saveAccountIdentity,
   saveDisplayName,
 } from "@/app/utils/identity/gameIdentity";
 
@@ -66,6 +67,37 @@ describe("game identity", () => {
       displayName: "Player One",
       guestId: identity.guestId,
       color: Color.GREEN,
+    });
+  });
+
+  it("saves account identity without losing the claimed guest id", () => {
+    const storage = createStorage({
+      [IDENTITY_STORAGE_KEYS.guestId]: "guest:existing",
+    });
+
+    const identity = saveAccountIdentity(
+      {
+        userId: "user:1234",
+        profileId: "profile:1234",
+        displayName: "  Ada   Account  ",
+      },
+      storage
+    );
+
+    expect(identity).toEqual({
+      kind: "account",
+      userId: "user:1234",
+      profileId: "profile:1234",
+      displayName: "Ada Account",
+      claimedGuestId: "guest:existing",
+    });
+    expect(storage.getItem(IDENTITY_STORAGE_KEYS.lastIdentityKind)).toBe("account");
+    expect(identityForSocketLogin(identity, Color.PURPLE)).toEqual({
+      displayName: "Ada Account",
+      color: Color.PURPLE,
+      guestId: "guest:existing",
+      profileId: "profile:1234",
+      userId: "user:1234",
     });
   });
 });

@@ -46,7 +46,9 @@ Source plan: `/Users/sergi/Projects/newProjectsPlanner/migrations/2026-07-games-
 - [x] Record completed Socket.IO matches into Convex when both players have identity metadata.
 - [x] Hydrate sidebar stats from Convex when `NEXT_PUBLIC_CONVEX_URL` is configured.
 - [x] Bridge Socket.IO rooms, players, leaves, status changes, and moves to Convex when `CONVEX_URL` or `NEXT_PUBLIC_CONVEX_URL` is configured.
-- [ ] Add Better Auth + Google after guest/profile claim semantics are proven.
+- [x] Harden optional OAuth claim logic: idempotent guest claims, conflicting-claim protection, and guest stat merge into account profiles.
+- [x] Add client account identity helper for future Better Auth session wiring.
+- [ ] Add Better Auth + Google UI after deployment callbacks and provider envs are configured.
 
 ## Core Extraction Boundary
 
