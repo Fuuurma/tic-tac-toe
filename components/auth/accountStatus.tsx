@@ -1,13 +1,14 @@
 import { Cloud, HardDrive, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { GameIdentity } from "@/app/types/types";
+import type { GoogleOAuthReadiness } from "@/app/utils/auth/authConfig";
 import { cn } from "@/lib/utils";
 
 interface AccountStatusProps {
   displayName: string;
   identityKind: GameIdentity["kind"];
   durableProfileEnabled: boolean;
-  googleSignInEnabled?: boolean;
+  googleOAuthReadiness?: GoogleOAuthReadiness;
   onGoogleSignIn?: () => void;
   className?: string;
 }
@@ -16,13 +17,20 @@ export function AccountStatus({
   displayName,
   identityKind,
   durableProfileEnabled,
-  googleSignInEnabled = false,
+  googleOAuthReadiness = "hidden",
   onGoogleSignIn,
   className,
 }: AccountStatusProps) {
   const SyncIcon = durableProfileEnabled ? Cloud : HardDrive;
   const identityLabel = identityKind === "account" ? "Account" : "Guest";
   const syncLabel = durableProfileEnabled ? "Synced" : "Local";
+  const canUseGoogleAction = googleOAuthReadiness === "ready" && Boolean(onGoogleSignIn);
+  const showGoogleAction =
+    googleOAuthReadiness === "needs-convex" || canUseGoogleAction;
+  const googleActionTitle =
+    googleOAuthReadiness === "needs-convex"
+      ? "Google sign-in needs Convex configuration"
+      : "Sign in with Google";
 
   return (
     <div className={cn("flex items-center justify-between gap-2 rounded-lg border bg-background/50 px-3 py-2", className)}>
@@ -43,12 +51,14 @@ export function AccountStatus({
           </div>
         </div>
       </div>
-      {googleSignInEnabled && onGoogleSignIn && (
+      {showGoogleAction && (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={onGoogleSignIn}
+          onClick={canUseGoogleAction ? onGoogleSignIn : undefined}
+          disabled={!canUseGoogleAction}
+          title={googleActionTitle}
           className="h-8 shrink-0 px-2 text-xs"
         >
           Google

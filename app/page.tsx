@@ -32,7 +32,7 @@ import { useSocketGame } from "./hooks/game/useSocketGame";
 import { GuestProfileSync } from "@/components/convex/guestProfileSync";
 import { MatchResultRecorder } from "@/components/convex/matchResultRecorder";
 import { ConvexStatsHydrator } from "@/components/convex/statsHydrator";
-import { isGoogleOAuthUiEnabled } from "./utils/auth/authConfig";
+import { googleOAuthReadiness } from "./utils/auth/authConfig";
 import { isConvexConfigured } from "./utils/convex/config";
 import {
   getOrCreateGuestIdentity,
@@ -259,7 +259,7 @@ export default function Home() {
                 setAiDifficulty={setAI_Difficulty}
                 identityKind={identityKind}
                 durableProfileEnabled={isConvexConfigured}
-                googleSignInEnabled={isGoogleOAuthUiEnabled}
+                googleOAuthReadiness={googleOAuthReadiness}
                 handleLogin={handleLogin}
                 handleGuestPlay={handleGuestPlay}
               />

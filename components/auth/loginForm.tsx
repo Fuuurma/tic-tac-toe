@@ -23,6 +23,7 @@ import { GameModeSelector } from "../game/gameModeSelector";
 import { ValidateUserInput } from "@/app/game/auth/validateInput";
 import AI_DifficultySelector from "./aiDifficultySelector";
 import type { GameIdentity } from "@/app/types/types";
+import type { GoogleOAuthReadiness } from "@/app/utils/auth/authConfig";
 
 interface LoginFormProps {
   username: string;
@@ -39,7 +40,7 @@ interface LoginFormProps {
   setAiDifficulty: (difficulty: AI_Difficulty) => void;
   identityKind: GameIdentity["kind"];
   durableProfileEnabled: boolean;
-  googleSignInEnabled?: boolean;
+  googleOAuthReadiness?: GoogleOAuthReadiness;
   handleLogin: () => void;
   handleGuestPlay: () => void;
   handleGoogleSignIn?: () => void;
@@ -60,7 +61,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   setAiDifficulty,
   identityKind,
   durableProfileEnabled,
-  googleSignInEnabled = false,
+  googleOAuthReadiness = "hidden",
   handleLogin,
   handleGuestPlay,
   handleGoogleSignIn,
@@ -127,7 +128,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             displayName={username}
             identityKind={identityKind}
             durableProfileEnabled={durableProfileEnabled}
-            googleSignInEnabled={googleSignInEnabled}
+            googleOAuthReadiness={googleOAuthReadiness}
             onGoogleSignIn={handleGoogleSignIn}
             className="hidden sm:flex"
           />
