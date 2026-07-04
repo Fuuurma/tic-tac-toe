@@ -6,7 +6,7 @@ interface WinnerResult {
   winningCombination: WinningLine | null;
 }
 
-export const checkWinner = (board: GameBoard, currentPlayer?: PlayerSymbol): WinnerResult => {
+export const checkWinner = (board: GameBoard, _currentPlayer?: PlayerSymbol): WinnerResult => {
   for (const combination of WINNING_COMBINATIONS) {
     const [a, b, c] = combination;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -17,12 +17,10 @@ export const checkWinner = (board: GameBoard, currentPlayer?: PlayerSymbol): Win
     }
   }
 
-  // In the 3-piece variant, a full-board stalemate is not a valid result.
-  // If the board somehow fills with no winner, current player loses.
+  // In the 3-piece variant, players remove their oldest piece before a fourth
+  // placement, so a full board is stale/corrupt state rather than a result.
   if (board.every((cell) => cell !== null)) {
-    const loser = currentPlayer;
-    const winner = loser === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
-    return { winner, winningCombination: null };
+    return { winner: null, winningCombination: null };
   }
 
   return { winner: null, winningCombination: null };

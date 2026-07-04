@@ -70,22 +70,22 @@ describe("checkWinner", () => {
     });
   });
 
-  describe("Full-board fallback", () => {
-    it("should award O when X has no moves left on a full board", () => {
+  describe("Full-board stale state", () => {
+    it("should not award O when X is current on a full board", () => {
       const board = createBoardWithMoves([0, 2, 5, 6, 7], [1, 3, 4, 8]);
       const result = checkWinner(board, PlayerSymbol.X);
-      expect(result.winner).toBe(PlayerSymbol.O);
+      expect(result.winner).toBeNull();
       expect(result.winningCombination).toBeNull();
     });
 
-    it("should award X when O has no moves left on a full board", () => {
+    it("should not award X when O is current on a full board", () => {
       const board: (PlayerSymbol | null)[] = [
         PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.X,
         PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.O,
         PlayerSymbol.O, PlayerSymbol.X, PlayerSymbol.X,
       ];
       const result = checkWinner(board, PlayerSymbol.O);
-      expect(result.winner).toBe(PlayerSymbol.X);
+      expect(result.winner).toBeNull();
       expect(result.winningCombination).toBeNull();
     });
   });

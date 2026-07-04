@@ -7,6 +7,7 @@ const {
   GameRoom,
   GameStatus,
   PlayerSymbol,
+  getWinnerResult,
   normalizeLoginPayload,
 } = require("../../socketGameCore");
 
@@ -77,6 +78,19 @@ describe("socketGameCore", () => {
       profileId: "profiles:beta",
       userId: "user:beta",
       isActive: true,
+    });
+  });
+
+  it("does not fabricate a socket winner for a full board without a line", () => {
+    const board = [
+      PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.X,
+      PlayerSymbol.X, PlayerSymbol.O, PlayerSymbol.O,
+      PlayerSymbol.O, PlayerSymbol.X, PlayerSymbol.X,
+    ];
+
+    expect(getWinnerResult(board, PlayerSymbol.O)).toEqual({
+      winner: null,
+      winningCombination: null,
     });
   });
 });

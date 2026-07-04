@@ -161,7 +161,7 @@ function createInitialGameState(players = {}) {
   };
 }
 
-function getWinnerResult(board, currentPlayer) {
+function getWinnerResult(board, _currentPlayer) {
   for (const combination of WINNING_COMBINATIONS) {
     const [a, b, c] = combination;
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -169,10 +169,7 @@ function getWinnerResult(board, currentPlayer) {
     }
   }
   if (board.every((cell) => cell !== null)) {
-    return {
-      winner: currentPlayer === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X,
-      winningCombination: null,
-    };
+    return { winner: null, winningCombination: null };
   }
   return { winner: null, winningCombination: null };
 }
