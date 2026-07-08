@@ -29,7 +29,6 @@ const BASE_CELL_STYLE =
 const EMPTY_CELL_STYLE =
   "bg-card/30 border-border/50 hover:bg-accent/40 hover:border-accent-foreground/40 cursor-pointer backdrop-blur-sm";
 const DEFAULT_FALLBACK_COLOR = Color.GRAY;
-const NEXT_REMOVAL_LABEL = "Next out";
 
 export const BoardCell: React.FC<BoardCellProps> = React.memo(
   ({
@@ -132,17 +131,14 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         aria-label={`Cell ${index + 1}, ${cellStateLabel}${removalLabel}${disabledLabel}`}
         aria-disabled={!isPlayable}
       >
-        {isNextToRemove && (
-          <span className="absolute right-1 top-1 z-20 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-background/90 px-1 text-[8px] font-bold uppercase leading-none text-muted-foreground shadow-sm ring-1 ring-border sm:h-5 sm:min-w-0 sm:px-1.5 sm:text-[9px]">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current sm:hidden" />
-            <span className="sr-only sm:not-sr-only">{NEXT_REMOVAL_LABEL}</span>
-          </span>
-        )}
-
         <span
           className={cn(
             "transition-all duration-300 ease-out",
-            value ? "scale-100 opacity-100 animate-pop-in" : "scale-0 opacity-0"
+            value
+              ? isNextToRemove
+                ? "scale-100 opacity-100 animate-shiver"
+                : "scale-100 opacity-100 animate-pop-in"
+              : "scale-0 opacity-0"
           )}
         >
           {value}

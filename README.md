@@ -31,7 +31,7 @@ A high-performance, multi-platform TicTacToe game featuring a unique strategic t
 ### Setup
 1. `pnpm install`
 2. `pnpm dev`
-3. Open [http://localhost:3000](http://localhost:3000)
+3. Open [http://127.0.0.1:3110](http://127.0.0.1:3110)
 
 ## Development Commands
 

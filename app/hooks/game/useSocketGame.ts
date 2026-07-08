@@ -83,7 +83,7 @@ export const useSocketGame = (
       socketUrl = window.location.origin;
     }
     
-    if (!socketUrl) socketUrl = "http://localhost:3000";
+    if (!socketUrl) socketUrl = "http://127.0.0.1:3110";
 
     try {
       const newSocket: Socket<ServerToClientEvents, ClientToServerEvents> = io(socketUrl, {

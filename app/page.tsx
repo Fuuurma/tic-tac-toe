@@ -240,8 +240,8 @@ export default function Home() {
         stats={stats}
         durableStatsEnabled={isConvexConfigured}
       />
-      <SidebarInset className="flex-1 min-h-dvh overflow-hidden">
-        <div className="min-h-dvh h-dvh flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden">
+      <SidebarInset className="flex-1 h-dvh min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden px-[env(safe-area-inset-left)] px-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           {!loggedIn ? (
             <main className="flex h-full w-full max-w-7xl flex-col items-center justify-center gap-3 p-3 sm:gap-4 sm:p-6 lg:p-8">
               <LoginForm
