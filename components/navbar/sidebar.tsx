@@ -89,7 +89,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const activeModeIndex = gameMode !== undefined ? getModeIndex(gameMode) : -1;
 
   return (
-    <Sidebar collapsible="offcanvas" variant="inset" suppressHydrationWarning>
+    <Sidebar collapsible="icon" variant="inset" suppressHydrationWarning>
       <SidebarHeader className="flex flex-col gap-2 py-2">
         <div className="flex items-center justify-between">
           <SidebarTrigger className="h-8 w-8" />

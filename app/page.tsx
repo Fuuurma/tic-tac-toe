@@ -20,7 +20,7 @@ import LoginForm from "@/components/auth/loginForm";
 import GameBoard from "@/components/game/board";
 import PageFooter from "@/components/common/pageFooter";
 import { AppSidebar } from "@/components/navbar/sidebar";
-import { SidebarInset } from "@/components/ui/sidebar";
+import { SidebarInset, useSidebar } from "@/components/ui/sidebar";
 import PlayersPanel from "@/components/game/playersPanel";
 
 // Custom Hooks
@@ -34,6 +34,7 @@ import { MatchResultRecorder } from "@/components/convex/matchResultRecorder";
 import { ConvexStatsHydrator } from "@/components/convex/statsHydrator";
 import { googleOAuthReadiness } from "./utils/auth/authConfig";
 import { isConvexConfigured } from "./utils/convex/config";
+import { Menu } from "lucide-react";
 import {
   getOrCreateGuestIdentity,
   getStoredIdentityKind,
@@ -43,6 +44,8 @@ import {
 import type { GameIdentity } from "./types/types";
 
 export default function Home() {
+  const { toggleSidebar, isMobile } = useSidebar();
+
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [username, setUsername] = useState<string>("");
   const [identityKind, setIdentityKind] = useState<GameIdentity["kind"]>("guest");
@@ -54,6 +57,23 @@ export default function Home() {
       setUsername(identity.displayName);
       setIdentityKind(getStoredIdentityKind());
     }
+  }, []);
+
+  const [accountIdentity, setAccountIdentity] = useState<
+    (GameIdentity & { kind: "account" }) | null
+  >(null);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (
+        event as CustomEvent<GameIdentity & { kind: "account" }>
+      ).detail;
+      setAccountIdentity(detail);
+      setIdentityKind("account");
+      setUsername(detail.displayName);
+    };
+    window.addEventListener("ttt:account-identity", handler);
+    return () => window.removeEventListener("ttt:account-identity", handler);
   }, []);
 
   const [aiDifficulty, setAI_Difficulty] = useState<AI_Difficulty>(AI_Difficulty.EASY);
@@ -130,15 +150,21 @@ export default function Home() {
 
   // ----- EVENT HANDLERS -----
   const handleLogin = useCallback(() => {
-    if (!username.trim()) {
+    const isAccount = identityKind === "account" && accountIdentity != null;
+    if (!isAccount && !username.trim()) {
       setMessage("Please enter a username.");
       return;
     }
 
-    const identity = saveDisplayName(username);
+    const identity = isAccount
+      ? (accountIdentity as GameIdentity & { kind: "account" })
+      : saveDisplayName(username);
     const displayName = identity.displayName;
-    setUsername(displayName);
-    setIdentityKind(identity.kind);
+
+    if (!isAccount) {
+      setUsername(displayName);
+      setIdentityKind(identity.kind);
+    }
 
     if (gameMode === GameModes.ONLINE) {
       if (!initializeSocket(identityForSocketLogin(identity, selectedColor))) {
@@ -158,7 +184,17 @@ export default function Home() {
       if (socket) socket.disconnect();
       setLoggedIn(true);
     }
-  }, [username, gameMode, initializeSocket, opponentName, selectedColor, opponentColor, socket]);
+  }, [
+    identityKind,
+    accountIdentity,
+    username,
+    gameMode,
+    initializeSocket,
+    opponentName,
+    selectedColor,
+    opponentColor,
+    socket,
+  ]);
 
   const handleGuestPlay = useCallback(() => {
     const identity = getOrCreateGuestIdentity();
@@ -186,26 +222,78 @@ export default function Home() {
     }
   }, [gameMode, initializeSocket, opponentName, selectedColor, opponentColor, socket]);
 
-  const handleCellClick = (index: number) => {
-    if (!loggedIn) return;
-    if (gameMode === GameModes.ONLINE) {
-      const effectivePlayerSymbol =
-        playerSymbol ??
-        (gameState.players.X.username === username
-          ? PlayerSymbol.X
-          : gameState.players.O.username === username
-            ? PlayerSymbol.O
-            : null);
-
-      if (effectivePlayerSymbol !== gameState.currentPlayer) {
-        setMessage("It's not your turn.");
-        return;
-      }
-      handleSocketMove(index);
-    } else {
-      handleLocalMove(index);
+  const handleGoogleSignIn = useCallback(async () => {
+    try {
+      setMessage("");
+      const { authClient } = await import("@/lib/auth-client");
+      await authClient.signIn.social({
+        provider: "google",
+        redirectTo: window.location.origin + "/",
+      });
+    } catch (err) {
+      console.error("Google sign-in failed", err);
+      setMessage("Google sign-in is unavailable. Please try again.");
     }
-  };
+  }, [setMessage]);
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      const { authClient } = await import("@/lib/auth-client");
+      await authClient.signOut();
+    } catch (err) {
+      console.warn("Sign out failed", err);
+    }
+    const guest = getOrCreateGuestIdentity();
+    setAccountIdentity(null);
+    setIdentityKind("guest");
+    setUsername(guest.displayName);
+    setMessage("");
+    if (loggedIn) {
+      exitGame();
+      if (socket) socket.disconnect();
+    }
+  }, [
+    loggedIn,
+    exitGame,
+    socket,
+    setAccountIdentity,
+    setIdentityKind,
+    setUsername,
+    setMessage,
+  ]);
+
+  const handleCellClick = useCallback(
+    (index: number) => {
+      if (!loggedIn) return;
+      if (gameMode === GameModes.ONLINE) {
+        const effectivePlayerSymbol =
+          playerSymbol ??
+          (gameState.players.X.username === username
+            ? PlayerSymbol.X
+            : gameState.players.O.username === username
+              ? PlayerSymbol.O
+              : null);
+
+        if (effectivePlayerSymbol !== gameState.currentPlayer) {
+          setMessage("It's not your turn.");
+          return;
+        }
+        handleSocketMove(index);
+      } else {
+        handleLocalMove(index);
+      }
+    },
+    [
+      loggedIn,
+      gameMode,
+      playerSymbol,
+      gameState,
+      username,
+      handleSocketMove,
+      handleLocalMove,
+      setMessage,
+    ]
+  );
 
   const handleReset = () => {
     if (gameMode === GameModes.ONLINE) {
@@ -241,7 +329,17 @@ export default function Home() {
         durableStatsEnabled={isConvexConfigured}
       />
       <SidebarInset className="flex-1 h-dvh min-h-0 overflow-hidden">
-        <div className="h-full min-h-0 flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden px-[env(safe-area-inset-left)] px-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        <div className="h-full min-h-0 flex flex-col items-center justify-center bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark-9)] w-full overflow-y-auto md:overflow-hidden pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+          {isMobile && (
+            <button
+              type="button"
+              aria-label="Open menu"
+              onClick={toggleSidebar}
+              className="absolute left-2 top-2 z-30 inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-background/80 shadow-sm backdrop-blur transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
           {!loggedIn ? (
             <main className="flex h-full w-full max-w-7xl flex-col items-center justify-center gap-3 p-3 sm:gap-4 sm:p-6 lg:p-8">
               <LoginForm
@@ -260,8 +358,11 @@ export default function Home() {
                 identityKind={identityKind}
                 durableProfileEnabled={isConvexConfigured}
                 googleOAuthReadiness={googleOAuthReadiness}
+                hasAccount={accountIdentity != null}
                 handleLogin={handleLogin}
                 handleGuestPlay={handleGuestPlay}
+                handleGoogleSignIn={handleGoogleSignIn}
+                handleSignOut={handleSignOut}
               />
               <PageFooter />
             </main>

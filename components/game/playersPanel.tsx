@@ -15,6 +15,7 @@ import {
 import { Loader2, RotateCcw, LogOut, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShareButton } from "../common/shareButton";
+import { ConfirmationDialog } from "./confirmDialog";
 import { cn } from "@/lib/utils";
 
 interface PlayersPanelProps {
@@ -42,6 +43,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   const [displayTime, setDisplayTime] = useState(0);
   const [progressValue, setProgressValue] = useState(100);
   const [timerPulse, setTimerPulse] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -202,7 +204,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onExit}
+                onClick={() => setShowExitConfirm(true)}
                 aria-label="Exit game"
                 className="gap-1 text-white/80 hover:text-white hover:bg-white/20 text-xs"
               >
@@ -224,6 +226,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             </h2>
             {isGameActive && (
               <p
+                role="status"
                 className={cn(
                   "text-[10px] sm:text-xs truncate",
                   message && !message.endsWith("'s turn.")
@@ -251,7 +254,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onExit}
+                onClick={() => setShowExitConfirm(true)}
                 aria-label="Exit game"
                 title="Exit game"
                 className="gap-1 text-muted-foreground hover:text-destructive transition-colors p-1 h-6"
@@ -303,7 +306,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
                 {isAITurn ? (
                   <span className="flex items-center gap-0.5">
                     <Loader2 className="h-2 w-2 animate-spin flex-shrink-0" />
-                    <span className="hidden xs:inline">AI</span>
+                    <span className="hidden sm:inline">AI</span>
                   </span>
                 ) : (
                   <>
@@ -341,6 +344,17 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
         )}
       </div>
       )}
+      <ConfirmationDialog
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        onConfirm={() => {
+          setShowExitConfirm(false);
+          onExit();
+        }}
+        title="Exit Game"
+        description="Are you sure you want to exit? Current progress will be lost."
+        confirmText="Exit"
+      />
     </div>
   );
 };

@@ -1,15 +1,11 @@
 import { Cloud, HardDrive, UserRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import type { GameIdentity } from "@/app/types/types";
-import type { GoogleOAuthReadiness } from "@/app/utils/auth/authConfig";
 import { cn } from "@/lib/utils";
+import type { GameIdentity } from "@/app/types/types";
 
 interface AccountStatusProps {
   displayName: string;
   identityKind: GameIdentity["kind"];
   durableProfileEnabled: boolean;
-  googleOAuthReadiness?: GoogleOAuthReadiness;
-  onGoogleSignIn?: () => void;
   className?: string;
 }
 
@@ -17,30 +13,28 @@ export function AccountStatus({
   displayName,
   identityKind,
   durableProfileEnabled,
-  googleOAuthReadiness = "hidden",
-  onGoogleSignIn,
   className,
 }: AccountStatusProps) {
   const SyncIcon = durableProfileEnabled ? Cloud : HardDrive;
   const identityLabel = identityKind === "account" ? "Account" : "Guest";
   const syncLabel = durableProfileEnabled ? "Synced" : "Local";
-  const canUseGoogleAction = googleOAuthReadiness === "ready" && Boolean(onGoogleSignIn);
-  const showGoogleAction =
-    googleOAuthReadiness === "needs-convex" || canUseGoogleAction;
-  const googleActionTitle =
-    googleOAuthReadiness === "needs-convex"
-      ? "Google sign-in needs Convex configuration"
-      : "Sign in with Google";
 
   return (
-    <div className={cn("flex items-center justify-between gap-2 rounded-lg border bg-background/50 px-3 py-2", className)}>
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2 rounded-lg border bg-background/50 px-3 py-2",
+        className,
+      )}
+    >
       <div className="flex min-w-0 items-center gap-2">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <UserRound className="h-4 w-4" />
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold">{displayName || "Guest"}</span>
+            <span className="truncate text-sm font-semibold">
+              {displayName || "Guest"}
+            </span>
             <span className="rounded border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               {identityLabel}
             </span>
@@ -51,19 +45,6 @@ export function AccountStatus({
           </div>
         </div>
       </div>
-      {showGoogleAction && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={canUseGoogleAction ? onGoogleSignIn : undefined}
-          disabled={!canUseGoogleAction}
-          title={googleActionTitle}
-          className="h-8 shrink-0 px-2 text-xs"
-        >
-          Google
-        </Button>
-      )}
     </div>
   );
 }

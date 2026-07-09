@@ -7,7 +7,7 @@ import { BoardCell } from "./boardCell";
 import GameButtons from "./gameButtons";
 import WinLine from "./winLine";
 import ParticleEffects from "./particleEffects";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
 interface GameBoardProps {
   gameState: GameState;
@@ -83,10 +83,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [winner, previousWinner]);
 
-  const playerColorsMap: { [key in PlayerSymbol]?: Color } = {
-    [PlayerSymbol.X]: players.X.color,
-    [PlayerSymbol.O]: players.O.color,
-  };
+  const playerColorsMap = useMemo<{ [key in PlayerSymbol]?: Color }>(
+    () => ({
+      [PlayerSymbol.X]: players.X.color,
+      [PlayerSymbol.O]: players.O.color,
+    }),
+    [players.X.color, players.O.color]
+  );
 
   const getRemovalSymbol = (index: number): PlayerSymbol | null => {
     if (nextToRemove.X === index) return PlayerSymbol.X;

@@ -4,12 +4,7 @@ import {
   COLOR_VARIANTS,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-const cn = (...inputs: ClassValue[]) => {
-  return twMerge(clsx(inputs));
-};
+import { cn } from "@/lib/utils";
 
 interface BoardCellProps {
   index: number;
@@ -132,11 +127,12 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
         aria-disabled={!isPlayable}
       >
         <span
+          aria-hidden="true"
           className={cn(
             "transition-all duration-300 ease-out",
             value
               ? isNextToRemove
-                ? "scale-100 opacity-100 animate-shiver"
+                ? "scale-100 opacity-100 animate-shimmer"
                 : "scale-100 opacity-100 animate-pop-in"
               : "scale-0 opacity-0"
           )}
@@ -157,7 +153,9 @@ export const BoardCell: React.FC<BoardCellProps> = React.memo(
           </span>
         )}
 
-        {isNextToRemove && <div className={removalBorderClasses} />}
+        {isNextToRemove && (
+          <div aria-hidden="true" className={removalBorderClasses} />
+        )}
       </button>
     );
   }

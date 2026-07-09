@@ -21,6 +21,13 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const LOG_LEVEL = process.env.LOG_LEVEL || (dev ? "debug" : "info");
 const LOG_LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4 };
 const TURN_TICK_MS = 1000;
+const SOCKET_CORS_ORIGIN_ENV = process.env.SOCKET_CORS_ORIGIN;
+
+if (!dev && !SOCKET_CORS_ORIGIN_ENV) {
+  throw new Error(
+    "SOCKET_CORS_ORIGIN must be set in production to restrict which origins may connect to the socket server.",
+  );
+}
 
 function parseSocketCorsOrigin(value) {
   if (!value) return "*";
@@ -42,7 +49,7 @@ function log(level, message) {
   console.log(`[${new Date().toISOString()}] ${message}`);
 }
 
-const socketCorsOrigin = parseSocketCorsOrigin(process.env.SOCKET_CORS_ORIGIN);
+const socketCorsOrigin = parseSocketCorsOrigin(SOCKET_CORS_ORIGIN_ENV);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -52,7 +59,14 @@ app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     if (parsedUrl.pathname === "/healthz") {
-      res.writeHead(200, { "Content-Type": "application/json" });
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "X-Frame-Options": "DENY",
+        "Cache-Control": "no-store",
+      };
+      res.writeHead(200, headers);
       res.end(JSON.stringify({ ok: true, uptime: process.uptime() }));
       return;
     }
@@ -107,6 +121,23 @@ app.prepare().then(() => {
       if (!isValidDisplayName(loginPayload.displayName)) {
         socket.emit("error", "Invalid username (max 20 characters)");
         return;
+      }
+
+      // SECURITY: profileId/userId must be derived from a verified session,
+      // never from the client. Until an `io.use` middleware verifies a
+      // better-auth JWT and sets `socket.data.auth = { verified, userId, profileId }`,
+      // a client could send any profileId and impersonate an account online.
+      // Strip them defensively so roomPlayers, moves, and match results are
+      // never attributed to a spoofed identity.
+      const sessionAuth = socket.data?.auth;
+      if (sessionAuth && sessionAuth.verified) {
+        loginPayload.profileId = sessionAuth.profileId;
+        loginPayload.userId = sessionAuth.userId;
+        loginPayload.identityKind = "account";
+      } else {
+        loginPayload.profileId = undefined;
+        loginPayload.userId = undefined;
+        loginPayload.identityKind = "guest";
       }
 
       if (currentRoom) {
