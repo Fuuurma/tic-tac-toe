@@ -187,8 +187,8 @@ class GameRoom {
     this.rematchDeclined = false;
   }
 
-  addPlayer(socketId, username, color, symbol) {
-    this.players.set(socketId, { username, color, symbol });
+  addPlayer(socketId, username, guestId, color, symbol) {
+    this.players.set(socketId, { username, guestId, color, symbol });
     this.gameState.players[symbol] = {
       username,
       color,
@@ -320,10 +320,10 @@ class RoomManager {
     return this.playerRooms.get(socketId);
   }
 
-  addPlayerToRoom(room, socketId, username, preferredColor) {
+  addPlayerToRoom(room, socketId, username, guestId, preferredColor) {
     const symbol = getAvailableSymbol(room);
     const colorResult = resolvePlayerColor(room, symbol, preferredColor);
-    room.addPlayer(socketId, username, colorResult.color, symbol);
+    room.addPlayer(socketId, username, guestId, colorResult.color, symbol);
     this.playerRooms.set(socketId, room);
     return { symbol, color: colorResult.color, wasColorChanged: colorResult.wasChanged };
   }

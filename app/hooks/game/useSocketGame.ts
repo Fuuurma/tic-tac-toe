@@ -13,6 +13,10 @@ import {
   GameStatus,
   PlayerSymbol,
 } from "@/app/game/constants/constants";
+import {
+  getOrCreateGuestIdentity,
+  saveDisplayName,
+} from "@/lib/identity";
 
 interface SocketLoginOptions {
   username?: string;
@@ -100,6 +104,7 @@ export const useSocketGame = (
 
     usernameRef.current = loginUsername.trim();
     selectedColorRef.current = loginColor;
+    saveDisplayName(loginUsername.trim());
     setMessage("Connecting to server...");
 
     let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -133,7 +138,12 @@ export const useSocketGame = (
     const handleConnect = () => {
       setMessage("Connected! Waiting for opponent...");
       setLoggedIn(true);
-      socket.emit("login", usernameRef.current, selectedColorRef.current);
+      const identity = getOrCreateGuestIdentity();
+      socket.emit("login", {
+        displayName: identity.displayName,
+        guestId: identity.guestId,
+        color: selectedColorRef.current,
+      });
     };
 
     const handleDisconnect = (reason: string) => {

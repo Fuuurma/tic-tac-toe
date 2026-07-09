@@ -57,9 +57,18 @@ function createTestServer(port = 0, options = {}) {
     ioServer.on("connection", (socket) => {
       let currentRoom = null;
 
-      socket.on("login", (username, color) => {
-        if (!username || typeof username !== "string" || username.trim().length === 0) {
+      socket.on("login", (payload) => {
+        if (!payload || typeof payload !== "object") {
+          socket.emit("error", "Invalid login payload");
+          return;
+        }
+        const { displayName, guestId, color } = payload;
+        if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
           socket.emit("error", "Invalid username");
+          return;
+        }
+        if (!guestId || typeof guestId !== "string") {
+          socket.emit("error", "Invalid guestId");
           return;
         }
 
@@ -69,7 +78,7 @@ function createTestServer(port = 0, options = {}) {
         }
 
         const room = roomManager.findOrCreateRoom();
-        const assignment = roomManager.addPlayerToRoom(room, socket.id, username.trim(), color);
+        const assignment = roomManager.addPlayerToRoom(room, socket.id, displayName.trim(), guestId, color);
         const { symbol, color: assignedColor, wasColorChanged } = assignment;
         currentRoom = room;
 

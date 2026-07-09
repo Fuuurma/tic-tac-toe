@@ -94,9 +94,19 @@ app.prepare().then(() => {
     let currentRoom = null;
 
     // ========== LOGIN ==========
-    socket.on("login", (username, color) => {
-      if (!username || typeof username !== "string" || username.trim().length === 0 || username.length > 20) {
+    socket.on("login", (payload) => {
+      if (!payload || typeof payload !== "object") {
+        socket.emit("error", "Invalid login payload");
+        return;
+      }
+      const { displayName, guestId, color } = payload;
+
+      if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0 || displayName.length > 20) {
         socket.emit("error", "Invalid username (max 20 characters)");
+        return;
+      }
+      if (!guestId || typeof guestId !== "string") {
+        socket.emit("error", "Invalid guestId");
         return;
       }
 
@@ -106,13 +116,13 @@ app.prepare().then(() => {
       }
 
       const room = roomManager.findOrCreateRoom();
-      const assignment = roomManager.addPlayerToRoom(room, socket.id, username.trim(), color);
+      const assignment = roomManager.addPlayerToRoom(room, socket.id, displayName.trim(), guestId, color);
       const { symbol, color: assignedColor, wasColorChanged } = assignment;
       currentRoom = room;
 
       socket.join(room.id);
 
-      log("info", `Player "${username}" (${symbol}) joined ${room.id}`);
+      log("info", `Player "${displayName.trim()}" (${symbol}) [${guestId}] joined ${room.id}`);
 
       socket.emit("playerAssigned", {
         symbol,
@@ -130,7 +140,7 @@ app.prepare().then(() => {
       const opponent = room.getPlayerBySymbol(symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X);
       if (opponent) {
         socket.emit("playerJoined", { username: opponent.username, symbol: opponent.symbol });
-        io.to(opponent.socketId).emit("playerJoined", { username: username.trim(), symbol });
+        io.to(opponent.socketId).emit("playerJoined", { username: displayName.trim(), symbol });
       }
 
       if (room.isFull()) {

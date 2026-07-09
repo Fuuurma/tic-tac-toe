@@ -105,7 +105,7 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  login: (username: string, color: Color) => void;
+  login: (payload: { displayName: string; guestId: string; color: Color }) => void;
   move: (index: number) => void;
   reset: () => void;
   requestRematch: () => void;
