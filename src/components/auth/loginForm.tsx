@@ -70,7 +70,7 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
     initialRoomId ? GameModes.ONLINE : GameModes.VS_COMPUTER,
   );
   const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(AI_Difficulty.EASY);
-  const [opponentName, setOpponentName] = useState<string>("Player 2");
+  const [opponentName, setOpponentName] = useState<string>("AI");
   const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
   const [onlineAction, setOnlineAction] = useState<"create" | "join" | "quick">(
     initialRoomId ? "join" : "quick",
@@ -83,7 +83,7 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
       color,
       gameMode,
       aiDifficulty,
-      opponentName: sanitizeDisplayName(opponentName, "Player 2"),
+      opponentName: sanitizeDisplayName(opponentName, "AI"),
       onlineRoomId: onlineRoomId.trim(),
       onlineAction,
     }),
@@ -183,7 +183,7 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
               label="Opponent's name"
               icon={<Users className="h-3.5 w-3.5" />}
               value={payload.opponentName}
-              placeholder="Player 2"
+              placeholder="Opponent"
               onChange={setOpponentName}
             />
           )}
