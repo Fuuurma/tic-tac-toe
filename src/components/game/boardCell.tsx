@@ -1,10 +1,11 @@
 import { Color, PlayerSymbol } from "@/game/constants";
-import { COLOR_RING_CLASSES, COLOR_BG_CLASSES } from "@/game/constants";
+import { COLOR_RING_CLASSES } from "@/game/constants";
 import { cn } from "@/lib/utils";
 
 interface BoardCellProps {
   index: number;
   value: PlayerSymbol | null;
+  valueColor?: Color;
   isNextToRemove: boolean;
   isWinningCell: boolean;
   isDisabled: boolean;
@@ -15,25 +16,21 @@ interface BoardCellProps {
   onHover?: (index: number | null) => void;
 }
 
-const SYMBOL_COLOR: Record<PlayerSymbol, string> = {
-  [PlayerSymbol.X]: "text-blue-500",
-  [PlayerSymbol.O]: "text-red-500",
-};
-
-const PREVIEW_COLOR_CLASS: Record<Color, string> = {
-  [Color.BLUE]: "text-blue-500/30",
-  [Color.GREEN]: "text-green-500/30",
-  [Color.YELLOW]: "text-yellow-500/30",
-  [Color.ORANGE]: "text-orange-500/30",
-  [Color.RED]: "text-red-500/30",
-  [Color.PINK]: "text-pink-500/30",
-  [Color.PURPLE]: "text-purple-500/30",
-  [Color.GRAY]: "text-gray-500/30",
+const SYMBOL_COLOR: Record<Color, string> = {
+  [Color.BLUE]: "text-blue-500",
+  [Color.GREEN]: "text-green-500",
+  [Color.YELLOW]: "text-yellow-500",
+  [Color.ORANGE]: "text-orange-500",
+  [Color.RED]: "text-red-500",
+  [Color.PINK]: "text-pink-500",
+  [Color.PURPLE]: "text-purple-500",
+  [Color.GRAY]: "text-gray-500",
 };
 
 export function BoardCell({
   index,
   value,
+  valueColor,
   isNextToRemove,
   isWinningCell,
   isDisabled,
@@ -63,7 +60,7 @@ export function BoardCell({
         isWinningCell && "bg-emerald-500/15 border-emerald-500/50",
         !isWinningCell && value && "border-foreground/20",
         !isWinningCell && !value && "hover:border-foreground/30",
-        isNextToRemove && !isWinningCell && COLOR_RING_CLASSES[Color.RED],
+        isNextToRemove && !isWinningCell && valueColor && COLOR_RING_CLASSES[valueColor],
       )}
     >
       {value && (
@@ -72,7 +69,7 @@ export function BoardCell({
           className={cn(
             "transition-all duration-300 ease-out scale-100 opacity-100 animate-pop-in",
             isNextToRemove && "animate-shimmer",
-            SYMBOL_COLOR[value],
+            SYMBOL_COLOR[valueColor ?? Color.GRAY],
           )}
         >
           {value}
@@ -84,7 +81,7 @@ export function BoardCell({
           aria-hidden="true"
           className={cn(
             "absolute inset-0 flex items-center justify-center text-5xl font-black sm:text-6xl md:text-7xl opacity-30 scale-90 transition-all duration-200",
-            previewColor && PREVIEW_COLOR_CLASS[previewColor],
+            previewColor && SYMBOL_COLOR[previewColor],
           )}
         >
           {previewPlayer}
@@ -92,12 +89,9 @@ export function BoardCell({
       )}
 
       {isNextToRemove && !isWinningCell && value && (
-        <div
+        <span
           aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-0 rounded-lg ring-4 ring-inset animate-wiggle",
-            COLOR_BG_CLASSES[Color.RED],
-          )}
+          className="pointer-events-none absolute inset-1 rounded-md border-2 border-dashed border-current opacity-40 animate-wiggle"
         />
       )}
     </button>

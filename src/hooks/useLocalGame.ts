@@ -40,6 +40,8 @@ export function useLocalGame(input: LocalGameInput) {
   );
   const tickRef = useRef<number | null>(null);
   const aiTimeoutRef = useRef<number | null>(null);
+  const gameIsActive = isGameActive(gameState);
+  const currentPlayerType = gameState.players[gameState.currentPlayer].type;
 
   const stopTimer = useCallback(() => {
     if (tickRef.current !== null) {
@@ -102,18 +104,18 @@ export function useLocalGame(input: LocalGameInput) {
   }, []);
 
   useEffect(() => {
-    if (isGameActive(gameState)) {
+    if (gameIsActive) {
       startTimer();
     } else {
       stopTimer();
     }
-  }, [gameState.gameStatus, gameState.winner, startTimer, stopTimer, gameState]);
+  }, [gameIsActive, startTimer, stopTimer]);
 
   useEffect(() => {
     if (
       input.gameMode === GameModes.VS_COMPUTER &&
       gameState.gameStatus === GameStatus.ACTIVE &&
-      gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER
+      currentPlayerType === PlayerTypes.COMPUTER
     ) {
       if (aiTimeoutRef.current !== null) {
         window.clearTimeout(aiTimeoutRef.current);
@@ -141,6 +143,7 @@ export function useLocalGame(input: LocalGameInput) {
     gameState.gameStatus,
     gameState.winner,
     gameState.moveCount,
+    currentPlayerType,
     input.gameMode,
     input.aiDifficulty,
   ]);

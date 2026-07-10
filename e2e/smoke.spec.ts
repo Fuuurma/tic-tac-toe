@@ -1,24 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-const PORT = Number(process.env.PORT ?? 4173);
-
-async function peerjsBrokerReachable(): Promise<boolean> {
-  // PeerJS uses the public broker by default; skip the online test if the
-  // sandbox can't reach it (the real smoke runs against the deployed URL).
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3_000);
-    const res = await fetch("https://0.peerjs.com/peerjs/id", {
-      method: "HEAD",
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return res.ok || res.status < 500;
-  } catch {
-    return false;
-  }
-}
-
 async function fillLogin(
   page: import("@playwright/test").Page,
   options: {

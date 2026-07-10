@@ -132,15 +132,17 @@ const mctsExpand = (node: MctsNode): MctsNode => {
 
 const mctsSimulate = (state: GameState): PlayerSymbol | null => {
   let current = state;
-  while (true) {
+  // The three-piece variant can cycle forever, so simulations need a draw cap.
+  for (let ply = 0; ply < 100; ply += 1) {
     const { winner } = checkWinner(current.board);
     if (winner !== null) return winner;
-    if (current.board.every((c) => c !== null)) return null;
     const moves = getValidMoves(current.board);
+    if (moves.length === 0) return null;
     const next = makeMove(current, moves[Math.floor(Math.random() * moves.length)]);
     if (!next) return null;
     current = next;
   }
+  return null;
 };
 
 const mctsBackpropagate = (node: MctsNode, winner: PlayerSymbol | null, aiSymbol: PlayerSymbol): void => {

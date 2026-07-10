@@ -38,8 +38,13 @@ export const sanitizeDisplayName = (
   value: string | null | undefined,
   fallback = generateGuestDisplayName(),
 ): string => {
-  const normalized = (value || "")
-    .replace(/[\u0000-\u001f\u007f<>]/g, "")
+  const safeValue = Array.from(value || "")
+    .filter((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint > 31 && codePoint !== 127 && character !== "<" && character !== ">";
+    })
+    .join("");
+  const normalized = safeValue
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, DISPLAY_NAME_MAX_LENGTH);

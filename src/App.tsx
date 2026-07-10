@@ -108,6 +108,10 @@ function LocalGameSurface({
       />
       <Board
         board={gameState.board}
+        colors={{
+          [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].color,
+          [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].color,
+        }}
         currentPlayer={gameState.currentPlayer}
         winningCombination={gameState.winningCombination}
         nextToRemove={gameState.nextToRemove}
@@ -174,6 +178,10 @@ function OnlineGameSurface({
       />
       <Board
         board={peer.state.gameState.board}
+        colors={{
+          [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
+          [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
+        }}
         currentPlayer={peer.state.gameState.currentPlayer}
         winningCombination={peer.state.gameState.winningCombination}
         nextToRemove={peer.state.gameState.nextToRemove}
@@ -181,7 +189,8 @@ function OnlineGameSurface({
         previewColor={previewColor}
         disabled={
           peer.state.status !== "connected" ||
-          (localSymbol !== null && peer.state.gameState.currentPlayer !== localSymbol)
+          localSymbol === null ||
+          peer.state.gameState.currentPlayer !== localSymbol
         }
         onCellClick={peer.sendMove}
       />
@@ -213,7 +222,7 @@ function onlineMessage(status: string, fallback: string, _roomId: string): strin
   if (status === "waiting") return "Waiting for opponent…";
   if (status === "connecting") return "Connecting…";
   if (status === "error") return fallback;
-  return "";
+  return fallback;
 }
 
 const OPPOSITE_COLOR: Record<Color, Color> = {

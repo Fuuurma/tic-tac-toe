@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Peer, { type DataConnection } from "peerjs";
 import {
+  AVAILABLE_COLORS,
   Color,
   GameModes,
   GameStatus,
@@ -9,21 +10,23 @@ import {
   TURN_DURATION_MS,
 } from "@/game/constants";
 import {
-  GameState,
   createInitialGameState,
   freshGameState,
   isGameActive,
-  isValidMove,
   makeMove,
   makeRandomMove,
 } from "@/game/logic";
+import type { GameState } from "@/game/logic";
 import {
-  PeerMessage,
+  applyAuthorizedMove,
   createGuestPeer,
   createHostPeer,
   generateRoomId,
+  isPeerMessage,
   sendMessage,
 } from "@/lib/peer";
+import type { PeerMessage } from "@/lib/peer";
+import { sanitizeDisplayName } from "@/lib/identity";
 
 export type PeerRole = "host" | "guest" | null;
 
@@ -61,6 +64,11 @@ const sanitizeColor = (color: string | undefined): Color => {
   return (Object.values(Color) as string[]).includes(color) ? (color as Color) : Color.BLUE;
 };
 
+const chooseGuestColor = (preferred: Color, hostColor: Color): Color =>
+  preferred !== hostColor
+    ? preferred
+    : AVAILABLE_COLORS.find((color) => color !== hostColor) ?? Color.GRAY;
+
 export interface PeerRoomOptions {
   hostDisplayName: string;
   hostColor: Color;
@@ -87,74 +95,82 @@ export function usePeerRoom(options: PeerRoomOptions) {
     }
   }, []);
 
+  const broadcastGameState = useCallback((gameState: GameState) => {
+    const conn = connRef.current;
+    if (conn?.open) sendMessage(conn, { type: "gameUpdate", gameState });
+  }, []);
+
+  const commitHostState = useCallback(
+    (gameState: GameState) => {
+      stateRef.current = gameState;
+      setState((prev) => ({ ...prev, gameState }));
+      broadcastGameState(gameState);
+    },
+    [broadcastGameState],
+  );
+
   const startTimer = useCallback(() => {
     stopTimer();
     tickRef.current = window.setInterval(() => {
-      setState((prev) => {
-        if (prev.gameState.winner !== null) {
-          if (tickRef.current !== null) {
-            window.clearInterval(tickRef.current);
-            tickRef.current = null;
-          }
-          return prev;
-        }
-        const next = { ...prev.gameState, turnTimeRemaining: prev.gameState.turnTimeRemaining ?? TURN_DURATION_MS };
-        const remaining = (next.turnTimeRemaining ?? TURN_DURATION_MS) - 1000;
-        if (remaining <= 0) {
-          const random = makeRandomMove(prev.gameState.board);
-          if (random === null) return prev;
-          const updated = makeMove(prev.gameState, random);
-          if (updated) {
-            return {
-              ...prev,
-              gameState: { ...updated, turnTimeRemaining: TURN_DURATION_MS },
-              message: `${prev.gameState.players[prev.gameState.currentPlayer].username || "Player"} ran out of time`,
-            };
-          }
-          return prev;
-        }
-        return { ...prev, gameState: { ...next, turnTimeRemaining: remaining } };
-      });
-    }, 1000);
-  }, [stopTimer]);
-
-  const broadcastGameState = useCallback(() => {
-    const conn = connRef.current;
-    if (conn?.open) sendMessage(conn, { type: "gameUpdate", gameState: stateRef.current });
-  }, []);
-
-  const applyHostMove = useCallback(
-    (index: number) => {
       const current = stateRef.current;
-      if (!isValidMove(current, index, current.currentPlayer)) {
-        const conn = connRef.current;
-        if (conn?.open) sendMessage(conn, { type: "error", message: "Invalid move" });
+      if (!isGameActive(current)) {
+        stopTimer();
         return;
       }
-      const next = makeMove(current, index);
-      if (!next) return;
-      stateRef.current = { ...next, turnTimeRemaining: TURN_DURATION_MS };
-      setState((prev) => ({ ...prev, gameState: stateRef.current }));
-      broadcastGameState();
+      const remaining = (current.turnTimeRemaining ?? TURN_DURATION_MS) - 1000;
+      if (remaining <= 0) {
+        const random = makeRandomMove(current.board);
+        if (random === null) return;
+        const updated = makeMove(current, random);
+        if (!updated) return;
+        const gameState = { ...updated, turnTimeRemaining: TURN_DURATION_MS };
+        stateRef.current = gameState;
+        setState((prev) => ({
+          ...prev,
+          gameState,
+          message: `${current.players[current.currentPlayer].username || "Player"} ran out of time`,
+        }));
+        broadcastGameState(gameState);
+        return;
+      }
+      const gameState = { ...current, turnTimeRemaining: remaining };
+      commitHostState(gameState);
+    }, 1000);
+  }, [broadcastGameState, commitHostState, stopTimer]);
+
+  const applyHostMove = useCallback(
+    (index: number, actor: PlayerSymbol) => {
+      const current = stateRef.current;
+      const next = applyAuthorizedMove(current, index, actor);
+      if (!next) {
+        const conn = connRef.current;
+        if (actor === PlayerSymbol.O && conn?.open) {
+          sendMessage(conn, { type: "error", message: "Invalid move" });
+        }
+        return;
+      }
+      commitHostState({ ...next, turnTimeRemaining: TURN_DURATION_MS });
     },
-    [broadcastGameState],
+    [commitHostState],
   );
 
   const handleHostData = useCallback(
     (message: PeerMessage) => {
       if (message.type === "join") {
         const state = stateRef.current;
-        const guestSymbol = state.players[PlayerSymbol.X]?.isActive
-          ? PlayerSymbol.O
-          : PlayerSymbol.X;
-        const guestColor = sanitizeColor(undefined);
+        const guestSymbol = PlayerSymbol.O;
+        const guestColor = chooseGuestColor(
+          sanitizeColor(message.preferredColor),
+          state.players[PlayerSymbol.X].color,
+        );
+        const guestDisplayName = sanitizeDisplayName(message.displayName, "Guest");
         const updated: GameState = {
           ...state,
           gameStatus: GameStatus.ACTIVE,
           players: {
             ...state.players,
             [guestSymbol]: {
-              username: message.displayName,
+              username: guestDisplayName,
               color: guestColor,
               symbol: guestSymbol,
               type: PlayerTypes.HUMAN,
@@ -177,7 +193,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         setState((prev) => ({
           ...prev,
           status: "connected",
-          guestDisplayName: message.displayName,
+          guestDisplayName,
           guestSymbol: guestSymbol,
           gameState: updated,
           message: "",
@@ -185,7 +201,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       if (message.type === "move") {
-        applyHostMove(message.index);
+        applyHostMove(message.index, PlayerSymbol.O);
         return;
       }
       if (message.type === "rematchAccept") {
@@ -197,10 +213,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
           playerColor: state.players[PlayerSymbol.X].color,
           opponentColor: state.players[PlayerSymbol.O].color,
         });
-        stateRef.current = reset;
-        setState((prev) => ({ ...prev, gameState: reset }));
-        const conn = connRef.current;
-        if (conn?.open) sendMessage(conn, { type: "gameUpdate", gameState: reset });
+        reset.players[PlayerSymbol.O].isActive = true;
+        commitHostState(reset);
         return;
       }
       if (message.type === "rematchDecline") {
@@ -212,7 +226,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         const state = stateRef.current;
         const ended: GameState = {
           ...state,
-          winner: state.currentPlayer === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X,
+          winner: PlayerSymbol.X,
           gameStatus: GameStatus.COMPLETED,
         };
         stateRef.current = ended;
@@ -220,31 +234,63 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
     },
-    [applyHostMove, broadcastGameState, stopTimer],
+    [applyHostMove, commitHostState, stopTimer],
   );
 
   const startAsHost = useCallback(() => {
     stopTimer();
     const roomId = generateRoomId();
-    update({ role: "host", status: "creating", roomId, message: "" });
+    const waitingGame = createInitialGameState({
+      gameMode: GameModes.ONLINE,
+      playerXName: sanitizeDisplayName(options.hostDisplayName, "Host"),
+      playerOName: "Waiting for opponent",
+      playerColor: options.hostColor,
+      opponentColor: chooseGuestColor(Color.BLUE, options.hostColor),
+    });
+    waitingGame.gameStatus = GameStatus.WAITING;
+    stateRef.current = waitingGame;
+    update({
+      role: "host",
+      status: "creating",
+      roomId,
+      guestDisplayName: "",
+      guestSymbol: PlayerSymbol.O,
+      gameState: waitingGame,
+      message: "",
+    });
     const peer = createHostPeer(roomId);
     peerRef.current = peer;
     peer.on("open", () => {
       update({ status: "waiting", message: `Room ${roomId} — waiting for opponent` });
     });
     peer.on("connection", (conn) => {
+      if (connRef.current?.open) {
+        conn.on("open", () => {
+          sendMessage(conn, { type: "error", message: "Room is full" });
+          conn.close();
+        });
+        return;
+      }
       connRef.current = conn;
       conn.on("open", () => {
         update({ status: "connecting" });
       });
       conn.on("data", (raw) => {
-        if (raw && typeof raw === "object" && "type" in (raw as PeerMessage)) {
-          handleHostData(raw as PeerMessage);
-        }
+        if (isPeerMessage(raw)) handleHostData(raw);
       });
       conn.on("close", () => {
         stopTimer();
-        setState((prev) => ({ ...prev, status: "disconnected", message: "Opponent disconnected" }));
+        const current = stateRef.current;
+        const gameState = current.winner
+          ? current
+          : { ...current, winner: PlayerSymbol.X, gameStatus: GameStatus.COMPLETED };
+        stateRef.current = gameState;
+        setState((prev) => ({
+          ...prev,
+          status: "disconnected",
+          gameState,
+          message: "Opponent disconnected",
+        }));
       });
       conn.on("error", (err) => {
         update({ status: "error", message: `Connection error: ${(err as Error).message}` });
@@ -253,7 +299,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     peer.on("error", (err) => {
       update({ status: "error", message: `Peer error: ${(err as Error).message}` });
     });
-  }, [handleHostData, stopTimer, update]);
+  }, [handleHostData, options.hostColor, options.hostDisplayName, stopTimer, update]);
 
   const joinAsGuest = useCallback(
     (roomId: string) => {
@@ -276,11 +322,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
             guestId: "guest",
             preferredColor: options.hostColor,
           });
-          setState((prev) => ({ ...prev, status: "connected" }));
         });
         conn.on("data", (raw) => {
-          if (raw && typeof raw === "object" && "type" in (raw as PeerMessage)) {
-            const message = raw as PeerMessage;
+          if (isPeerMessage(raw)) {
+            const message = raw;
             if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
               stateRef.current = message.gameState;
               setState((prev) => {
@@ -290,8 +335,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
                     : prev.guestSymbol;
                 return {
                   ...prev,
+                  status: "connected",
                   gameState: message.gameState,
                   guestSymbol: localSymbol,
+                  guestDisplayName:
+                    localSymbol === PlayerSymbol.O
+                      ? message.gameState.players[PlayerSymbol.X].username
+                      : message.gameState.players[PlayerSymbol.O].username,
                   message: "",
                 };
               });
@@ -308,7 +358,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
         });
         conn.on("close", () => {
           stopTimer();
-          setState((prev) => ({ ...prev, status: "disconnected", message: "Host disconnected" }));
+          const gameState = {
+            ...stateRef.current,
+            gameStatus: GameStatus.COMPLETED,
+          };
+          stateRef.current = gameState;
+          setState((prev) => ({
+            ...prev,
+            status: "disconnected",
+            gameState,
+            message: "Host disconnected",
+          }));
         });
         conn.on("error", (err) => {
           update({ status: "error", message: `Connection error: ${(err as Error).message}` });
@@ -324,7 +384,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const sendMove = useCallback(
     (index: number) => {
       if (state.role === "host") {
-        applyHostMove(index);
+        applyHostMove(index, PlayerSymbol.X);
         return;
       }
       const conn = connRef.current;
@@ -362,11 +422,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [stopTimer]);
 
   useEffect(() => {
-    if (isGameActive(stateRef.current)) {
+    if (state.role === "host" && isGameActive(stateRef.current)) {
       startTimer();
+    } else {
+      stopTimer();
     }
     return () => stopTimer();
-  }, [state.gameState.gameStatus, state.gameState.winner, startTimer, stopTimer]);
+  }, [state.role, state.gameState.gameStatus, state.gameState.winner, startTimer, stopTimer]);
 
   useEffect(
     () => () => {

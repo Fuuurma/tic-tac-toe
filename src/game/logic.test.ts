@@ -129,7 +129,7 @@ describe("checkWinner", () => {
 });
 
 describe("makeMove (3-piece cap rule)", () => {
-  it("marks the oldest piece for removal when the cap is exceeded", () => {
+  it("marks the oldest piece once a player has three pieces", () => {
     let s = createInitialGameState({
       gameMode: GameModes.VS_FRIEND,
       playerXName: "A",
@@ -137,34 +137,37 @@ describe("makeMove (3-piece cap rule)", () => {
       playerColor: Color.BLUE,
       opponentColor: Color.RED,
     });
-    // 8 moves (X4, O4) to trigger the 3-piece cap and mark nextToRemove.
-    // X: 0,4,5,6  O: 3,1,2,7  -> no winner on either side
+    // Six moves leave each player at the three-piece cap with no winner.
     s = makeMove(s, 0)!;
     s = makeMove(s, 3)!;
     s = makeMove(s, 4)!;
     s = makeMove(s, 1)!;
     s = makeMove(s, 5)!;
     s = makeMove(s, 2)!;
-    s = makeMove(s, 6)!;
-    s = makeMove(s, 7)!;
     expect(s.winner).toBeNull();
     expect(s.nextToRemove[PlayerSymbol.X]).toBe(0);
     expect(s.nextToRemove[PlayerSymbol.O]).toBe(3);
-    expect(s.moves[PlayerSymbol.X]).toEqual([0, 4, 5, 6]);
-    expect(s.moves[PlayerSymbol.O]).toEqual([3, 1, 2, 7]);
+    expect(s.moves[PlayerSymbol.X]).toEqual([0, 4, 5]);
+    expect(s.moves[PlayerSymbol.O]).toEqual([3, 1, 2]);
   });
-});
 
-describe("makeMove (draw)", () => {
-  it("completes the game with no winner on a full board", () => {
-    const moves = [0, 1, 2, 4, 3, 5, 7, 6, 8];
-    let s = freshGameState();
-    for (const move of moves) {
-      s = makeMove(s, move) ?? s;
-    }
-    expect(s.board.every((c) => c !== null)).toBe(true);
+  it("removes the oldest piece when a fourth piece is placed", () => {
+    let s = createInitialGameState({
+      gameMode: GameModes.VS_FRIEND,
+      playerXName: "A",
+      playerOName: "B",
+      playerColor: Color.BLUE,
+      opponentColor: Color.RED,
+    });
+    for (const move of [0, 3, 4, 1, 5, 2]) s = makeMove(s, move)!;
+    s = makeMove(s, 6)!;
+
+    expect(s.board[0]).toBeNull();
+    expect(s.board[6]).toBe(PlayerSymbol.X);
+    expect(s.moves[PlayerSymbol.X]).toEqual([4, 5, 6]);
+    expect(s.nextToRemove[PlayerSymbol.X]).toBe(4);
     expect(s.winner).toBeNull();
-    expect(s.gameStatus).toBe("COMPLETED");
+    expect(s.gameStatus).toBe("ACTIVE");
   });
 });
 

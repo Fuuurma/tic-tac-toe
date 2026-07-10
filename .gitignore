@@ -1,6 +1,9 @@
 node_modules
 dist
 dist-ssr
+.next
+out
+*.tsbuildinfo
 *.local
 .vite
 .DS_Store

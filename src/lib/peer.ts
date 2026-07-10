@@ -1,6 +1,6 @@
 import Peer, { type DataConnection } from "peerjs";
 import { Color, PlayerSymbol } from "@/game/constants";
-import type { GameState } from "@/game/logic";
+import { isValidMove, makeMove, type GameState } from "@/game/logic";
 
 export type PeerMessage =
   | { type: "join"; displayName: string; guestId: string; preferredColor?: Color }
@@ -31,4 +31,55 @@ export const createGuestPeer = (): Peer =>
 
 export const sendMessage = (conn: DataConnection, message: PeerMessage): void => {
   if (conn.open) conn.send(message);
+};
+
+export const applyAuthorizedMove = (
+  state: GameState,
+  index: number,
+  actor: PlayerSymbol,
+): GameState | null => {
+  if (!Number.isInteger(index) || !isValidMove(state, index, actor)) return null;
+  return makeMove(state, index);
+};
+
+export const isPeerMessage = (value: unknown): value is PeerMessage => {
+  if (!value || typeof value !== "object" || !("type" in value)) return false;
+  const message = value as Record<string, unknown>;
+  switch (message.type) {
+    case "join":
+      return typeof message.displayName === "string" && typeof message.guestId === "string";
+    case "joined":
+      return isPlayerSymbol(message.symbol) && isGameState(message.gameState);
+    case "gameStart":
+    case "gameUpdate":
+      return isGameState(message.gameState);
+    case "move":
+      return typeof message.index === "number" && Number.isInteger(message.index);
+    case "rematchRequested":
+      return isPlayerSymbol(message.requesterSymbol);
+    case "rematchAccept":
+    case "rematchDecline":
+    case "leave":
+      return true;
+    case "error":
+      return typeof message.message === "string";
+    default:
+      return false;
+  }
+};
+
+const isPlayerSymbol = (value: unknown): value is PlayerSymbol =>
+  value === PlayerSymbol.X || value === PlayerSymbol.O;
+
+const isGameState = (value: unknown): value is GameState => {
+  if (!value || typeof value !== "object") return false;
+  const state = value as Partial<GameState>;
+  return (
+    Array.isArray(state.board) &&
+    state.board.length === 9 &&
+    state.board.every((cell) => cell === null || isPlayerSymbol(cell)) &&
+    isPlayerSymbol(state.currentPlayer) &&
+    !!state.players &&
+    !!state.moves
+  );
 };

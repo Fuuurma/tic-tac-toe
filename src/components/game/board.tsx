@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Color, PlayerSymbol } from "@/game/constants";
 import { BoardCell } from "./boardCell";
-import { WinLine, buildWinLineGeometry } from "./winLine";
+import { WinLine } from "./winLine";
+import { buildWinLineGeometry } from "./winLineGeometry";
 import { cn } from "@/lib/utils";
 
 interface BoardProps {
   board: (PlayerSymbol | null)[];
+  colors: Record<PlayerSymbol, Color>;
   currentPlayer: PlayerSymbol;
   winningCombination: readonly [number, number, number] | null;
   nextToRemove: Record<PlayerSymbol, number | null>;
@@ -17,6 +19,7 @@ interface BoardProps {
 
 export function Board({
   board,
+  colors,
   winningCombination,
   nextToRemove,
   previewPlayer,
@@ -47,6 +50,7 @@ export function Board({
               key={index}
               index={index}
               value={value}
+              valueColor={value ? colors[value] : undefined}
               isNextToRemove={isNext}
               isWinningCell={isWinning}
               isDisabled={disabled}

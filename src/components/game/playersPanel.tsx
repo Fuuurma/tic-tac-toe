@@ -81,8 +81,7 @@ export function PlayersPanel({
             </div>
           )}
         </div>
-        {isActive && (
-          <div className="flex gap-1">
+        <div className="flex gap-1">
             <Button
               variant="outline"
               size="sm"
@@ -102,12 +101,12 @@ export function PlayersPanel({
               <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
-        )}
       </div>
 
       {isActive && (
         <div className="flex items-center gap-2">
           <div
+            role="timer"
             className={cn(
               "flex h-7 min-w-[2rem] items-center justify-center rounded-md px-2 font-mono text-sm font-bold tabular-nums sm:h-8 sm:text-base",
               getTimerColor(seconds),
@@ -130,12 +129,21 @@ export function PlayersPanel({
       )}
 
       {!isActive && gameState.winner && (
-        <div className="text-center text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-          {gameState.players[gameState.winner].username || "Player"} wins!
+        <div className="flex flex-col gap-1 text-center">
+          <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+            {gameState.players[gameState.winner].username || "Player"} wins!
+          </div>
+          {message && <div role="status" className="text-xs text-muted-foreground">{message}</div>}
         </div>
       )}
 
-      {!isActive && !gameState.winner && gameState.moveCount > 0 && (
+      {!isActive && !gameState.winner && message && (
+        <div role="status" className="text-center text-sm font-semibold text-muted-foreground">
+          {message}
+        </div>
+      )}
+
+      {!isActive && !gameState.winner && !message && gameState.moveCount > 0 && (
         <div className="text-center text-sm font-semibold text-muted-foreground">
           It's a draw.
         </div>
@@ -155,9 +163,9 @@ export function PlayersPanel({
       />
       <Confirm
         isOpen={showNewGame}
-        title="Start a new game"
-        description="Restart with the same players and settings?"
-        confirmText="Restart"
+        title={isActive ? "Start a new game" : "Play again"}
+        description={isActive ? "Restart with the same players and settings?" : "Play again with the same players and settings?"}
+        confirmText={isActive ? "Restart" : "Play again"}
         onConfirm={() => {
           setShowNewGame(false);
           onNewGame();

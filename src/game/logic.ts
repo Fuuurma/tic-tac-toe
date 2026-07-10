@@ -93,6 +93,7 @@ export const createInitialGameState = (
     gameStatus: GameStatus.ACTIVE,
     gameMode: input.gameMode,
     aiDifficulty: input.aiDifficulty,
+    turnTimeRemaining: TURN_DURATION_MS,
     players: {
       [PlayerSymbol.X]: {
         ...state.players[PlayerSymbol.X],
@@ -148,16 +149,6 @@ export const getNextPlayerSymbol = (current: PlayerSymbol): PlayerSymbol =>
 export const isGameActive = (state: GameState): boolean =>
   state.gameStatus === GameStatus.ACTIVE && state.winner === null;
 
-const computeNextToRemove = (
-  state: GameState,
-  symbol: PlayerSymbol,
-  nextIndex: number,
-): number | null => {
-  const moves = [...state.moves[symbol], nextIndex];
-  if (moves.length <= state.maxMoves) return null;
-  return moves[0];
-};
-
 export const checkWinner = (board: Board): {
   winner: PlayerSymbol | null;
   combination: readonly [number, number, number] | null;
@@ -179,14 +170,20 @@ export const makeMove = (
   if (!isValidMove(state, index, state.currentPlayer)) return null;
   const board = state.board.slice();
   const symbol = state.currentPlayer;
+  const playerMoves = state.moves[symbol].slice();
+
+  if (playerMoves.length >= state.maxMoves) {
+    const oldestMove = playerMoves.shift();
+    if (oldestMove !== undefined) board[oldestMove] = null;
+  }
+
   board[index] = symbol;
+  playerMoves.push(index);
   const moves = {
     ...state.moves,
-    [symbol]: [...state.moves[symbol], index],
+    [symbol]: playerMoves,
   };
   const { winner, combination } = checkWinner(board);
-  const isDraw = winner === null && board.every((c) => c !== null);
-  const nextToRemove = computeNextToRemove(state, symbol, index);
   const updatedPlayers = {
     ...state.players,
     [symbol]: {
@@ -200,15 +197,18 @@ export const makeMove = (
     moves,
     nextToRemove: {
       ...state.nextToRemove,
-      [symbol]: nextToRemove,
+      [symbol]: winner === null && playerMoves.length === state.maxMoves
+        ? playerMoves[0]
+        : null,
     },
     players: updatedPlayers,
     winner,
     winningCombination: combination,
-    currentPlayer: winner || isDraw ? state.currentPlayer : getNextPlayerSymbol(symbol),
+    currentPlayer: winner ? state.currentPlayer : getNextPlayerSymbol(symbol),
     lastMoveIndex: index,
     moveCount: state.moveCount + 1,
-    gameStatus: winner || isDraw ? GameStatus.COMPLETED : GameStatus.ACTIVE,
+    gameStatus: winner ? GameStatus.COMPLETED : GameStatus.ACTIVE,
+    turnTimeRemaining: TURN_DURATION_MS,
   };
 };
 
