@@ -173,8 +173,8 @@ export function PlayersPanel({
       <Confirm
         isOpen={showExit}
         title={exitLabel}
-        description="Are you sure? Current progress will be lost."
-        confirmText="Exit"
+        description={isOnline ? "Leave the room? Your opponent will be notified." : "Are you sure? Current progress will be lost."}
+        confirmText={isOnline ? "Leave" : "Exit"}
         destructive
         onConfirm={() => {
           setShowExit(false);
