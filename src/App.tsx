@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Color,
   GameModes,
@@ -10,6 +10,7 @@ import { LoginForm, type LoginFormPayload } from "@/components/auth/loginForm";
 import { Board } from "@/components/game/board";
 import { PlayersPanel } from "@/components/game/playersPanel";
 import { useLocalGame } from "@/hooks/useLocalGame";
+import { useGameStats } from "@/hooks/useGameStats";
 import { usePeerRoom } from "@/hooks/usePeerRoom";
 import { Wifi, Loader2 } from "lucide-react";
 
@@ -86,6 +87,21 @@ function LocalGameSurface({
     opponentColor: oppositeColor(config.color),
     aiDifficulty: config.aiDifficulty,
   });
+  const { stats, recordWin, recordLoss, recordDraw } = useGameStats();
+  const recordedGameId = useRef<number>(0);
+
+  useEffect(() => {
+    if (gameState.winner !== null) {
+      if (gameState.moveCount === recordedGameId.current) return;
+      recordedGameId.current = gameState.moveCount;
+      if (gameState.winner === PlayerSymbol.X) recordWin();
+      else recordLoss();
+    } else if (gameState.gameStatus === "COMPLETED" && gameState.moveCount > 0) {
+      if (gameState.moveCount === recordedGameId.current) return;
+      recordedGameId.current = gameState.moveCount;
+      recordDraw();
+    }
+  }, [gameState.winner, gameState.gameStatus, gameState.moveCount, recordWin, recordLoss, recordDraw]);
 
   const previewPlayer = canMakeMove(
     gameState.gameMode,
@@ -99,6 +115,7 @@ function LocalGameSurface({
     <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
       <PlayersPanel
         gameState={gameState}
+        stats={stats}
         message=""
         onNewGame={handleReset}
         onExit={() => {

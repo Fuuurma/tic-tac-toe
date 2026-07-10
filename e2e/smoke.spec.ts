@@ -124,7 +124,10 @@ test("pairs two online sessions, completes a match, and rematches", async ({ bro
 
   // Rematch: host requests, guest accepts.
   await hostPage.getByRole("button", { name: "Start a new game" }).click();
+  await hostPage.getByRole("dialog").getByRole("button", { name: "Play again" }).click();
+  await expect(guestPage.getByText(/Host wants a rematch/i)).toBeVisible();
   await guestPage.getByRole("button", { name: "Start a new game" }).click();
+  await guestPage.getByRole("dialog").getByRole("button", { name: "Play again" }).click();
 
   // Board is reset - the winner text is gone, the timer is back, and cell (1,1) is empty again.
   await expect(hostPage.getByText(/Host wins/i)).toBeHidden({ timeout: 10_000 });

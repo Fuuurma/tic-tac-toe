@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TURN_DURATION_MS, GameModes } from "@/game/constants";
 import type { GameState } from "@/game/logic";
+import type { GameStats } from "@/hooks/useGameStats";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { LogOut, RotateCcw } from "lucide-react";
 interface PlayersPanelProps {
   gameState: GameState;
   message: string;
+  stats?: GameStats;
   onNewGame: () => void;
   onExit: () => void;
 }
@@ -40,6 +42,7 @@ const getGameModeLabel = (mode: string): string => {
 export function PlayersPanel({
   gameState,
   message,
+  stats,
   onNewGame,
   onExit,
 }: PlayersPanelProps) {
@@ -63,8 +66,24 @@ export function PlayersPanel({
     <div className="w-full rounded-lg border bg-card/80 p-2 shadow-lg backdrop-blur sm:rounded-xl sm:p-3">
       <div className="mb-2 flex items-start justify-between gap-2 sm:mb-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-xs">
-            {getGameModeLabel(gameState.gameMode)}
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-xs">
+            <span>{getGameModeLabel(gameState.gameMode)}</span>
+            {stats && stats.totalGames > 0 && (
+              <span
+                role="status"
+                aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses, ${stats.draws} draws`}
+                className="font-medium normal-case tracking-normal text-muted-foreground"
+              >
+                <span className="text-emerald-600 dark:text-emerald-400">{stats.wins}W</span>
+                <span className="mx-0.5 text-muted-foreground/50">·</span>
+                <span className="text-red-500">{stats.losses}L</span>
+                <span className="mx-0.5 text-muted-foreground/50">·</span>
+                <span>{stats.draws}D</span>
+                {stats.currentWinStreak > 1 && (
+                  <span className="ml-1 text-amber-500">· 🔥{stats.currentWinStreak}</span>
+                )}
+              </span>
+            )}
           </div>
           {isActive && (
             <div

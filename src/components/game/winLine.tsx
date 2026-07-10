@@ -13,13 +13,16 @@ export function WinLine({ geometry }: { geometry: WinLineGeometry }) {
         y1={geometry.y1}
         x2={geometry.x2}
         y2={geometry.y2}
-        pathLength={1}
-        strokeDasharray="1"
-        strokeDashoffset="0"
+        pathLength="1"
+        style={{
+          strokeDasharray: 1,
+          strokeDashoffset: 1,
+          animation: "draw-line 0.5s ease-out forwards",
+        }}
         stroke="currentColor"
         strokeWidth={4}
         strokeLinecap="round"
-        className="text-emerald-500 animate-draw-line"
+        className="text-emerald-500"
       />
     </svg>
   );

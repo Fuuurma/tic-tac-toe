@@ -5,6 +5,7 @@ export interface GameStats {
   totalGames: number;
   wins: number;
   losses: number;
+  draws: number;
   currentWinStreak: number;
   bestWinStreak: number;
 }
@@ -13,6 +14,7 @@ const DEFAULT_STATS: GameStats = {
   totalGames: 0,
   wins: 0,
   losses: 0,
+  draws: 0,
   currentWinStreak: 0,
   bestWinStreak: 0,
 };
@@ -76,10 +78,23 @@ export function useGameStats() {
     });
   }, [guestId]);
 
+  const recordDraw = useCallback(() => {
+    setStats((prev) => {
+      if (!guestId) return prev;
+      const next: GameStats = {
+        ...prev,
+        totalGames: prev.totalGames + 1,
+        draws: prev.draws + 1,
+      };
+      writeStats(guestId, next);
+      return next;
+    });
+  }, [guestId]);
+
   const refresh = useCallback(() => {
     if (!guestId) return;
     setStats(readStats(guestId));
   }, [guestId]);
 
-  return { stats, recordWin, recordLoss, refresh };
+  return { stats, recordWin, recordLoss, recordDraw, refresh };
 }
