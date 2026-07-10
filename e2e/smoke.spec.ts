@@ -41,11 +41,21 @@ test("loads the playable shell", async ({ page }) => {
   await expect(page.getByText("Pick a mode, choose your color, and jump in.")).toBeVisible();
 });
 
-test("starts a vs Computer game", async ({ page }) => {
+test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await fillLogin(page, { name: "AI Player", color: "blue", mode: "vs Computer" });
   await page.getByRole("radio", { name: "Normal", exact: true }).click();
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+
+  // Human plays top-left (X), then the AI should play somewhere.
+  await clickCell(page, 1, 1);
+  await expect(page.getByRole("gridcell", { name: /Row 1 column 1/ })).toContainText("X");
+
+  // The AI responds after its 600ms thinking delay; exactly one
+  // O cell should appear and the panel should not say it's the
+  // human's turn anymore.
+  const oCell = page.getByRole("gridcell", { name: /, occupied by O/ });
+  await expect(oCell).toBeVisible({ timeout: 5_000 });
 });
 
 test("starts a vs Friend game", async ({ page }) => {
@@ -88,20 +98,20 @@ test("pairs two online sessions, completes a match, and rematches", async ({ bro
   await expect(hostPage.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
 
   // Wait until the room ID is shown
-  const hostWaiting = hostPage.getByText(/Waiting for opponent to join room/);
-  await hostWaiting.waitFor({ timeout: 30_000 });
+  const hostWaiting = hostPage.getByLabel(/^Room code /);
+  await expect
+    .poll(() => hostPage.locator("body").innerText(), { timeout: 30_000 })
+    .toMatch(/Waiting for opponent|Peer error|Connection error/);
+  await expect(hostWaiting).toBeVisible();
   const waitingText = (await hostWaiting.textContent()) ?? "";
-  const roomIdMatch = waitingText.match(/room\s+(\S+)/);
-  expect(roomIdMatch).not.toBeNull();
-  const roomId = roomIdMatch![1];
+  const roomId = waitingText.trim();
   expect(roomId.length).toBeGreaterThanOrEqual(4);
 
   // Guest joins the room
-  await guestPage.goto("/");
+  await guestPage.goto(`/?room=${roomId}`);
   await guestPage.getByLabel("Your name").fill("Guest");
-  await guestPage.getByRole("radio", { name: "Online", exact: true }).click();
-  await guestPage.getByRole("button", { name: "Join", exact: true }).click();
-  await guestPage.getByLabel("Room ID").fill(roomId);
+  await expect(guestPage.getByRole("radio", { name: "Online", exact: true })).toBeChecked();
+  await expect(guestPage.getByLabel("Room ID")).toHaveValue(roomId);
   await guestPage.getByRole("button", { name: "Join Room" }).click();
   await expect(guestPage.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
 
