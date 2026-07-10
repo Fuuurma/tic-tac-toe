@@ -418,6 +418,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
     } catch (err) {
+      matchmakingTicketRef.current = null;
+      hasStartedRef.current = false;
       update({ status: "error", message: `Matchmaking failed: ${(err as Error).message}` });
     }
   }, [joinAsGuest, options.hostDisplayName, startAsHost, stopTimer, update]);
