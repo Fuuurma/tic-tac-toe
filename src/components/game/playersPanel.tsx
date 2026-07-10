@@ -148,23 +148,90 @@ export function PlayersPanel({
       )}
 
       {!isActive && gameState.winner && (
-        <div className="flex flex-col gap-1 text-center">
+        <div className="flex flex-col gap-2 text-center">
           <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
             {gameState.players[gameState.winner].username || "Player"} wins!
           </div>
           {message && <div role="status" className="text-xs text-muted-foreground">{message}</div>}
+          <div className="flex justify-center gap-2 pt-1">
+            <Button
+              size="sm"
+              onClick={onNewGame}
+              className="h-8 px-3 text-xs font-bold"
+              aria-label="Play again"
+            >
+              <RotateCcw className="mr-1 h-3 w-3" />
+              Play Again
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowExit(true)}
+              className="h-8 px-3 text-xs"
+              aria-label="Exit game"
+            >
+              <LogOut className="mr-1 h-3 w-3" />
+              Exit
+            </Button>
+          </div>
         </div>
       )}
 
       {!isActive && !gameState.winner && message && (
-        <div role="status" className="text-center text-sm font-semibold text-muted-foreground">
-          {message}
+        <div className="flex flex-col gap-2">
+          <div role="status" className="text-center text-sm font-semibold text-muted-foreground">
+            {message}
+          </div>
+          <div className="flex justify-center gap-2 pt-1">
+            <Button
+              size="sm"
+              onClick={onNewGame}
+              className="h-8 px-3 text-xs font-bold"
+              aria-label="Play again"
+            >
+              <RotateCcw className="mr-1 h-3 w-3" />
+              Play Again
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowExit(true)}
+              className="h-8 px-3 text-xs"
+              aria-label="Exit game"
+            >
+              <LogOut className="mr-1 h-3 w-3" />
+              Exit
+            </Button>
+          </div>
         </div>
       )}
 
       {!isActive && !gameState.winner && !message && gameState.moveCount > 0 && (
-        <div className="text-center text-sm font-semibold text-muted-foreground">
-          It's a draw.
+        <div className="flex flex-col gap-2">
+          <div className="text-center text-sm font-semibold text-muted-foreground">
+            It's a draw.
+          </div>
+          <div className="flex justify-center gap-2 pt-1">
+            <Button
+              size="sm"
+              onClick={onNewGame}
+              className="h-8 px-3 text-xs font-bold"
+              aria-label="Play again"
+            >
+              <RotateCcw className="mr-1 h-3 w-3" />
+              Play Again
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowExit(true)}
+              className="h-8 px-3 text-xs"
+              aria-label="Exit game"
+            >
+              <LogOut className="mr-1 h-3 w-3" />
+              Exit
+            </Button>
+          </div>
         </div>
       )}
 

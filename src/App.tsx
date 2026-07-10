@@ -12,7 +12,7 @@ import { PlayersPanel } from "@/components/game/playersPanel";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { usePeerRoom } from "@/hooks/usePeerRoom";
-import { Wifi, Loader2 } from "lucide-react";
+import { Wifi, Loader2, Copy, Check } from "lucide-react";
 
 type View = "login" | "game";
 
@@ -213,10 +213,10 @@ function OnlineGameSurface({
       />
       <div className="text-center text-xs text-muted-foreground">
         {peer.state.status === "waiting" && (
-          <span className="inline-flex items-center gap-1">
-            <Wifi className="h-3 w-3" />
-            Waiting for opponent to join room {peer.state.roomId}…
-          </span>
+          <RoomIdShare
+            roomId={peer.state.roomId}
+            origin={typeof window !== "undefined" ? window.location.origin : ""}
+          />
         )}
         {peer.state.status === "connecting" && (
           <span className="inline-flex items-center gap-1">
@@ -255,4 +255,61 @@ const OPPOSITE_COLOR: Record<Color, Color> = {
 
 function oppositeColor(color: Color): Color {
   return OPPOSITE_COLOR[color] ?? Color.GRAY;
+}
+
+function RoomIdShare({ roomId, origin }: { roomId: string; origin: string }) {
+  const [copied, setCopied] = useState(false);
+  const shareUrl = origin ? `${origin}/?room=${roomId}` : roomId;
+
+  const onCopy = async (text: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore clipboard errors
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span className="inline-flex items-center gap-1">
+        <Wifi className="h-3 w-3 animate-pulse-slow" />
+        Waiting for opponent
+      </span>
+      <div className="flex items-center gap-1 rounded-md border bg-background/80 px-2 py-1 font-mono text-sm font-semibold">
+        <span aria-label={`Room code ${roomId}`}>{roomId}</span>
+        <button
+          type="button"
+          aria-label="Copy room code"
+          onClick={() => onCopy(roomId)}
+          className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-emerald-500" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() => onCopy(shareUrl)}
+        className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      >
+        Copy invite link
+      </button>
+    </div>
+  );
 }
