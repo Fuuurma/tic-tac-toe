@@ -32,12 +32,15 @@ export interface LoginFormPayload {
   aiDifficulty: AI_DifficultyType;
   opponentName: string;
   onlineRoomId: string;
-  onlineAction: "create" | "join";
+  onlineAction: "create" | "join" | "quick";
 }
 
 interface LoginFormProps {
+  initialRoomId?: string;
   onStart: (payload: LoginFormPayload) => void;
 }
+
+const ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{4,64}$/;
 
 const validate = (payload: LoginFormPayload): string | null => {
   if (sanitizeDisplayName(payload.displayName) !== payload.displayName) {
@@ -47,21 +50,31 @@ const validate = (payload: LoginFormPayload): string | null => {
     return "Pick a color.";
   }
   if (payload.gameMode === GameModes.ONLINE) {
-    if (payload.onlineAction === "join" && !payload.onlineRoomId.trim()) {
-      return "Enter a room ID to join.";
+    if (payload.onlineAction === "join") {
+      const roomId = payload.onlineRoomId.trim();
+      if (!roomId) {
+        return "Enter a room ID to join.";
+      }
+      if (!ROOM_ID_PATTERN.test(roomId)) {
+        return "Room ID must be 4-64 letters, digits, hyphens, or underscores.";
+      }
     }
   }
   return null;
 };
 
-export function LoginForm({ onStart }: LoginFormProps) {
+export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
   const [displayName, setDisplayName] = useState<string>(generateGuestDisplayName());
   const [color, setColor] = useState<Color>(PLAYER_CONFIG[PlayerSymbol.X].defaultColor);
-  const [gameMode, setGameMode] = useState<GameMode>(GameModes.VS_COMPUTER);
+  const [gameMode, setGameMode] = useState<GameMode>(
+    initialRoomId ? GameModes.ONLINE : GameModes.VS_COMPUTER,
+  );
   const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(AI_Difficulty.EASY);
   const [opponentName, setOpponentName] = useState<string>("Player 2");
-  const [onlineRoomId, setOnlineRoomId] = useState<string>("");
-  const [onlineAction, setOnlineAction] = useState<"create" | "join">("create");
+  const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
+  const [onlineAction, setOnlineAction] = useState<"create" | "join" | "quick">(
+    initialRoomId ? "join" : "quick",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const payload: LoginFormPayload = useMemo(
@@ -177,7 +190,21 @@ export function LoginForm({ onStart }: LoginFormProps) {
 
           {gameMode === GameModes.ONLINE && (
             <div className="space-y-2 rounded-lg border bg-background/50 p-3">
-              <div className="grid grid-cols-2 gap-1 rounded-md border bg-muted/40 p-0.5">
+              <div className="grid grid-cols-3 gap-1 rounded-md border bg-muted/40 p-0.5">
+                <button
+                  type="button"
+                  aria-pressed={onlineAction === "quick"}
+                  onClick={() => setOnlineAction("quick")}
+                  className={cn(
+                    "flex items-center justify-center gap-1 rounded px-2 py-1.5 text-xs font-semibold transition",
+                    onlineAction === "quick"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  Quick
+                </button>
                 <button
                   type="button"
                   aria-pressed={onlineAction === "create"}
@@ -233,7 +260,11 @@ export function LoginForm({ onStart }: LoginFormProps) {
             {gameMode === GameModes.ONLINE ? (
               <>
                 <KeyRound className="h-5 w-5" />
-                {onlineAction === "create" ? "Create Room" : "Join Room"}
+                {onlineAction === "quick"
+                  ? "Quick Match"
+                  : onlineAction === "create"
+                    ? "Create Room"
+                    : "Join Room"}
               </>
             ) : isValid ? (
               <>
