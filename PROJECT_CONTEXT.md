@@ -1,28 +1,28 @@
 # TicTacToe - Project Context
 
-**Project Type:** Multi-platform Web/Mobile Game
-**Status:** Web demo deploy-ready; public URL smoke pending
-**Last Updated:** July 2, 2026
+**Project Type:** Static Web Game
+**Status:** Local production checks pass; public URL smoke pending
+**Last Updated:** July 10, 2026
 
 ---
 
 ## Project Overview
 
-High-performance TicTacToe implementation featuring a strategic 3-piece variant. Consolidated into a single Next.js + Capacitor codebase for seamless web and native mobile deployment.
+Tic Tac Toe implementation featuring a strategic three-piece variant. The
+active application is a Vite + React SPA with client-side AI and PeerJS P2P.
 
 ---
 
 ## Tech Stack
 
-### Unified Frontend
-- **Framework:** Next.js 16, React 19
-- **Mobile:** Capacitor 8+ (iOS/Android)
+### Frontend
+- **Framework:** Vite 5, React 19
 - **Styling:** Tailwind CSS 4+
 - **State Management:** Custom specialized hooks
 
-### Backend
-- **Real-time:** Socket.IO integrated via `server.js`
-- **Deployment:** Docker-backed Railway config with `/healthz` healthcheck
+### Realtime and deployment
+- **Real-time:** PeerJS data channels; host-authoritative game state
+- **Deployment:** Cloudflare Pages static output from `dist/`
 
 ---
 
@@ -30,7 +30,7 @@ High-performance TicTacToe implementation featuring a strategic 3-piece variant.
 
 - **3-Piece Strategic Variant**: Dynamic piece removal.
 - **Multiplayer**: Online and local VS modes.
-- **Server-authoritative timers**: Online matches use server ticks and timeout moves.
+- **Host-authoritative timers**: The room host applies and broadcasts timeouts.
 - **AI Opponents**: MCTS and Minimax difficulty levels.
 - **Minimal Auth**: Anonymous guest play with persistence.
 - **Real-time Stats**: Streak and win rate tracking.
@@ -42,21 +42,20 @@ High-performance TicTacToe implementation featuring a strategic 3-piece variant.
 ```bash
 pnpm dev              # Development
 pnpm build            # Production build
-pnpm start:prod       # Full server (Next + Socket.IO)
-pnpm cap:sync         # Mobile sync
+pnpm check            # Lint, unit tests, build, browser smoke
 ```
 
 ## Deploy Notes
 
-- `railway.json` uses the Dockerfile builder and `/healthz` for healthchecks.
-- The custom server must run as a long-lived Node process because online mode depends on Socket.IO WebSockets.
-- `NEXT_PUBLIC_SOCKET_URL` should stay unset when web and Socket.IO share the same origin.
-- Public demo is not complete until a deployed two-browser online match and rematch pass.
+- Cloudflare Pages build command: `pnpm build`; output: `dist`.
+- PeerJS Cloud is currently used for signaling.
+- Public demo is not complete until a deployed two-network online match and
+  rematch pass. Broad launch additionally requires a TURN/signaling plan.
 
 ---
 
 ## AI Agent Rules
 
-1. **Maintain Hook Separation**: Keep game logic in `app/hooks/game/`.
+1. **Maintain Hook Separation**: Keep game logic in `src/game/` and hooks in `src/hooks/`.
 2. **Mobile First**: Ensure all UI changes are touch-friendly and fit `100dvh`.
-3. **Pure Logic**: Keep `app/game/logic/` functions pure and synchronized with `server.js`.
+3. **Pure Logic**: Keep `src/game/` functions pure and independently tested.

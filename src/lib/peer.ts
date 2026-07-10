@@ -27,7 +27,7 @@ export const createHostPeer = (roomId: string): Peer =>
   new Peer(roomId, PEERJS_KEY ? { key: PEERJS_KEY } : undefined);
 
 export const createGuestPeer = (): Peer =>
-  new Peer("", PEERJS_KEY ? { key: PEERJS_KEY } : undefined);
+  PEERJS_KEY ? new Peer({ key: PEERJS_KEY }) : new Peer();
 
 export const sendMessage = (conn: DataConnection, message: PeerMessage): void => {
   if (conn.open) conn.send(message);

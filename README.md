@@ -9,8 +9,8 @@ standardized game stack.
   on 4th (draw-free).
 - **4 AI difficulties**: Easy (random), Normal (heuristic), Hard (minimax),
   Insane (MCTS).
-- **P2P multiplayer**: host a room or join with a code — no server needed,
-  powered by PeerJS data channels.
+- **P2P multiplayer**: host a room or join with a code, powered by PeerJS data
+  channels and PeerJS Cloud signaling.
 - **Guest play**: no sign-in required. Guest identity stored locally.
 
 ## Stack
@@ -18,7 +18,7 @@ standardized game stack.
 | Layer    | Technology                  |
 |----------|-----------------------------|
 | Shell    | Vite 5 + React 19 + TS     |
-| Styling  | Tailwind v4 + Radix UI      |
+| Styling  | Tailwind CSS v4             |
 | Realtime | PeerJS (P2P)                |
 | AI       | Minimax + MCTS              |
 | Deploy   | Cloudflare Pages (static)   |
@@ -45,13 +45,19 @@ pnpm test:e2e      # Playwright smoke (local preview)
 2. In the Cloudflare Dashboard → Pages → Create a project, connect the repo.
 3. Build settings: **Framework preset = None**, build command `pnpm build`,
    output directory `dist`.
-4. (Optional) Set env var `VITE_PEERJS_KEY` in the Pages project settings
-   for a registered PeerJS broker key (the public broker has rate limits).
-5. Deploy. Smoke the live URL:
+4. Deploy. Smoke the live URL:
 
 ```bash
 E2E_BASE_URL=https://<your-pages-url> pnpm test:e2e
 ```
+
+## Production caveat
+
+The current build uses the shared PeerJS Cloud service for signaling and the
+default STUN configuration. That is suitable for a demo, but not a complete
+reliability plan: some NAT and corporate-network combinations require a TURN
+relay, and higher-traffic apps should operate their own PeerServer. Treat a
+managed TURN/signaling setup plus a public two-network smoke as a launch gate.
 
 ## Project structure
 

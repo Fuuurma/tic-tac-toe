@@ -29,8 +29,8 @@ pnpm test:e2e
 # Playwright smoke (deployed: against the real URL)
 E2E_BASE_URL=https://<your-url> pnpm test:e2e
 
-# Cloudflare Pages deploy
-pnpm pages:deploy
+# Full local production gate
+pnpm check
 ```
 
 ## Project Structure
@@ -48,8 +48,8 @@ pnpm pages:deploy
 ## Stack
 
 - **Shell**: Vite 5 + React 19 + TypeScript + Tailwind v4
-- **Realtime**: PeerJS (P2P via data channels, no server)
-- **Backend**: None (first slice)
+- **Realtime**: PeerJS (P2P via data channels)
+- **Backend**: Shared `fuurma-matchmaking` Cloudflare Worker for quick match pairing (room creation/joining is still P2P)
 - **Auth**: None (guest-only)
 - **Deploy**: Cloudflare Pages (static, `dist/`)
 - **Testing**: Vitest (unit) + Playwright (smoke)
@@ -75,7 +75,7 @@ pnpm pages:deploy
 - Guest = player O, sends move intents to host
 - Host validates, applies, and broadcasts state to guest
 - Signaling via PeerJS public broker (or self-hosted)
-- VITE_PEERJS_KEY env var for production broker key
+- Production launch needs a deliberate PeerServer and TURN reliability plan
 
 ## Key Constants
 
