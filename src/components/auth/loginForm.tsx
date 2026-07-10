@@ -22,7 +22,7 @@ import { GameModeSelector } from "../game/gameModeSelector";
 import { AI_DifficultySelector } from "../game/aiDifficultySelector";
 import { Play, Shuffle, User, Users, KeyRound, Plus, LogIn, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateGuestDisplayName, sanitizeDisplayName } from "@/lib/identity";
+import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { COLOR_BG_CLASSES } from "@/game/constants";
 
 export interface LoginFormPayload {
@@ -64,7 +64,9 @@ const validate = (payload: LoginFormPayload): string | null => {
 };
 
 export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
-  const [displayName, setDisplayName] = useState<string>(generateGuestDisplayName());
+  const [displayName, setDisplayName] = useState<string>(
+    () => getOrCreateGuestIdentity().displayName,
+  );
   const [color, setColor] = useState<Color>(PLAYER_CONFIG[PlayerSymbol.X].defaultColor);
   const [gameMode, setGameMode] = useState<GameMode>(
     initialRoomId ? GameModes.ONLINE : GameModes.VS_COMPUTER,
