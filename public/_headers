@@ -1,0 +1,18 @@
+/*
+  Cloudflare Pages _headers
+  https://developers.cloudflare.com/pages/configuration/headers/
+
+  Vite emits hashed asset files under /assets/* — cache them aggressively.
+  index.html is never cached so deploys take effect immediately.
+*/
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()

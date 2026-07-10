@@ -1,0 +1,232 @@
+import { useEffect, useState } from "react";
+import {
+  Color,
+  GameModes,
+  PlayerSymbol,
+  type AI_Difficulty as AI_DifficultyType,
+} from "@/game/constants";
+import { canMakeMove } from "@/game/logic";
+import { LoginForm, type LoginFormPayload } from "@/components/auth/loginForm";
+import { Board } from "@/components/game/board";
+import { PlayersPanel } from "@/components/game/playersPanel";
+import { useLocalGame } from "@/hooks/useLocalGame";
+import { usePeerRoom } from "@/hooks/usePeerRoom";
+import { Wifi, Loader2 } from "lucide-react";
+
+type View = "login" | "game";
+
+interface GameConfig {
+  displayName: string;
+  color: Color;
+  gameMode: typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND | typeof GameModes.ONLINE;
+  aiDifficulty: AI_DifficultyType;
+  opponentName: string;
+  onlineRoomId: string;
+  onlineAction: "create" | "join";
+}
+
+export default function App() {
+  const [view, setView] = useState<View>("login");
+  const [config, setConfig] = useState<GameConfig | null>(null);
+
+  const handleStart = (payload: LoginFormPayload) => {
+    setConfig({
+      displayName: payload.displayName,
+      color: payload.color,
+      gameMode: payload.gameMode,
+      aiDifficulty: payload.aiDifficulty,
+      opponentName: payload.opponentName,
+      onlineRoomId: payload.onlineRoomId,
+      onlineAction: payload.onlineAction,
+    });
+    setView("game");
+  };
+
+  const handleExit = () => {
+    setView("login");
+    setConfig(null);
+  };
+
+  return (
+    <main className="flex h-dvh w-full items-center justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:p-4">
+      {view === "login" && <LoginForm onStart={handleStart} />}
+      {view === "game" && config && (
+        <GameView key={JSON.stringify(config)} config={config} onExit={handleExit} />
+      )}
+    </main>
+  );
+}
+
+function GameView({ config, onExit }: { config: GameConfig; onExit: () => void }) {
+  const isOnline = config.gameMode === GameModes.ONLINE;
+
+  if (!isOnline) {
+    return (
+      <LocalGameSurface
+        config={config}
+        onExit={onExit}
+      />
+    );
+  }
+  return <OnlineGameSurface config={config} onExit={onExit} />;
+}
+
+function LocalGameSurface({
+  config,
+  onExit,
+}: {
+  config: GameConfig;
+  onExit: () => void;
+}) {
+  const { gameState, handleCellClick, handleReset, exit } = useLocalGame({
+    gameMode: config.gameMode as typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND,
+    playerXName: config.displayName,
+    playerOName: config.opponentName,
+    playerColor: config.color,
+    opponentColor: oppositeColor(config.color),
+    aiDifficulty: config.aiDifficulty,
+  });
+
+  const previewPlayer = canMakeMove(
+    gameState.gameMode,
+    gameState.currentPlayer,
+    PlayerSymbol.X,
+  )
+    ? gameState.currentPlayer
+    : undefined;
+
+  return (
+    <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
+      <PlayersPanel
+        gameState={gameState}
+        message=""
+        onNewGame={handleReset}
+        onExit={() => {
+          exit();
+          onExit();
+        }}
+      />
+      <Board
+        board={gameState.board}
+        currentPlayer={gameState.currentPlayer}
+        winningCombination={gameState.winningCombination}
+        nextToRemove={gameState.nextToRemove}
+        previewPlayer={previewPlayer}
+        previewColor={config.color}
+        disabled={false}
+        onCellClick={handleCellClick}
+      />
+    </div>
+  );
+}
+
+function OnlineGameSurface({
+  config,
+  onExit,
+}: {
+  config: GameConfig;
+  onExit: () => void;
+}) {
+  const peer = usePeerRoom({
+    hostDisplayName: config.displayName,
+    hostColor: config.color,
+    gameMode: GameModes.ONLINE,
+  });
+
+  useEffect(() => {
+    if (config.onlineAction === "create") {
+      peer.startAsHost();
+    } else if (config.onlineRoomId) {
+      peer.joinAsGuest(config.onlineRoomId);
+    }
+    return () => {
+      peer.leave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const localSymbol: PlayerSymbol | null =
+    peer.state.role === "host"
+      ? PlayerSymbol.X
+      : peer.state.guestSymbol;
+
+  const previewPlayer: PlayerSymbol | undefined =
+    localSymbol !== null && peer.state.gameState.currentPlayer === localSymbol
+      ? peer.state.gameState.currentPlayer
+      : undefined;
+  const previewColor: Color | undefined =
+    localSymbol === PlayerSymbol.X
+      ? config.color
+      : peer.state.gameState.players[PlayerSymbol.O]?.color;
+
+  const message = onlineMessage(peer.state.status, peer.state.message, peer.state.roomId);
+
+  return (
+    <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
+      <PlayersPanel
+        gameState={peer.state.gameState}
+        message={message}
+        onNewGame={() => peer.requestRematch()}
+        onExit={() => {
+          peer.leave();
+          onExit();
+        }}
+      />
+      <Board
+        board={peer.state.gameState.board}
+        currentPlayer={peer.state.gameState.currentPlayer}
+        winningCombination={peer.state.gameState.winningCombination}
+        nextToRemove={peer.state.gameState.nextToRemove}
+        previewPlayer={previewPlayer}
+        previewColor={previewColor}
+        disabled={
+          peer.state.status !== "connected" ||
+          (localSymbol !== null && peer.state.gameState.currentPlayer !== localSymbol)
+        }
+        onCellClick={peer.sendMove}
+      />
+      <div className="text-center text-xs text-muted-foreground">
+        {peer.state.status === "waiting" && (
+          <span className="inline-flex items-center gap-1">
+            <Wifi className="h-3 w-3" />
+            Waiting for opponent to join room {peer.state.roomId}…
+          </span>
+        )}
+        {peer.state.status === "connecting" && (
+          <span className="inline-flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Connecting…
+          </span>
+        )}
+        {peer.state.status === "connected" && peer.state.guestDisplayName && (
+          <span>Opponent: {peer.state.guestDisplayName}</span>
+        )}
+        {peer.state.status === "error" && (
+          <span className="text-destructive">{peer.state.message}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function onlineMessage(status: string, fallback: string, _roomId: string): string {
+  if (status === "waiting") return "Waiting for opponent…";
+  if (status === "connecting") return "Connecting…";
+  if (status === "error") return fallback;
+  return "";
+}
+
+const OPPOSITE_COLOR: Record<Color, Color> = {
+  [Color.BLUE]: Color.RED,
+  [Color.GREEN]: Color.PURPLE,
+  [Color.YELLOW]: Color.ORANGE,
+  [Color.ORANGE]: Color.YELLOW,
+  [Color.RED]: Color.BLUE,
+  [Color.PINK]: Color.GREEN,
+  [Color.PURPLE]: Color.GREEN,
+  [Color.GRAY]: Color.GRAY,
+};
+
+function oppositeColor(color: Color): Color {
+  return OPPOSITE_COLOR[color] ?? Color.GRAY;
+}
