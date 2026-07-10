@@ -349,7 +349,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
               const state = stateRef.current;
               setState((prev) => ({
                 ...prev,
-                message: `${state.players[message.requesterSymbol].username} wants a rematch`,
+                message: `${state.players[message.requesterSymbol].username} wants a rematch — click Play Again to accept`,
               }));
             } else if (message.type === "error") {
               setState((prev) => ({ ...prev, message: message.message }));
