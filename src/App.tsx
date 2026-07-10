@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import {
   Color,
   GameModes,
+  GameStatus,
   PlayerSymbol,
   type AI_Difficulty as AI_DifficultyType,
 } from "@/game/constants";
@@ -102,9 +103,13 @@ function LocalGameSurface({
     aiDifficulty: config.aiDifficulty,
   });
   const { stats, recordWin, recordLoss, recordDraw } = useGameStats();
-  const recordedGameId = useRef<number>(0);
+  const recordedGameId = useRef<number>(-1);
 
   useEffect(() => {
+    // Reset the recorded-game marker when a fresh game starts.
+    if (gameState.gameStatus === GameStatus.ACTIVE && gameState.moveCount === 0) {
+      recordedGameId.current = -1;
+    }
     if (gameState.winner !== null) {
       if (gameState.moveCount === recordedGameId.current) return;
       recordedGameId.current = gameState.moveCount;
