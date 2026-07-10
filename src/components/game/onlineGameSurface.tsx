@@ -57,6 +57,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       <PlayersPanel
         gameState={peer.state.gameState}
         message={message}
+        canRematch={peer.state.status !== "disconnected"}
         onNewGame={() => peer.requestRematch()}
         onExit={() => {
           peer.leave();
