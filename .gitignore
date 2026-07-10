@@ -3,11 +3,6 @@ dist
 dist-ssr
 *.local
 .vite
-.next
-.env*
-!.env.example
 .DS_Store
 playwright-report
 test-results
-android
-ios

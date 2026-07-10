@@ -1,91 +1,83 @@
-# TicTacToe - Strategic 3-Piece Variant
+# Tic Tac Toe
 
-A high-performance, multi-platform TicTacToe game featuring a unique strategic twist: players are limited to 3 pieces on the board at any time. When a player places their 4th piece, their oldest one is automatically removed, creating a dynamic match that keeps moving until someone wins.
+A strategic 3-piece Tic Tac Toe with AI and P2P multiplayer, built on the
+standardized game stack.
 
-## Features
+## What is this
 
-- **3-Piece Rule**: Maximum 3 pieces per player; oldest piece is auto-removed on the 4th move.
-- **Multi-Platform**: Seamlessly deployed as a Web App (Next.js) and Native Mobile App (iOS/Android via Capacitor).
-- **Minimal Anonymous Auth**: Play instantly as a guest or with a simple username; no registration required.
-- **AI Opponent**: Multiple difficulty levels (Easy, Normal, Hard, Insane) powered by MCTS and Minimax.
-- **Real-time Statistics**: Detailed tracking of wins, losses, and win streaks (current and best).
-- **Online Multiplayer**: Real-time play via Socket.IO with rematch and room management.
-- **Turn Timer**: 10-second turns with automatic random moves on timeout.
-- **Modern UI**: Built with Tailwind CSS 4, Radix UI, and shadcn/ui with full dark mode support.
+- **3-piece strategic variant**: max 3 pieces per player; oldest auto-removed
+  on 4th (draw-free).
+- **4 AI difficulties**: Easy (random), Normal (heuristic), Hard (minimax),
+  Insane (MCTS).
+- **P2P multiplayer**: host a room or join with a code — no server needed,
+  powered by PeerJS data channels.
+- **Guest play**: no sign-in required. Guest identity stored locally.
 
-## Tech Stack
+## Stack
 
-- **Framework**: Next.js 16, React 19, TypeScript
-- **Mobile**: Capacitor 8+
-- **Styling**: Tailwind CSS 4+
-- **Real-time**: Socket.IO 4+
-- **Testing**: Vitest
-- **AI**: Monte Carlo Tree Search (MCTS) & Minimax
+| Layer    | Technology                  |
+|----------|-----------------------------|
+| Shell    | Vite 5 + React 19 + TS     |
+| Styling  | Tailwind v4 + Radix UI      |
+| Realtime | PeerJS (P2P)                |
+| AI       | Minimax + MCTS              |
+| Deploy   | Cloudflare Pages (static)   |
 
-## Installation
-
-### Prerequisites
-- Node.js 18+
-- pnpm
-
-### Setup
-1. `pnpm install`
-2. `pnpm dev`
-3. Open [http://localhost:3000](http://localhost:3000)
-
-## Development Commands
+## Quick start
 
 ```bash
-pnpm dev              # Start development server
-pnpm build            # Build for production
-pnpm start:prod       # Start production server with Socket.IO
-pnpm lint             # Run linting
-pnpm test:unit        # Run unit tests
-pnpm test:integration # Run Socket.IO integration tests
-pnpm test:e2e         # Run Playwright browser tests
-pnpm cap:sync         # Sync to mobile platforms
+pnpm install
+pnpm dev       # localhost:5173
+pnpm build     # type-check + build to dist/
+pnpm preview   # serve dist/ locally
 ```
 
-## Environment Variables
-
-- `NEXT_PUBLIC_SOCKET_URL`: optional Socket.IO server URL when the realtime server is hosted separately from the web app.
-- `SOCKET_CORS_ORIGIN`: optional comma-separated list of allowed Socket.IO origins, for example `https://example.com,https://www.example.com`. Defaults to `*`.
-- `LOG_LEVEL`: optional server log level: `silent`, `error`, `warn`, `info`, or `debug`.
-
-## Project Structure
-
-- `app/`: Next.js App Router and core logic.
-- `app/hooks/game/`: Specialized hooks for stats, timer, local, and socket logic.
-- `app/game/logic/`: Pure game rule implementations.
-- `app/game/ai/`: AI algorithms (MCTS, Minimax).
-- `components/`: Modular React components.
-- `server.js`: Custom Node.js server for Next.js + Socket.IO.
-
-## Deployment
-
-### Web & Backend (Railway)
-Deploy to Railway or another long-running Node host with WebSocket support. The Next.js app and Socket.IO server run on the same origin by default, so `NEXT_PUBLIC_SOCKET_URL` is only needed when the Socket.IO server is hosted separately.
-
-This repo includes:
-
-- `Dockerfile`: builds the Next.js app and starts the custom Socket.IO server.
-- `railway.json`: selects the Dockerfile builder and uses `/healthz` as the healthcheck path.
-- `/healthz`: lightweight deployment health endpoint.
-
-Suggested pre-deploy check:
+## Tests
 
 ```bash
-pnpm lint
-pnpm test:unit
-pnpm test:integration
-pnpm build
-pnpm test:e2e
+pnpm test          # Vitest unit tests
+pnpm test:e2e      # Playwright smoke (local preview)
 ```
 
-### Mobile (Capacitor)
-1. `pnpm build`
-2. `pnpm cap:sync`
-3. `pnpm cap:ios` or `pnpm cap:android`
+## Deploy to Cloudflare Pages
+
+1. Push `feat/game-stack-vite-peerjs` (or `main` after Pass 2) to GitHub.
+2. In the Cloudflare Dashboard → Pages → Create a project, connect the repo.
+3. Build settings: **Framework preset = None**, build command `pnpm build`,
+   output directory `dist`.
+4. (Optional) Set env var `VITE_PEERJS_KEY` in the Pages project settings
+   for a registered PeerJS broker key (the public broker has rate limits).
+5. Deploy. Smoke the live URL:
+
+```bash
+E2E_BASE_URL=https://<your-pages-url> pnpm test:e2e
+```
+
+## Project structure
+
+```
+src/
+  game/
+    constants.ts    — enums, rules, colors
+    logic.ts        — pure game state + move logic
+    ai.ts           — AI engine (minimax + MCTS)
+    *.test.ts       — unit tests
+  hooks/
+    usePeerRoom.ts  — P2P multiplayer hook
+    useLocalGame.ts — local AI / 2-player hook
+    useGameStats.ts — local stats (localStorage)
+  components/
+    auth/           — login form
+    game/           — board, players panel, selectors
+    ui/             — button, card
+  lib/
+    identity.ts     — guest identity (localStorage)
+    peer.ts         — PeerJS message protocol
+    utils.ts        — cn() helper
+e2e/
+  smoke.spec.ts     — Playwright smoke tests
+```
 
 ## License
-MIT
+
+Private.
