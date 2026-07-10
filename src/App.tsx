@@ -12,6 +12,7 @@ import { Board } from "@/components/game/board";
 import { PlayersPanel } from "@/components/game/playersPanel";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
+import { normalizeRoomId } from "@/lib/roomId";
 
 const OnlineGameSurface = lazy(() =>
   import("./components/game/onlineGameSurface").then((m) => ({ default: m.OnlineGameSurface })),
@@ -26,12 +27,16 @@ interface GameConfig {
   aiDifficulty: AI_DifficultyType;
   opponentName: string;
   onlineRoomId: string;
-  onlineAction: "create" | "join";
+  onlineAction: "create" | "join" | "quick";
 }
 
 export default function App() {
   const [view, setView] = useState<View>("login");
   const [config, setConfig] = useState<GameConfig | null>(null);
+  const [initialRoomId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return normalizeRoomId(new URLSearchParams(window.location.search).get("room"));
+  });
 
   const handleStart = (payload: LoginFormPayload) => {
     setConfig({
@@ -44,6 +49,9 @@ export default function App() {
       onlineAction: payload.onlineAction,
     });
     setView("game");
+    if (payload.onlineRoomId && typeof window !== "undefined") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   };
 
   const handleExit = () => {
@@ -53,7 +61,9 @@ export default function App() {
 
   return (
     <main className="flex h-dvh w-full items-center justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:p-4">
-      {view === "login" && <LoginForm onStart={handleStart} />}
+      {view === "login" && (
+        <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
+      )}
       {view === "game" && config && (
         <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
           <GameView key={JSON.stringify(config)} config={config} onExit={handleExit} />
@@ -81,6 +91,7 @@ function GameView({ config, onExit }: { config: GameConfig; onExit: () => void }
         color: config.color,
         gameMode: GameModes.ONLINE,
         onlineRoomId: config.onlineRoomId,
+        onlineAction: config.onlineAction,
       }}
       onExit={onExit}
     />
@@ -135,6 +146,7 @@ function LocalGameSurface({
       <PlayersPanel
         gameState={gameState}
         stats={stats}
+        gameMode={config.gameMode}
         message=""
         onNewGame={handleReset}
         onExit={() => {

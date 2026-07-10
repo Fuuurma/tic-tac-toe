@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TURN_DURATION_MS, GameModes } from "@/game/constants";
+import { TURN_DURATION_MS, GameMode, GameModes } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ interface PlayersPanelProps {
   gameState: GameState;
   message: string;
   stats?: GameStats;
+  gameMode?: GameMode;
   canRematch?: boolean;
   onNewGame: () => void;
   onExit: () => void;
@@ -44,6 +45,7 @@ export function PlayersPanel({
   gameState,
   message,
   stats,
+  gameMode,
   canRematch = true,
   onNewGame,
   onExit,
@@ -57,6 +59,8 @@ export function PlayersPanel({
   const progress = isActive
     ? Math.max(0, ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100)
     : 0;
+  const isOnline = gameMode === GameModes.ONLINE;
+  const exitLabel = isOnline ? "Leave game" : "Exit game";
 
   const activePlayer = gameState.players[gameState.currentPlayer];
   const isAITurn = activePlayer.type === "COMPUTER";
@@ -116,7 +120,7 @@ export function PlayersPanel({
               variant="ghost"
               size="sm"
               onClick={() => setShowExit(true)}
-              aria-label="Exit game"
+              aria-label={exitLabel}
               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive sm:h-8 sm:w-8"
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -160,6 +164,7 @@ export function PlayersPanel({
           }
           message={gameState.winner ? message : null}
           canRematch={canRematch}
+          exitLabel={exitLabel}
           onPlayAgain={onNewGame}
           onExit={() => setShowExit(true)}
         />
@@ -167,7 +172,7 @@ export function PlayersPanel({
 
       <Confirm
         isOpen={showExit}
-        title="Exit game"
+        title={exitLabel}
         description="Are you sure? Current progress will be lost."
         confirmText="Exit"
         destructive
@@ -196,6 +201,7 @@ interface GameEndActionsProps {
   headline: string | null;
   message: string | null;
   canRematch: boolean;
+  exitLabel: string;
   onPlayAgain: () => void;
   onExit: () => void;
 }
@@ -204,6 +210,7 @@ function GameEndActions({
   headline,
   message,
   canRematch,
+  exitLabel,
   onPlayAgain,
   onExit,
 }: GameEndActionsProps) {
@@ -238,7 +245,7 @@ function GameEndActions({
           size="sm"
           onClick={onExit}
           className="h-8 px-3 text-xs"
-          aria-label="Exit game"
+          aria-label={exitLabel}
         >
           <LogOut className="mr-1 h-3 w-3" />
           Exit

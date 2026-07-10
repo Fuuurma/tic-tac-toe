@@ -15,6 +15,7 @@ export interface OnlineGameSurfaceProps {
     color: Color;
     gameMode: typeof GameModes.ONLINE;
     onlineRoomId: string;
+    onlineAction: "create" | "join" | "quick";
   };
   onExit: () => void;
 }
@@ -27,7 +28,9 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   });
 
   useEffect(() => {
-    if (config.onlineRoomId) {
+    if (config.onlineAction === "quick") {
+      peer.startQuickMatch();
+    } else if (config.onlineRoomId) {
       peer.joinAsGuest(config.onlineRoomId);
     } else {
       peer.startAsHost();
@@ -57,6 +60,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       <PlayersPanel
         gameState={peer.state.gameState}
         message={message}
+        gameMode={GameModes.ONLINE}
         canRematch={peer.state.status !== "disconnected"}
         onNewGame={() => peer.requestRematch()}
         onExit={() => {
@@ -89,6 +93,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             origin={typeof window !== "undefined" ? window.location.origin : ""}
           />
         )}
+        {peer.state.status === "creating" && (
+          <span className="inline-flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {onlineMessage(peer.state.status, peer.state.message)}
+          </span>
+        )}
         {peer.state.status === "connecting" && (
           <span className="inline-flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -107,6 +117,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 }
 
 function onlineMessage(status: string, fallback: string): string {
+  if (status === "creating") return "Finding match…";
   if (status === "waiting") return "Waiting for opponent…";
   if (status === "connecting") return "Connecting…";
   if (status === "error") return fallback;
