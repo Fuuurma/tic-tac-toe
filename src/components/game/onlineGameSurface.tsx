@@ -6,6 +6,7 @@ import {
 } from "@/game/constants";
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
+import { Button } from "@/components/ui/button";
 import { usePeerRoom } from "@/hooks/usePeerRoom";
 import { Check, Copy, Loader2, Wifi } from "lucide-react";
 
@@ -109,7 +110,21 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           <span>Opponent: {peer.state.guestDisplayName}</span>
         )}
         {peer.state.status === "error" && (
-          <span className="text-destructive">{peer.state.message}</span>
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-destructive">{peer.state.message}</span>
+            {config.onlineAction === "quick" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void peer.startQuickMatch();
+                }}
+                className="h-7 px-3 text-xs"
+              >
+                Try Again
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>
