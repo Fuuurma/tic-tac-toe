@@ -221,7 +221,10 @@ function GameEndActions({
   return (
     <div className="flex flex-col gap-2 text-center">
       {headline && (
-        <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+        <div
+          role="status"
+          className="text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+        >
           {headline}
         </div>
       )}
