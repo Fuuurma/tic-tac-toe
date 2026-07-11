@@ -85,6 +85,15 @@ test("starts a vs Friend game and the turn alternates", async ({ page }) => {
   // Bob plays top-right; the panel should now show Alice's turn again.
   await clickCell(page, 1, 3);
   await expect(page.getByRole("gridcell", { name: /Row 1 column 3/ })).toContainText("O");
+
+  // Bob (O) should be styled with the opposite color (red), Alice
+  // (X) with blue. Guards the same valueColor wiring as the AI test.
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 3/ }).locator("span"),
+  ).toHaveClass(/text-red-500/);
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 1/ }).locator("span"),
+  ).toHaveClass(/text-blue-500/);
 });
 
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
