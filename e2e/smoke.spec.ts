@@ -96,6 +96,45 @@ test("starts a vs Friend game and the turn alternates", async ({ page }) => {
   ).toHaveClass(/text-blue-500/);
 });
 
+test("marks the oldest X piece as 'next to be removed' after the 3rd move", async ({ page }) => {
+  await fillLogin(page, {
+    name: "Alice",
+    color: "blue",
+    mode: "vs Friend",
+    opponentName: "Bob",
+  });
+  await page.getByRole("button", { name: "Start Game" }).click();
+  await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+
+  // After 2 X moves (and 2 O moves to keep the turn), no piece is
+  // marked yet — the 3-piece cap only flags a piece once the player
+  // is at the cap and about to exceed it.
+  await clickCell(page, 1, 1);
+  await clickCell(page, 1, 2);
+  await clickCell(page, 1, 3);
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 1/ }),
+  ).not.toHaveAttribute("aria-label", /next to be removed/);
+
+  // Play O's third move too, then X's third X — at the moment the
+  // X move lands, X is at 3 pieces and the oldest (Row 1 column 1)
+  // is flagged as the next piece to be removed on the 4th X.
+  await clickCell(page, 2, 1);
+  await clickCell(page, 2, 2);
+  await clickCell(page, 2, 3);
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 1/ }),
+  ).toHaveAttribute("aria-label", /next to be removed/);
+
+  // The other two X pieces (Row 1 col 2, col 3) are not flagged.
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 2/ }),
+  ).not.toHaveAttribute("aria-label", /next to be removed/);
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 3/ }),
+  ).not.toHaveAttribute("aria-label", /next to be removed/);
+});
+
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
