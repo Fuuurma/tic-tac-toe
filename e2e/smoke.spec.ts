@@ -58,7 +58,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await expect(oCell).toBeVisible({ timeout: 5_000 });
 });
 
-test("starts a vs Friend game", async ({ page }) => {
+test("starts a vs Friend game and the turn alternates", async ({ page }) => {
   await fillLogin(page, {
     name: "Alice",
     color: "blue",
@@ -67,6 +67,15 @@ test("starts a vs Friend game", async ({ page }) => {
   });
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+
+  // X (Alice) plays top-left; the panel should now show it's Bob's turn.
+  await clickCell(page, 1, 1);
+  await expect(page.getByRole("gridcell", { name: /Row 1 column 1/ })).toContainText("X");
+  await expect(page.getByText(/Bob.*turn|Alice.*turn/).first()).toBeVisible();
+
+  // Bob plays top-right; the panel should now show Alice's turn again.
+  await clickCell(page, 1, 3);
+  await expect(page.getByRole("gridcell", { name: /Row 1 column 3/ })).toContainText("O");
 });
 
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
