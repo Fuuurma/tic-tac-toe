@@ -5,6 +5,7 @@ import {
   Color,
   GameModes,
   GameStatus,
+  PlayerTypes,
   TURN_DURATION_MS,
 } from "@/game/constants";
 import {
