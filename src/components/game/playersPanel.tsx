@@ -5,7 +5,7 @@ import type { GameStats } from "@/hooks/useGameStats";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
 import { cn } from "@/lib/utils";
-import { LogOut, RotateCcw } from "lucide-react";
+import { LogOut, Loader2, RotateCcw } from "lucide-react";
 
 interface PlayersPanelProps {
   gameState: GameState;
@@ -102,6 +102,9 @@ export function PlayersPanel({
                 getTimerColor(seconds),
               )}
             >
+              {isAITurn && (
+                <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+              )}
               {message || activeLabel}
             </div>
           )}
