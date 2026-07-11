@@ -409,6 +409,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (response.status === "waiting") {
         matchmakingTicketRef.current = response.ticket;
         startAsHost(response.roomId);
+        // Once we've been paired into a room and are now hosting,
+        // the matchmaking ticket is no longer needed. Releasing it
+        // immediately (rather than waiting for leave()) avoids a
+        // ticket leak when the match progresses to an active game
+        // but the user keeps playing.
+        leaveMatch("tictactoe", response.ticket).catch(() => {});
+        matchmakingTicketRef.current = null;
         return;
       }
 
