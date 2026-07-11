@@ -87,14 +87,9 @@ export function useGameStats() {
         draws: prev.draws + 1,
       };
       writeStats(guestId, next);
-      return next;
-    });
-  }, [guestId]);
+       return next;
+     });
+   }, [guestId]);
 
-  const refresh = useCallback(() => {
-    if (!guestId) return;
-    setStats(readStats(guestId));
-  }, [guestId]);
-
-  return { stats, recordWin, recordLoss, recordDraw, refresh };
+  return { stats, recordWin, recordLoss, recordDraw };
 }
