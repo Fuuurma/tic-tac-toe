@@ -56,6 +56,15 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   // human's turn anymore.
   const oCell = page.getByRole("gridcell", { name: /, occupied by O/ });
   await expect(oCell).toBeVisible({ timeout: 5_000 });
+
+  // The O cell should be styled with the AI's color (red, since
+  // the human picked blue and the AI is the opposite). This guards
+  // the valueColor wiring through Board -> BoardCell.
+  await expect(oCell.locator("span")).toHaveClass(/text-red-500/);
+  // The X cell should keep the human's color (blue).
+  await expect(
+    page.getByRole("gridcell", { name: /Row 1 column 1/ }).locator("span"),
+  ).toHaveClass(/text-blue-500/);
 });
 
 test("starts a vs Friend game and the turn alternates", async ({ page }) => {
