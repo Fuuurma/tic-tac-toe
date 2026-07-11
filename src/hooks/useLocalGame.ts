@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AI_Difficulty,
+  AI_MOVE_DELAY_MS,
   Color,
   GameModes,
   GameStatus,
-  PlayerTypes,
   TURN_DURATION_MS,
 } from "@/game/constants";
 import {
@@ -130,7 +130,7 @@ export function useLocalGame(input: LocalGameInput) {
           if (!next) return prev;
           return { ...next, turnTimeRemaining: TURN_DURATION_MS };
         });
-      }, 600);
+      }, AI_MOVE_DELAY_MS);
     }
     return () => {
       if (aiTimeoutRef.current !== null) {
