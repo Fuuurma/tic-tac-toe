@@ -88,6 +88,10 @@ export function useLocalGame(input: LocalGameInput) {
   );
 
   const handleReset = useCallback(() => {
+    if (aiTimeoutRef.current !== null) {
+      window.clearTimeout(aiTimeoutRef.current);
+      aiTimeoutRef.current = null;
+    }
     setGameState(
       createInitialGameState({
         gameMode: input.gameMode,
@@ -101,6 +105,10 @@ export function useLocalGame(input: LocalGameInput) {
   }, [input]);
 
   const exit = useCallback(() => {
+    if (aiTimeoutRef.current !== null) {
+      window.clearTimeout(aiTimeoutRef.current);
+      aiTimeoutRef.current = null;
+    }
     setGameState(freshGameState());
   }, []);
 
