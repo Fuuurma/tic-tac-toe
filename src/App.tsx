@@ -4,6 +4,7 @@ import {
   GameModes,
   GameStatus,
   PlayerSymbol,
+  PlayerTypes,
   type AI_Difficulty as AI_DifficultyType,
 } from "@/game/constants";
 import { canMakeMove } from "@/game/logic";
@@ -141,6 +142,10 @@ function LocalGameSurface({
     ? gameState.currentPlayer
     : undefined;
 
+  const isAITurn =
+    gameState.gameStatus === GameStatus.ACTIVE &&
+    gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
+
   return (
     <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
       <PlayersPanel
@@ -165,7 +170,7 @@ function LocalGameSurface({
         nextToRemove={gameState.nextToRemove}
         previewPlayer={previewPlayer}
         previewColor={config.color}
-        disabled={false}
+        disabled={isAITurn}
         onCellClick={handleCellClick}
       />
     </div>
