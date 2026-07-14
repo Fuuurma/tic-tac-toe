@@ -213,38 +213,6 @@ export const makeMove = (
   };
 };
 
-export const findWinningMove = (
-  board: Board,
-  symbol: PlayerSymbol,
-): number | null => {
-  for (const combo of WINNING_COMBINATIONS) {
-    const [a, b, c] = combo;
-    const cells = [board[a], board[b], board[c]];
-    const mine = cells.filter((cell) => cell === symbol).length;
-    const empty = cells.filter((cell) => cell === null).length;
-    if (mine === 2 && empty === 1) {
-      const emptyIndex = combo.find((i) => board[i] === null);
-      if (emptyIndex !== undefined) return emptyIndex;
-    }
-  }
-  return null;
-};
-
-export const getWinningMove = (board: Board, symbol: PlayerSymbol): number | null => {
-  const win = findWinningMove(board, symbol);
-  if (win !== null) return win;
-  const opponent = symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
-  const block = findWinningMove(board, opponent);
-  if (block !== null) return block;
-  const center = 4;
-  if (board[center] === null) return center;
-  const corners = [0, 2, 6, 8].filter((i) => board[i] === null);
-  if (corners.length > 0) {
-    return corners[Math.floor(Math.random() * corners.length)];
-  }
-  return getValidMoves(board)[0] ?? null;
-};
-
 export const makeRandomMove = (board: Board): number | null => {
   const valid = getValidMoves(board);
   if (valid.length === 0) return null;
@@ -262,5 +230,3 @@ export const resolveOpponentColor = (
   }
   return opponentColor;
 };
-
-export const TURN_DURATION_MS_VALUE = TURN_DURATION_MS;
