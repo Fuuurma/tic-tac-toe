@@ -106,6 +106,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             Connecting…
           </span>
         )}
+        {peer.state.status === "reconnecting" && (
+          <span className="inline-flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {peer.state.message || "Reconnecting…"}
+          </span>
+        )}
         {peer.state.status === "connected" && peer.state.guestDisplayName && (
           <span>Opponent: {peer.state.guestDisplayName}</span>
         )}
@@ -135,6 +141,7 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
   if (status === "creating") return "Finding match…";
   if (status === "waiting") return "Waiting for opponent…";
   if (status === "connecting") return "Connecting…";
+  if (status === "reconnecting") return fallback || "Reconnecting…";
   if (status === "error") return fallback;
   return fallback;
 }

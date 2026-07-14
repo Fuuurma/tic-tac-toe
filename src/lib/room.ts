@@ -238,15 +238,16 @@ export class RoomClient {
             for (const r of this.welcomeResolvers) r(session);
             this.welcomeResolvers = [];
             this.welcomeRejecters = [];
+            // Also notify the message handler so the hook can process
+            // the welcome (set role, status, etc).
+            this.messageHandler?.(parsed);
           } else {
             // No pending connect — emit a synthetic welcome so the hook
-            // knows we reconnected.
-            this.messageHandler?.({
-              type: "welcome",
-              role: session.role,
-              opponent: session.opponent,
-            } satisfies RoomEnvelope);
+            // knows we reconnected. We emit the parsed welcome directly
+            // (not a synthetic copy) to avoid double-dispatch.
+            this.messageHandler?.(parsed);
           }
+          return;
         }
         this.messageHandler?.(parsed);
       });

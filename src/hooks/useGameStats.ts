@@ -85,6 +85,7 @@ export function useGameStats() {
         ...prev,
         totalGames: prev.totalGames + 1,
         draws: prev.draws + 1,
+        currentWinStreak: 0,
       };
       writeStats(guestId, next);
       return next;
