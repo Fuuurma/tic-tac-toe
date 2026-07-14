@@ -1,4 +1,3 @@
-import Peer, { type DataConnection } from "peerjs";
 import { Color, PlayerSymbol } from "@/game/constants";
 import { isValidMove, makeMove, type GameState } from "@/game/logic";
 
@@ -14,23 +13,11 @@ export type PeerMessage =
   | { type: "leave" }
   | { type: "error"; message: string };
 
-export const PEERJS_KEY = import.meta.env.VITE_PEERJS_KEY as string | undefined;
-
 export const generateRoomId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID().slice(0, 8);
   }
   return Math.random().toString(36).slice(2, 10);
-};
-
-export const createHostPeer = (roomId: string): Peer =>
-  new Peer(roomId, PEERJS_KEY ? { key: PEERJS_KEY } : undefined);
-
-export const createGuestPeer = (): Peer =>
-  PEERJS_KEY ? new Peer({ key: PEERJS_KEY }) : new Peer();
-
-export const sendMessage = (conn: DataConnection, message: PeerMessage): void => {
-  if (conn.open) conn.send(message);
 };
 
 export const applyAuthorizedMove = (

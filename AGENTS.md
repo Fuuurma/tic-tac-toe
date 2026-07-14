@@ -67,7 +67,7 @@ pnpm check
   - `src/game/` — pure game domain (rules, AI, constants)
   - `src/hooks/` — React hooks (usePeerRoom, useLocalGame, useGameStats)
   - `src/components/` — UI (board, login, panels, selectors, confirm dialog)
-  - `src/lib/` — utilities (identity helper, WebSocket/PeerJS protocol, cn())
+  - `src/lib/` — utilities (identity helper, WebSocket protocol, cn())
   - `src/types.ts` — (currently in logic.ts and constants.ts)
 - `e2e/` — Playwright smoke tests
 - `public/` — static assets and `_headers` (CF Pages)
@@ -76,7 +76,7 @@ pnpm check
 ## Stack
 
 - **Shell**: Vite 5 + React 19 + TypeScript + Tailwind v4
-- **Realtime**: Cloudflare Durable Object WebSocket relay inside the shared `fuurma-matchmaking` Worker (default `VITE_USE_WS_ROOM=true`; PeerJS fallback still present)
+- **Realtime**: Cloudflare Durable Object WebSocket relay inside the shared `fuurma-matchmaking` Worker (PeerJS fallback removed; `VITE_USE_WS_ROOM` remains in `.env.production` as a one-week rollback flag)
 - **Backend**: Shared `fuurma-matchmaking` Cloudflare Worker for quick match pairing and `GameRoomDO` WebSocket relay
 - **Auth**: None (guest-only)
 - **Deploy**: Cloudflare Pages (static, `dist/`)
@@ -89,7 +89,7 @@ pnpm check
 - Use `cn()` from `@/lib/utils` for className merging
 - Use `useCallback`/`useMemo` for event handlers and expensive computations
 - Pure game logic in `src/game/` must not import React
-- Network message types are a discriminated union in `src/lib/peer.ts` (used by WebSocket and PeerJS transports)
+- Network message types are a discriminated union in `src/lib/peer.ts` (used by the WebSocket relay)
 
 ## Game Rules
 
@@ -97,13 +97,14 @@ pnpm check
 - 10s turn timer; on timeout, random legal move
 - Win detection: 3 in a row/column/diagonal
 
-## Online multiplayer
+## WebSocket Relay Model
 
-- Default transport is the shared `fuurma-matchmaking` Cloudflare Durable Object WebSocket relay (`VITE_USE_WS_ROOM=true` in `.env.production`)
+- Default transport is the shared `fuurma-matchmaking` Cloudflare Durable Object WebSocket relay
+- `VITE_USE_WS_ROOM=true` is still set in `.env.production` as a one-week rollback flag, but the code always uses WebSocket
 - Room creator = host = player X, owns game state and timer
 - Guest = player O, sends move intents to host
 - Host validates, applies, and broadcasts state to guest
-- PeerJS fallback is still present but scheduled for removal after one week green
+- PeerJS fallback removed
 
 ## Key Constants
 

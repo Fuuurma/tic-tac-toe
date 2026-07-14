@@ -12,7 +12,7 @@
   Cache-Control: no-cache, no-store, must-revalidate
 
 /*
-  Content-Security-Policy: default-src 'self'; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com https://fuurma-matchmaking.sergiformatjer1999.workers.dev wss://fuurma-matchmaking.sergiformatjer1999.workers.dev https://*.workers.dev wss://*.workers.dev; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://fuurma-matchmaking.sergiformatjer1999.workers.dev wss://fuurma-matchmaking.sergiformatjer1999.workers.dev https://*.workers.dev wss://*.workers.dev; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY

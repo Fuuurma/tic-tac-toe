@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import Peer, { type DataConnection } from "peerjs";
 import {
   AVAILABLE_COLORS,
   Color,
@@ -17,14 +16,7 @@ import {
   makeRandomMove,
 } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import {
-  applyAuthorizedMove,
-  createGuestPeer,
-  createHostPeer,
-  generateRoomId,
-  isPeerMessage,
-  sendMessage,
-} from "@/lib/peer";
+import { applyAuthorizedMove, generateRoomId, isPeerMessage } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import {
@@ -39,20 +31,12 @@ import { RoomClient } from "@/lib/room";
 /**
  * Online play hook for tic-tac-toe.
  *
- * Two transports:
- *  - PeerJS P2P (legacy, default)
- *  - Cloudflare Durable Object WebSocket relay (opt-in via VITE_USE_WS_ROOM)
- *
- * Rollout: tic-tac-toe goes first per migration spec. Both transports
- * preserve the same public hook API so the consuming surface
- * (`OnlineGameSurface`) doesn't branch.
+ * Transport: Cloudflare Durable Object WebSocket relay inside the shared
+ * `fuurma-matchmaking` Worker. The hook preserves the same public API so the
+ * consuming surface (`OnlineGameSurface`) doesn't need to branch.
  *
  * Spec: newProjectsPlanner/migrations/2026-07-games-do-websocket-migration.md
  */
-
-const USE_WS_ROOM: boolean =
-  import.meta.env.VITE_USE_WS_ROOM === true ||
-  import.meta.env.VITE_USE_WS_ROOM === "true";
 
 export type PeerRole = "host" | "guest" | null;
 
@@ -104,8 +88,6 @@ export interface PeerRoomOptions {
 
 export function usePeerRoom(options: PeerRoomOptions) {
   const [state, setState] = useState<PeerRoomState>(initialState);
-  const peerRef = useRef<Peer | null>(null);
-  const connRef = useRef<DataConnection | null>(null);
   const roomRef = useRef<RoomClient | null>(null);
   const stateRef = useRef<GameState>(initialState.gameState);
   const roleRef = useRef<PeerRole>(null);
@@ -128,12 +110,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, []);
 
   const broadcastGameState = useCallback((gameState: GameState) => {
-    if (USE_WS_ROOM) {
-      roomRef.current?.send({ type: "gameUpdate", gameState });
-    } else {
-      const conn = connRef.current;
-      if (conn?.open) sendMessage(conn, { type: "gameUpdate", gameState });
-    }
+    roomRef.current?.send({ type: "gameUpdate", gameState });
   }, []);
 
   const commitHostState = useCallback(
@@ -180,12 +157,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       const next = applyAuthorizedMove(current, index, actor);
       if (!next) {
         if (actor === PlayerSymbol.O) {
-          if (USE_WS_ROOM) {
-            roomRef.current?.send({ type: "error", message: "Invalid move" });
-          } else {
-            const conn = connRef.current;
-            if (conn?.open) sendMessage(conn, { type: "error", message: "Invalid move" });
-          }
+          roomRef.current?.send({ type: "error", message: "Invalid move" });
         }
         return;
       }
@@ -220,16 +192,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
           },
         };
         stateRef.current = updated;
-        if (USE_WS_ROOM) {
-          roomRef.current?.send({ type: "joined", symbol: guestSymbol, color: guestColor, gameState: updated });
-          roomRef.current?.send({ type: "gameStart", gameState: updated });
-        } else {
-          const conn = connRef.current;
-          if (conn?.open) {
-            sendMessage(conn, { type: "joined", symbol: guestSymbol, color: guestColor, gameState: updated });
-            sendMessage(conn, { type: "gameStart", gameState: updated });
-          }
-        }
+        roomRef.current?.send({ type: "joined", symbol: guestSymbol, color: guestColor, gameState: updated });
+        roomRef.current?.send({ type: "gameStart", gameState: updated });
         setState((prev) => ({
           ...prev,
           status: "connected",
@@ -463,19 +427,19 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [handleGuestData, handleHostData, handleWsEvent, options.hostDisplayName]);
 
   const startAsHost = useCallback(
-      (providedRoomId?: string, wsUrl?: string) => {
-        stopTimer();
-        const roomId = providedRoomId ?? generateRoomId();
-        const waitingGame = createInitialGameState({
+    (providedRoomId?: string, wsUrl?: string) => {
+      stopTimer();
+      const roomId = providedRoomId ?? generateRoomId();
+      const waitingGame = createInitialGameState({
         gameMode: GameModes.ONLINE,
         playerXName: sanitizeDisplayName(options.hostDisplayName, "Host"),
         playerOName: "Waiting for opponent",
         playerColor: options.hostColor,
         opponentColor: chooseGuestColor(Color.BLUE, options.hostColor),
-    });
-        waitingGame.gameStatus = GameStatus.WAITING;
-        stateRef.current = waitingGame;
-        update({
+      });
+      waitingGame.gameStatus = GameStatus.WAITING;
+      stateRef.current = waitingGame;
+      update({
         role: "host",
         status: "creating",
         roomId,
@@ -483,62 +447,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
         guestSymbol: PlayerSymbol.O,
         gameState: waitingGame,
         message: "",
-    });
+      });
 
-      if (USE_WS_ROOM) {
-        const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, "tictactoe");
-        const room = buildRoomClient(resolvedUrl, "host");
-        room.connect().catch((err) => {
-          update({ status: "error", message: `Room connect failed: ${err.message}` });
-        });
-        return;
-      }
-
-      const peer = createHostPeer(roomId);
-      peerRef.current = peer;
-      peer.on("open", () => {
-        update({ status: "waiting", message: `Room ${roomId} — waiting for opponent` });
-    });
-      peer.on("connection", (conn) => {
-        if (connRef.current?.open) {
-          conn.on("open", () => {
-            sendMessage(conn, { type: "error", message: "Room is full" });
-            conn.close();
-        });
-          return;
-        }
-        connRef.current = conn;
-        conn.on("open", () => {
-          update({ status: "connecting" });
+      const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, "tictactoe");
+      const room = buildRoomClient(resolvedUrl, "host");
+      room.connect().catch((err) => {
+        update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
       });
-        conn.on("data", (raw) => {
-          if (isPeerMessage(raw)) handleHostData(raw);
-      });
-        conn.on("close", () => {
-          stopTimer();
-          const current = stateRef.current;
-          const gameState = current.winner
-            ? current
-            : { ...current, winner: PlayerSymbol.X, gameStatus: GameStatus.COMPLETED };
-          stateRef.current = gameState;
-          setState((prev) => ({
-            ...prev,
-            status: "disconnected",
-            gameState,
-            message: "Opponent disconnected",
-          }));
-      });
-        conn.on("error", (err) => {
-          update({ status: "error", message: `Connection error: ${(err as Error).message}` });
-      });
-    });
-      peer.on("error", (err) => {
-        update({
-          status: "error",
-          message: `Peer error (${err.type}): ${(err as Error).message}`,
-      });
-    });
-  }, [buildRoomClient, handleHostData, options.hostColor, options.hostDisplayName, stopTimer, update]);
+    },
+    [buildRoomClient, options.hostColor, options.hostDisplayName, stopTimer, update],
+  );
 
   const joinAsGuest = useCallback(
     (roomId: string, wsUrl?: string) => {
@@ -550,69 +468,23 @@ export function usePeerRoom(options: PeerRoomOptions) {
       }
       update({ role: "guest", status: "connecting", roomId: trimmed, message: "Connecting..." });
 
-      if (USE_WS_ROOM) {
-        const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, "tictactoe");
-        const room = buildRoomClient(resolvedUrl, "guest");
-        room.connect()
-          .then(() => {
-            // After welcome, send the join message so the host can build state.
-            room.send({
-              type: "join",
-              displayName: options.hostDisplayName,
-              guestId: getOrCreateGuestIdentity().guestId,
-              preferredColor: options.hostColor,
-            });
-          })
-          .catch((err) => {
-            update({ status: "error", message: `Room connect failed: ${err.message}` });
-          });
-        return;
-      }
-
-      const peer = createGuestPeer();
-      peerRef.current = peer;
-      peer.on("open", () => {
-        const conn = peer.connect(trimmed, { reliable: true });
-        connRef.current = conn;
-        conn.on("open", () => {
-          sendMessage(conn, {
+      const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, "tictactoe");
+      const room = buildRoomClient(resolvedUrl, "guest");
+      room.connect()
+        .then(() => {
+          // After welcome, send the join message so the host can build state.
+          room.send({
             type: "join",
             displayName: options.hostDisplayName,
-            guestId: "guest",
+            guestId: getOrCreateGuestIdentity().guestId,
             preferredColor: options.hostColor,
           });
+        })
+        .catch((err) => {
+          update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
         });
-        conn.on("data", (raw) => {
-          if (isPeerMessage(raw)) handleGuestData(raw);
-        });
-        conn.on("close", () => {
-          stopTimer();
-          const current = stateRef.current;
-          // Guest wins by forfeit when the host disconnects (unless the
-          // game already had a winner).
-          const gameState = current.winner
-            ? current
-            : { ...current, winner: PlayerSymbol.O, gameStatus: GameStatus.COMPLETED };
-          stateRef.current = gameState;
-          setState((prev) => ({
-            ...prev,
-            status: "disconnected",
-            gameState,
-            message: "Host disconnected",
-          }));
-        });
-        conn.on("error", (err) => {
-          update({ status: "error", message: `Connection error: ${(err as Error).message}` });
-        });
-      });
-      peer.on("error", (err) => {
-        update({
-          status: "error",
-          message: `Peer error (${err.type}): ${(err as Error).message}`,
-        });
-      });
     },
-    [buildRoomClient, handleGuestData, options.hostColor, options.hostDisplayName, stopTimer, update],
+    [buildRoomClient, options.hostColor, options.hostDisplayName, stopTimer, update],
   );
 
   const startQuickMatch = useCallback(async () => {
@@ -632,7 +504,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
       if (response.status === "waiting") {
         matchmakingTicketRef.current = response.ticket;
-        const wsUrl = USE_WS_ROOM ? buildRoomWsUrl(response.roomId, "tictactoe") : undefined;
+        const wsUrl = buildRoomWsUrl(response.roomId, "tictactoe");
         startAsHost(response.roomId, wsUrl);
 
         // Poll the matchmaking service until the guest is paired.
@@ -674,57 +546,29 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       if (state.role === "guest") {
-        if (USE_WS_ROOM) {
-          roomRef.current?.send({ type: "move", index });
-        } else {
-          const conn = connRef.current;
-          if (conn?.open) sendMessage(conn, { type: "move", index });
-        }
+        roomRef.current?.send({ type: "move", index });
       }
     },
     [applyHostMove, state.role],
   );
 
   const requestRematch = useCallback(() => {
-    if (USE_WS_ROOM) {
-      if (state.role === "guest") {
-        roomRef.current?.send({ type: "rematchAccept" });
-      } else if (state.role === "host") {
-        roomRef.current?.send({ type: "rematchRequested", requesterSymbol: PlayerSymbol.X });
-      }
-      return;
-    }
-    const conn = connRef.current;
-    if (state.role === "guest" && conn?.open) {
-      sendMessage(conn, { type: "rematchAccept" });
-    } else if (state.role === "host" && conn?.open) {
-      sendMessage(conn, { type: "rematchRequested", requesterSymbol: PlayerSymbol.X });
+    if (state.role === "guest") {
+      roomRef.current?.send({ type: "rematchAccept" });
+    } else if (state.role === "host") {
+      roomRef.current?.send({ type: "rematchRequested", requesterSymbol: PlayerSymbol.X });
     }
   }, [state.role]);
 
   const declineRematch = useCallback(() => {
-    if (USE_WS_ROOM) {
-      if (state.role === "guest") {
-        roomRef.current?.send({ type: "rematchDecline" });
-      }
-      return;
-    }
-    const conn = connRef.current;
-    if (state.role === "guest" && conn?.open) {
-      sendMessage(conn, { type: "rematchDecline" });
+    if (state.role === "guest") {
+      roomRef.current?.send({ type: "rematchDecline" });
     }
   }, [state.role]);
 
   const leave = useCallback(() => {
-    if (USE_WS_ROOM) {
-      roomRef.current?.close();
-      roomRef.current = null;
-    } else {
-      const conn = connRef.current;
-      if (conn?.open) sendMessage(conn, { type: "leave" });
-      conn?.close();
-      peerRef.current?.destroy();
-    }
+    roomRef.current?.close();
+    roomRef.current = null;
     stopTimer();
     const ticket = matchmakingTicketRef.current;
     if (ticket) {

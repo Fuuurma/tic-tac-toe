@@ -1,9 +1,8 @@
 /**
  * RoomClient — durable-object WebSocket relay client for two-player rooms.
  *
- * Replaces PeerJS as the online transport. The server is the
- * `GameRoomDO` Durable Object in the `fuurma-matchmaking` Worker; it
- * relays well-formed `{ type, ... }` envelopes between two connected
+ * The server is the `GameRoomDO` Durable Object in the `fuurma-matchmaking`
+ * Worker; it relays well-formed `{ type, ... }` envelopes between two connected
  * sockets and handles hello/peer-joined/peer-left book-keeping.
  *
  * Lifecycle:

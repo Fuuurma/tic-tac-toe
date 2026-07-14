@@ -159,7 +159,7 @@ test("pairs two online sessions, completes a match, and rematches", async ({ bro
   const hostWaiting = hostPage.getByLabel(/^Room code /);
   await expect
     .poll(() => hostPage.locator("body").innerText(), { timeout: 30_000 })
-    .toMatch(/Waiting for opponent|Peer error|Connection error/);
+    .toMatch(/Waiting for opponent|Connection error/);
   await expect(hostWaiting).toBeVisible();
   const waitingText = (await hostWaiting.textContent()) ?? "";
   const roomId = waitingText.trim();
@@ -173,7 +173,7 @@ test("pairs two online sessions, completes a match, and rematches", async ({ bro
   await guestPage.getByRole("button", { name: "Join Room" }).click();
   await expect(guestPage.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
 
-  // Wait for both to be connected (PeerJS public broker signaling can be slow on first use).
+  // Wait for both to be connected (the WebSocket relay may be slow to pair).
   await expect(hostPage.getByText("Opponent: Guest")).toBeVisible({ timeout: 90_000 });
   await expect(guestPage.getByText("Opponent: Host")).toBeVisible({ timeout: 90_000 });
 
