@@ -12,7 +12,8 @@ const scoreTerminal = (winner: PlayerSymbol | null, player: PlayerSymbol): numbe
 const evaluate = (state: GameState, player: PlayerSymbol, depth: number): number => {
   const { winner } = checkWinner(state.board);
   if (winner !== null) return scoreTerminal(winner, player) - depth;
-  if (state.board.every((c) => c !== null)) return 0;
+  // No winner and board full → draw (0). Board not full → neutral (0).
+  // The 3-piece variant rarely fills the board, but the check is still correct.
   return 0;
 };
 

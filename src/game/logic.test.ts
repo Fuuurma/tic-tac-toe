@@ -176,6 +176,12 @@ describe("canMakeMove", () => {
     expect(canMakeMove(GameModes.VS_COMPUTER, PlayerSymbol.X, PlayerSymbol.X)).toBe(true);
     expect(canMakeMove(GameModes.VS_COMPUTER, PlayerSymbol.O, PlayerSymbol.X)).toBe(false);
   });
+
+  it("allows either human to move on their turn in vs Friend mode", () => {
+    expect(canMakeMove(GameModes.VS_FRIEND, PlayerSymbol.X, PlayerSymbol.X)).toBe(true);
+    expect(canMakeMove(GameModes.VS_FRIEND, PlayerSymbol.O, PlayerSymbol.X)).toBe(false);
+    expect(canMakeMove(GameModes.VS_FRIEND, PlayerSymbol.O, null)).toBe(false);
+  });
 });
 
 describe("getNextPlayerSymbol", () => {

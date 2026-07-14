@@ -126,7 +126,7 @@ function LocalGameSurface({
       recordedGameId.current = gameState.moveCount;
       if (gameState.winner === PlayerSymbol.X) recordWin();
       else recordLoss();
-    } else if (gameState.gameStatus === "COMPLETED" && gameState.moveCount > 0) {
+    } else if (gameState.gameStatus === GameStatus.COMPLETED && gameState.moveCount > 0) {
       if (gameState.moveCount === recordedGameId.current) return;
       recordedGameId.current = gameState.moveCount;
       recordDraw();

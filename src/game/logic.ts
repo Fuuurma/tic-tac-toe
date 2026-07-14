@@ -140,7 +140,8 @@ export const canMakeMove = (
   playerSymbol: PlayerSymbol | null,
 ): boolean => {
   if (gameMode === GameModes.VS_COMPUTER) return playerSymbol === currentPlayer;
-  return currentPlayer !== PlayerSymbol.X || true;
+  // VS_FRIEND and ONLINE: the human can move whenever it's their turn.
+  return playerSymbol === currentPlayer;
 };
 
 export const getNextPlayerSymbol = (current: PlayerSymbol): PlayerSymbol =>

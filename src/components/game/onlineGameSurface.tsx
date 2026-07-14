@@ -7,7 +7,7 @@ import {
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
-import { usePeerRoom } from "@/hooks/usePeerRoom";
+import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
 import { Check, Copy, Loader2, Wifi } from "lucide-react";
 
 export interface OnlineGameSurfaceProps {
@@ -131,7 +131,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   );
 }
 
-function onlineMessage(status: string, fallback: string): string {
+function onlineMessage(status: PeerStatus, fallback: string): string {
   if (status === "creating") return "Finding match…";
   if (status === "waiting") return "Waiting for opponent…";
   if (status === "connecting") return "Connecting…";

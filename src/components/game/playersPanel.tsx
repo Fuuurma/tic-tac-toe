@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TURN_DURATION_MS, GameMode, GameModes } from "@/game/constants";
+import { TURN_DURATION_MS, GameMode, GameModes, GameStatus, PlayerTypes } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function PlayersPanel({
 
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
-    gameState.gameStatus === "ACTIVE" && gameState.winner === null;
+    gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
   const progress = isActive
     ? Math.max(0, ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100)
     : 0;
@@ -63,7 +63,7 @@ export function PlayersPanel({
   const exitLabel = isOnline ? "Leave game" : "Exit game";
 
   const activePlayer = gameState.players[gameState.currentPlayer];
-  const isAITurn = activePlayer.type === "COMPUTER";
+  const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
   const activeLabel = isAITurn
     ? `${activePlayer.username || "AI"} thinking`
     : `${activePlayer.username || "Player"}'s turn`;

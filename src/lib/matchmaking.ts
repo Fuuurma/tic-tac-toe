@@ -11,6 +11,13 @@ export type Match = {
     displayName: string;
     guestId: string;
   };
+  /**
+   * Direct WebSocket URL for the room relay. Only set when the
+   * matchmaking service knows the room ID format (in our stack,
+   * the Cloudflare Durable Object WebSocket relay). When present,
+   * the client should bypass PeerJS and open this URL directly.
+   */
+  wsUrl?: string;
 };
 
 export type MatchmakingResponse =
@@ -76,4 +83,23 @@ export async function leaveMatch(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticket }),
   });
+}
+
+/**
+ * Build a WebSocket URL for the given room when the matchmaking service
+ * uses the Cloudflare Durable Object relay (VITE_USE_WS_ROOM build).
+ *
+ * Used as a fallback when the matchmaking response doesn't pre-include
+ * `match.wsUrl` — typically the host (a "waiting" response from matchmaking).
+ */
+export function buildRoomWsUrl(
+  roomId: string,
+  game: string,
+  baseUrl: string = MATCHMAKING_BASE_URL,
+): string {
+  const httpUrl = new URL(`/room/${roomId}`, baseUrl);
+  httpUrl.searchParams.set("game", game);
+  const wsUrl = new URL(httpUrl.toString());
+  wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
+  return wsUrl.toString();
 }
