@@ -264,11 +264,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (message.type === "leave") {
         stopTimer();
         const state = stateRef.current;
-        const ended: GameState = {
-          ...state,
-          winner: PlayerSymbol.X,
-          gameStatus: GameStatus.COMPLETED,
-        };
+        // Host wins by forfeit when the guest leaves (unless the game
+        // already had a winner).
+        const ended: GameState = state.winner
+          ? state
+          : { ...state, winner: PlayerSymbol.X, gameStatus: GameStatus.COMPLETED };
         stateRef.current = ended;
         setState((prev) => ({ ...prev, gameState: ended, message: "Opponent left" }));
         return;
@@ -325,10 +325,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (event.type === "peer-left") {
         if (roleRef.current === "guest") {
           stopTimer();
-          const gameState = {
-            ...stateRef.current,
-            gameStatus: GameStatus.COMPLETED,
-          };
+          const current = stateRef.current;
+          // Guest wins by forfeit when the host disconnects (unless the
+          // game already had a winner).
+          const gameState = current.winner
+            ? current
+            : { ...current, winner: PlayerSymbol.O, gameStatus: GameStatus.COMPLETED };
           stateRef.current = gameState;
           setState((prev) => ({
             ...prev,
@@ -397,12 +399,29 @@ export function usePeerRoom(options: PeerRoomOptions) {
         }));
         return;
       }
+      if (message.type === "leave") {
+        // Host explicitly left. The close event will follow, but we can
+        // show a more specific message now.
+        stopTimer();
+        const current = stateRef.current;
+        const gameState = current.winner
+          ? current
+          : { ...current, winner: PlayerSymbol.O, gameStatus: GameStatus.COMPLETED };
+        stateRef.current = gameState;
+        setState((prev) => ({
+          ...prev,
+          status: "disconnected",
+          gameState,
+          message: "Host left the game",
+        }));
+        return;
+      }
       if (message.type === "error") {
         setState((prev) => ({ ...prev, message: message.message }));
         return;
       }
     },
-    [],
+    [stopTimer],
   );
 
   const buildRoomClient = useCallback((wsUrl: string, role: "host" | "guest"): RoomClient => {
@@ -467,11 +486,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
     });
 
       if (USE_WS_ROOM) {
-        if (!wsUrl) {
-          update({ status: "error", message: "Missing wsUrl for room relay" });
-          return;
-        }
-        const room = buildRoomClient(wsUrl, "host");
+        const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, "tictactoe");
+        const room = buildRoomClient(resolvedUrl, "host");
         room.connect().catch((err) => {
           update({ status: "error", message: `Room connect failed: ${err.message}` });
         });
@@ -535,11 +551,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
       update({ role: "guest", status: "connecting", roomId: trimmed, message: "Connecting..." });
 
       if (USE_WS_ROOM) {
-        if (!wsUrl) {
-          update({ status: "error", message: "Missing wsUrl for room relay" });
-          return;
-        }
-        const room = buildRoomClient(wsUrl, "guest");
+        const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, "tictactoe");
+        const room = buildRoomClient(resolvedUrl, "guest");
         room.connect()
           .then(() => {
             // After welcome, send the join message so the host can build state.
@@ -574,10 +587,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
         });
         conn.on("close", () => {
           stopTimer();
-          const gameState = {
-            ...stateRef.current,
-            gameStatus: GameStatus.COMPLETED,
-          };
+          const current = stateRef.current;
+          // Guest wins by forfeit when the host disconnects (unless the
+          // game already had a winner).
+          const gameState = current.winner
+            ? current
+            : { ...current, winner: PlayerSymbol.O, gameStatus: GameStatus.COMPLETED };
           stateRef.current = gameState;
           setState((prev) => ({
             ...prev,
