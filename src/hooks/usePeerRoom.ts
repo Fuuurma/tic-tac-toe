@@ -269,6 +269,14 @@ export function usePeerRoom(options: PeerRoomOptions) {
         }
         return;
       }
+      if (event.type === "peer-reconnected") {
+        setState((prev) => ({
+          ...prev,
+          status: "connected",
+          message: "",
+        }));
+        return;
+      }
       if (event.type === "peer-joined") {
         // Host learns a new peer arrived at the relay. The guest will send
         // its real `join` message (with preferred color) immediately after
@@ -287,6 +295,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       if (event.type === "peer-left") {
+        const reason = (event as { reason?: string }).reason;
+        if (reason === "disconnect") {
+          setState((prev) => ({
+            ...prev,
+            status: "reconnecting",
+            message: roleRef.current === "guest"
+              ? "Host disconnected. Reconnecting…"
+              : "Opponent disconnected. Reconnecting…",
+          }));
+          return;
+        }
         if (roleRef.current === "guest") {
           stopTimer();
           const current = stateRef.current;
@@ -398,8 +417,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
       role,
     });
     client.setMessageHandler((msg) => {
-      if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-left" || msg.type === "error") {
+      if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || msg.type === "error") {
         handleWsEvent(msg as { type: string; [k: string]: unknown });
+        if (msg.type === "welcome" && role === "guest") {
+          const identity = getOrCreateGuestIdentity();
+          client.send({
+            type: "join",
+            displayName: options.hostDisplayName,
+            guestId: identity.guestId,
+            preferredColor: options.hostColor,
+          });
+        }
       } else if (isPeerMessage(msg)) {
         const m = msg as PeerMessage;
         if (stateRef.current && roleRef.current) {
@@ -470,19 +498,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
       const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, "tictactoe");
       const room = buildRoomClient(resolvedUrl, "guest");
-      room.connect()
-        .then(() => {
-          // After welcome, send the join message so the host can build state.
-          room.send({
-            type: "join",
-            displayName: options.hostDisplayName,
-            guestId: getOrCreateGuestIdentity().guestId,
-            preferredColor: options.hostColor,
-          });
-        })
-        .catch((err) => {
-          update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
-        });
+      room.connect().catch((err) => {
+        update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
+      });
     },
     [buildRoomClient, options.hostColor, options.hostDisplayName, stopTimer, update],
   );

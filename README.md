@@ -1,89 +1,68 @@
 # Tic Tac Toe
 
-A strategic 3-piece Tic Tac Toe with AI and P2P multiplayer, built on the
-standardized game stack.
+A strategic three-piece Tic Tac Toe with AI, local two-player, guest-first
+online rooms, and quick-match pairing.
 
-## What is this
+## Current slice
 
-- **3-piece strategic variant**: max 3 pieces per player; oldest auto-removed
-  on 4th (draw-free).
-- **4 AI difficulties**: Easy (random), Normal (heuristic), Hard (minimax),
-  Insane (MCTS).
-- **P2P multiplayer**: host a room or join with a code, powered by PeerJS data
-  channels and PeerJS Cloud signaling.
-- **Guest play**: no sign-in required. Guest identity stored locally.
+The public URL is a preview, not a production launch:
+https://tic-tac-toe-1ou.pages.dev
+
+The web client uses the shared `fuurma-matchmaking` Cloudflare Worker for quick
+matchmaking and a per-room Durable Object WebSocket relay. PeerJS, STUN, and
+TURN are not part of the current architecture. No account is required.
 
 ## Stack
 
-| Layer    | Technology                  |
-|----------|-----------------------------|
-| Shell    | Vite 5 + React 19 + TS     |
-| Styling  | Tailwind CSS v4             |
-| Realtime | PeerJS (P2P)                |
-| AI       | Minimax + MCTS              |
-| Deploy   | Cloudflare Pages (static)   |
+- Vite 8 + React 19.2 + TypeScript
+- Tailwind CSS v4 + shadcn/ui/Radix primitives
+- Shared Cloudflare Worker + Durable Object WebSocket relay
+- Client-side Minimax and MCTS AI
+- Motion + `tw-animate-css`
+- Vitest + Playwright
+- Cloudflare Pages for the static build
 
-## Quick start
+## Commands
 
 ```bash
 pnpm install
-pnpm dev       # localhost:5173
-pnpm build     # type-check + build to dist/
-pnpm preview   # serve dist/ locally
+pnpm dev
+pnpm lint
+pnpm test
+pnpm build
+pnpm test:e2e
+pnpm check
 ```
 
-## Tests
+`pnpm test:e2e` runs against a local preview. Online flows need the sibling
+Worker at `~/Projects/fuurma-matchmaking` on `127.0.0.1:8787`.
 
-```bash
-pnpm test          # Vitest unit tests
-pnpm test:e2e      # Playwright smoke (local preview)
+## Online model
+
+- The room creator is the host and owns the authoritative game state and timer.
+- The guest sends move intents; the host validates and broadcasts state.
+- A transient `peer-left` with reason `disconnect` enters reconnecting state;
+  the room keeps the slot for 30 seconds.
+- `peer-reconnected` restores the connection. `closed` and `expired` are final.
+- Quick match uses `/api/matchmaking/tictactoe` on the shared Worker.
+
+## Project layout
+
+```text
+src/game/               pure rules, state, and AI
+src/hooks/usePeerRoom   WebSocket room lifecycle and reconnect behavior
+src/hooks/               local game and stats hooks
+src/lib/room.ts          room protocol types/client
+src/lib/matchmaking.ts   quick-match API client
+src/components/          board, lobby, and guest identity UI
+e2e/                     Playwright smoke tests
 ```
 
-## Deploy to Cloudflare Pages
+## Before launch
 
-1. Push `feat/game-stack-vite-peerjs` (or `main` after Pass 2) to GitHub.
-2. In the Cloudflare Dashboard → Pages → Create a project, connect the repo.
-3. Build settings: **Framework preset = None**, build command `pnpm build`,
-   output directory `dist`.
-4. Deploy. Smoke the live URL:
-
-```bash
-E2E_BASE_URL=https://<your-pages-url> pnpm test:e2e
-```
-
-## Production caveat
-
-The current build uses the shared PeerJS Cloud service for signaling and the
-default STUN configuration. That is suitable for a demo, but not a complete
-reliability plan: some NAT and corporate-network combinations require a TURN
-relay, and higher-traffic apps should operate their own PeerServer. Treat a
-managed TURN/signaling setup plus a public two-network smoke as a launch gate.
-
-## Project structure
-
-```
-src/
-  game/
-    constants.ts    — enums, rules, colors
-    logic.ts        — pure game state + move logic
-    ai.ts           — AI engine (minimax + MCTS)
-    *.test.ts       — unit tests
-  hooks/
-    usePeerRoom.ts  — P2P multiplayer hook
-    useLocalGame.ts — local AI / 2-player hook
-    useGameStats.ts — local stats (localStorage)
-  components/
-    auth/           — login form
-    game/           — board, players panel, selectors
-    ui/             — button, card
-  lib/
-    identity.ts     — guest identity (localStorage)
-    peer.ts         — PeerJS message protocol
-    utils.ts        — cn() helper
-e2e/
-  smoke.spec.ts     — Playwright smoke tests
-```
-
-## License
+Deploy the current Worker and Pages build, then verify private-room and
+quick-match play across two networks, reconnect within 30 seconds, and final
+expiry after the grace period. Keep guest play working when optional OAuth is
+not configured.
 
 Private.

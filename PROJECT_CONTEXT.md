@@ -1,15 +1,16 @@
 # TicTacToe - Project Context
 
 **Project Type:** Static Web Game
-**Status:** Local production checks pass; public URL smoke pending
-**Last Updated:** July 10, 2026
+**Status:** Public preview exists; current relay hardening is local and release smoke is pending
+**Last Updated:** July 17, 2026
 
 ---
 
 ## Project Overview
 
 Tic Tac Toe implementation featuring a strategic three-piece variant. The
-active application is a Vite + React SPA with client-side AI and PeerJS P2P.
+active application is a Vite + React SPA with client-side AI and a shared
+Cloudflare Durable Object WebSocket relay.
 
 ---
 
@@ -21,7 +22,7 @@ active application is a Vite + React SPA with client-side AI and PeerJS P2P.
 - **State Management:** Custom specialized hooks
 
 ### Realtime and deployment
-- **Real-time:** PeerJS data channels; host-authoritative game state
+- **Real-time:** shared Worker WebSocket relay; host-authoritative game state
 - **Deployment:** Cloudflare Pages static output from `dist/`
 
 ---
@@ -48,9 +49,9 @@ pnpm check            # Lint, unit tests, build, browser smoke
 ## Deploy Notes
 
 - Cloudflare Pages build command: `pnpm build`; output: `dist`.
-- PeerJS Cloud is currently used for signaling.
-- Public demo is not complete until a deployed two-network online match and
-  rematch pass. Broad launch additionally requires a TURN/signaling plan.
+- Public preview is not production-ready until the current Worker and client
+  changes are deployed and a two-network online match, reconnect, rematch, and
+  expiry pass succeeds.
 
 ---
 

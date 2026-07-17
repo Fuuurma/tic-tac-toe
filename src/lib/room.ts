@@ -32,9 +32,14 @@ export interface PeerJoinedMessage {
   opponent: { guestId: string; displayName: string };
 }
 
+export interface PeerReconnectedMessage {
+  type: "peer-reconnected";
+  opponent: { guestId: string; displayName: string };
+}
+
 export interface PeerLeftMessage {
   type: "peer-left";
-  reason: "disconnect" | "closed";
+  reason: "disconnect" | "closed" | "expired";
 }
 
 export interface ErrorMessage {
@@ -66,6 +71,7 @@ export interface RoomClientOptions {
   role?: "host" | "guest";
   protocol?: string;
   maxBackoffMs?: number;
+  autoReconnect?: boolean;
 }
 
 export interface RoomSession {
@@ -80,6 +86,7 @@ export class RoomClient {
     protocol: string;
     maxBackoffMs: number;
     role: RoomRole | null;
+    autoReconnect: boolean;
   };
 
   private ws: WebSocket | null = null;
@@ -105,6 +112,7 @@ export class RoomClient {
       role: opts.role ?? null,
       protocol: opts.protocol ?? "tictactoe:v1",
       maxBackoffMs: opts.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
+      autoReconnect: opts.autoReconnect ?? true,
     };
   }
 
@@ -130,6 +138,10 @@ export class RoomClient {
 
   async connect(): Promise<RoomSession> {
     this.closedByUser = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.status === "connected" && this.role) {
       return { role: this.role, opponent: this.opponent };
     }
@@ -189,7 +201,7 @@ export class RoomClient {
         ws = new WebSocket(url.toString());
       } catch (err) {
         reject(err instanceof Error ? err : new Error("websocket construction failed"));
-        this.scheduleReconnect();
+        if (this.opts.autoReconnect) this.scheduleReconnect();
         return;
       }
       this.ws = ws;
@@ -258,7 +270,8 @@ export class RoomClient {
           return;
         }
         settleWelcome(null, new Error("socket closed before welcome"));
-        this.scheduleReconnect();
+        if (this.opts.autoReconnect) this.scheduleReconnect();
+        else this.setStatus("disconnected");
       });
 
       ws.addEventListener("error", () => {
@@ -272,7 +285,7 @@ export class RoomClient {
   }
 
   private scheduleReconnect(): void {
-    if (this.closedByUser) return;
+    if (this.closedByUser || !this.opts.autoReconnect) return;
     if (this.reconnectTimer) return;
     const delay = Math.min(
       this.opts.maxBackoffMs,
