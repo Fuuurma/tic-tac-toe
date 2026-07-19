@@ -107,10 +107,27 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           </span>
         )}
         {peer.state.status === "reconnecting" && (
-          <span className="inline-flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {peer.state.message || "Reconnecting…"}
-          </span>
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex w-full max-w-sm flex-col items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-950 dark:text-amber-50"
+          >
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {peer.state.message || "Reconnecting…"}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Room stays open ~30s while the connection restores.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => peer.retryReconnect()}
+              className="h-7 px-3 text-xs"
+            >
+              Retry now
+            </Button>
+          </div>
         )}
         {peer.state.status === "connected" && peer.state.guestDisplayName && (
           <span>Opponent: {peer.state.guestDisplayName}</span>

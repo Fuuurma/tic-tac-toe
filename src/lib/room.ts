@@ -191,6 +191,20 @@ export class RoomClient {
     this.welcomeResolvers = [];
   }
 
+  /** Skip the backoff timer and attempt an immediate reconnect. */
+  reconnectNow(): void {
+    if (this.closedByUser || !this.opts.autoReconnect) return;
+    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.setStatus("reconnecting", "Reconnecting now…");
+    this.openSocket().catch(() => {
+      if (this.opts.autoReconnect) this.scheduleReconnect();
+    });
+  }
+
   private openSocket(): Promise<RoomSession> {
     return new Promise<RoomSession>((resolve, reject) => {
       this.setStatus(this.status === "reconnecting" ? "reconnecting" : "connecting");

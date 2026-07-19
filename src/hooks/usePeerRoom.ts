@@ -608,6 +608,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   useEffect(() => () => leave(), [leave]);
 
+  const retryReconnect = useCallback(() => {
+    roomRef.current?.reconnectNow();
+  }, []);
+
   return {
     state,
     startAsHost,
@@ -616,6 +620,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     sendMove,
     requestRematch,
     declineRematch,
+    retryReconnect,
     leave,
   };
 }
