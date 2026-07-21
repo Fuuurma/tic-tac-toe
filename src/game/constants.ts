@@ -103,3 +103,17 @@ export const COLOR_BG_CLASSES: Record<Color, string> = {
   [Color.PURPLE]: "bg-purple-500",
   [Color.GRAY]: "bg-gray-500",
 };
+
+const OPPOSITE_COLOR: Record<Color, Color> = {
+  [Color.BLUE]: Color.RED,
+  [Color.RED]: Color.BLUE,
+  [Color.GREEN]: Color.PURPLE,
+  [Color.PURPLE]: Color.GREEN,
+  [Color.YELLOW]: Color.ORANGE,
+  [Color.ORANGE]: Color.YELLOW,
+  [Color.PINK]: Color.GRAY,
+  [Color.GRAY]: Color.PINK,
+};
+
+export const oppositeColor = (color: Color): Color =>
+  OPPOSITE_COLOR[color] ?? Color.GRAY;

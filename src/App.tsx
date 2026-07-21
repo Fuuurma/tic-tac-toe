@@ -5,6 +5,7 @@ import {
   GameStatus,
   PlayerSymbol,
   PlayerTypes,
+  oppositeColor,
   type AI_Difficulty as AI_DifficultyType,
 } from "@/game/constants";
 
@@ -175,19 +176,4 @@ function LocalGameSurface({
       />
     </div>
   );
-}
-
-const OPPOSITE_COLOR: Record<Color, Color> = {
-  [Color.BLUE]: Color.RED,
-  [Color.RED]: Color.BLUE,
-  [Color.GREEN]: Color.PURPLE,
-  [Color.PURPLE]: Color.GREEN,
-  [Color.YELLOW]: Color.ORANGE,
-  [Color.ORANGE]: Color.YELLOW,
-  [Color.PINK]: Color.GRAY,
-  [Color.GRAY]: Color.PINK,
-};
-
-function oppositeColor(color: Color): Color {
-  return OPPOSITE_COLOR[color] ?? Color.GRAY;
 }
