@@ -75,7 +75,6 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
           [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
         }}
-        currentPlayer={peer.state.gameState.currentPlayer}
         winningCombination={peer.state.gameState.winningCombination}
         nextToRemove={peer.state.gameState.nextToRemove}
         previewPlayer={previewPlayer}

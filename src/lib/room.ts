@@ -278,7 +278,7 @@ export class RoomClient {
       });
 
       ws.addEventListener("close", () => {
-        this.ws = null;
+        if (this.ws === ws) this.ws = null;
         if (this.closedByUser) {
           this.setStatus("disconnected");
           return;

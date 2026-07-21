@@ -55,7 +55,7 @@ export function useLocalGame(input: LocalGameInput) {
     stopTimer();
     tickRef.current = window.setInterval(() => {
       setGameState((prev) => {
-        if (prev.winner !== null) {
+        if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) {
           stopTimer();
           return prev;
         }

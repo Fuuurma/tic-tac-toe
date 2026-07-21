@@ -1,15 +1,15 @@
 # TicTacToe - Project Context
 
 **Project Type:** Static Web Game
-**Status:** Public preview exists; current relay hardening is local and release smoke is pending
-**Last Updated:** July 17, 2026
+**Status:** Guest-first public preview; codebase hardened via multi-round audit
+**Last Updated:** July 21, 2026
 
 ---
 
 ## Project Overview
 
 Tic Tac Toe implementation featuring a strategic three-piece variant. The
-active application is a Vite + React SPA with client-side AI and a shared
+active application is a Vite 5 + React SPA with client-side AI and a shared
 Cloudflare Durable Object WebSocket relay.
 
 ---
@@ -29,11 +29,11 @@ Cloudflare Durable Object WebSocket relay.
 
 ## Key Features
 
-- **3-Piece Strategic Variant**: Dynamic piece removal.
+- **3-Piece Strategic Variant**: Dynamic piece removal; max 3 pieces per player, oldest auto-removed on 4th.
 - **Multiplayer**: Online and local VS modes.
 - **Host-authoritative timers**: The room host applies and broadcasts timeouts.
-- **AI Opponents**: MCTS and Minimax difficulty levels.
-- **Minimal Auth**: Anonymous guest play with persistence.
+- **AI Opponents**: Easy (random), Normal (heuristic), Hard (minimax), Insane (MCTS).
+- **Minimal Auth**: Anonymous guest play with localStorage persistence.
 - **Real-time Stats**: Streak and win rate tracking.
 
 ---
@@ -41,9 +41,13 @@ Cloudflare Durable Object WebSocket relay.
 ## Development Commands
 
 ```bash
-pnpm dev              # Development
-pnpm build            # Production build
-pnpm check            # Lint, unit tests, build, browser smoke
+pnpm dev              # Development (port 3110)
+pnpm build            # Production build (tsc -b && vite build)
+pnpm preview          # Preview production build (port 4110)
+pnpm lint             # ESLint
+pnpm test             # Vitest unit tests
+pnpm test:e2e         # Playwright E2E (requires build first)
+pnpm check            # Lint + test + E2E
 ```
 
 ## Deploy Notes
@@ -60,3 +64,5 @@ pnpm check            # Lint, unit tests, build, browser smoke
 1. **Maintain Hook Separation**: Keep game logic in `src/game/` and hooks in `src/hooks/`.
 2. **Mobile First**: Ensure all UI changes are touch-friendly and fit `100dvh`.
 3. **Pure Logic**: Keep `src/game/` functions pure and independently tested.
+4. **Immutability**: Never mutate game state objects directly — always spread/clone.
+5. **WebSocket Safety**: All WS operations use optional chaining; room null checks before send.

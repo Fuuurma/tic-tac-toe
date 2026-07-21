@@ -58,15 +58,27 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
 const isPlayerSymbol = (value: unknown): value is PlayerSymbol =>
   value === PlayerSymbol.X || value === PlayerSymbol.O;
 
+const VALID_GAME_STATUSES = new Set(["WAITING", "ACTIVE", "COMPLETED"]);
+
 const isGameState = (value: unknown): value is GameState => {
   if (!value || typeof value !== "object") return false;
   const state = value as Partial<GameState>;
-  return (
-    Array.isArray(state.board) &&
-    state.board.length === 9 &&
-    state.board.every((cell) => cell === null || isPlayerSymbol(cell)) &&
-    isPlayerSymbol(state.currentPlayer) &&
-    !!state.players &&
-    !!state.moves
-  );
+  if (
+    !Array.isArray(state.board) ||
+    state.board.length !== 9 ||
+    !state.board.every((cell) => cell === null || isPlayerSymbol(cell))
+  ) return false;
+  if (!isPlayerSymbol(state.currentPlayer)) return false;
+  if (!state.players || typeof state.players !== "object") return false;
+  if (!state.moves || typeof state.moves !== "object") return false;
+  const p = state.players as Record<string, unknown>;
+  const m = state.moves as Record<string, unknown>;
+  if (!p.X || !p.O || typeof p.X !== "object" || typeof p.O !== "object") return false;
+  if (!Array.isArray(m.X) || !Array.isArray(m.O)) return false;
+  if (state.winner !== null && !isPlayerSymbol(state.winner)) return false;
+  if (state.gameStatus !== undefined && !VALID_GAME_STATUSES.has(state.gameStatus as string)) return false;
+  if (state.maxMoves !== undefined && typeof state.maxMoves !== "number") return false;
+  if (state.moveCount !== undefined && typeof state.moveCount !== "number") return false;
+  if (state.nextToRemove !== undefined && typeof state.nextToRemove !== "object") return false;
+  return true;
 };

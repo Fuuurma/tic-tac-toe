@@ -219,6 +219,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         });
         reset.players[PlayerSymbol.O].isActive = true;
         commitHostState(reset);
+        roomRef.current?.send({ type: "gameStart", gameState: reset });
         return;
       }
       if (message.type === "rematchDecline") {
@@ -275,6 +276,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
           status: "connected",
           message: "",
         }));
+        if (roleRef.current === "host") {
+          broadcastGameState(stateRef.current);
+          if (isGameActive(stateRef.current)) startTimer();
+        }
         return;
       }
       if (event.type === "peer-joined") {
@@ -297,6 +302,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (event.type === "peer-left") {
         const reason = (event as { reason?: string }).reason;
         if (reason === "disconnect") {
+          if (roleRef.current === "host") stopTimer();
           setState((prev) => ({
             ...prev,
             status: "reconnecting",
@@ -348,7 +354,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
     },
-    [stopTimer],
+    [broadcastGameState, startTimer, stopTimer],
   );
 
   const handleGuestData = useCallback(
@@ -452,7 +458,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     });
     roomRef.current = client;
     return client;
-  }, [handleGuestData, handleHostData, handleWsEvent, options.hostDisplayName]);
+  }, [handleGuestData, handleHostData, handleWsEvent, options.hostDisplayName, options.hostColor]);
 
   const startAsHost = useCallback(
     (providedRoomId?: string, wsUrl?: string) => {
@@ -476,6 +482,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         gameState: waitingGame,
         message: "",
       });
+      roleRef.current = "host";
 
       const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, "tictactoe");
       const room = buildRoomClient(resolvedUrl, "host");
@@ -495,6 +502,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       update({ role: "guest", status: "connecting", roomId: trimmed, message: "Connecting..." });
+      roleRef.current = "guest";
 
       const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, "tictactoe");
       const room = buildRoomClient(resolvedUrl, "guest");
@@ -502,7 +510,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
       });
     },
-    [buildRoomClient, options.hostColor, options.hostDisplayName, stopTimer, update],
+    [buildRoomClient, stopTimer, update],
   );
 
   const startQuickMatch = useCallback(async () => {
@@ -542,17 +550,18 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
         leaveMatch("tictactoe", response.ticket).catch(() => {});
         matchmakingTicketRef.current = null;
+        hasStartedRef.current = false;
         return;
       }
 
       if (response.status === "matched") {
         matchmakingTicketRef.current = null;
+        hasStartedRef.current = false;
         joinAsGuest(response.match.roomId, response.match.wsUrl);
         return;
       }
     } catch (err) {
       matchmakingTicketRef.current = null;
-      hasStartedRef.current = false;
       update({ status: "error", message: `Matchmaking failed: ${(err as Error).message}` });
     }
   }, [joinAsGuest, options.hostDisplayName, startAsHost, stopTimer, update]);

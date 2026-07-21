@@ -77,14 +77,12 @@ export function PlayersPanel({
             {stats && stats.totalGames > 0 && (
               <span
                 role="status"
-                aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses, ${stats.draws} draws`}
+                aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses`}
                 className="font-medium normal-case tracking-normal text-muted-foreground"
               >
                 <span className="text-emerald-600 dark:text-emerald-400">{stats.wins}W</span>
                 <span className="mx-0.5 text-muted-foreground/50">·</span>
                 <span className="text-red-500">{stats.losses}L</span>
-                <span className="mx-0.5 text-muted-foreground/50">·</span>
-                <span>{stats.draws}D</span>
                 {stats.currentWinStreak > 1 && (
                   <span className="ml-1 text-amber-500">· 🔥{stats.currentWinStreak}</span>
                 )}
@@ -156,16 +154,10 @@ export function PlayersPanel({
         </div>
       )}
 
-      {!isActive && (gameState.winner || gameState.moveCount > 0) && (
+      {!isActive && gameState.winner && (
         <GameEndActions
-          headline={
-            gameState.winner
-              ? `${gameState.players[gameState.winner].username || "Player"} wins!`
-              : !message
-                ? "It's a draw."
-                : null
-          }
-          message={gameState.winner ? message : null}
+          headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
+          message={message}
           canRematch={canRematch}
           exitLabel={exitLabel}
           onPlayAgain={onNewGame}

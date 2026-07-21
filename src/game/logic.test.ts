@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   Color,
   GameModes,
+  GameStatus,
   PlayerSymbol,
   PLAYER_CONFIG,
 } from "@/game/constants";
 import {
-  canMakeMove,
   checkWinner,
   createInitialGameState,
   freshGameState,
@@ -171,19 +171,6 @@ describe("makeMove (3-piece cap rule)", () => {
   });
 });
 
-describe("canMakeMove", () => {
-  it("only allows the local player to move in vs Computer mode", () => {
-    expect(canMakeMove(GameModes.VS_COMPUTER, PlayerSymbol.X, PlayerSymbol.X)).toBe(true);
-    expect(canMakeMove(GameModes.VS_COMPUTER, PlayerSymbol.O, PlayerSymbol.X)).toBe(false);
-  });
-
-  it("allows either human to move on their turn in vs Friend mode", () => {
-    expect(canMakeMove(GameModes.VS_FRIEND, PlayerSymbol.X, PlayerSymbol.X)).toBe(true);
-    expect(canMakeMove(GameModes.VS_FRIEND, PlayerSymbol.O, PlayerSymbol.X)).toBe(false);
-    expect(canMakeMove(GameModes.VS_FRIEND, PlayerSymbol.O, null)).toBe(false);
-  });
-});
-
 describe("getNextPlayerSymbol", () => {
   it("alternates X and O", () => {
     expect(getNextPlayerSymbol(PlayerSymbol.X)).toBe(PlayerSymbol.O);
@@ -205,5 +192,64 @@ describe("PLAYER_CONFIG", () => {
     expect(PLAYER_CONFIG[PlayerSymbol.X].label).toBeTruthy();
     expect(PLAYER_CONFIG[PlayerSymbol.O].label).toBeTruthy();
     expect(PLAYER_CONFIG[PlayerSymbol.X].defaultColor).toBe(Color.BLUE);
+  });
+});
+
+describe("3-piece removal and winning line interaction", () => {
+  it("detects a win formed by the new piece after the oldest is removed", () => {
+    // X has pieces at [0, 4, 6] (oldest → newest).
+    // X places at 2, removing 0. New positions: [4, 6, 2] → diagonal [2, 4, 6] wins.
+    let s = createInitialGameState({
+      gameMode: GameModes.VS_FRIEND,
+      playerXName: "A",
+      playerOName: "B",
+      playerColor: Color.BLUE,
+      opponentColor: Color.RED,
+    });
+    // Build X: [0, 4, 6], O: [1, 3, 5] (no winner).
+    s = makeMove(s, 0)!; // X
+    s = makeMove(s, 1)!; // O
+    s = makeMove(s, 4)!; // X
+    s = makeMove(s, 3)!; // O
+    s = makeMove(s, 6)!; // X
+    s = makeMove(s, 5)!; // O
+    expect(s.winner).toBeNull();
+    expect(s.moves[PlayerSymbol.X]).toEqual([0, 4, 6]);
+
+    // X places at 2 — oldest (0) is removed, forming [2, 4, 6] diagonal.
+    s = makeMove(s, 2)!;
+    expect(s.board[0]).toBeNull(); // oldest removed
+    expect(s.board[2]).toBe(PlayerSymbol.X);
+    expect(s.winner).toBe(PlayerSymbol.X);
+    expect(s.winningCombination).toEqual([2, 4, 6]);
+    expect(s.gameStatus).toBe(GameStatus.COMPLETED);
+  });
+
+  it("does not detect a win that depends on the removed piece", () => {
+    // X has pieces at [0, 4, 7] (oldest → newest).
+    // X places at 2, removing 0. Would-be row [0, 1, 2] is broken by removal.
+    // O has pieces at [3, 5, 6] — no winner.
+    let s = createInitialGameState({
+      gameMode: GameModes.VS_FRIEND,
+      playerXName: "A",
+      playerOName: "B",
+      playerColor: Color.BLUE,
+      opponentColor: Color.RED,
+    });
+    s = makeMove(s, 0)!; // X
+    s = makeMove(s, 3)!; // O
+    s = makeMove(s, 4)!; // X
+    s = makeMove(s, 5)!; // O
+    s = makeMove(s, 7)!; // X
+    s = makeMove(s, 6)!; // O
+    expect(s.winner).toBeNull();
+    expect(s.moves[PlayerSymbol.X]).toEqual([0, 4, 7]);
+
+    // X places at 2 — oldest (0) is removed. Would-be row [0,1,2] is broken.
+    // Remaining X: [4, 7, 2]. No winning combination.
+    s = makeMove(s, 2)!;
+    expect(s.board[0]).toBeNull();
+    expect(s.board[2]).toBe(PlayerSymbol.X);
+    expect(s.winner).toBeNull();
   });
 });

@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 interface BoardProps {
   board: (PlayerSymbol | null)[];
   colors: Record<PlayerSymbol, Color>;
-  currentPlayer: PlayerSymbol;
   winningCombination: readonly [number, number, number] | null;
   nextToRemove: Record<PlayerSymbol, number | null>;
   previewPlayer?: PlayerSymbol;
@@ -39,29 +38,34 @@ export function Board({
       <div
         role="grid"
         aria-label="Tic Tac Toe game board"
-        className="grid h-full w-full grid-cols-3 grid-rows-3 gap-1.5 sm:gap-2"
+        className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2"
       >
-        {board.map((value, index) => {
-          const symbol = value as PlayerSymbol;
-          const isNext = nextToRemove[symbol] === index && value !== null;
-          const isWinning = winningCombination?.includes(index) ?? false;
-          return (
-            <BoardCell
-              key={index}
-              index={index}
-              value={value}
-              valueColor={value ? colors[value] : undefined}
-              isNextToRemove={isNext}
-              isWinningCell={isWinning}
-              isDisabled={disabled}
-              isHovered={hovered === index}
-              previewPlayer={previewPlayer}
-              previewColor={previewColor}
-              onClick={onCellClick}
-              onHover={setHovered}
-            />
-          );
-        })}
+        {[0, 1, 2].map((row) => (
+          <div key={row} role="row" className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            {[0, 1, 2].map((col) => {
+              const index = row * 3 + col;
+              const value = board[index];
+              const isNext = value !== null && nextToRemove[value] === index;
+              const isWinning = winningCombination?.includes(index) ?? false;
+              return (
+                <BoardCell
+                  key={index}
+                  index={index}
+                  value={value}
+                  valueColor={value ? colors[value] : undefined}
+                  isNextToRemove={isNext}
+                  isWinningCell={isWinning}
+                  isDisabled={disabled}
+                  isHovered={hovered === index}
+                  previewPlayer={previewPlayer}
+                  previewColor={previewColor}
+                  onClick={onCellClick}
+                  onHover={setHovered}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
       {winGeometry && <WinLine geometry={winGeometry} />}
     </div>

@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
 
 export interface GameStats {
   totalGames: number;
   wins: number;
   losses: number;
-  draws: number;
   currentWinStreak: number;
   bestWinStreak: number;
 }
@@ -14,7 +13,6 @@ const DEFAULT_STATS: GameStats = {
   totalGames: 0,
   wins: 0,
   losses: 0,
-  draws: 0,
   currentWinStreak: 0,
   bestWinStreak: 0,
 };
@@ -35,22 +33,19 @@ const readStats = (guestId: string): GameStats => {
 
 const writeStats = (guestId: string, stats: GameStats): void => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(storageKey(guestId), JSON.stringify(stats));
+  try {
+    window.localStorage.setItem(storageKey(guestId), JSON.stringify(stats));
+  } catch {
+    // QuotaExceededError — stats will be lost but game continues
+  }
 };
 
 export function useGameStats() {
-  const [stats, setStats] = useState<GameStats>(DEFAULT_STATS);
-  const [guestId, setGuestId] = useState<string>("");
-
-  useEffect(() => {
-    const identity = getOrCreateGuestIdentity();
-    setGuestId(identity.guestId);
-    setStats(readStats(identity.guestId));
-  }, []);
+  const [guestId] = useState<string>(() => getOrCreateGuestIdentity().guestId);
+  const [stats, setStats] = useState<GameStats>(() => readStats(getOrCreateGuestIdentity().guestId));
 
   const recordWin = useCallback(() => {
     setStats((prev) => {
-      if (!guestId) return prev;
       const currentStreak = prev.currentWinStreak + 1;
       const next: GameStats = {
         ...prev,
@@ -66,7 +61,6 @@ export function useGameStats() {
 
   const recordLoss = useCallback(() => {
     setStats((prev) => {
-      if (!guestId) return prev;
       const next: GameStats = {
         ...prev,
         totalGames: prev.totalGames + 1,
@@ -78,19 +72,5 @@ export function useGameStats() {
     });
   }, [guestId]);
 
-  const recordDraw = useCallback(() => {
-    setStats((prev) => {
-      if (!guestId) return prev;
-      const next: GameStats = {
-        ...prev,
-        totalGames: prev.totalGames + 1,
-        draws: prev.draws + 1,
-        currentWinStreak: 0,
-      };
-      writeStats(guestId, next);
-      return next;
-    });
-  }, [guestId]);
-
-  return { stats, recordWin, recordLoss, recordDraw };
+  return { stats, recordWin, recordLoss };
 }

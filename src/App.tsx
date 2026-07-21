@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
   Color,
   GameModes,
@@ -7,7 +7,7 @@ import {
   PlayerTypes,
   type AI_Difficulty as AI_DifficultyType,
 } from "@/game/constants";
-import { canMakeMove } from "@/game/logic";
+
 import { LoginForm, type LoginFormPayload } from "@/components/auth/loginForm";
 import { Board } from "@/components/game/board";
 import { PlayersPanel } from "@/components/game/playersPanel";
@@ -67,7 +67,11 @@ export default function App() {
       )}
       {view === "game" && config && (
         <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
-          <GameView key={JSON.stringify(config)} config={config} onExit={handleExit} />
+          <GameView
+            key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
+            config={config}
+            onExit={handleExit}
+          />
         </Suspense>
       )}
     </main>
@@ -106,15 +110,19 @@ function LocalGameSurface({
   config: GameConfig;
   onExit: () => void;
 }) {
-  const { gameState, handleCellClick, handleReset, exit } = useLocalGame({
-    gameMode: config.gameMode as typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND,
-    playerXName: config.displayName,
-    playerOName: config.opponentName,
-    playerColor: config.color,
-    opponentColor: oppositeColor(config.color),
-    aiDifficulty: config.aiDifficulty,
-  });
-  const { stats, recordWin, recordLoss, recordDraw } = useGameStats();
+  const input = useMemo(
+    () => ({
+      gameMode: config.gameMode as typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND,
+      playerXName: config.displayName,
+      playerOName: config.opponentName,
+      playerColor: config.color,
+      opponentColor: oppositeColor(config.color),
+      aiDifficulty: config.aiDifficulty,
+    }),
+    [config.gameMode, config.displayName, config.opponentName, config.color, config.aiDifficulty],
+  );
+  const { gameState, handleCellClick, handleReset, exit } = useLocalGame(input);
+  const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
 
   useEffect(() => {
@@ -127,20 +135,13 @@ function LocalGameSurface({
       recordedGameId.current = gameState.moveCount;
       if (gameState.winner === PlayerSymbol.X) recordWin();
       else recordLoss();
-    } else if (gameState.gameStatus === GameStatus.COMPLETED && gameState.moveCount > 0) {
-      if (gameState.moveCount === recordedGameId.current) return;
-      recordedGameId.current = gameState.moveCount;
-      recordDraw();
     }
-  }, [gameState.winner, gameState.gameStatus, gameState.moveCount, recordWin, recordLoss, recordDraw]);
+  }, [gameState.winner, gameState.gameStatus, gameState.moveCount, recordWin, recordLoss]);
 
-  const previewPlayer = canMakeMove(
-    gameState.gameMode,
-    gameState.currentPlayer,
-    PlayerSymbol.X,
-  )
-    ? gameState.currentPlayer
-    : undefined;
+  const previewPlayer =
+    gameState.currentPlayer === PlayerSymbol.X
+      ? gameState.currentPlayer
+      : undefined;
 
   const isAITurn =
     gameState.gameStatus === GameStatus.ACTIVE &&
@@ -165,7 +166,6 @@ function LocalGameSurface({
           [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].color,
           [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].color,
         }}
-        currentPlayer={gameState.currentPlayer}
         winningCombination={gameState.winningCombination}
         nextToRemove={gameState.nextToRemove}
         previewPlayer={previewPlayer}
@@ -179,13 +179,13 @@ function LocalGameSurface({
 
 const OPPOSITE_COLOR: Record<Color, Color> = {
   [Color.BLUE]: Color.RED,
+  [Color.RED]: Color.BLUE,
   [Color.GREEN]: Color.PURPLE,
+  [Color.PURPLE]: Color.GREEN,
   [Color.YELLOW]: Color.ORANGE,
   [Color.ORANGE]: Color.YELLOW,
-  [Color.RED]: Color.BLUE,
-  [Color.PINK]: Color.GREEN,
-  [Color.PURPLE]: Color.GREEN,
-  [Color.GRAY]: Color.GRAY,
+  [Color.PINK]: Color.GRAY,
+  [Color.GRAY]: Color.PINK,
 };
 
 function oppositeColor(color: Color): Color {

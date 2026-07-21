@@ -16,7 +16,11 @@ const GUEST_NAME_PREFIXES = ["Guest", "Player", "Tactician"] as const;
 
 const getBrowserStorage = (): Storage | null => {
   if (typeof window === "undefined") return null;
-  return window.localStorage;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 };
 
 const randomSuffix = () => Math.floor(Math.random() * 9000) + 1000;
@@ -60,8 +64,12 @@ export const getOrCreateGuestIdentity = (
   const savedDisplayName = storage?.getItem(IDENTITY_STORAGE_KEYS.displayName);
   const displayName = sanitizeDisplayName(savedDisplayName);
 
-  storage?.setItem(IDENTITY_STORAGE_KEYS.guestId, guestId);
-  storage?.setItem(IDENTITY_STORAGE_KEYS.displayName, displayName);
+  try {
+    storage?.setItem(IDENTITY_STORAGE_KEYS.guestId, guestId);
+    storage?.setItem(IDENTITY_STORAGE_KEYS.displayName, displayName);
+  } catch {
+    // QuotaExceededError or SecurityError — continue with in-memory identity
+  }
 
   return { kind: "guest", guestId, displayName };
 };
@@ -76,7 +84,11 @@ export const saveDisplayName = (
     identity.displayName,
   );
 
-  storage?.setItem(IDENTITY_STORAGE_KEYS.displayName, sanitizedDisplayName);
+  try {
+    storage?.setItem(IDENTITY_STORAGE_KEYS.displayName, sanitizedDisplayName);
+  } catch {
+    // QuotaExceededError or SecurityError — continue with in-memory identity
+  }
 
   return { ...identity, displayName: sanitizedDisplayName };
 };

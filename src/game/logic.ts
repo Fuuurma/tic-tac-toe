@@ -134,15 +134,7 @@ export const isValidMove = (state: GameState, index: number, symbol: PlayerSymbo
   return true;
 };
 
-export const canMakeMove = (
-  gameMode: GameMode,
-  currentPlayer: PlayerSymbol,
-  playerSymbol: PlayerSymbol | null,
-): boolean => {
-  if (gameMode === GameModes.VS_COMPUTER) return playerSymbol === currentPlayer;
-  // VS_FRIEND and ONLINE: the human can move whenever it's their turn.
-  return playerSymbol === currentPlayer;
-};
+
 
 export const getNextPlayerSymbol = (current: PlayerSymbol): PlayerSymbol =>
   current === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
