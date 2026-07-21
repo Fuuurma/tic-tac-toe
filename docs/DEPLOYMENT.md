@@ -12,7 +12,7 @@
    ```bash
    git add .
    git commit -m "deploy: ship first slice"
-   git push origin feat/game-stack-vite-peerjs
+   git push origin main
    ```
 
 2. **Create Cloudflare Pages project**
@@ -70,9 +70,8 @@ pnpm preview     # serves dist/ on localhost:4173
 - Ensure pnpm is available: `corepack enable`
 - Check that all dependencies are in `package.json`
 
-### PeerJS connection fails in production
-- Check the browser console for PeerJS connection errors
-- Confirm `https://0.peerjs.com` and secure WebSockets are reachable
+### WebSocket relay connection fails
+- Check the browser console for WebSocket errors
+- Confirm the Durable Object relay Worker is deployed and reachable
 - Test from two genuinely different networks, not only two tabs on one machine
-- PeerJS Cloud only provides signaling; configure a production TURN relay for
-  users behind symmetric NATs and consider a self-hosted PeerServer at scale
+- The room keeps a 30-second reconnect window; check that both clients reconnect within that window

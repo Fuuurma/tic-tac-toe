@@ -3,10 +3,10 @@ export const IDENTITY_STORAGE_KEYS = {
   displayName: "tic-tac-toe:displayName",
 } as const;
 
-export const DISPLAY_NAME_MIN_LENGTH = 2;
-export const DISPLAY_NAME_MAX_LENGTH = 20;
+const DISPLAY_NAME_MIN_LENGTH = 2;
+const DISPLAY_NAME_MAX_LENGTH = 20;
 
-export type GuestIdentity = {
+type GuestIdentity = {
   kind: "guest";
   guestId: string;
   displayName: string;

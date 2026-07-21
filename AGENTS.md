@@ -96,7 +96,7 @@ pnpm check
 ## Stack
 
 - **Shell**: Vite 5 + React 19 + TypeScript + Tailwind v4
-- **Realtime**: Cloudflare Durable Object WebSocket relay inside the shared `fuurma-matchmaking` Worker (PeerJS removed; `VITE_USE_WS_ROOM` remains only as compatibility configuration)
+- **Realtime**: Cloudflare Durable Object WebSocket relay inside the shared `fuurma-matchmaking` Worker
 - **Backend**: Shared `fuurma-matchmaking` Cloudflare Worker for quick match pairing and `GameRoomDO` WebSocket relay
 - **Auth**: None (guest-only)
 - **Deploy**: Cloudflare Pages (static, `dist/`)

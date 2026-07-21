@@ -1,4 +1,4 @@
-export type Match = {
+type Match = {
   roomId: string;
   role: "host" | "guest";
   host: {
@@ -24,7 +24,7 @@ export type MatchmakingResponse =
   | { status: "waiting"; ticket: string; roomId: string }
   | { status: "matched"; match: Match };
 
-export interface FindMatchOptions {
+interface FindMatchOptions {
   game: string;
   peerId: string;
   displayName: string;

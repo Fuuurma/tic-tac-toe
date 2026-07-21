@@ -17,45 +17,40 @@
  * Spec: newProjectsPlanner/migrations/2026-07-games-do-websocket-migration.md
  */
 
-export type RoomMessage = { type: string; [key: string]: unknown };
+type RoomMessage = { type: string; [key: string]: unknown };
 
-export type RoomRole = "host" | "guest";
+type RoomRole = "host" | "guest";
 
-export interface WelcomeMessage {
+interface WelcomeMessage {
   type: "welcome";
   role: RoomRole;
   opponent: { guestId: string; displayName: string } | null;
 }
 
-export interface PeerJoinedMessage {
+interface PeerJoinedMessage {
   type: "peer-joined";
   opponent: { guestId: string; displayName: string };
 }
 
-export interface PeerReconnectedMessage {
-  type: "peer-reconnected";
-  opponent: { guestId: string; displayName: string };
-}
-
-export interface PeerLeftMessage {
+interface PeerLeftMessage {
   type: "peer-left";
   reason: "disconnect" | "closed" | "expired";
 }
 
-export interface ErrorMessage {
+interface ErrorMessage {
   type: "error";
   code: string;
   message: string;
 }
 
-export type RoomEnvelope =
+type RoomEnvelope =
   | WelcomeMessage
   | PeerJoinedMessage
   | PeerLeftMessage
   | ErrorMessage
   | ({ type: string } & Record<string, unknown>);
 
-export type RoomStatus =
+type RoomStatus =
   | "idle"
   | "connecting"
   | "connected"
@@ -63,7 +58,7 @@ export type RoomStatus =
   | "disconnected"
   | "error";
 
-export interface RoomClientOptions {
+interface RoomClientOptions {
   wsUrl: string;
   game: string;
   guestId: string;
@@ -74,7 +69,7 @@ export interface RoomClientOptions {
   autoReconnect?: boolean;
 }
 
-export interface RoomSession {
+interface RoomSession {
   role: RoomRole;
   opponent: { guestId: string; displayName: string } | null;
 }
@@ -334,21 +329,4 @@ function parseEnvelope(raw: string): RoomEnvelope | null {
   return obj as unknown as RoomEnvelope;
 }
 
-export type RoomStatusListener = (status: RoomStatus, detail?: string) => void;
 
-export const roomStatusLabel = (status: RoomStatus): string => {
-  switch (status) {
-    case "idle":
-      return "Idle";
-    case "connecting":
-      return "Connecting...";
-    case "connected":
-      return "Connected";
-    case "reconnecting":
-      return "Reconnecting...";
-    case "disconnected":
-      return "Disconnected";
-    case "error":
-      return "Error";
-  }
-};

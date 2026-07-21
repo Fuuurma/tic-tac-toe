@@ -9,16 +9,14 @@ The public URL is a preview, not a production launch:
 https://tic-tac-toe-1ou.pages.dev
 
 The web client uses the shared `fuurma-matchmaking` Cloudflare Worker for quick
-matchmaking and a per-room Durable Object WebSocket relay. PeerJS, STUN, and
-TURN are not part of the current architecture. No account is required.
+matchmaking and a per-room Durable Object WebSocket relay. No account is required.
 
 ## Stack
 
-- Vite 8 + React 19.2 + TypeScript
-- Tailwind CSS v4 + shadcn/ui/Radix primitives
+- Vite 5 + React 19 + TypeScript
+- Tailwind CSS v4
 - Shared Cloudflare Worker + Durable Object WebSocket relay
 - Client-side Minimax and MCTS AI
-- Motion + `tw-animate-css`
 - Vitest + Playwright
 - Cloudflare Pages for the static build
 
