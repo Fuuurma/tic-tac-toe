@@ -2,6 +2,10 @@ import { AI_Difficulty, PlayerSymbol } from "./constants";
 import { checkWinner, getValidMoves, makeMove, type GameState } from "./logic";
 
 const WIN_SCORE = 1000;
+const MINIMAX_DEPTH_NORMAL = 4;
+const MINIMAX_DEPTH_HARD = 8;
+const MCTS_SIMULATIONS = 600;
+const MCTS_SIMULATION_PLY_CAP = 100;
 
 const scoreTerminal = (winner: PlayerSymbol | null, player: PlayerSymbol): number => {
   if (winner === player) return WIN_SCORE;
@@ -134,7 +138,7 @@ const mctsExpand = (node: MctsNode): MctsNode => {
 const mctsSimulate = (state: GameState): PlayerSymbol | null => {
   let current = state;
   // The three-piece variant can cycle forever, so simulations need a draw cap.
-  for (let ply = 0; ply < 100; ply += 1) {
+  for (let ply = 0; ply < MCTS_SIMULATION_PLY_CAP; ply += 1) {
     const { winner } = checkWinner(current.board);
     if (winner !== null) return winner;
     const moves = getValidMoves(current.board);
@@ -198,11 +202,11 @@ export const getAIMove = (
     case AI_Difficulty.EASY:
       return easyMove(state);
     case AI_Difficulty.NORMAL:
-      return pickBest(state, aiSymbol, 4);
+      return pickBest(state, aiSymbol, MINIMAX_DEPTH_NORMAL);
     case AI_Difficulty.HARD:
-      return pickBest(state, aiSymbol, 8);
+      return pickBest(state, aiSymbol, MINIMAX_DEPTH_HARD);
     case AI_Difficulty.INSANE:
-      return mctsBestMove(state, aiSymbol, 600);
+      return mctsBestMove(state, aiSymbol, MCTS_SIMULATIONS);
     default:
       return easyMove(state);
   }

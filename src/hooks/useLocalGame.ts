@@ -9,7 +9,7 @@ import {
   TURN_DURATION_MS,
 } from "@/game/constants";
 import {
-  GameState,
+  type GameState,
   createInitialGameState,
   freshGameState,
   isGameActive,

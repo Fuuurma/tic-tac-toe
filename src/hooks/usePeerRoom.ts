@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AVAILABLE_COLORS,
   Color,
+  GAME_ID,
   GameModes,
   GameStatus,
   PlayerSymbol,
@@ -95,8 +96,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const matchmakingTicketRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
 
-  stateRef.current = state.gameState;
-  roleRef.current = state.role;
+  useEffect(() => {
+    stateRef.current = state.gameState;
+    roleRef.current = state.role;
+  }, [state.gameState, state.role]);
 
   const update = useCallback((patch: Partial<PeerRoomState>) => {
     setState((prev) => ({ ...prev, ...patch }));
@@ -417,7 +420,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     const identity = getOrCreateGuestIdentity();
     const client = new RoomClient({
       wsUrl,
-      game: "tictactoe",
+      game: GAME_ID,
       guestId: identity.guestId,
       displayName: options.hostDisplayName,
       role,
@@ -484,7 +487,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       });
       roleRef.current = "host";
 
-      const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, "tictactoe");
+      const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, GAME_ID);
       const room = buildRoomClient(resolvedUrl, "host");
       room.connect().catch((err) => {
         update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
@@ -504,7 +507,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       update({ role: "guest", status: "connecting", roomId: trimmed, message: "Connecting..." });
       roleRef.current = "guest";
 
-      const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, "tictactoe");
+      const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, GAME_ID);
       const room = buildRoomClient(resolvedUrl, "guest");
       room.connect().catch((err) => {
         update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
@@ -522,7 +525,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     const sessionId = crypto.randomUUID();
     try {
       const response: MatchmakingResponse = await findMatch({
-        game: "tictactoe",
+        game: GAME_ID,
         peerId: sessionId,
         displayName: options.hostDisplayName,
         guestId: identity.guestId,
@@ -530,7 +533,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
       if (response.status === "waiting") {
         matchmakingTicketRef.current = response.ticket;
-        const wsUrl = buildRoomWsUrl(response.roomId, "tictactoe");
+        const wsUrl = buildRoomWsUrl(response.roomId, GAME_ID);
         startAsHost(response.roomId, wsUrl);
 
         // Poll the matchmaking service until the guest is paired.
@@ -541,14 +544,14 @@ export function usePeerRoom(options: PeerRoomOptions) {
         const pollStart = Date.now();
         while (Date.now() - pollStart < MAX_POLL_MS) {
           if (!matchmakingTicketRef.current) break; // user cancelled via leave()
-          const matched = await pollMatch("tictactoe", response.ticket);
+          const matched = await pollMatch(GAME_ID, response.ticket);
           if (matched.status === "matched") {
             break;
           }
           await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         }
 
-        leaveMatch("tictactoe", response.ticket).catch(() => {});
+        leaveMatch(GAME_ID, response.ticket).catch(() => {});
         matchmakingTicketRef.current = null;
         hasStartedRef.current = false;
         return;
@@ -599,7 +602,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     stopTimer();
     const ticket = matchmakingTicketRef.current;
     if (ticket) {
-      leaveMatch("tictactoe", ticket).catch(() => {});
+      leaveMatch(GAME_ID, ticket).catch(() => {});
       matchmakingTicketRef.current = null;
     }
     hasStartedRef.current = false;

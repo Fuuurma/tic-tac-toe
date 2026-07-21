@@ -168,22 +168,11 @@ function RoomIdShare({ roomId, origin }: { roomId: string; origin: string }) {
 
   const onCopy = async (text: string) => {
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      // ignore clipboard errors
+      // clipboard API unavailable or denied
     }
   };
 

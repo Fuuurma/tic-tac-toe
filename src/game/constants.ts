@@ -51,6 +51,7 @@ export const GAME_RULES = {
 } as const;
 export const TURN_DURATION_MS = 10_000;
 export const AI_MOVE_DELAY_MS = 600;
+export const GAME_ID = "tictactoe";
 
 export const PLAYER_CONFIG: Record<
   PlayerSymbol,

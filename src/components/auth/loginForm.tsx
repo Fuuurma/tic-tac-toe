@@ -23,6 +23,7 @@ import { AI_DifficultySelector } from "../game/aiDifficultySelector";
 import { Play, Shuffle, User, Users, KeyRound, Plus, LogIn, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
+import { normalizeRoomId } from "@/lib/roomId";
 import { COLOR_BG_CLASSES } from "@/game/constants";
 
 export interface LoginFormPayload {
@@ -40,8 +41,6 @@ interface LoginFormProps {
   onStart: (payload: LoginFormPayload) => void;
 }
 
-const ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{4,64}$/;
-
 const validate = (payload: LoginFormPayload): string | null => {
   if (sanitizeDisplayName(payload.displayName) !== payload.displayName) {
     return "Enter a valid name (2-20 characters, no control characters).";
@@ -55,7 +54,7 @@ const validate = (payload: LoginFormPayload): string | null => {
       if (!roomId) {
         return "Enter a room ID to join.";
       }
-      if (!ROOM_ID_PATTERN.test(roomId)) {
+      if (!normalizeRoomId(roomId)) {
         return "Room ID must be 4-64 letters, digits, hyphens, or underscores.";
       }
     }
