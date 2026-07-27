@@ -30,13 +30,14 @@ test("quick match pairs two players", async ({ browser }) => {
   const hostPage = await host.newPage();
   const guestPage = await guest.newPage();
 
-  // Host starts a quick match
+  // Host starts a quick match — the host sees the "Finding an opponent…"
+  // connection state until the relay completes the pairing.
   await hostPage.goto("/");
   await hostPage.getByLabel("Your name").fill("Host");
   await hostPage.getByRole("radio", { name: "Online", exact: true }).click();
   await hostPage.getByRole("button", { name: "Quick", exact: true }).click();
   await hostPage.getByRole("button", { name: "Quick Match" }).click();
-  await expect(hostPage.getByText(/Waiting for opponent|Finding match|Opponent: Guest/)).toBeVisible({ timeout: 30_000 });
+  await expect(hostPage.getByText("Finding an opponent…")).toBeVisible({ timeout: 30_000 });
 
   // Guest starts a quick match
   await guestPage.goto("/");

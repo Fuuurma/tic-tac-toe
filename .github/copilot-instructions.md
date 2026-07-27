@@ -1,235 +1,176 @@
 # Copilot Instructions for TicTacToe
 
-This project is a multi-platform TicTacToe game with a unique **3-piece strategic variant**. Use this guide to understand the architecture, development workflow, and key conventions.
+This repository is a single Vite + React + TypeScript application for a
+3-piece strategic tic-tac-toe game. There is no Next.js, no Socket.IO
+server, and no React Native subproject under this repository.
 
 ## Project Structure
 
-The repository contains two distinct applications:
+This repo is one Vite SPA. There is no `/TicTacToeMobile` subproject
+in this checkout; if you see references to it, they refer to a
+separate parked experiment.
 
-- **`/tic-tac-toe`** (Primary): Next.js 15 web/hybrid app with Socket.IO multiplayer backend
-- **`/TicTacToeMobile`** (Secondary): React Native 0.84 app for native iOS/Android
-
-**Unless specified otherwise, work in `/tic-tac-toe`.**
+```
+src/game/               pure rules, AI search, shared constants
+src/hooks/              useLocalGame, usePeerRoom, useGameStats
+src/components/auth/    login form, mark/symbol pickers
+src/components/game/    board, board cell, panels, online surface
+src/lib/                peer protocol validation, RoomClient, identity, matchmaking
+e2e/                    Playwright smoke (smoke + quick-match)
+public/                 static assets served by Cloudflare Pages
+wrangler.jsonc          Cloudflare Pages config (no Worker, no DO bindings)
+```
 
 ## Core Game Concept
 
 - **Board**: 3x3 grid
-- **3-Piece Rule**: Each player can have max 3 pieces; placing a 4th removes the oldest
-- **Turn Timer**: 10 seconds per turn; timeout triggers random move
-- **Win Condition**: 3 in a row (horizontal, vertical, diagonal)
-- **Result**: No draws possible due to piece removal mechanism
+- **3-Piece Rule**: Each player can have at most 3 pieces; placing a
+  4th removes the oldest mark.
+- **Turn Timer**: 10 seconds per turn; on timeout a random legal
+  move is played.
+- **Win Condition**: 3 in a row (row, column, or diagonal).
+- **Result**: The 3-piece variant rarely draws; outcomes are
+  win-for-X, win-for-O, or stalemate.
 
 ## Build, Test, and Lint Commands
 
-All commands run from `/tic-tac-toe` unless noted:
-
-### Development & Build
+All commands run from the repository root unless noted:
 
 ```bash
-pnpm dev              # Start dev server with Turbopack (port 3000)
-pnpm build            # Production build
-pnpm start            # Run next start (production)
-pnpm start:prod       # Run custom server with Socket.IO (port 3000 + 3009)
+pnpm install                  # Use pnpm 10.30.2 unless stated otherwise
+pnpm dev                      # Vite dev server at http://127.0.0.1:3110
+pnpm build                    # tsc -b && vite build, output to dist/
+pnpm preview                  # vite preview at http://127.0.0.1:4110
+pnpm lint                     # ESLint over src, e2e, vite, vitest, playwright configs
+pnpm test                     # vitest run (unit)
+pnpm test:e2e                 # pnpm build && playwright test
+pnpm check                    # pnpm lint && pnpm test && pnpm test:e2e
+pnpm deploy:check             # build + sanity-check the dist artifact
+pnpm deploy                   # pnpm build && wrangler pages deploy dist
 ```
 
-### Testing
+## Stack
 
-```bash
-pnpm test             # Run all tests (vitest)
-pnpm test -- tests/unit/checkWinner.test.ts      # Single test file
-pnpm test:unit        # Unit tests only
-pnpm test:integration # Integration tests only
-pnpm test:load        # Load tests only
-pnpm test:watch       # Watch mode
-pnpm test:ui          # UI dashboard for tests
-pnpm test:coverage    # Coverage report
-```
+- **Shell**: Vite 8 + React 19 + TypeScript + Tailwind v4
+- **Realtime**: Cloudflare Durable Object WebSocket relay inside the
+  shared `fuurma-matchmaking` Worker — there is no Socket.IO server
+  in this repo.
+- **Backend**: The shared `fuurma-matchmaking` Cloudflare Worker
+  provides `/api/matchmaking/{game}` quick-match endpoints and a
+  per-room `GameRoomDO` WebSocket relay.
+- **Auth**: None (guest-only; a `guestId` is generated in
+  `src/lib/identity.ts` and persisted to `localStorage`).
+- **Deploy**: Cloudflare Pages static (`dist/`).
+- **Testing**: Vitest (unit) + Playwright (smoke).
+- **AI**: Easy = random with a center/corner/edge preference,
+  Normal = depth-4 alpha-beta with depth-bounded eval,
+  Hard = depth-8 alpha-beta with similar eval.
+  Hard and Normal can exceed the mobile 100ms move-time budget;
+  follow `audits/tic-tac-toe-codebase-2026-07-26.md` for the
+  documented Web Worker offload decision.
 
-### Linting & Formatting
+## Online Play Architecture
 
-```bash
-pnpm lint             # Run ESLint (Next.js + TypeScript)
-```
+- **Host** = the player who creates the room; always plays X.
+- **Guest** = the joining player; always plays O.
+- **Reliability**: The host is authoritative for game state and
+  the timer. Guest moves are validated on the host and broadcast
+  back to the guest via `gameUpdate`.
+- **Reconnect**: 30-second grace after `peer-left: disconnect`.
+  `peer-reconnected` restores the slot; `closed`/`expired` are
+  terminal. The host resets `turnTimeRemaining` to the full
+  duration after a reconnect, so the very next tick cannot force
+  a random fallback.
+- **Rematch**: `rematchAccept` is gated by the host side on
+  (a) a pending host-issued rematch request and (b) the previous
+  game being terminal. Without either, the host ignores the
+  guest's accept, preventing a mid-game reset by a hostile peer.
+- **Quick match** uses `POST /api/matchmaking/tictactoe/join` on
+  the shared Worker. The matchmaking response carries either a
+  `waiting` ticket (host path) or a `matched` payload (guest
+  path).
 
-## High-Level Architecture
+## Wire Schema
 
-### Web App (`/tic-tac-toe`)
+Wire messages are validated by `isPeerMessage` in
+`src/lib/peer.ts`. The validator rejects:
 
-**Framework**: Next.js 15 (App Router), React 19, TypeScript strict mode
+- Display names/guest IDs outside 1..20 / 1..64 character bounds.
+- `preferredColor` that is not a member of the `Color` enum.
+- Move indices outside `0..BOARD_SIZE - 1` or that are not integers.
+- `winningCombination` that does not match one of the eight
+  canonical WINNING_COMBINATIONS rows.
+- `turnTimeRemaining` outside `0..TURN_DURATION_MS`.
+- `gameMode`/`gameStatus`/`aiDifficulty`/`PlayerType` values
+  outside their enums.
+- Moves.X/O arrays longer than `MAX_MOVES_PER_PLAYER` or with
+  out-of-range indices.
+- `nextToRemove` values outside the board range.
+- `maxMoves` outside the configured rule range.
 
-**Key Directories**:
-- `app/` - Page routes and core logic
-  - `game/logic/` - Pure functions for game rules (move validation, win detection, piece tracking)
-  - `game/ai/` - AI implementations (MCTS, Minimax, Simple)
-  - `game/constants/` - Enums, constants, game rules
-  - `types/` - Centralized TypeScript definitions
-  - `utils/` - Utility functions
-  - `hooks/` - Custom hooks (game state, Socket.IO, analytics)
-  - `api/` - Socket connection helpers
-- `components/` - React components by feature
-  - `ui/` - shadcn/ui reusable primitives
-  - `game/` - Game-specific components (board, panels)
-  - `auth/` - Authentication forms
-  - `menu/` - Menus and theme toggle
-- `server.js` - Custom Socket.IO server (for `pnpm start:prod`)
-- `tests/` - Test files (unit, integration, load)
+A relay peer cannot mutate guest state via oversized or spoofed
+frames. Rejecting those frames is part of the contract.
 
-**Styling**: Tailwind CSS 4 + Radix UI + shadcn/ui with dark mode support
+## Code Style
 
-**Real-time**: Socket.IO 4 for multiplayer (server runs on port 3009)
+- Functional components with hooks, no `"use client"` (Vite SPA).
+- Use `cn()` from `@/lib/utils` for className merging.
+- Use `useCallback`/`useMemo` for event handlers and expensive
+  computations.
+- Pure game logic in `src/game/` must not import React.
+- Game message types are a discriminated union in `src/lib/peer.ts`
+  (the filename is historical; the transport is the WebSocket
+  relay, never PeerJS or Socket.IO).
+- Validate wire state before writing it to React state, even though
+  the host is intended to be authoritative — a hostile relay peer
+  can still spoof frames.
 
-### Native App (`/TicTacToeMobile`)
+## Key Constants
 
-React Native 0.84 with TypeScript. Same game logic as web. Primary web app handles online multiplayer; native app is local-only.
-
-## Code Style & Conventions
-
-### TypeScript & Imports
-
-Strict mode enabled. Import groups in order:
-
-1. React/external libraries
-2. Internal types and utilities
-3. Components
-
-```typescript
-import { useState, useCallback } from "react";
-import { io, Socket } from "socket.io-client";
-import { GameState, PlayerSymbol } from "@/app/types/types";
-import { checkWinner } from "@/app/game/logic/checkWinner";
-import { Button } from "@/components/ui/button";
-```
-
-### Naming Conventions
-
-| Item | Convention | Example |
-|------|-----------|---------|
-| Files | `kebab-case.ts` or `PascalCase.tsx` | `check-winner.ts`, `GameBoard.tsx` |
-| Components | `PascalCase` | `GameBoard`, `LoginForm` |
-| Functions | `camelCase` | `makeMove`, `checkWinner` |
-| Constants | `SCREAMING_SNAKE_CASE` | `TURN_DURATION_MS` |
-| Enums | `PascalCase` | `PlayerSymbol`, `GameModes` |
-| Types/Interfaces | `PascalCase` | `GameState`, `PlayerConfig` |
-| Variables | `camelCase` | `gameBoard`, `currentPlayer` |
-| Event handlers | `handleX` | `handleCellClick`, `handleLogin` |
-
-### React Components
-
-- Always functional components with hooks
-- Add `"use client"` directive at top of client components
-- Use typed props with interface:
-  ```typescript
-  interface GameBoardProps {
-    gameState: GameState;
-    onCellClick: (index: number) => void;
-  }
-  export default function GameBoard({ gameState, onCellClick }: GameBoardProps) { ... }
-  ```
-- Use `cn()` utility (from `@/lib/utils`) for className merging
-- Update state immutably using functional setState
-
-### Game Logic
-
-- Keep logic functions **pure** (no side effects)
-- Store all game logic in `app/game/logic/`
-- Use constants from `app/game/constants/` for game rules
-- Validate moves with `isValidMove()` before applying
-- Track move history for piece removal logic (3-piece variant)
-
-### AI Implementation
-
-- All AI in `app/game/ai/`
-- Route based on `AI_Difficulty` enum: EASY, NORMAL, HARD, INSANE
-- Add realistic delays for AI moves (200-800ms for UX)
-- Difficulty levels:
-  - **Easy**: Simple heuristic/random
-  - **Normal**: MCTS with 100 iterations
-  - **Hard**: MCTS with 5,000 iterations
-  - **Insane**: MCTS with 20,000 iterations
-
-### Socket.IO (Online Multiplayer)
-
-- **Server**: Custom Node.js server in `server.js` (not App Router route)
-- **Client Hook**: Centralized in `app/hooks/socket.ts`
-- **Connection**: `NEXT_PUBLIC_SOCKET_URL` env var (default: http://localhost:3009)
-- **Production**: Use `pnpm start:prod` to run both Next.js and Socket.IO server
-- Type events properly; clean up listeners in useEffect cleanup
-- Handle connection/disconnection gracefully
-
-### Styling
-
-- Tailwind CSS utility classes (postcss 4 syntax)
-- Dark mode pattern: `dark:variant-class`
-- Use Radix UI primitives for accessibility
-- shadcn/ui components in `components/ui/`
-- Theme switching via `next-themes`
-
-## Testing
-
-- **Framework**: Vitest (unit), Jest (native)
-- **Location**: `tests/` for web, `__tests__/` for native
-- **Pattern**: `*.test.ts` or `*.test.tsx`
-- For bug fixes: reproduce with test case first (empirical validation)
-- Mock Socket.IO for multiplayer tests
+- `TURN_DURATION_MS = 10_000` (10s per turn).
+- `GAME_RULES.MAX_MOVES_PER_PLAYER = 3`.
+- `BOARD_SIZE = 9`.
+- AI difficulties: `EASY`, `NORMAL`, `HARD` (no `INSANE`).
+- `AI_MOVE_DELAY_MS = 150` (intentional pre-move thinking delay).
+- `GAME_ID = "tictactoe"` (the wire id used by the matchmaking
+  Worker).
 
 ## Environment Variables
 
-```bash
-NEXT_PUBLIC_SOCKET_URL    # Socket.IO server URL (default: http://localhost:3009)
-NODE_ENV                  # development or production
-SOCKET_PORT              # Socket server port (default: 3009)
-```
-
-Create `.env.local` in `/tic-tac-toe` with your overrides.
-
-## Key Constants Reference
-
-See `app/game/constants/` for:
-- `TURN_DURATION_MS = 10000` - 10 second turn timer
-- `GAME_RULES.MAX_MOVES_PER_PLAYER = 3` - 3-piece rule
-- `BOARD_SIZE = 9` - 3x3 grid cells
-- `PlayerSymbol` enum (X, O)
-- `GameModes` enum (VS_COMPUTER, VS_FRIEND, ONLINE)
-- `AI_Difficulty` enum (EASY, NORMAL, HARD, INSANE)
-- Socket event constants
+- `VITE_MATCHMAKING_URL` — the base URL for
+  `/api/matchmaking/tictactoe` and `/room/{roomId}`. Used by
+  `src/lib/matchmaking.ts` and `src/hooks/usePeerRoom.ts`.
+- The historical `VITE_USE_WS_ROOM` flag was removed; the
+  client always uses WebSockets and never falls back to a
+  non-WebSocket transport.
 
 ## Common Workflows
 
-### Running the Full Stack
+### Adding a new wire field
 
-```bash
-# In /tic-tac-toe:
-pnpm dev              # Front-end + Next.js on 3000
-# In separate terminal, if testing Socket.IO:
-NODE_ENV=production node server.js  # Socket.IO on 3009
-```
+1. Extend `GameState` in `src/game/logic.ts` (or `PeerMessage`
+   in `src/lib/peer.ts` for top-level messages).
+2. Update `isGameState`/`isPeerMessage` in `src/lib/peer.ts`
+   to validate the new field, including hostile frames.
+3. Add a focused regression test in `src/lib/peer.hostile.test.ts`.
 
-### Testing a Game Logic Change
+### Adding a new AI difficulty
 
-```bash
-# Reproduce bug with test:
-pnpm test -- tests/unit/checkWinner.test.ts --watch
-
-# Fix logic in app/game/logic/
-# Test passes? Commit.
-```
-
-### Mobile App Setup (Advanced)
-
-```bash
-cd /TicTacToeMobile
-npm install
-npm start          # Start Metro bundler
-npm ios            # Run iOS simulator
-npm android        # Run Android emulator
-npm test           # Jest tests
-```
+1. Add the constant to `AI_Difficulty` in
+   `src/game/constants.ts`.
+2. Hook it into `getAIMove` in `src/game/ai.ts`.
+3. If the new difficulty crosses the mobile 100ms budget, route
+   it through the AI Web Worker.
 
 ## Important Notes
 
-1. **TypeScript Strict Mode**: Always define types. Use `@/app/types/types.ts` for shared types.
-2. **Immutable State**: Never mutate state directly; use setState or spread operators.
-3. **Performance**: Game logic and AI can be CPU-intensive; test responsiveness.
-4. **Socket.IO Production**: `pnpm start` alone won't serve multiplayer. Use `pnpm start:prod` or run `server.js` separately.
-5. **3-Piece Rule**: Understand move tracking; oldest move is removed when player reaches 4 pieces.
-6. **Turn Timer**: 10 seconds enforced; random move triggers on timeout—test edge cases.
+1. **TypeScript**: Strict mode. Imports follow the order
+   external libs → internal types/utils → components.
+2. **Immutable state**: Never mutate state directly; spread into
+   a new object or use `setState`/`commitHostState`.
+3. **Performance**: Hard AI can blow the 100ms budget; see the
+   audit for the proposed Worker offload.
+4. **Game logic and AI are unit-tested**: at least one Vitest
+   suite covers each rule and each AI difficulty.
+5. **Don't assume Next.js, Socket.IO, or a React Native
+   subproject** — none of those exist in this repo.

@@ -95,13 +95,13 @@ pnpm check
 
 ## Stack
 
-- **Shell**: Vite 5 + React 19 + TypeScript + Tailwind v4
+- **Shell**: Vite 8 + React 19 + TypeScript + Tailwind v4
 - **Realtime**: Cloudflare Durable Object WebSocket relay inside the shared `fuurma-matchmaking` Worker
 - **Backend**: Shared `fuurma-matchmaking` Cloudflare Worker for quick match pairing and `GameRoomDO` WebSocket relay
 - **Auth**: None (guest-only)
 - **Deploy**: Cloudflare Pages (static, `dist/`)
 - **Testing**: Vitest (unit) + Playwright (smoke)
-- **AI**: Minimax + MCTS (client-side)
+- **AI**: Easy simple tactics, Normal adversarial MCTS, Hard history-aware alpha-beta Minimax (client-side)
 
 ## Code Style
 
@@ -120,9 +120,12 @@ pnpm check
 ## WebSocket Relay Model
 
 - Default transport is the shared `fuurma-matchmaking` Cloudflare Durable Object WebSocket relay
-- `VITE_USE_WS_ROOM=true` remains in `.env.production` for configuration compatibility, but the code always uses WebSocket
+- The historical `VITE_USE_WS_ROOM=true` flag is removed from `.env.production`; the code always uses WebSockets and there is no non-WebSocket fallback
 - Room creator = host = player X, owns game state and timer
 - Guest = player O, sends move intents to host
+- Inbound wire frames are validated by `isPeerMessage`/`isGameState` in `src/lib/peer.ts` (colors, display names, move indices, winning lines, timer bounds, game-mode/AI-difficulty/player-type enums)
+- Host resets `turnTimeRemaining` to `TURN_DURATION_MS` after `peer-reconnected` so a same-identity reconnect cannot trigger an immediate random move
+- Host gates `rematchAccept` on a pending host-issued rematch request and on the previous game being terminal; a stray guest accept is ignored
 - Host validates, applies, and broadcasts state to guest
 - `peer-left: disconnect` is transient during the 30-second reconnect grace; `peer-reconnected` restores the peer; `closed` and `expired` are final
 
@@ -131,4 +134,4 @@ pnpm check
 - `TURN_DURATION_MS = 10_000` (10s per turn)
 - `GAME_RULES.MAX_MOVES_PER_PLAYER = 3`
 - `BOARD_SIZE = 9`
-- AI difficulties: EASY (random), NORMAL (heuristic), HARD (minimax), INSANE (MCTS)
+- AI difficulties: EASY (simple tactics), NORMAL (MCTS), HARD (Minimax)

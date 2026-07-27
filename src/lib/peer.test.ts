@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Color, GameModes, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
-import { applyAuthorizedMove, isPeerMessage } from "@/lib/peer";
+import { applyAuthorizedMove, applyOptimisticMove, isPeerMessage } from "@/lib/peer";
 
 const onlineState = () => {
   const state = createInitialGameState({
@@ -28,6 +28,16 @@ describe("applyAuthorizedMove", () => {
   it("rejects malformed move indices", () => {
     expect(applyAuthorizedMove(onlineState(), Number.NaN, PlayerSymbol.X)).toBeNull();
     expect(applyAuthorizedMove(onlineState(), 1.5, PlayerSymbol.X)).toBeNull();
+  });
+});
+
+describe("applyOptimisticMove", () => {
+  it("lets the online guest see a legal move before the relay round trip", () => {
+    const afterHostMove = applyAuthorizedMove(onlineState(), 0, PlayerSymbol.X)!;
+    const next = applyOptimisticMove(afterHostMove, 4, PlayerSymbol.O);
+
+    expect(next?.board[4]).toBe(PlayerSymbol.O);
+    expect(next?.currentPlayer).toBe(PlayerSymbol.X);
   });
 });
 

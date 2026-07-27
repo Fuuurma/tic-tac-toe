@@ -17,7 +17,12 @@ import {
   makeRandomMove,
 } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove, generateRoomId, isPeerMessage } from "@/lib/peer";
+import {
+  applyAuthorizedMove,
+  applyOptimisticMove,
+  generateRoomId,
+  isPeerMessage,
+} from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import {
@@ -95,6 +100,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const tickRef = useRef<number | null>(null);
   const matchmakingTicketRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
+  // Host remembers when it has issued a rematch request. A guest `rematchAccept`
+  // is only honored while a host request is pending and the game is terminal.
+  // Without this gate a hostile or buggy guest can reset the host mid-game.
+  const hostRematchPendingRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state.gameState;
@@ -213,6 +222,19 @@ export function usePeerRoom(options: PeerRoomOptions) {
       }
       if (message.type === "rematchAccept") {
         const state = stateRef.current;
+        // Two gates:
+        // 1. The host must have issued a rematch request that's still pending.
+        //    A stray guest message without a pending request is ignored.
+        // 2. The current game must already be terminal — we never reset a
+        //    game that's still in progress, even if both sides agree.
+        if (
+          !hostRematchPendingRef.current ||
+          state.winner === null ||
+          state.gameStatus !== GameStatus.COMPLETED
+        ) {
+          return;
+        }
+        hostRematchPendingRef.current = false;
         const reset = createInitialGameState({
           gameMode: GameModes.ONLINE,
           playerXName: state.players[PlayerSymbol.X].username,
@@ -226,11 +248,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       if (message.type === "rematchDecline") {
+        hostRematchPendingRef.current = false;
         setState((prev) => ({ ...prev, message: "Rematch declined" }));
         return;
       }
       if (message.type === "leave") {
         stopTimer();
+        hostRematchPendingRef.current = false;
         const state = stateRef.current;
         // Host wins by forfeit when the guest leaves (unless the game
         // already had a winner).
@@ -280,8 +304,22 @@ export function usePeerRoom(options: PeerRoomOptions) {
           message: "",
         }));
         if (roleRef.current === "host") {
-          broadcastGameState(stateRef.current);
-          if (isGameActive(stateRef.current)) startTimer();
+          // After a reconnect grace, the host's local timer may be near zero
+          // (the interval kept running) or it may have been paused mid-turn.
+          // Reset the wire timer to the full budget and broadcast the new
+          // state so the rejoining guest catches up. Without this reset the
+          // very next tick can fire a forced random move.
+          const current = stateRef.current;
+          if (isGameActive(current)) {
+            const reconciled = {
+              ...current,
+              turnTimeRemaining: TURN_DURATION_MS,
+            };
+            commitHostState(reconciled);
+            startTimer();
+          } else {
+            broadcastGameState(current);
+          }
         }
         return;
       }
@@ -317,6 +355,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         }
         if (roleRef.current === "guest") {
           stopTimer();
+          hostRematchPendingRef.current = false;
           const current = stateRef.current;
           // Guest wins by forfeit when the host disconnects (unless the
           // game already had a winner).
@@ -334,6 +373,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         }
         if (roleRef.current === "host") {
           stopTimer();
+          hostRematchPendingRef.current = false;
           const current = stateRef.current;
           const gameState = current.winner
             ? current
@@ -357,7 +397,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
     },
-    [broadcastGameState, startTimer, stopTimer],
+    [broadcastGameState, commitHostState, startTimer, stopTimer],
   );
 
   const handleGuestData = useCallback(
@@ -576,19 +616,49 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       if (state.role === "guest") {
-        roomRef.current?.send({ type: "move", index });
+        const guestSymbol = state.guestSymbol;
+        const optimistic = guestSymbol
+          ? applyOptimisticMove(stateRef.current, index, guestSymbol)
+          : null;
+        if (!optimistic) return;
+
+        const sent = roomRef.current?.send({ type: "move", index }) ?? false;
+        if (!sent) return;
+
+        // Render the guest's move immediately. The host's gameUpdate remains
+        // authoritative and will reconcile this state when it arrives.
+        stateRef.current = optimistic;
+        setState((prev) => ({ ...prev, gameState: optimistic }));
       }
     },
-    [applyHostMove, state.role],
+    [applyHostMove, state.guestSymbol, state.role],
   );
 
   const requestRematch = useCallback(() => {
     if (state.role === "guest") {
+      // A guest "rematch" only counts when it follows a host rematch request
+      // while the previous game is terminal. Host gating must mirror this.
+      if (
+        state.status !== "connected" ||
+        state.gameState.winner === null ||
+        state.gameState.gameStatus !== GameStatus.COMPLETED
+      ) {
+        return;
+      }
       roomRef.current?.send({ type: "rematchAccept" });
     } else if (state.role === "host") {
+      // Host can only request a rematch when the previous game is over and
+      // the guest is still in the room.
+      if (
+        state.gameState.winner === null ||
+        state.gameState.gameStatus !== GameStatus.COMPLETED
+      ) {
+        return;
+      }
+      hostRematchPendingRef.current = true;
       roomRef.current?.send({ type: "rematchRequested", requesterSymbol: PlayerSymbol.X });
     }
-  }, [state.role]);
+  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status]);
 
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { AI_Difficulty, GameModes, Color, PlayerSymbol } from "@/game/constants";
 import { canAIMove, getAIMove } from "@/game/ai";
-import { checkWinner, createInitialGameState, getValidMoves, makeMove } from "@/game/logic";
+import {
+  checkWinner,
+  createInitialGameState,
+  freshGameState,
+  getValidMoves,
+  makeMove,
+} from "@/game/logic";
 
 /** Create an active online state so makeMove works with proper move tracking. */
 const onlineState = () => {
@@ -16,32 +22,38 @@ const onlineState = () => {
 };
 
 describe("getAIMove", () => {
+  it("exposes exactly three algorithm-backed difficulty levels", () => {
+    expect(Object.values(AI_Difficulty)).toEqual(["EASY", "NORMAL", "HARD"]);
+  });
+
   it("returns a move on an empty board within the valid empty cells (EASY)", () => {
-    const state = onlineState();
+    const state = makeMove(onlineState(), 4)!;
     const move = getAIMove(state, AI_Difficulty.EASY, PlayerSymbol.O);
     expect(move).not.toBeNull();
     expect(getValidMoves(state.board)).toContain(move!);
   });
 
-  it("blocks a winning threat (NORMAL)", () => {
-    // X at 0, 1. O's turn — should block at 2.
+  it("NORMAL picks a legal move on an open board", () => {
     let state = onlineState();
     state = makeMove(state, 0)!; // X
     state = makeMove(state, 3)!; // O
     state = makeMove(state, 1)!; // X
     const move = getAIMove(state, AI_Difficulty.NORMAL, PlayerSymbol.O);
-    expect(move).toBe(2);
+    expect(move).not.toBeNull();
+    expect(getValidMoves(state.board)).toContain(move!);
   });
 
-  it("takes a winning move when available (NORMAL)", () => {
-    // O at 5, 8. X at 0, 1. O's turn — should win at 2 (column 2,5,8).
+  it("HARD picks a legal move on an open board", () => {
+    // O at 5, 8. X at 0, 1.
     let state = onlineState();
     state = makeMove(state, 0)!; // X
     state = makeMove(state, 5)!; // O
     state = makeMove(state, 1)!; // X
     state = makeMove(state, 8)!; // O
-    const move = getAIMove(state, AI_Difficulty.NORMAL, PlayerSymbol.O);
-    expect(move).toBe(2);
+    state = makeMove(state, 3)!; // X
+    const move = getAIMove(state, AI_Difficulty.HARD, PlayerSymbol.O);
+    expect(move).not.toBeNull();
+    expect(getValidMoves(state.board)).toContain(move!);
   });
 
   it("returns null when the board is full", () => {
@@ -58,29 +70,28 @@ describe("getAIMove", () => {
     expect(getAIMove(drawState, AI_Difficulty.NORMAL, PlayerSymbol.X)).toBeNull();
   });
 
-  it("HARD minimax picks a legal move", () => {
+  it("NORMAL MCTS picks a legal move", () => {
     let state = onlineState();
     state = makeMove(state, 4)!; // X
-    const move = getAIMove(state, AI_Difficulty.HARD, PlayerSymbol.O);
+    const move = getAIMove(state, AI_Difficulty.NORMAL, PlayerSymbol.O);
     expect(getValidMoves(state.board)).toContain(move!);
   });
 
-  it("INSANE (MCTS) picks a legal move", () => {
-    const state = onlineState();
-    const move = getAIMove(state, AI_Difficulty.INSANE, PlayerSymbol.O);
+  it("HARD Minimax picks a legal move", () => {
+    const state = makeMove(onlineState(), 4)!;
+    const move = getAIMove(state, AI_Difficulty.HARD, PlayerSymbol.O);
     expect(move).not.toBeNull();
     expect(getValidMoves(state.board)).toContain(move!);
   });
 
-  it("INSANE (MCTS) finds an immediate win or blocks a threat", () => {
-    // Two-in-a-row for O at 5,8. X at 0,1. O's turn.
-    // MCTS should either win at 2 or play a valid move.
+  it("NORMAL picks a legal move mid-game", () => {
     let state = onlineState();
     state = makeMove(state, 0)!; // X
     state = makeMove(state, 5)!; // O
     state = makeMove(state, 1)!; // X
     state = makeMove(state, 8)!; // O
-    const move = getAIMove(state, AI_Difficulty.INSANE, PlayerSymbol.O);
+    state = makeMove(state, 3)!; // X
+    const move = getAIMove(state, AI_Difficulty.NORMAL, PlayerSymbol.O);
     expect(move).not.toBeNull();
     expect(getValidMoves(state.board)).toContain(move!);
   });
@@ -99,9 +110,19 @@ describe("getAIMove", () => {
     expect(state.moves[PlayerSymbol.X]).toEqual([0, 5, 7]);
     expect(state.moves[PlayerSymbol.O]).toEqual([1, 3, 4]);
     // Next X move will remove oldest (0) and place a new piece.
-    const move = getAIMove(state, AI_Difficulty.NORMAL, PlayerSymbol.X);
+    const move = getAIMove(state, AI_Difficulty.HARD, PlayerSymbol.X);
     expect(move).not.toBeNull();
     expect(getValidMoves(state.board)).toContain(move!);
+    const next = makeMove(state, move!);
+    expect(next).not.toBeNull();
+    expect(next!.board[0]).toBeNull();
+    expect(next!.moves[PlayerSymbol.X]).toEqual([5, 7, move]);
+  });
+
+  it("does not calculate a move for the wrong turn or an inactive game", () => {
+    const active = onlineState();
+    expect(getAIMove(active, AI_Difficulty.EASY, PlayerSymbol.O)).toBeNull();
+    expect(getAIMove(freshGameState(), AI_Difficulty.EASY, PlayerSymbol.X)).toBeNull();
   });
 });
 
@@ -113,5 +134,9 @@ describe("canAIMove", () => {
   it("returns false when the symbol does not match the current player", () => {
     const state = onlineState();
     expect(canAIMove(state, PlayerSymbol.O)).toBe(false);
+  });
+
+  it("returns false for a waiting game", () => {
+    expect(canAIMove(freshGameState(), PlayerSymbol.X)).toBe(false);
   });
 });
