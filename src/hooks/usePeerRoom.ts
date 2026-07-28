@@ -5,8 +5,10 @@ import {
   GAME_ID,
   GameModes,
   GameStatus,
+  PLAYER_CONFIG,
   PlayerSymbol,
   PlayerTypes,
+  SymbolShape,
   TURN_DURATION_MS,
 } from "@/game/constants";
 import {
@@ -61,6 +63,7 @@ export interface PeerRoomState {
   status: PeerStatus;
   roomId: string;
   guestDisplayName: string;
+  hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
   message: string;
   gameState: GameState;
@@ -71,6 +74,7 @@ const initialState: PeerRoomState = {
   status: "idle",
   roomId: "",
   guestDisplayName: "",
+  hostSymbol: null,
   guestSymbol: null,
   message: "",
   gameState: freshGameState(),
@@ -89,6 +93,7 @@ const chooseGuestColor = (preferred: Color, hostColor: Color): Color =>
 export interface PeerRoomOptions {
   hostDisplayName: string;
   hostColor: Color;
+  hostShape?: SymbolShape;
   gameMode: typeof GameModes.ONLINE;
 }
 
@@ -96,6 +101,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const [state, setState] = useState<PeerRoomState>(initialState);
   const roomRef = useRef<RoomClient | null>(null);
   const stateRef = useRef<GameState>(initialState.gameState);
+  const hostSymbolRef = useRef<PlayerSymbol | null>(null);
   const roleRef = useRef<PeerRole>(null);
   const tickRef = useRef<number | null>(null);
   const matchmakingTicketRef = useRef<string | null>(null);
@@ -182,10 +188,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
     (message: PeerMessage) => {
       if (message.type === "join") {
         const state = stateRef.current;
-        const guestSymbol = PlayerSymbol.O;
+        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+        const guestSymbol = hostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
         const guestColor = chooseGuestColor(
           sanitizeColor(message.preferredColor),
-          state.players[PlayerSymbol.X].color,
+          state.players[hostSymbol].color,
         );
         const guestDisplayName = sanitizeDisplayName(message.displayName, "Guest");
         const updated: GameState = {
@@ -197,6 +204,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
               username: guestDisplayName,
               color: guestColor,
               symbol: guestSymbol,
+              shape: state.players[guestSymbol].shape,
               type: PlayerTypes.HUMAN,
               isActive: true,
               lastMoveAt: Date.now(),
@@ -210,14 +218,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
           ...prev,
           status: "connected",
           guestDisplayName,
-          guestSymbol: guestSymbol,
+          guestSymbol,
           gameState: updated,
           message: "",
         }));
         return;
       }
       if (message.type === "move") {
-        applyHostMove(message.index, PlayerSymbol.O);
+        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+        const guestSymbol = hostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        applyHostMove(message.index, guestSymbol);
         return;
       }
       if (message.type === "rematchAccept") {
@@ -235,15 +245,31 @@ export function usePeerRoom(options: PeerRoomOptions) {
           return;
         }
         hostRematchPendingRef.current = false;
+        const newHostSymbol: PlayerSymbol = Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;
+        const newGuestSymbol = newHostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        hostSymbolRef.current = newHostSymbol;
+        const hostPlayer = state.players[hostSymbolRef.current ?? PlayerSymbol.X];
+        const guestPlayer = state.players[newGuestSymbol];
         const reset = createInitialGameState({
           gameMode: GameModes.ONLINE,
-          playerXName: state.players[PlayerSymbol.X].username,
-          playerOName: state.players[PlayerSymbol.O].username,
-          playerColor: state.players[PlayerSymbol.X].color,
-          opponentColor: state.players[PlayerSymbol.O].color,
+          playerXName: newHostSymbol === PlayerSymbol.X ? hostPlayer.username : guestPlayer.username,
+          playerOName: newHostSymbol === PlayerSymbol.O ? hostPlayer.username : guestPlayer.username,
+          playerColor: hostPlayer.color,
+          opponentColor: guestPlayer.color,
+          playerShape: hostPlayer.shape,
+          opponentShape: guestPlayer.shape,
+          humanSymbol: newHostSymbol,
         });
-        reset.players[PlayerSymbol.O].isActive = true;
-        commitHostState(reset);
+        reset.players[newGuestSymbol].isActive = true;
+        stateRef.current = reset;
+        setState((prev) => ({
+          ...prev,
+          hostSymbol: newHostSymbol,
+          guestSymbol: newGuestSymbol,
+          gameState: reset,
+          message: "",
+        }));
+        broadcastGameState(reset);
         roomRef.current?.send({ type: "gameStart", gameState: reset });
         return;
       }
@@ -266,7 +292,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
     },
-    [applyHostMove, commitHostState, stopTimer],
+    [applyHostMove, broadcastGameState, stopTimer],
   );
 
   const handleWsEvent = useCallback(
@@ -507,12 +533,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
     (providedRoomId?: string, wsUrl?: string) => {
       stopTimer();
       const roomId = providedRoomId ?? generateRoomId();
+      const hostSymbol: PlayerSymbol = Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;
+      const guestSymbol = hostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+      hostSymbolRef.current = hostSymbol;
       const waitingGame = createInitialGameState({
         gameMode: GameModes.ONLINE,
         playerXName: sanitizeDisplayName(options.hostDisplayName, "Host"),
         playerOName: "Waiting for opponent",
         playerColor: options.hostColor,
         opponentColor: chooseGuestColor(Color.BLUE, options.hostColor),
+        playerShape: options.hostShape ?? PLAYER_CONFIG[hostSymbol].defaultShape,
+        humanSymbol: hostSymbol,
       });
       waitingGame.gameStatus = GameStatus.WAITING;
       stateRef.current = waitingGame;
@@ -521,7 +552,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
         status: "creating",
         roomId,
         guestDisplayName: "",
-        guestSymbol: PlayerSymbol.O,
+        hostSymbol,
+        guestSymbol,
         gameState: waitingGame,
         message: "",
       });
@@ -533,7 +565,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
       });
     },
-    [buildRoomClient, options.hostColor, options.hostDisplayName, stopTimer, update],
+    [buildRoomClient, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );
 
   const joinAsGuest = useCallback(

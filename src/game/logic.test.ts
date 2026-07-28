@@ -45,6 +45,29 @@ describe("createInitialGameState", () => {
     expect(state.gameStatus).toBe("ACTIVE");
     expect(state.gameMode).toBe(GameModes.VS_COMPUTER);
   });
+
+  it("supports the human choosing O against the computer", () => {
+    const state = createInitialGameState({
+      gameMode: GameModes.VS_COMPUTER,
+      playerXName: "Bot",
+      playerOName: "Alice",
+      playerColor: Color.GREEN,
+      opponentColor: Color.PURPLE,
+      humanSymbol: PlayerSymbol.O,
+    });
+
+    expect(state.currentPlayer).toBe(PlayerSymbol.X);
+    expect(state.players[PlayerSymbol.X]).toMatchObject({
+      username: "Bot",
+      color: Color.PURPLE,
+      type: "COMPUTER",
+    });
+    expect(state.players[PlayerSymbol.O]).toMatchObject({
+      username: "Alice",
+      color: Color.GREEN,
+      type: "HUMAN",
+    });
+  });
 });
 
 describe("getValidMoves", () => {

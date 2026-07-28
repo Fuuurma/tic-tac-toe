@@ -4,6 +4,28 @@ export const PlayerSymbol = {
 } as const;
 export type PlayerSymbol = (typeof PlayerSymbol)[keyof typeof PlayerSymbol];
 
+export const SymbolShape = {
+  X: "X",
+  O: "O",
+  TRIANGLE: "triangle",
+  SQUARE: "square",
+  DIAMOND: "diamond",
+  STAR: "star",
+  HEXAGON: "hexagon",
+} as const;
+export type SymbolShape = (typeof SymbolShape)[keyof typeof SymbolShape];
+export const AVAILABLE_SHAPES: SymbolShape[] = Object.values(SymbolShape);
+
+export const SHAPE_LABELS: Record<SymbolShape, string> = {
+  [SymbolShape.X]: "X",
+  [SymbolShape.O]: "O",
+  [SymbolShape.TRIANGLE]: "Triangle",
+  [SymbolShape.SQUARE]: "Square",
+  [SymbolShape.DIAMOND]: "Diamond",
+  [SymbolShape.STAR]: "Star",
+  [SymbolShape.HEXAGON]: "Hexagon",
+};
+
 export const GameModes = {
   VS_COMPUTER: "VS_COMPUTER",
   VS_FRIEND: "VS_FRIEND",
@@ -41,7 +63,6 @@ export const AI_Difficulty = {
   EASY: "EASY",
   NORMAL: "NORMAL",
   HARD: "HARD",
-  INSANE: "INSANE",
 } as const;
 export type AI_Difficulty = (typeof AI_Difficulty)[keyof typeof AI_Difficulty];
 
@@ -50,21 +71,24 @@ export const GAME_RULES = {
   MAX_MOVES_PER_PLAYER: 3,
 } as const;
 export const TURN_DURATION_MS = 10_000;
-export const AI_MOVE_DELAY_MS = 600;
+export const AI_MOVE_DELAY_MS = 700;
+export const AI_MOVE_DELAY_JITTER_MS = 600;
 export const GAME_ID = "tictactoe";
 
 export const PLAYER_CONFIG: Record<
   PlayerSymbol,
-  { label: string; defaultColor: Color; accessibleName: string }
+  { label: string; defaultColor: Color; defaultShape: SymbolShape; accessibleName: string }
 > = {
   [PlayerSymbol.X]: {
     label: "Player X",
     defaultColor: Color.BLUE,
+    defaultShape: SymbolShape.X,
     accessibleName: "X",
   },
   [PlayerSymbol.O]: {
     label: "Player O",
     defaultColor: Color.RED,
+    defaultShape: SymbolShape.O,
     accessibleName: "O",
   },
 };
@@ -102,6 +126,17 @@ export const COLOR_BG_CLASSES: Record<Color, string> = {
   [Color.PINK]: "bg-pink-500",
   [Color.PURPLE]: "bg-purple-500",
   [Color.GRAY]: "bg-gray-500",
+};
+
+export const COLOR_RGB: Record<Color, string> = {
+  [Color.BLUE]: "59 130 246",
+  [Color.GREEN]: "34 197 94",
+  [Color.YELLOW]: "234 179 8",
+  [Color.ORANGE]: "249 115 22",
+  [Color.RED]: "239 68 68",
+  [Color.PINK]: "236 72 153",
+  [Color.PURPLE]: "168 85 247",
+  [Color.GRAY]: "107 114 128",
 };
 
 const OPPOSITE_COLOR: Record<Color, Color> = {

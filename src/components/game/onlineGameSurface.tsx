@@ -3,17 +3,19 @@ import {
   Color,
   GameModes,
   PlayerSymbol,
+  SymbolShape,
 } from "@/game/constants";
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
 import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
-import { Check, Copy, Loader2, Wifi } from "lucide-react";
+import { Check, Copy, Link2, Loader2, Share2, Wifi } from "lucide-react";
 
 export interface OnlineGameSurfaceProps {
   config: {
     displayName: string;
     color: Color;
+    playerShape: SymbolShape;
     gameMode: typeof GameModes.ONLINE;
     onlineRoomId: string;
     onlineAction: "create" | "join" | "quick";
@@ -25,16 +27,17 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   const peer = usePeerRoom({
     hostDisplayName: config.displayName,
     hostColor: config.color,
+    hostShape: config.playerShape,
     gameMode: GameModes.ONLINE,
   });
 
   useEffect(() => {
     if (config.onlineAction === "quick") {
       peer.startQuickMatch();
-    } else if (config.onlineRoomId) {
+    } else if (config.onlineAction === "join" && config.onlineRoomId) {
       peer.joinAsGuest(config.onlineRoomId);
     } else {
-      peer.startAsHost();
+      peer.startAsHost(config.onlineRoomId || undefined);
     }
     return () => {
       peer.leave();
@@ -43,73 +46,92 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   }, []);
 
   const localSymbol: PlayerSymbol | null =
-    peer.state.role === "host" ? PlayerSymbol.X : peer.state.guestSymbol;
+    peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
 
   const previewPlayer: PlayerSymbol | undefined =
     localSymbol !== null && peer.state.gameState.currentPlayer === localSymbol
       ? peer.state.gameState.currentPlayer
       : undefined;
   const previewColor: Color | undefined =
-    localSymbol === PlayerSymbol.X
-      ? config.color
-      : peer.state.gameState.players[PlayerSymbol.O]?.color;
+    localSymbol !== null
+      ? peer.state.gameState.players[localSymbol]?.color
+      : undefined;
+  const showGame = ["connected", "reconnecting", "disconnected"].includes(peer.state.status);
 
   const message = onlineMessage(peer.state.status, peer.state.message);
 
   return (
     <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
-      <PlayersPanel
-        gameState={peer.state.gameState}
-        message={message}
-        gameMode={GameModes.ONLINE}
-        canRematch={peer.state.status !== "disconnected"}
-        onNewGame={() => peer.requestRematch()}
-        onExit={() => {
-          peer.leave();
-          onExit();
-        }}
-      />
-      <Board
-        board={peer.state.gameState.board}
-        colors={{
-          [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
-          [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
-        }}
-        winningCombination={peer.state.gameState.winningCombination}
-        nextToRemove={peer.state.gameState.nextToRemove}
-        previewPlayer={previewPlayer}
-        previewColor={previewColor}
-        disabled={
-          peer.state.status !== "connected" ||
-          localSymbol === null ||
-          peer.state.gameState.currentPlayer !== localSymbol
-        }
-        onCellClick={peer.sendMove}
-      />
+      {showGame && (
+        <>
+          <PlayersPanel
+            gameState={peer.state.gameState}
+            message={message}
+            gameMode={GameModes.ONLINE}
+            onNewGame={() => peer.requestRematch()}
+            onExit={() => {
+              peer.leave();
+              onExit();
+            }}
+          />
+          <Board
+            board={peer.state.gameState.board}
+            colors={{
+              [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
+              [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
+            }}
+            shapes={{
+              [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].shape,
+              [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].shape,
+            }}
+            winningCombination={peer.state.gameState.winningCombination}
+            nextToRemove={peer.state.gameState.nextToRemove}
+            previewPlayer={previewPlayer}
+            previewColor={previewColor}
+            previewShape={previewPlayer ? peer.state.gameState.players[previewPlayer].shape : undefined}
+            disabled={
+              peer.state.status !== "connected" ||
+              localSymbol === null ||
+              peer.state.gameState.currentPlayer !== localSymbol
+            }
+            onCellClick={peer.sendMove}
+          />
+        </>
+      )}
       <div className="text-center text-xs text-muted-foreground">
         {peer.state.status === "waiting" && (
           <RoomIdShare
             roomId={peer.state.roomId}
             origin={typeof window !== "undefined" ? window.location.origin : ""}
+            onCancel={() => {
+              peer.leave();
+              onExit();
+            }}
           />
         )}
         {peer.state.status === "creating" && (
-          <span className="inline-flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {onlineMessage(peer.state.status, peer.state.message)}
-          </span>
+          <OnlineConnectionState
+            message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
+            onCancel={() => {
+              peer.leave();
+              onExit();
+            }}
+          />
         )}
         {peer.state.status === "connecting" && (
-          <span className="inline-flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Connecting…
-          </span>
+          <OnlineConnectionState
+            message="Joining room…"
+            onCancel={() => {
+              peer.leave();
+              onExit();
+            }}
+          />
         )}
         {peer.state.status === "reconnecting" && (
           <div
             role="status"
             aria-live="polite"
-            className="flex w-full max-w-sm flex-col items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-950 dark:text-amber-50"
+            className="glass flex w-full max-w-sm flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2 text-amber-950 dark:text-amber-50"
           >
             <span className="inline-flex items-center gap-1.5 text-xs font-medium">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -120,7 +142,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             </span>
             <Button
               size="sm"
-              variant="outline"
+              variant="glass"
               onClick={() => peer.retryReconnect()}
               className="h-7 px-3 text-xs"
             >
@@ -132,20 +154,35 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           <span>Opponent: {peer.state.guestDisplayName}</span>
         )}
         {peer.state.status === "error" && (
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-destructive">{peer.state.message}</span>
-            {config.onlineAction === "quick" && (
+          <div
+            role="alert"
+            className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
+          >
+            <span className="text-xs text-destructive">
+              {peer.state.message || "We could not connect to this room."}
+            </span>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {config.onlineAction === "quick" && (
+                <Button
+                  size="sm"
+                  variant="glass"
+                  onClick={() => {
+                    void peer.startQuickMatch();
+                  }}
+                  className="h-8 px-3 text-xs"
+                >
+                  Try again
+                </Button>
+              )}
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() => {
-                  void peer.startQuickMatch();
-                }}
-                className="h-7 px-3 text-xs"
+                variant="glass"
+                onClick={onExit}
+                className="h-8 px-3 text-xs"
               >
-                Try Again
+                Back to setup
               </Button>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -162,48 +199,134 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
   return fallback;
 }
 
-function RoomIdShare({ roomId, origin }: { roomId: string; origin: string }) {
-  const [copied, setCopied] = useState(false);
+function RoomIdShare({
+  roomId,
+  origin,
+  onCancel,
+}: {
+  roomId: string;
+  origin: string;
+  onCancel: () => void;
+}) {
+  const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const [copyError, setCopyError] = useState(false);
   const shareUrl = origin ? `${origin}/?room=${roomId}` : roomId;
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
-  const onCopy = async (text: string) => {
+  const onCopy = async (kind: "code" | "link", text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      setCopyError(false);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 1800);
     } catch {
-      // clipboard API unavailable or denied
+      setCopyError(true);
+    }
+  };
+
+  const onShare = async () => {
+    if (!canShare) return;
+    try {
+      await navigator.share({
+        title: "Tic Tac Toe Disappear room",
+        text: `Join my Tic Tac Toe Disappear room with code ${roomId}`,
+        url: shareUrl,
+      });
+    } catch {
+      // The user may cancel the native share sheet; no error is needed.
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="inline-flex items-center gap-1">
-        <Wifi className="h-3 w-3 animate-pulse-slow" />
-        Waiting for opponent
-      </span>
-      <div className="flex items-center gap-1 rounded-md border bg-background/80 px-2 py-1 font-mono text-sm font-semibold">
-        <span aria-label={`Room code ${roomId}`}>{roomId}</span>
-        <button
-          type="button"
-          aria-label="Copy room code"
-          onClick={() => onCopy(roomId)}
-          className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-emerald-500" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-        </button>
+    <div className="glass flex w-full flex-col items-center gap-2 p-3">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <Wifi className="size-3.5 text-[rgb(var(--player-color))]" aria-hidden="true" />
+        Room ready
       </div>
-      <button
-        type="button"
-        onClick={() => onCopy(shareUrl)}
-        className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      <p className="text-xs leading-tight text-muted-foreground">
+        You are X. Send this code to your opponent; you start when they join.
+      </p>
+      <span
+        aria-label={`Room code ${roomId}`}
+        className="glass-cell rounded-lg px-4 py-2 font-mono text-xl font-bold tracking-[0.2em] text-foreground"
       >
-        Copy invite link
-      </button>
+        {roomId}
+      </span>
+      <div className="grid w-full gap-1.5 sm:flex sm:w-auto">
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={() => onCopy("code", roomId)}
+          className="w-full sm:w-auto"
+        >
+          {copied === "code" ? (
+            <Check className="size-3.5 text-emerald-500" aria-hidden="true" />
+          ) : (
+            <Copy className="size-3.5" aria-hidden="true" />
+          )}
+          Copy code
+        </Button>
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={() => onCopy("link", shareUrl)}
+          className="w-full sm:w-auto"
+        >
+          {copied === "link" ? (
+            <Check className="size-3.5 text-emerald-500" aria-hidden="true" />
+          ) : (
+            <Link2 className="size-3.5" aria-hidden="true" />
+          )}
+          Copy invite link
+        </Button>
+        {canShare && (
+          <Button size="sm" variant="glass" onClick={onShare} className="w-full sm:w-auto">
+            <Share2 className="size-3.5" aria-hidden="true" />
+            Share
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={onCancel}
+          className="w-full sm:w-auto"
+        >
+          Back to setup
+        </Button>
+      </div>
+      {copied && (
+        <span role="status" aria-live="polite" className="text-xs text-emerald-600 dark:text-emerald-400">
+          {copied === "code" ? "Room code copied." : "Invite link copied."}
+        </span>
+      )}
+      {copyError && (
+        <span role="status" aria-live="polite" className="text-xs text-destructive">
+          Copy was unavailable. Select the code manually.
+        </span>
+      )}
+    </div>
+  );
+}
+
+function OnlineConnectionState({
+  message,
+  onCancel,
+}: {
+  message: string;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="glass flex flex-col items-center gap-2 p-4">
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <Loader2 className="size-4 animate-spin text-[rgb(var(--player-color))]" aria-hidden="true" />
+        {message}
+      </span>
+      <p className="text-[11px] leading-tight text-muted-foreground">
+        You can return to setup if you want to choose a different room.
+      </p>
+      <Button size="sm" variant="glass" onClick={onCancel}>
+        Back to setup
+      </Button>
     </div>
   );
 }

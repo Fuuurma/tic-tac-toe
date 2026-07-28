@@ -1,12 +1,99 @@
 @import "tailwindcss";
 
+/* Animatable properties for the interactive glass border + specular sweep.
+   Graceful fallback: if @property is unsupported, the angle stays at its
+   initial value and the border renders statically (no rotation). */
+@property --glass-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@property --glass-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: -45deg;
+}
+
+/* Liquid Glass surface tokens (Apple WWDC 2025 aesthetic).
+   RGB triplets for tint/border/rim so we can compose alpha at the call site.
+   Light mode: brighter tint, stronger rim highlight (light from above).
+   Dark mode: deeper tint, fainter rim, heavier drop shadow.
+   --glass-sheen-* drives the diagonal light gradient layered over the tint.
+   --glass-inset-dark / --glass-inset-light drive the thickness illusion
+   (dark top-inside, light bottom-inside). */
+:root {
+  --glass-tint: 255 255 255;
+  --glass-alpha: 0.35;
+  --glass-border: 255 255 255;
+  --glass-border-alpha: 0.6;
+  --glass-rim: 255 255 255;
+  --glass-rim-alpha: 0.7;
+  --glass-blur: 20px;
+  --glass-saturate: 180%;
+  --glass-radius: 22px;
+  --glass-shadow: 0 8px 32px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06);
+  --glass-sheen: 255 255 255;
+  --glass-sheen-alpha: 0.18;
+  --glass-inset-dark: 0 0 0;
+  --glass-inset-dark-alpha: 0.05;
+  --glass-inset-light: 255 255 255;
+  --glass-inset-light-alpha: 0.5;
+  --glass-cell-tint: 255 255 255;
+  --glass-cell-alpha: 0.4;
+  --glass-cell-border: 255 255 255;
+  --glass-cell-border-alpha: 0.55;
+  --glass-cell-rim-alpha: 0.5;
+  --glass-cell-sheen-alpha: 0.12;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-tint: 30 30 38;
+    --glass-alpha: 0.28;
+    --glass-border: 255 255 255;
+    --glass-border-alpha: 0.18;
+    --glass-rim: 255 255 255;
+    --glass-rim-alpha: 0.22;
+    --glass-shadow: 0 8px 32px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
+    --glass-sheen: 255 255 255;
+    --glass-sheen-alpha: 0.08;
+    --glass-inset-dark: 0 0 0;
+    --glass-inset-dark-alpha: 0.3;
+    --glass-inset-light: 255 255 255;
+    --glass-inset-light-alpha: 0.12;
+    --glass-cell-tint: 255 255 255;
+    --glass-cell-alpha: 0.05;
+    --glass-cell-border: 255 255 255;
+    --glass-cell-border-alpha: 0.14;
+    --glass-cell-rim-alpha: 0.16;
+    --glass-cell-sheen-alpha: 0.05;
+  }
+}
+
 @theme {
-  --color-background: oklch(0.99 0 0);
+  /* Apple-style continuous corner scale. Shifted up from Tailwind defaults
+     so surfaces read as soft, premium, and consistent across the app.
+     Tier map:
+       rounded-md  (10px) — chips, avatars, timer, tiny indicators
+       rounded-lg  (14px) — buttons, inputs, selectors, mode/difficulty tiles
+       rounded-xl  (18px) — board cells, player cards, color swatches
+       rounded-2xl (22px) — cards, sheet, dialog, summary card, board frame */
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+
+  --color-background: oklch(0.97 0.005 264);
   --color-foreground: oklch(0.18 0.02 264);
   --color-card: oklch(1 0 0);
-  --color-muted: oklch(0.96 0.005 264);
+  --color-card-foreground: oklch(0.18 0.02 264);
+  --color-muted: oklch(0.94 0.008 264);
   --color-muted-foreground: oklch(0.5 0.02 264);
+  --color-accent: oklch(0.94 0.008 264);
+  --color-accent-foreground: oklch(0.18 0.02 264);
   --color-border: oklch(0.9 0.01 264);
+  --color-input: oklch(0.9 0.01 264);
+  --color-ring: oklch(0.55 0.18 264);
   --color-primary: oklch(0.55 0.18 264);
   --color-primary-foreground: oklch(0.98 0 0);
   --color-destructive: oklch(0.55 0.22 27);
@@ -23,6 +110,23 @@
   --color-gray-500: oklch(0.55 0.01 264);
   --color-emerald-600: oklch(0.62 0.17 160);
   --color-emerald-400: oklch(0.76 0.16 160);
+  --gradient-light: linear-gradient(180deg, rgb(0 0 0) 0%, rgb(0 0 0) 100%);
+  --gradient-dark: linear-gradient(180deg, rgb(0 0 0) 0%, rgb(0 0 0) 100%);
+
+  /* Dark center mask: keeps the board and its controls grounded above the
+     living symbol field. */
+  --bg-mask-light: radial-gradient(
+    54% 62% at 50% 48%,
+    rgb(0 0 0 / 0.52) 0%,
+    rgb(0 0 0 / 0.32) 62%,
+    transparent 100%
+  );
+  --bg-mask-dark: radial-gradient(
+    54% 62% at 50% 48%,
+    rgb(0 0 0 / 0.64) 0%,
+    rgb(0 0 0 / 0.44) 62%,
+    transparent 100%
+  );
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,9 +134,14 @@
     --color-background: oklch(0.16 0.02 264);
     --color-foreground: oklch(0.96 0.005 264);
     --color-card: oklch(0.22 0.02 264);
+    --color-card-foreground: oklch(0.96 0.005 264);
     --color-muted: oklch(0.24 0.02 264);
     --color-muted-foreground: oklch(0.7 0.02 264);
+    --color-accent: oklch(0.28 0.02 264);
+    --color-accent-foreground: oklch(0.96 0.005 264);
     --color-border: oklch(0.3 0.02 264);
+    --color-input: oklch(0.3 0.02 264);
+    --color-ring: oklch(0.7 0.12 264);
   }
 }
 
@@ -51,16 +160,16 @@ body,
     opacity: 1;
   }
   25% {
-    transform: translate(-1px, 0.5px) rotate(-1.5deg) scale(0.99);
-    opacity: 0.82;
+    transform: translate(-3px, 1.5px) rotate(-3deg) scale(0.96);
+    opacity: 0.55;
   }
   50% {
-    transform: translate(1px, -0.5px) rotate(1.5deg) scale(1.01);
+    transform: translate(3px, -1.5px) rotate(3deg) scale(1.04);
     opacity: 1;
   }
   75% {
-    transform: translate(-0.5px, -1px) rotate(-1deg) scale(0.995);
-    opacity: 0.9;
+    transform: translate(-1.5px, -3px) rotate(-2deg) scale(0.97);
+    opacity: 0.65;
   }
 }
 
@@ -85,10 +194,10 @@ body,
     transform: rotate(0deg);
   }
   25% {
-    transform: rotate(0.6deg);
+    transform: rotate(1.5deg);
   }
   75% {
-    transform: rotate(-0.6deg);
+    transform: rotate(-1.5deg);
   }
 }
 
@@ -109,15 +218,6 @@ body,
   }
   50% {
     transform: scale(1.15);
-  }
-}
-
-@keyframes draw-line {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
   }
 }
 
@@ -145,5 +245,214 @@ body,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Liquid Glass surface utility (Apple WWDC 2025).
+   Fallback-first: opaque-ish tint when backdrop-filter is unsupported,
+   upgraded to frosted glass with a diagonal sheen + directional inset
+   shadow (dark top-inside, light bottom-inside = glass thickness illusion)
+   when it is. Use on panels/cards/dialogs that sit above the gradient
+   background. Calm — no animation, no rotating border. */
+@utility glass {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, transparent 0%, rgb(var(--glass-sheen) / var(--glass-sheen-alpha)) 45%, transparent 90%),
+    rgb(var(--glass-tint) / 0.88);
+  border: 1px solid rgb(var(--glass-border) / 0.3);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background:
+      linear-gradient(135deg, transparent 0%, rgb(var(--glass-sheen) / var(--glass-sheen-alpha)) 45%, transparent 90%),
+      rgb(var(--glass-tint) / var(--glass-alpha));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-color: rgb(var(--glass-border) / var(--glass-border-alpha));
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1px 1px 0 rgb(var(--glass-inset-dark) / var(--glass-inset-dark-alpha)),
+      inset 0 -2px 1px 0 rgb(var(--glass-inset-light) / var(--glass-inset-light-alpha));
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    background: rgb(var(--glass-tint) / 0.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Interactive glass — buttons and tappable cards.
+   Builds on the base glass look with two extra layers:
+   ::after  — a conic-gradient border with dark "refraction" spots that
+              rotate around the edge via the animatable --glass-angle.
+              Masked to render only on the 1px border ring.
+   ::before — a specular light band that sweeps across the surface on
+              hover/active (mix-blend-mode: screen, animated background-position).
+              The band color is --glass-sweep-color (default white) so tappable
+              cards can tint it to the player's color for a personalized glow.
+   Hover    — scale(0.975) + blur reduces to near-zero (glass clears when pressed).
+   Reduced-motion users get a static frame (no rotation, no sweep). */
+@utility glass-interactive {
+  --glass-sweep-color: 255 255 255;
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, transparent 0%, rgb(var(--glass-sheen) / var(--glass-sheen-alpha)) 45%, transparent 90%),
+    rgb(var(--glass-tint) / 0.88);
+  border: 1px solid transparent;
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+  transition: transform 400ms cubic-bezier(0.25, 1, 0.5, 1),
+              box-shadow 400ms cubic-bezier(0.25, 1, 0.5, 1),
+              --glass-angle 600ms ease,
+              --glass-sweep 500ms cubic-bezier(0.25, 1, 0.5, 1);
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background:
+      linear-gradient(135deg, transparent 0%, rgb(var(--glass-sheen) / var(--glass-sheen-alpha)) 45%, transparent 90%),
+      rgb(var(--glass-tint) / var(--glass-alpha));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    box-shadow:
+      var(--glass-shadow),
+      inset 0 1px 1px 0 rgb(var(--glass-inset-dark) / var(--glass-inset-dark-alpha)),
+      inset 0 -2px 1px 0 rgb(var(--glass-inset-light) / var(--glass-inset-light-alpha));
+  }
+
+  /* Conic-gradient refraction border. */
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    box-sizing: border-box;
+    background:
+      conic-gradient(
+        from var(--glass-angle),
+        rgb(0 0 0 / 0.5),
+        transparent 5% 40%,
+        rgb(0 0 0 / 0.5) 50%,
+        transparent 60% 95%,
+        rgb(0 0 0 / 0.5)
+      ),
+      linear-gradient(180deg, rgb(var(--glass-border) / var(--glass-border-alpha)), rgb(var(--glass-border) / var(--glass-border-alpha)));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+    transition: --glass-angle 600ms ease;
+  }
+
+  /* Specular light sweep — wide soft band in the sweep color. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      var(--glass-sweep),
+      transparent 0%,
+      rgb(var(--glass-sweep-color) / 0.12) 20%,
+      rgb(var(--glass-sweep-color) / 0.4) 45% 55%,
+      rgb(var(--glass-sweep-color) / 0.12) 80%,
+      transparent 100%
+    );
+    background-size: 300% 300%;
+    background-position: 0% 50%;
+    background-repeat: no-repeat;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 400ms cubic-bezier(0.25, 1, 0.5, 1),
+                background-position 600ms cubic-bezier(0.25, 1, 0.5, 1),
+                --glass-sweep 500ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  &:hover {
+    transform: scale(0.975);
+    &::before {
+      opacity: 1;
+      background-position: 30% 50%;
+    }
+    &::after {
+      --glass-angle: 125deg;
+    }
+  }
+
+  &:active {
+    transform: scale(0.96);
+    &::before {
+      background-position: 55% 20%;
+      --glass-sweep: -15deg;
+    }
+    &::after {
+      --glass-angle: 0deg;
+    }
+  }
+
+  /* Touch devices: no hover rotation, sweep stays at rest angle. */
+  @media (hover: none) and (pointer: coarse) {
+    &::before,
+    &:active::before {
+      --glass-sweep: -45deg;
+    }
+    &::after,
+    &:hover::after,
+    &:active::after {
+      --glass-angle: 0deg;
+    }
+  }
+
+  /* Reduced motion: static frame, no rotation, no sweep animation. */
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &::after,
+    &:hover::after,
+    &:active::after {
+      --glass-angle: 0deg;
+      transition: none;
+    }
+    &::before,
+    &:hover::before,
+    &:active::before {
+      opacity: 0;
+      transition: none;
+    }
+    &:hover,
+    &:active {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    background: rgb(var(--glass-tint) / 0.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Lightweight cell utility for the 3x3 grid tiles.
+   No backdrop-filter (avoids 9 simultaneous compositing passes on mobile).
+   Diagonal sheen + translucent tint + hairline border + directional inset
+   shadow (dark top-inside, light bottom-inside) reads as a glass sub-surface
+   set into the board frame. No animation — 9 cells must stay calm. */
+@utility glass-cell {
+  background:
+    linear-gradient(135deg, transparent 0%, rgb(var(--glass-sheen) / var(--glass-cell-sheen-alpha)) 45%, transparent 90%),
+    rgb(var(--glass-cell-tint) / var(--glass-cell-alpha));
+  border: 1px solid rgb(var(--glass-cell-border) / var(--glass-cell-border-alpha));
+  box-shadow:
+    inset 0 1px 1px 0 rgb(var(--glass-inset-dark) / calc(var(--glass-inset-dark-alpha) * 0.6)),
+    inset 0 -2px 1px 0 rgb(var(--glass-inset-light) / calc(var(--glass-inset-light-alpha) * 0.6));
+
+  @media (prefers-reduced-transparency: reduce) {
+    background: rgb(var(--glass-cell-tint) / 0.95);
   }
 }

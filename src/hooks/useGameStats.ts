@@ -42,7 +42,7 @@ const writeStats = (guestId: string, stats: GameStats): void => {
 
 export function useGameStats() {
   const [guestId] = useState<string>(() => getOrCreateGuestIdentity().guestId);
-  const [stats, setStats] = useState<GameStats>(() => readStats(getOrCreateGuestIdentity().guestId));
+  const [stats, setStats] = useState<GameStats>(() => readStats(guestId));
 
   const recordWin = useCallback(() => {
     setStats((prev) => {

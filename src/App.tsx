@@ -5,12 +5,15 @@ import {
   GameStatus,
   PlayerSymbol,
   PlayerTypes,
-  oppositeColor,
+  SymbolShape,
   type AI_Difficulty as AI_DifficultyType,
+  type PlayerType,
 } from "@/game/constants";
 
 import { LoginForm, type LoginFormPayload } from "@/components/auth/loginForm";
+import { BackgroundPattern } from "@/components/backgroundPattern";
 import { Board } from "@/components/game/board";
+import { HelpDrawer } from "@/components/game/helpDrawer";
 import { PlayersPanel } from "@/components/game/playersPanel";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
@@ -25,9 +28,13 @@ type View = "login" | "game";
 interface GameConfig {
   displayName: string;
   color: Color;
+  opponentColor: Color;
+  playerShape: SymbolShape;
+  opponentShape: SymbolShape;
   gameMode: typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND | typeof GameModes.ONLINE;
   aiDifficulty: AI_DifficultyType;
   opponentName: string;
+  opponentType: PlayerType;
   onlineRoomId: string;
   onlineAction: "create" | "join" | "quick";
 }
@@ -44,9 +51,13 @@ export default function App() {
     setConfig({
       displayName: payload.displayName,
       color: payload.color,
+      opponentColor: payload.opponentColor,
+      playerShape: payload.playerShape,
+      opponentShape: payload.opponentShape,
       gameMode: payload.gameMode,
       aiDifficulty: payload.aiDifficulty,
       opponentName: payload.opponentName,
+      opponentType: payload.opponentType,
       onlineRoomId: payload.onlineRoomId,
       onlineAction: payload.onlineAction,
     });
@@ -62,19 +73,28 @@ export default function App() {
   };
 
   return (
-    <main className="flex h-dvh w-full items-center justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:p-4">
-      {view === "login" && (
-        <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
-      )}
-      {view === "game" && config && (
-        <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
-          <GameView
-            key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
-            config={config}
-            onExit={handleExit}
-          />
-        </Suspense>
-      )}
+    <main className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:items-center sm:p-4">
+      {/* Living symbol field: canvas layer above the gradient base */}
+      <BackgroundPattern />
+      {/* Soft vignette so glass content reads clearly over the field */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
+      />
+      <div className="relative z-10 flex w-full justify-center">
+        {view === "login" && (
+          <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
+        )}
+        {view === "game" && config && (
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+            <GameView
+              key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
+              config={config}
+              onExit={handleExit}
+            />
+          </Suspense>
+        )}
+      </div>
     </main>
   );
 }
@@ -95,6 +115,7 @@ function GameView({ config, onExit }: { config: GameConfig; onExit: () => void }
       config={{
         displayName: config.displayName,
         color: config.color,
+        playerShape: config.playerShape,
         gameMode: GameModes.ONLINE,
         onlineRoomId: config.onlineRoomId,
         onlineAction: config.onlineAction,
@@ -114,15 +135,28 @@ function LocalGameSurface({
   const input = useMemo(
     () => ({
       gameMode: config.gameMode as typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND,
-      playerXName: config.displayName,
-      playerOName: config.opponentName,
+      playerName: config.displayName,
+      opponentName: config.opponentName,
       playerColor: config.color,
-      opponentColor: oppositeColor(config.color),
+      opponentColor: config.opponentColor,
+      playerShape: config.playerShape,
+      opponentShape: config.opponentShape,
       aiDifficulty: config.aiDifficulty,
+      opponentType: config.opponentType,
     }),
-    [config.gameMode, config.displayName, config.opponentName, config.color, config.aiDifficulty],
+    [
+      config.gameMode,
+      config.displayName,
+      config.opponentName,
+      config.color,
+      config.opponentColor,
+      config.playerShape,
+      config.opponentShape,
+      config.aiDifficulty,
+      config.opponentType,
+    ],
   );
-  const { gameState, handleCellClick, handleReset, exit } = useLocalGame(input);
+  const { gameState, humanSymbol, handleCellClick, handleReset, exit } = useLocalGame(input);
   const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
 
@@ -134,22 +168,34 @@ function LocalGameSurface({
     if (gameState.winner !== null) {
       if (gameState.moveCount === recordedGameId.current) return;
       recordedGameId.current = gameState.moveCount;
-      if (gameState.winner === PlayerSymbol.X) recordWin();
+      if (gameState.winner === humanSymbol) recordWin();
       else recordLoss();
     }
-  }, [gameState.winner, gameState.gameStatus, gameState.moveCount, recordWin, recordLoss]);
+  }, [
+    gameState.winner,
+    gameState.gameStatus,
+    gameState.moveCount,
+    humanSymbol,
+    recordWin,
+    recordLoss,
+  ]);
 
   const previewPlayer =
-    gameState.currentPlayer === PlayerSymbol.X
+    gameState.players[gameState.currentPlayer].type === PlayerTypes.HUMAN
       ? gameState.currentPlayer
       : undefined;
+  const previewColor = previewPlayer
+    ? gameState.players[previewPlayer].color
+    : undefined;
 
   const isAITurn =
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
 
+  const [helpOpen, setHelpOpen] = useState(false);
+
   return (
-    <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
+    <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
       <PlayersPanel
         gameState={gameState}
         stats={stats}
@@ -160,6 +206,7 @@ function LocalGameSurface({
           exit();
           onExit();
         }}
+        onHelp={() => setHelpOpen(true)}
       />
       <Board
         board={gameState.board}
@@ -167,12 +214,22 @@ function LocalGameSurface({
           [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].color,
           [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].color,
         }}
+        shapes={{
+          [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].shape,
+          [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].shape,
+        }}
         winningCombination={gameState.winningCombination}
         nextToRemove={gameState.nextToRemove}
         previewPlayer={previewPlayer}
-        previewColor={config.color}
+        previewColor={previewColor}
+        previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
         disabled={isAITurn}
         onCellClick={handleCellClick}
+      />
+      <HelpDrawer
+        inline
+        isOpen={helpOpen}
+        onClose={() => setHelpOpen(false)}
       />
     </div>
   );

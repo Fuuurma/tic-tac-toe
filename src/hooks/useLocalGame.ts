@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AI_Difficulty,
   AI_MOVE_DELAY_MS,
+  AI_MOVE_DELAY_JITTER_MS,
   Color,
   GameModes,
   GameStatus,
+  PlayerSymbol,
   PlayerTypes,
+  SymbolShape,
   TURN_DURATION_MS,
 } from "@/game/constants";
 import {
@@ -21,23 +24,38 @@ import { getAIMove } from "@/game/ai";
 
 export interface LocalGameInput {
   gameMode: typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND;
-  playerXName: string;
-  playerOName: string;
+  playerName: string;
+  opponentName: string;
   playerColor: Color;
   opponentColor: Color;
+  playerShape?: SymbolShape;
+  opponentShape?: SymbolShape;
   aiDifficulty?: AI_Difficulty;
+  opponentType?: import("@/game/constants").PlayerType;
+}
+
+const randomSymbol = (): PlayerSymbol =>
+  Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;
+
+function buildInitialState(input: LocalGameInput, humanSymbol: PlayerSymbol): GameState {
+  return createInitialGameState({
+    gameMode: input.gameMode,
+    playerXName: humanSymbol === PlayerSymbol.X ? input.playerName : input.opponentName,
+    playerOName: humanSymbol === PlayerSymbol.O ? input.playerName : input.opponentName,
+    playerColor: input.playerColor,
+    opponentColor: input.opponentColor,
+    playerShape: input.playerShape,
+    opponentShape: input.opponentShape,
+    humanSymbol,
+    aiDifficulty: input.aiDifficulty,
+    opponentType: input.opponentType,
+  });
 }
 
 export function useLocalGame(input: LocalGameInput) {
+  const [humanSymbol] = useState<PlayerSymbol>(randomSymbol);
   const [gameState, setGameState] = useState<GameState>(() =>
-    createInitialGameState({
-      gameMode: input.gameMode,
-      playerXName: input.playerXName,
-      playerOName: input.playerOName,
-      playerColor: input.playerColor,
-      opponentColor: input.opponentColor,
-      aiDifficulty: input.aiDifficulty,
-    }),
+    buildInitialState(input, humanSymbol),
   );
   const tickRef = useRef<number | null>(null);
   const aiTimeoutRef = useRef<number | null>(null);
@@ -92,16 +110,7 @@ export function useLocalGame(input: LocalGameInput) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
-    setGameState(
-      createInitialGameState({
-        gameMode: input.gameMode,
-        playerXName: input.playerXName,
-        playerOName: input.playerOName,
-        playerColor: input.playerColor,
-        opponentColor: input.opponentColor,
-        aiDifficulty: input.aiDifficulty,
-      }),
-    );
+    setGameState(buildInitialState(input, randomSymbol()));
   }, [input]);
 
   const exit = useCallback(() => {
@@ -122,7 +131,6 @@ export function useLocalGame(input: LocalGameInput) {
 
   useEffect(() => {
     if (
-      input.gameMode === GameModes.VS_COMPUTER &&
       gameState.gameStatus === GameStatus.ACTIVE &&
       currentPlayerType === PlayerTypes.COMPUTER
     ) {
@@ -139,7 +147,7 @@ export function useLocalGame(input: LocalGameInput) {
           if (!next) return prev;
           return { ...next, turnTimeRemaining: TURN_DURATION_MS };
         });
-      }, AI_MOVE_DELAY_MS);
+      }, AI_MOVE_DELAY_MS + Math.random() * AI_MOVE_DELAY_JITTER_MS);
     }
     return () => {
       if (aiTimeoutRef.current !== null) {
@@ -153,7 +161,6 @@ export function useLocalGame(input: LocalGameInput) {
     gameState.winner,
     gameState.moveCount,
     currentPlayerType,
-    input.gameMode,
     input.aiDifficulty,
   ]);
 
@@ -167,5 +174,5 @@ export function useLocalGame(input: LocalGameInput) {
     [stopTimer],
   );
 
-  return { gameState, handleCellClick, handleReset, exit };
+  return { gameState, humanSymbol, handleCellClick, handleReset, exit };
 }

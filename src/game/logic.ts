@@ -10,6 +10,7 @@ import {
   PlayerSymbol,
   PlayerType,
   PlayerTypes,
+  SymbolShape,
   TURN_DURATION_MS,
   WINNING_COMBINATIONS,
 } from "./constants";
@@ -21,6 +22,7 @@ export interface PlayerConfig {
   username: string;
   color: Color;
   symbol: PlayerSymbol;
+  shape: SymbolShape;
   type: PlayerType;
   isActive: boolean;
   lastMoveAt?: number;
@@ -54,6 +56,7 @@ export const freshGameState = (): GameState => ({
       username: "",
       color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
       symbol: PlayerSymbol.X,
+      shape: PLAYER_CONFIG[PlayerSymbol.X].defaultShape,
       type: PlayerTypes.HUMAN,
       isActive: false,
     },
@@ -61,6 +64,7 @@ export const freshGameState = (): GameState => ({
       username: "",
       color: PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
       symbol: PlayerSymbol.O,
+      shape: PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
       type: PlayerTypes.HUMAN,
       isActive: false,
     },
@@ -79,15 +83,25 @@ export interface InitialGameStateInput {
   playerOName: string;
   playerColor: Color;
   opponentColor: Color;
+  playerShape?: SymbolShape;
+  opponentShape?: SymbolShape;
   aiDifficulty?: AI_Difficulty;
+  humanSymbol?: PlayerSymbol;
+  opponentType?: PlayerType;
 }
 
 export const createInitialGameState = (
   input: InitialGameStateInput,
 ): GameState => {
   const state = freshGameState();
-  const humanSymbol = PlayerSymbol.X;
-  const opponentSymbol = PlayerSymbol.O;
+  const humanSymbol = input.humanSymbol ?? PlayerSymbol.X;
+  const opponentSymbol = humanSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+  const humanName = humanSymbol === PlayerSymbol.X ? input.playerXName : input.playerOName;
+  const opponentName = humanSymbol === PlayerSymbol.X ? input.playerOName : input.playerXName;
+  const opponentType = input.opponentType ?? (input.gameMode === GameModes.VS_COMPUTER ? PlayerTypes.COMPUTER : PlayerTypes.HUMAN);
+  const opponentIsX = opponentSymbol === PlayerSymbol.X;
+  const humanShape = input.playerShape ?? PLAYER_CONFIG[humanSymbol].defaultShape;
+  const opponentShape = input.opponentShape ?? PLAYER_CONFIG[opponentSymbol].defaultShape;
   return {
     ...state,
     gameStatus: GameStatus.ACTIVE,
@@ -97,21 +111,20 @@ export const createInitialGameState = (
     players: {
       [PlayerSymbol.X]: {
         ...state.players[PlayerSymbol.X],
-        username: input.playerXName,
-        color: input.playerColor,
-        symbol: humanSymbol,
-        type: PlayerTypes.HUMAN,
+        username: humanSymbol === PlayerSymbol.X ? humanName : opponentName,
+        color: humanSymbol === PlayerSymbol.X ? input.playerColor : input.opponentColor,
+        symbol: PlayerSymbol.X,
+        shape: humanSymbol === PlayerSymbol.X ? humanShape : opponentShape,
+        type: opponentIsX ? opponentType : PlayerTypes.HUMAN,
         isActive: true,
       },
       [PlayerSymbol.O]: {
         ...state.players[PlayerSymbol.O],
-        username: input.playerOName,
-        color: input.opponentColor,
-        symbol: opponentSymbol,
-        type:
-          input.gameMode === GameModes.VS_COMPUTER
-            ? PlayerTypes.COMPUTER
-            : PlayerTypes.HUMAN,
+        username: humanSymbol === PlayerSymbol.O ? humanName : opponentName,
+        color: humanSymbol === PlayerSymbol.O ? input.playerColor : input.opponentColor,
+        symbol: PlayerSymbol.O,
+        shape: humanSymbol === PlayerSymbol.O ? humanShape : opponentShape,
+        type: !opponentIsX ? opponentType : PlayerTypes.HUMAN,
         isActive: input.gameMode !== GameModes.ONLINE,
       },
     },

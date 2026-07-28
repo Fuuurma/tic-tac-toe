@@ -7,6 +7,7 @@ import {
   GameStatus,
   PlayerSymbol,
   PlayerTypes,
+  SymbolShape,
   TURN_DURATION_MS,
   WINNING_COMBINATIONS,
   type AI_Difficulty as _AI_DifficultyType,
@@ -77,6 +78,10 @@ const isPlayerSymbol = (value: unknown): value is PlayerSymbol =>
 const VALID_COLORS: ReadonlySet<string> = new Set(AVAILABLE_COLORS);
 const isColor = (value: unknown): value is Color =>
   typeof value === "string" && VALID_COLORS.has(value);
+
+const VALID_SHAPES: ReadonlySet<string> = new Set(Object.values(SymbolShape));
+const isSymbolShape = (value: unknown): value is SymbolShape =>
+  typeof value === "string" && VALID_SHAPES.has(value);
 
 const VALID_GAME_STATUSES: ReadonlySet<_GameStatusType> = new Set([
   GameStatus.WAITING,
@@ -161,6 +166,7 @@ const isPlayerConfig = (value: unknown): boolean => {
   if (!isBoundedDisplayName(p.username)) return false;
   if (!isColor(p.color)) return false;
   if (!isPlayerSymbol(p.symbol)) return false;
+  if (!isSymbolShape(p.shape)) return false;
   if (!isPlayerType(p.type)) return false;
   if (typeof p.isActive !== "boolean") return false;
   if (
