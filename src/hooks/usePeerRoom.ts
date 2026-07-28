@@ -69,6 +69,16 @@ export interface PeerRoomState {
   gameState: GameState;
 }
 
+/**
+ * Pending host-side settings that the user changed via the in-game edit
+ * button. Stored on the host only; the guest cannot edit a peer's identity.
+ */
+export interface PendingPlayerSettings {
+  displayName: string;
+  color: Color;
+  playerShape: SymbolShape;
+}
+
 const initialState: PeerRoomState = {
   role: null,
   status: "idle",
@@ -110,10 +120,24 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // is only honored while a host request is pending and the game is terminal.
   // Without this gate a hostile or buggy guest can reset the host mid-game.
   const hostRematchPendingRef = useRef(false);
+  // Host remembers player settings (name/color/shape) the user edited from
+  // the in-game edit button. Those changes only apply on the next rematch so
+  // the live game is never mutated while it's in progress.
+  const hostPendingSettingsRef = useRef<PendingPlayerSettings | null>(null);
+  // Guest remembers the authoritative state right before applying an
+  // optimistic move. If the host rejects the move via `{type:"error", message:"Invalid move"}`,
+  // we roll back so the UI does not drift from the relay's source of truth.
+  const pendingGuestStateRef = useRef<GameState | null>(null);
 
   useEffect(() => {
     stateRef.current = state.gameState;
     roleRef.current = state.role;
+    // Any successful gameUpdate / gameStart / joined authoritative state
+    // from the host supersedes the guest's optimistic move, so clear the
+    // pending rollback snapshot.
+    if (roleRef.current === "guest") {
+      pendingGuestStateRef.current = null;
+    }
   }, [state.gameState, state.role]);
 
   const update = useCallback((patch: Partial<PeerRoomState>) => {
@@ -250,13 +274,20 @@ export function usePeerRoom(options: PeerRoomOptions) {
         hostSymbolRef.current = newHostSymbol;
         const hostPlayer = state.players[hostSymbolRef.current ?? PlayerSymbol.X];
         const guestPlayer = state.players[newGuestSymbol];
+        // If the host edited their identity mid-game via the edit button,
+        // pull that into the next match instead of keeping the previous one.
+        const pending = hostPendingSettingsRef.current;
+        const hostName = pending?.displayName ?? hostPlayer.username;
+        const hostColor = pending?.color ?? hostPlayer.color;
+        const hostShape = pending?.playerShape ?? hostPlayer.shape;
+        if (pending) hostPendingSettingsRef.current = null;
         const reset = createInitialGameState({
           gameMode: GameModes.ONLINE,
-          playerXName: newHostSymbol === PlayerSymbol.X ? hostPlayer.username : guestPlayer.username,
-          playerOName: newHostSymbol === PlayerSymbol.O ? hostPlayer.username : guestPlayer.username,
-          playerColor: hostPlayer.color,
+          playerXName: newHostSymbol === PlayerSymbol.X ? hostName : guestPlayer.username,
+          playerOName: newHostSymbol === PlayerSymbol.O ? hostName : guestPlayer.username,
+          playerColor: hostColor,
           opponentColor: guestPlayer.color,
-          playerShape: hostPlayer.shape,
+          playerShape: hostShape,
           opponentShape: guestPlayer.shape,
           humanSymbol: newHostSymbol,
         });
@@ -289,6 +320,18 @@ export function usePeerRoom(options: PeerRoomOptions) {
           : { ...state, winner: PlayerSymbol.X, gameStatus: GameStatus.COMPLETED };
         stateRef.current = ended;
         setState((prev) => ({ ...prev, gameState: ended, message: "Opponent left" }));
+        return;
+      }
+      if (message.type === "error" && message.message === "Invalid move") {
+        // The host rejected the guest's most recent optimistic move. Roll
+        // back to the last authoritative state we received so the UI and
+        // gameState ref do not drift while we wait for the next gameUpdate.
+        const previous = pendingGuestStateRef.current;
+        if (previous) {
+          stateRef.current = previous;
+          pendingGuestStateRef.current = null;
+          setState((prev) => ({ ...prev, gameState: previous, message: "Move was rejected by host" }));
+        }
         return;
       }
     },
@@ -658,7 +701,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
         if (!sent) return;
 
         // Render the guest's move immediately. The host's gameUpdate remains
-        // authoritative and will reconcile this state when it arrives.
+        // authoritative and will reconcile this state when it arrives; if the
+        // host rejects this move, the rollback path restores the snapshot we
+        // save here so the guest does not drift from the relay's truth.
+        pendingGuestStateRef.current = stateRef.current;
         stateRef.current = optimistic;
         setState((prev) => ({ ...prev, gameState: optimistic }));
       }
@@ -688,7 +734,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       hostRematchPendingRef.current = true;
-      roomRef.current?.send({ type: "rematchRequested", requesterSymbol: PlayerSymbol.X });
+      // Use the host's current symbol so the guest UI names the right player.
+      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      roomRef.current?.send({ type: "rematchRequested", requesterSymbol: hostSymbol });
     }
   }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status]);
 
@@ -726,6 +774,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
     roomRef.current?.reconnectNow();
   }, []);
 
+  const updatePendingSettings = useCallback((next: PendingPlayerSettings) => {
+    hostPendingSettingsRef.current = next;
+  }, []);
+
   return {
     state,
     startAsHost,
@@ -736,5 +788,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
     declineRematch,
     retryReconnect,
     leave,
+    updatePendingSettings,
   };
 }

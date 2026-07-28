@@ -1,20 +1,34 @@
 import { useEffect, useRef } from "react";
-import { SymbolShape } from "@/game/constants";
+import { Color, SymbolShape } from "@/game/constants";
 
 /**
  * Full-screen repeated symbol texture over a black background.
  */
 
 const SHAPES = Object.values(SymbolShape);
+const COLORS = Object.values(Color);
 const GRID_STEP = 22;
 const SYMBOL_SIZE = 8;
 const SYMBOL_STROKE = 1;
 const SYMBOL_COLOR = "rgba(148,163,184,0.24)";
+const REVEAL_RADIUS = 150;
+
+const COLOR_HEX: Record<Color, [number, number, number]> = {
+  [Color.BLUE]: [59, 130, 246],
+  [Color.GREEN]: [34, 197, 94],
+  [Color.YELLOW]: [234, 179, 8],
+  [Color.ORANGE]: [249, 115, 22],
+  [Color.RED]: [239, 68, 68],
+  [Color.PINK]: [236, 72, 153],
+  [Color.PURPLE]: [168, 85, 247],
+  [Color.GRAY]: [107, 114, 128],
+};
 
 interface GridSymbol {
   x: number;
   y: number;
   shape: SymbolShape;
+  color: Color;
   rotation: number;
 }
 
@@ -38,6 +52,7 @@ function buildGrid(width: number, height: number): GridSymbol[] {
         x: column * GRID_STEP + GRID_STEP / 2 + (random() - 0.5) * 5,
         y: row * GRID_STEP + GRID_STEP / 2 + (random() - 0.5) * 5,
         shape: SHAPES[Math.floor(random() * SHAPES.length)],
+        color: COLORS[Math.floor(random() * COLORS.length)],
         rotation: (random() - 0.5) * 0.8,
       });
     }
@@ -151,13 +166,32 @@ export function BackgroundPattern() {
     let height = 0;
     let dpr = 1;
     let symbols: GridSymbol[] = [];
+    let raf: number | null = null;
+    let lastT = 0;
+    let touchRelease: number | null = null;
+    const pointer = { x: -9999, y: -9999, active: false, energy: 0 };
 
     const drawSymbol = (symbol: GridSymbol) => {
+      const distance = Math.hypot(pointer.x - symbol.x, pointer.y - symbol.y);
+      const proximity = Math.max(0, 1 - distance / REVEAL_RADIUS);
+      const highlight = proximity * pointer.energy;
+      const [r, g, b] = COLOR_HEX[symbol.color];
+      const red = Math.round(148 + (r - 148) * highlight);
+      const green = Math.round(163 + (g - 163) * highlight);
+      const blue = Math.round(184 + (b - 184) * highlight);
+      const size = SYMBOL_SIZE * (1 + highlight * 0.55);
+      const stroke = SYMBOL_STROKE * (1 + highlight * 0.45);
+
       ctx.save();
       ctx.translate(symbol.x, symbol.y);
       ctx.rotate(symbol.rotation);
-      ctx.strokeStyle = SYMBOL_COLOR;
-      drawShape(ctx, symbol.shape, SYMBOL_SIZE, SYMBOL_STROKE);
+      ctx.strokeStyle =
+        highlight > 0.01
+          ? `rgba(${red},${green},${blue},${0.24 + highlight * 0.54})`
+          : SYMBOL_COLOR;
+      ctx.shadowBlur = highlight * 16;
+      ctx.shadowColor = `rgba(${r},${g},${b},${highlight * 0.85})`;
+      drawShape(ctx, symbol.shape, size, stroke);
       ctx.restore();
     };
 
@@ -181,11 +215,82 @@ export function BackgroundPattern() {
       renderSymbols();
     };
 
+    const step = (time: number) => {
+      raf = null;
+      if (lastT === 0) lastT = time;
+      const delta = Math.min(50, time - lastT);
+      lastT = time;
+      const target = pointer.active ? 1 : 0;
+      pointer.energy += (target - pointer.energy) * Math.min(1, delta / 120);
+      renderSymbols();
+
+      if (pointer.active || pointer.energy > 0.01) {
+        raf = requestAnimationFrame(step);
+      }
+    };
+
+    const start = () => {
+      if (raf === null && !document.hidden) {
+        lastT = 0;
+        raf = requestAnimationFrame(step);
+      }
+    };
+
+    const stop = () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = null;
+    };
+
+    const updatePointer = (event: PointerEvent) => {
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+      pointer.active = true;
+      start();
+    };
+
+    const releasePointer = () => {
+      pointer.active = false;
+      start();
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerType === "touch") {
+        if (touchRelease !== null) window.clearTimeout(touchRelease);
+        touchRelease = window.setTimeout(() => {
+          touchRelease = null;
+          releasePointer();
+        }, 650);
+      }
+    };
+
+    const onPointerOut = (event: PointerEvent) => {
+      if (event.pointerType !== "touch" && !event.relatedTarget) releasePointer();
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else if (pointer.active || pointer.energy > 0.01) start();
+    };
+
     resize();
     window.addEventListener("resize", resize);
+    window.addEventListener("pointermove", updatePointer, { passive: true });
+    window.addEventListener("pointerdown", updatePointer, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", releasePointer);
+    window.addEventListener("pointerout", onPointerOut);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      stop();
+      if (touchRelease !== null) window.clearTimeout(touchRelease);
       window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", updatePointer);
+      window.removeEventListener("pointerdown", updatePointer);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", releasePointer);
+      window.removeEventListener("pointerout", onPointerOut);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

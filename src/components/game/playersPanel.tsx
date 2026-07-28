@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
-import { CircleHelp, Flame, LogOut, RotateCcw } from "lucide-react";
+import { CircleHelp, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
 
 interface PlayersPanelProps {
@@ -26,6 +26,7 @@ interface PlayersPanelProps {
   onNewGame: () => void;
   onExit: () => void;
   onHelp?: () => void;
+  onEditSettings?: () => void;
 }
 
 const formatTime = (ms: number | undefined): number => {
@@ -37,12 +38,6 @@ const getTimerColor = (seconds: number): string => {
   if (seconds <= 3) return "text-red-500";
   if (seconds <= 6) return "text-amber-500";
   return "text-emerald-500";
-};
-
-const getProgressColor = (seconds: number): string => {
-  if (seconds <= 3) return "from-red-500 to-red-400";
-  if (seconds <= 6) return "from-amber-500 to-amber-400";
-  return "from-emerald-500 to-emerald-400";
 };
 
 const getGameModeLabel = (mode: string): string => {
@@ -60,6 +55,7 @@ export function PlayersPanel({
   onNewGame,
   onExit,
   onHelp,
+  onEditSettings,
 }: PlayersPanelProps) {
   const [showExit, setShowExit] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
@@ -67,6 +63,8 @@ export function PlayersPanel({
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
     gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
+  const isGameOver =
+    gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const progress = isActive
     ? Math.max(0, ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100)
     : 0;
@@ -84,10 +82,72 @@ export function PlayersPanel({
   );
   const humanColor = humanPlayer ? COLOR_RGB[humanPlayer.color] : "255 255 255";
 
+  const handleNewGameClick = () => {
+    if (isGameOver) {
+      onNewGame();
+      return;
+    }
+    setShowNewGame(true);
+  };
+
+  const handleExitClick = () => {
+    if (isGameOver) {
+      onExit();
+      return;
+    }
+    setShowExit(true);
+  };
+
   return (
-    <div className="glass w-full p-3 sm:p-4">
-      <div className="mb-3 flex items-start justify-between gap-2 sm:mb-3.5">
-        <div className="min-w-0">
+    <div className="glass relative w-full p-3 sm:p-4">
+      {isActive && (
+        <div
+          role="timer"
+          aria-label={`Time remaining: ${seconds} seconds`}
+          className={cn(
+            "glass-cell pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-300 sm:top-3.5 sm:h-12 sm:w-12",
+            getTimerColor(seconds),
+            seconds <= 3 && seconds > 0 && "animate-timer-pulse",
+          )}
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 36 36"
+            className="absolute inset-0 h-full w-full -rotate-90"
+          >
+            <circle
+              cx="18"
+              cy="18"
+              r="15.5"
+              fill="none"
+              stroke="rgb(var(--glass-border) / 0.18)"
+              strokeWidth="2"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="15.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 15.5}
+              strokeDashoffset={2 * Math.PI * 15.5 * (1 - progress / 100)}
+              className="transition-[stroke-dashoffset] duration-300 ease-out"
+            />
+          </svg>
+          <span
+            className={cn(
+              "relative font-mono text-sm font-bold tabular-nums sm:text-base",
+              getTimerColor(seconds),
+            )}
+          >
+            {seconds}
+          </span>
+        </div>
+      )}
+      <div className={cn("mb-3 flex items-center justify-between gap-2 sm:mb-3.5", isActive && "pt-12 sm:pt-14")}>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             <span>{getGameModeLabel(gameState.gameMode)}</span>
             {stats && stats.totalGames > 0 && (
@@ -116,14 +176,13 @@ export function PlayersPanel({
                 message && !message.endsWith("'s turn.")
                   ? "font-medium text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground",
-                getTimerColor(seconds),
               )}
             >
               {message || activeLabel}
             </div>
           )}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex shrink-0 justify-end gap-1.5">
           <Button
             variant="glass"
             size="sm"
@@ -133,11 +192,22 @@ export function PlayersPanel({
           >
             <CircleHelp className="size-4" aria-hidden="true" />
           </Button>
+          {onEditSettings && (
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onEditSettings}
+              aria-label="Edit player and opponent settings"
+              className="size-8 p-0 text-muted-foreground sm:size-9"
+            >
+              <Pencil className="size-4" aria-hidden="true" />
+            </Button>
+          )}
           <Button
             variant="glass"
             size="sm"
-            onClick={() => setShowNewGame(true)}
-            aria-label="Start a new game"
+            onClick={handleNewGameClick}
+            aria-label={isGameOver ? "Play again" : "Start a new game"}
             className="size-8 p-0 text-[rgb(var(--player-color))] hover:bg-[rgb(var(--player-color)/0.15)] sm:size-9"
             style={{ "--glass-sweep-color": humanColor } as React.CSSProperties}
           >
@@ -146,9 +216,9 @@ export function PlayersPanel({
           <Button
             variant="glass"
             size="sm"
-            onClick={() => setShowExit(true)}
+            onClick={handleExitClick}
             aria-label={exitLabel}
-            className="size-8 p-0 text-red-500 hover:bg-red-500/15 sm:size-9"
+            className="size-8 p-0 text-white hover:bg-red-500/90 hover:text-black sm:size-9"
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
             <LogOut className="size-4" aria-hidden="true" />
@@ -173,38 +243,6 @@ export function PlayersPanel({
         />
       </div>
 
-      {isActive && (
-        <div className="mt-3 flex items-center gap-2.5">
-          <div
-            role="timer"
-            className={cn(
-              "flex h-7 min-w-[2rem] items-center justify-center rounded-md px-2 font-mono text-sm font-bold tabular-nums sm:h-8 sm:text-base",
-              getTimerColor(seconds),
-              seconds <= 3 && seconds > 0 && "animate-timer-pulse",
-            )}
-            aria-label={`Time remaining: ${seconds} seconds`}
-          >
-            {seconds}s
-          </div>
-          <div
-            role="progressbar"
-            aria-label="Turn time remaining"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progress)}
-            className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted"
-          >
-            <div
-              className={cn(
-                "absolute inset-y-0 left-0 rounded-full bg-gradient-to-r transition-all duration-300 ease-out",
-                getProgressColor(seconds),
-              )}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
       {!isActive && gameState.winner && (
         <div className="mt-3">
           <GameEndActions
@@ -215,7 +253,7 @@ export function PlayersPanel({
       )}
 
       <Confirm
-        isOpen={showExit}
+        isOpen={showExit && isActive}
         title={exitLabel}
         description={isOnline ? "Leave the room? Your opponent will be notified." : "Are you sure? Current progress will be lost."}
         confirmText={isOnline ? "Leave" : "Exit"}
@@ -228,7 +266,7 @@ export function PlayersPanel({
         onCancel={() => setShowExit(false)}
       />
       <Confirm
-        isOpen={showNewGame}
+        isOpen={showNewGame && isActive}
         title={isActive ? "Start a new game" : "Play again"}
         description={isActive ? "Restart with the same players and settings?" : "Play again with the same players and settings?"}
         confirmText={isActive ? "Restart" : "Play again"}

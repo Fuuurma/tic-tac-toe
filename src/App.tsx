@@ -15,6 +15,12 @@ import { BackgroundPattern } from "@/components/backgroundPattern";
 import { Board } from "@/components/game/board";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { PlayersPanel } from "@/components/game/playersPanel";
+import {
+  SettingsSheet,
+  type OpponentSettings,
+  type PlayerSettings,
+  type SettingsTab,
+} from "@/components/auth/playerSettingsSheet";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { normalizeRoomId } from "@/lib/roomId";
@@ -76,7 +82,7 @@ export default function App() {
     <main className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:items-center sm:p-4">
       {/* Living symbol field: canvas layer above the gradient base */}
       <BackgroundPattern />
-      {/* Soft vignette so glass content reads clearly over the field */}
+      {/* Centered black mask keeps the board readable over the symbol texture */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
@@ -132,28 +138,44 @@ function LocalGameSurface({
   config: GameConfig;
   onExit: () => void;
 }) {
+  const [playerSettings, setPlayerSettings] = useState<PlayerSettings>({
+    displayName: config.displayName,
+    color: config.color,
+    playerShape: config.playerShape,
+  });
+  const [opponentSettings, setOpponentSettings] = useState<OpponentSettings>({
+    opponentName: config.opponentName,
+    opponentColor: config.opponentColor,
+    opponentShape: config.opponentShape,
+    opponentType: config.opponentType,
+    aiDifficulty: config.aiDifficulty,
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
+  const [helpOpen, setHelpOpen] = useState(false);
+
   const input = useMemo(
     () => ({
       gameMode: config.gameMode as typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND,
-      playerName: config.displayName,
-      opponentName: config.opponentName,
-      playerColor: config.color,
-      opponentColor: config.opponentColor,
-      playerShape: config.playerShape,
-      opponentShape: config.opponentShape,
-      aiDifficulty: config.aiDifficulty,
-      opponentType: config.opponentType,
+      playerName: playerSettings.displayName,
+      opponentName: opponentSettings.opponentName,
+      playerColor: playerSettings.color,
+      opponentColor: opponentSettings.opponentColor,
+      playerShape: playerSettings.playerShape,
+      opponentShape: opponentSettings.opponentShape,
+      aiDifficulty: opponentSettings.aiDifficulty,
+      opponentType: opponentSettings.opponentType,
     }),
     [
       config.gameMode,
-      config.displayName,
-      config.opponentName,
-      config.color,
-      config.opponentColor,
-      config.playerShape,
-      config.opponentShape,
-      config.aiDifficulty,
-      config.opponentType,
+      playerSettings.displayName,
+      playerSettings.color,
+      playerSettings.playerShape,
+      opponentSettings.opponentName,
+      opponentSettings.opponentColor,
+      opponentSettings.opponentShape,
+      opponentSettings.aiDifficulty,
+      opponentSettings.opponentType,
     ],
   );
   const { gameState, humanSymbol, handleCellClick, handleReset, exit } = useLocalGame(input);
@@ -192,8 +214,6 @@ function LocalGameSurface({
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
 
-  const [helpOpen, setHelpOpen] = useState(false);
-
   return (
     <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
       <PlayersPanel
@@ -207,6 +227,10 @@ function LocalGameSurface({
           onExit();
         }}
         onHelp={() => setHelpOpen(true)}
+        onEditSettings={() => {
+          setSettingsTab("player");
+          setSettingsOpen(true);
+        }}
       />
       <Board
         board={gameState.board}
@@ -230,6 +254,17 @@ function LocalGameSurface({
         inline
         isOpen={helpOpen}
         onClose={() => setHelpOpen(false)}
+      />
+      <SettingsSheet
+        isOpen={settingsOpen}
+        gameMode={config.gameMode as typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND}
+        tab={settingsTab}
+        onTabChange={setSettingsTab}
+        player={playerSettings}
+        opponent={opponentSettings}
+        onPlayerChange={setPlayerSettings}
+        onOpponentChange={setOpponentSettings}
+        onClose={() => setSettingsOpen(false)}
       />
     </div>
   );

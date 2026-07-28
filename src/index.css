@@ -113,18 +113,20 @@
   --gradient-light: linear-gradient(180deg, rgb(0 0 0) 0%, rgb(0 0 0) 100%);
   --gradient-dark: linear-gradient(180deg, rgb(0 0 0) 0%, rgb(0 0 0) 100%);
 
-  /* Dark center mask: keeps the board and its controls grounded above the
-     living symbol field. */
+  /* Dark center mask: keeps the board and its controls clear above the
+     repeated symbol texture. */
   --bg-mask-light: radial-gradient(
-    54% 62% at 50% 48%,
-    rgb(0 0 0 / 0.52) 0%,
-    rgb(0 0 0 / 0.32) 62%,
+    58% 72% at 50% 48%,
+    rgb(0 0 0 / 0.82) 0%,
+    rgb(0 0 0 / 0.68) 60%,
+    rgb(0 0 0 / 0.32) 82%,
     transparent 100%
   );
   --bg-mask-dark: radial-gradient(
-    54% 62% at 50% 48%,
-    rgb(0 0 0 / 0.64) 0%,
-    rgb(0 0 0 / 0.44) 62%,
+    58% 72% at 50% 48%,
+    rgb(0 0 0 / 0.9) 0%,
+    rgb(0 0 0 / 0.78) 60%,
+    rgb(0 0 0 / 0.4) 82%,
     transparent 100%
   );
 }
@@ -215,9 +217,15 @@ body,
   0%,
   100% {
     transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgb(239 68 68 / 0),
+      0 0 0 1px rgb(239 68 68 / 0.45);
   }
   50% {
-    transform: scale(1.15);
+    transform: scale(1.04);
+    box-shadow:
+      0 0 14px 1px rgb(239 68 68 / 0.45),
+      0 0 0 1px rgb(239 68 68 / 0.65);
   }
 }
 

@@ -52,4 +52,19 @@ describe("isPeerMessage", () => {
     expect(isPeerMessage({ type: "admin", command: "win" })).toBe(false);
     expect(isPeerMessage(null)).toBe(false);
   });
+
+  it("accepts rematchRequested with either PlayerSymbol as the requester", () => {
+    expect(
+      isPeerMessage({ type: "rematchRequested", requesterSymbol: PlayerSymbol.X }),
+    ).toBe(true);
+    expect(
+      isPeerMessage({ type: "rematchRequested", requesterSymbol: PlayerSymbol.O }),
+    ).toBe(true);
+  });
+
+  it("accepts the host's 'invalid move' error frame used to roll back a guest", () => {
+    expect(isPeerMessage({ type: "error", message: "Invalid move" })).toBe(true);
+    // Anything else the relay sends still validates through isPeerMessage.
+    expect(isPeerMessage({ type: "error", message: "Server overloaded" })).toBe(true);
+  });
 });

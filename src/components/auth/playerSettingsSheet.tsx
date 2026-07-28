@@ -150,7 +150,7 @@ export function SettingsSheet({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-4 rounded-t-2xl border-b-0 p-5 pb-7 outline-none sm:rounded-2xl sm:border-b"
+        className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-7 outline-none sm:rounded-2xl sm:border-b"
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
           <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
@@ -246,14 +246,6 @@ function PlayerTab({
 }) {
   return (
     <>
-      <div className="glass-cell flex items-center gap-2.5 rounded-lg px-3 py-2.5">
-        <span className="text-xs text-muted-foreground">
-          {isOnline
-            ? "Your X/O role is assigned by the room when you connect."
-            : "Who goes first (X) is randomized each game."}
-        </span>
-      </div>
-
       <SymbolShapePicker
         value={value.playerShape}
         disabled={isOnline}

@@ -71,15 +71,15 @@ export function Board({
         className="relative mx-auto aspect-square w-full rounded-2xl border border-black/30 bg-black/35 p-2 shadow-inner sm:p-3"
       >
         <div
-        role="grid"
-        aria-label="Tic Tac Toe game board"
-        aria-keyshortcuts="1 2 3 4 5 6 7 8 9"
-        className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2"
-        style={
-          previewColor
-            ? ({ "--player-color": COLOR_RGB[previewColor] } as React.CSSProperties)
-            : undefined
-        }
+          role="grid"
+          aria-label="Tic Tac Toe game board"
+          aria-keyshortcuts="1 2 3 4 5 6 7 8 9"
+          className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2"
+          style={
+            previewColor
+              ? ({ "--player-color": COLOR_RGB[previewColor] } as React.CSSProperties)
+              : undefined
+          }
         >
           {[0, 1, 2].map((row) => (
             <div key={row} role="row" className="grid grid-cols-3 gap-1.5 sm:gap-2">

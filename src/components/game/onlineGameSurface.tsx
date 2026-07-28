@@ -1,14 +1,21 @@
 import { useEffect, useState } from "react";
 import {
+  AI_Difficulty,
   Color,
   GameModes,
   PlayerSymbol,
+  PlayerTypes,
   SymbolShape,
 } from "@/game/constants";
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
 import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
+import {
+  PlayerSummaryCard,
+  SettingsSheet,
+  type PlayerSettings,
+} from "@/components/auth/playerSettingsSheet";
 import { Check, Copy, Link2, Loader2, Share2, Wifi } from "lucide-react";
 
 export interface OnlineGameSurfaceProps {
@@ -60,6 +67,41 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   const message = onlineMessage(peer.state.status, peer.state.message);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Seed from the live host player data; the next rematch picks the values
+  // up via `peer.updatePendingSettings`. We refresh the buffered values each
+  // time the user opens the sheet so they always edit the latest identity.
+  const hostSymbol =
+    peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
+  const hostPlayerFromState =
+    hostSymbol && peer.state.role === "host"
+      ? peer.state.gameState.players[hostSymbol]
+      : null;
+  const [pendingPlayerSettings, setPendingPlayerSettings] = useState<PlayerSettings>(
+    hostPlayerFromState
+      ? {
+          displayName: hostPlayerFromState.username,
+          color: hostPlayerFromState.color,
+          playerShape: hostPlayerFromState.shape,
+        }
+      : {
+          displayName: config.displayName,
+          color: config.color,
+          playerShape: config.playerShape,
+        },
+  );
+
+  const handleOpenSettings = () => {
+    if (hostPlayerFromState) {
+      setPendingPlayerSettings({
+        displayName: hostPlayerFromState.username,
+        color: hostPlayerFromState.color,
+        playerShape: hostPlayerFromState.shape,
+      });
+    }
+    setSettingsOpen(true);
+  };
+
   return (
     <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
       {showGame && (
@@ -74,6 +116,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               onExit();
             }}
           />
+          <PlayerSummaryCard
+            settings={pendingPlayerSettings}
+            gameMode={GameModes.ONLINE}
+            onEdit={handleOpenSettings}
+          />
+
           <Board
             board={peer.state.gameState.board}
             colors={{
@@ -186,6 +234,33 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           </div>
         )}
       </div>
+      <SettingsSheet
+        isOpen={settingsOpen && peer.state.role === "host"}
+        gameMode={GameModes.ONLINE}
+        tab="player"
+        onTabChange={() => undefined}
+        player={pendingPlayerSettings}
+        opponent={{
+          opponentName: "Opponent",
+          opponentColor: Color.GRAY,
+          opponentShape: SymbolShape.O,
+          opponentType: PlayerTypes.HUMAN,
+          aiDifficulty: AI_Difficulty.EASY,
+        }}
+        onPlayerChange={setPendingPlayerSettings}
+        onOpponentChange={() => undefined}
+        onClose={() => {
+          // Persist the edits so the next rematch picks them up.
+          if (peer.state.role === "host") {
+            peer.updatePendingSettings({
+              displayName: pendingPlayerSettings.displayName,
+              color: pendingPlayerSettings.color,
+              playerShape: pendingPlayerSettings.playerShape,
+            });
+          }
+          setSettingsOpen(false);
+        }}
+      />
     </div>
   );
 }
