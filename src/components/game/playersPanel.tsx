@@ -26,7 +26,7 @@ interface PlayersPanelProps {
   stats?: GameStats;
   gameMode?: GameMode;
   aiDifficulty?: AI_DifficultyType;
-  onNewGame: () => void;
+  onNewGame?: () => void;
   onExit: () => void;
   onHelp?: () => void;
   onEditSettings?: () => void;
@@ -146,6 +146,7 @@ export function PlayersPanel({
   }, []);
 
   const handleNewGameClick = () => {
+    if (!onNewGame) return;
     if (isGameOver) {
       onNewGame();
       return;
@@ -298,16 +299,18 @@ export function PlayersPanel({
               <Pencil className="size-4" aria-hidden="true" />
             </Button>
           )}
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={handleNewGameClick}
-            aria-label={isGameOver ? "Play again" : "Start a new game"}
-            className="size-9 p-0 text-[rgb(var(--player-color))] hover:bg-[rgb(var(--player-color)/0.15)] sm:size-10"
-            style={{ "--glass-sweep-color": humanColor } as React.CSSProperties}
-          >
-            <RotateCcw className="size-4" aria-hidden="true" />
-          </Button>
+          {onNewGame && (
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={handleNewGameClick}
+              aria-label={isGameOver ? "Play again" : "Start a new game"}
+              className="size-9 p-0 text-[rgb(var(--player-color))] hover:bg-[rgb(var(--player-color)/0.15)] sm:size-10"
+              style={{ "--glass-sweep-color": humanColor } as React.CSSProperties}
+            >
+              <RotateCcw className="size-4" aria-hidden="true" />
+            </Button>
+          )}
           <Button
             variant="glass"
             size="sm"
@@ -378,7 +381,7 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowNewGame(false);
-          onNewGame();
+          onNewGame?.();
         }}
         onCancel={() => setShowNewGame(false)}
       />

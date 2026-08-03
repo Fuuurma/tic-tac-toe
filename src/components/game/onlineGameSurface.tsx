@@ -191,6 +191,25 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           </div>
         </div>
       )}
+      {peer.state.status === "disconnected" && peer.state.message && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2"
+        >
+          <span className="text-xs font-medium text-amber-950 dark:text-amber-50">
+            {peer.state.message}
+          </span>
+          <Button
+            size="sm"
+            variant="glass"
+            onClick={onExit}
+            className="h-8 px-3 text-xs"
+          >
+            Back to setup
+          </Button>
+        </div>
+      )}
 
       {/* Game area — below the status banners */}
       {showGame && (
@@ -199,7 +218,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             gameState={peer.state.gameState}
             message={message}
             gameMode={GameModes.ONLINE}
-            onNewGame={() => peer.requestRematch()}
+            onNewGame={peer.state.status === "connected" ? () => peer.requestRematch() : undefined}
             onExit={() => {
               peer.leave();
               onExit();
