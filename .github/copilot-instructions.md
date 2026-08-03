@@ -66,13 +66,13 @@ pnpm deploy                   # pnpm build && wrangler pages deploy dist
   Normal = depth-4 alpha-beta with depth-bounded eval,
   Hard = depth-8 alpha-beta with similar eval.
   Hard and Normal can exceed the mobile 100ms move-time budget;
-  follow `audits/tic-tac-toe-codebase-2026-07-26.md` for the
-  documented Web Worker offload decision.
+  a Web Worker offload is the documented mitigation.
 
 ## Online Play Architecture
 
-- **Host** = the player who creates the room; always plays X.
-- **Guest** = the joining player; always plays O.
+- **Host** = the player who creates the room. The host's symbol (X
+  or O) is randomized at room creation and again on each rematch.
+- **Guest** = the joining player; gets the opposite symbol.
 - **Reliability**: The host is authoritative for game state and
   the timer. Guest moves are validated on the host and broadcast
   back to the guest via `gameUpdate`.
@@ -131,7 +131,8 @@ frames. Rejecting those frames is part of the contract.
 - `GAME_RULES.MAX_MOVES_PER_PLAYER = 3`.
 - `BOARD_SIZE = 9`.
 - AI difficulties: `EASY`, `NORMAL`, `HARD` (no `INSANE`).
-- `AI_MOVE_DELAY_MS = 150` (intentional pre-move thinking delay).
+- `AI_MOVE_DELAY_MS = 700` (intentional pre-move thinking delay,
+  with up to `AI_MOVE_DELAY_JITTER_MS = 600` additional jitter).
 - `GAME_ID = "tictactoe"` (the wire id used by the matchmaking
   Worker).
 

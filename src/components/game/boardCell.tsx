@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Color, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
@@ -51,7 +52,7 @@ const OCCUPIED_TINT_CLASSES: Record<Color, string> = {
   [Color.GRAY]: "bg-gray-500/10 shadow-md shadow-gray-500/20",
 };
 
-export function BoardCell({
+export const BoardCell = memo(function BoardCell({
   index,
   value,
   valueColor,
@@ -101,7 +102,7 @@ export function BoardCell({
           strokeWidth={7}
           className={cn(
             "h-3/5 w-3/5 transition-all duration-300 ease-out animate-pop-in",
-            isNextToRemove && !isWinningCell && "animate-shimmer",
+            isNextToRemove && !isWinningCell && "animate-blink-fade",
             SYMBOL_COLOR[valueColor ?? Color.GRAY],
           )}
         />
@@ -119,7 +120,7 @@ export function BoardCell({
       )}
     </button>
   );
-}
+});
 
 const buildAriaLabel = (
   index: number,

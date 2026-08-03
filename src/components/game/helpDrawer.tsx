@@ -27,7 +27,7 @@ const TIPS: { Icon: typeof Clock; title: string; body: string }[] = [
   {
     Icon: Keyboard,
     title: "Keyboard shortcuts",
-    body: "Press 1–9 to place your mark on the matching cell. The layout matches a numpad: 1 is bottom-left, 9 is top-right.",
+    body: "Press 1–9 to place your mark on the matching cell. The layout reads left-to-right, top-to-bottom: 1 is top-left, 9 is bottom-right.",
   },
   {
     Icon: Clock,

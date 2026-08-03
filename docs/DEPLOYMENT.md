@@ -61,8 +61,19 @@ and falls back to `http://localhost:8787` in dev.
 
 ```bash
 pnpm build
-pnpm preview     # serves dist/ on localhost:4173
+pnpm preview     # serves dist/ on 127.0.0.1:4110
 ```
+
+## CLI deploy (alternative to GitHub integration)
+
+If you prefer the CLI over the dashboard:
+
+```bash
+pnpm deploy      # builds and runs `wrangler pages deploy dist`
+```
+
+This requires `npx wrangler login` first to authenticate your
+Cloudflare account. The project name in `wrangler.jsonc` is `tic-tac-toe`.
 
 ## Troubleshooting
 

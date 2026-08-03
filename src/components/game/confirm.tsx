@@ -85,47 +85,37 @@ export function Confirm({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
+      className="glass animate-pop-in absolute inset-x-0 -top-3 bottom-0 z-50 flex flex-col justify-center rounded-[30px] px-5 py-6 sm:px-6 sm:py-7"
+      style={{
+        "--glass-alpha": "0.96",
+        "--player-color": destructive ? "239 68 68" : playerColor,
+      } as React.CSSProperties}
     >
-      <div
-        className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border-b-0 p-5 shadow-2xl sm:rounded-2xl sm:border-b"
-        style={{
-          "--glass-alpha": "0.92",
-          "--player-color": destructive ? "239 68 68" : playerColor,
-        } as React.CSSProperties}
-      >
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
-          <h2 id={titleId} className="text-base font-semibold">
-            {title}
-          </h2>
-          <span className="size-8 shrink-0 sm:hidden" />
-        </div>
-        <div className="mt-2 overflow-y-auto">
-          <p id={descriptionId} className="text-sm text-muted-foreground">
-            {description}
-          </p>
-          <div className="mt-4 flex justify-end gap-2">
-          <Button ref={cancelRef} variant="glass" size="sm" onClick={onCancel}>
-            {cancelText}
-          </Button>
-          <Button
-            size="sm"
-            variant="glass"
-            onClick={onConfirm}
-            className="font-bold"
-            style={{
-              "--glass-sweep-color": destructive ? "239 68 68" : playerColor,
-              "--glass-tint": destructive ? "239 68 68" : playerColor,
-              "--glass-alpha": "0.15",
-              "--glass-sheen": destructive ? "239 68 68" : playerColor,
-              "--glass-sheen-alpha": "0.25",
-            } as React.CSSProperties}
-          >
-            {confirmText}
-          </Button>
-          </div>
-        </div>
+      <h2 id={titleId} className="text-base font-semibold">
+        {title}
+      </h2>
+      <p id={descriptionId} className="mt-2 text-sm text-muted-foreground">
+        {description}
+      </p>
+      <div className="mt-5 flex justify-end gap-2">
+        <Button ref={cancelRef} variant="glass" size="sm" onClick={onCancel}>
+          {cancelText}
+        </Button>
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={onConfirm}
+          className="font-bold"
+          style={{
+            "--glass-sweep-color": destructive ? "239 68 68" : playerColor,
+            "--glass-tint": destructive ? "239 68 68" : playerColor,
+            "--glass-alpha": "0.15",
+            "--glass-sheen": destructive ? "239 68 68" : playerColor,
+            "--glass-sheen-alpha": "0.25",
+          } as React.CSSProperties}
+        >
+          {confirmText}
+        </Button>
       </div>
     </div>
   );

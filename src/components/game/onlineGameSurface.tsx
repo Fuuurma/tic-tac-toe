@@ -49,6 +49,9 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     return () => {
       peer.leave();
     };
+    // Intentionally empty deps: this component is remounted via the `key`
+    // prop in App.tsx whenever the config changes, so the effect only runs
+    // once per mount. Adding `config` or `peer` would cause double-connects.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -119,7 +122,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           <PlayerSummaryCard
             settings={pendingPlayerSettings}
             gameMode={GameModes.ONLINE}
-            onEdit={handleOpenSettings}
+            onEdit={peer.state.role === "host" ? handleOpenSettings : undefined}
           />
 
           <Board
@@ -140,7 +143,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             disabled={
               peer.state.status !== "connected" ||
               localSymbol === null ||
-              peer.state.gameState.currentPlayer !== localSymbol
+              peer.state.gameState.currentPlayer !== localSymbol ||
+              peer.state.gameState.gameStatus !== "ACTIVE"
             }
             onCellClick={peer.sendMove}
           />
@@ -319,7 +323,7 @@ function RoomIdShare({
         Room ready
       </div>
       <p className="text-xs leading-tight text-muted-foreground">
-        You are X. Send this code to your opponent; you start when they join.
+        Send this code to your opponent; you start when they join.
       </p>
       <span
         aria-label={`Room code ${roomId}`}

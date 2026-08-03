@@ -13,6 +13,7 @@ import {
   SymbolShape,
   TURN_DURATION_MS,
   WINNING_COMBINATIONS,
+  oppositeSymbol,
 } from "./constants";
 
 export type CellValue = PlayerSymbol | null;
@@ -95,7 +96,7 @@ export const createInitialGameState = (
 ): GameState => {
   const state = freshGameState();
   const humanSymbol = input.humanSymbol ?? PlayerSymbol.X;
-  const opponentSymbol = humanSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+  const opponentSymbol = oppositeSymbol(humanSymbol);
   const humanName = humanSymbol === PlayerSymbol.X ? input.playerXName : input.playerOName;
   const opponentName = humanSymbol === PlayerSymbol.X ? input.playerOName : input.playerXName;
   const opponentType = input.opponentType ?? (input.gameMode === GameModes.VS_COMPUTER ? PlayerTypes.COMPUTER : PlayerTypes.HUMAN);
@@ -150,7 +151,7 @@ export const isValidMove = (state: GameState, index: number, symbol: PlayerSymbo
 
 
 export const getNextPlayerSymbol = (current: PlayerSymbol): PlayerSymbol =>
-  current === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+  oppositeSymbol(current);
 
 export const isGameActive = (state: GameState): boolean =>
   state.gameStatus === GameStatus.ACTIVE && state.winner === null;

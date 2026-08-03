@@ -19,13 +19,22 @@ const DEFAULT_STATS: GameStats = {
 
 const storageKey = (guestId: string) => `tic-tac-toe:stats:${guestId}`;
 
-const readStats = (guestId: string): GameStats => {
+const isFiniteNonNegative = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v) && v >= 0;
+
+export const readStats = (guestId: string): GameStats => {
   if (typeof window === "undefined") return DEFAULT_STATS;
   try {
     const raw = window.localStorage.getItem(storageKey(guestId));
     if (!raw) return DEFAULT_STATS;
     const parsed = JSON.parse(raw) as Partial<GameStats>;
-    return { ...DEFAULT_STATS, ...parsed };
+    return {
+      totalGames: isFiniteNonNegative(parsed.totalGames) ? parsed.totalGames : DEFAULT_STATS.totalGames,
+      wins: isFiniteNonNegative(parsed.wins) ? parsed.wins : DEFAULT_STATS.wins,
+      losses: isFiniteNonNegative(parsed.losses) ? parsed.losses : DEFAULT_STATS.losses,
+      currentWinStreak: isFiniteNonNegative(parsed.currentWinStreak) ? parsed.currentWinStreak : DEFAULT_STATS.currentWinStreak,
+      bestWinStreak: isFiniteNonNegative(parsed.bestWinStreak) ? parsed.bestWinStreak : DEFAULT_STATS.bestWinStreak,
+    };
   } catch {
     return DEFAULT_STATS;
   }

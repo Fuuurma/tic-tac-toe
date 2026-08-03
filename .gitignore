@@ -11,3 +11,10 @@ playwright-report
 test-results
 .wrangler
 
+# Tool-specific directories (kept locally, not tracked)
+.opencode/
+.mimocode/
+
+# Audit work artifacts
+audits/
+

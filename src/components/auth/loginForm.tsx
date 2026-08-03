@@ -112,7 +112,7 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
   const [gameMode, setGameMode] = useState<GameMode>(
     initialRoomId ? GameModes.ONLINE : GameModes.VS_COMPUTER,
   );
-  const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(AI_Difficulty.EASY);
+  const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(AI_Difficulty.NORMAL);
   const [opponentName, setOpponentName] = useState<string>("AI");
   const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
   const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);

@@ -5,6 +5,8 @@ import {
   GameStatus,
   PlayerSymbol,
   PLAYER_CONFIG,
+  oppositeSymbol,
+  oppositeColor,
 } from "@/game/constants";
 import {
   checkWinner,
@@ -198,6 +200,24 @@ describe("getNextPlayerSymbol", () => {
   it("alternates X and O", () => {
     expect(getNextPlayerSymbol(PlayerSymbol.X)).toBe(PlayerSymbol.O);
     expect(getNextPlayerSymbol(PlayerSymbol.O)).toBe(PlayerSymbol.X);
+  });
+});
+
+describe("oppositeSymbol", () => {
+  it("returns O for X", () => {
+    expect(oppositeSymbol(PlayerSymbol.X)).toBe(PlayerSymbol.O);
+  });
+  it("returns X for O", () => {
+    expect(oppositeSymbol(PlayerSymbol.O)).toBe(PlayerSymbol.X);
+  });
+});
+
+describe("oppositeColor", () => {
+  it("returns a different color", () => {
+    expect(oppositeColor(Color.BLUE)).not.toBe(Color.BLUE);
+  });
+  it("is symmetric", () => {
+    expect(oppositeColor(oppositeColor(Color.GREEN))).toBe(Color.GREEN);
   });
 });
 

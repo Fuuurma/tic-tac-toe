@@ -78,11 +78,14 @@ export async function leaveMatch(
   ticket: string,
   baseUrl: string = MATCHMAKING_BASE_URL,
 ): Promise<void> {
-  await fetch(`${baseUrl}/api/matchmaking/${game}/leave`, {
+  const response = await fetch(`${baseUrl}/api/matchmaking/${game}/leave`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticket }),
   });
+  if (!response.ok) {
+    throw new Error(`Matchmaking leave failed: ${response.status} ${await response.text()}`);
+  }
 }
 
 /**

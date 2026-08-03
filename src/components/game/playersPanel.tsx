@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
   TURN_DURATION_MS,
+  AI_Difficulty,
+  type AI_Difficulty as AI_DifficultyType,
   GameMode,
   GameModes,
   GameStatus,
@@ -23,6 +25,7 @@ interface PlayersPanelProps {
   message: string;
   stats?: GameStats;
   gameMode?: GameMode;
+  aiDifficulty?: AI_DifficultyType;
   onNewGame: () => void;
   onExit: () => void;
   onHelp?: () => void;
@@ -32,6 +35,12 @@ interface PlayersPanelProps {
 const formatTime = (ms: number | undefined): number => {
   if (ms === undefined) return 0;
   return Math.max(0, Math.ceil(ms / 1000));
+};
+
+const AI_DIFFICULTY_LABEL: Record<AI_DifficultyType, string> = {
+  [AI_Difficulty.EASY]: "easy",
+  [AI_Difficulty.NORMAL]: "medium",
+  [AI_Difficulty.HARD]: "hard",
 };
 
 const getTimerColor = (seconds: number): string => {
@@ -47,11 +56,38 @@ const getGameModeLabel = (mode: string): string => {
   return mode.replace("_", " ");
 };
 
+const getTimerBorderPath = (width: number, height: number): string => {
+  const inset = 1.5;
+  const bumpRadius = 24;
+  const baseline = 24;
+  const cornerRadius = Math.min(30, Math.max(18, width / 7));
+  const left = inset;
+  const right = width - inset;
+  const bottom = height - inset;
+  const center = width / 2;
+
+  return [
+    `M ${center} ${baseline - bumpRadius}`,
+    `A ${bumpRadius} ${bumpRadius} 0 0 1 ${center + bumpRadius} ${baseline}`,
+    `H ${right - cornerRadius}`,
+    `A ${cornerRadius} ${cornerRadius} 0 0 1 ${right} ${baseline + cornerRadius}`,
+    `V ${bottom - cornerRadius}`,
+    `A ${cornerRadius} ${cornerRadius} 0 0 1 ${right - cornerRadius} ${bottom}`,
+    `H ${left + cornerRadius}`,
+    `A ${cornerRadius} ${cornerRadius} 0 0 1 ${left} ${bottom - cornerRadius}`,
+    `V ${baseline + cornerRadius}`,
+    `A ${cornerRadius} ${cornerRadius} 0 0 1 ${left + cornerRadius} ${baseline}`,
+    `H ${center - bumpRadius}`,
+    `A ${bumpRadius} ${bumpRadius} 0 0 1 ${center} ${baseline - bumpRadius}`,
+  ].join(" ");
+};
+
 export function PlayersPanel({
   gameState,
   message,
   stats,
   gameMode,
+  aiDifficulty,
   onNewGame,
   onExit,
   onHelp,
@@ -59,6 +95,8 @@ export function PlayersPanel({
 }: PlayersPanelProps) {
   const [showExit, setShowExit] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
 
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
@@ -66,7 +104,13 @@ export function PlayersPanel({
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const progress = isActive
-    ? Math.max(0, ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100)
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100,
+        ),
+      )
     : 0;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? "Leave game" : "Exit game";
@@ -81,6 +125,25 @@ export function PlayersPanel({
     (p) => p.type !== PlayerTypes.COMPUTER,
   );
   const humanColor = humanPlayer ? COLOR_RGB[humanPlayer.color] : "255 255 255";
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const updateSize = () => {
+      const { width, height } = panel.getBoundingClientRect();
+      setPanelSize((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      );
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
 
   const handleNewGameClick = () => {
     if (isGameOver) {
@@ -99,55 +162,87 @@ export function PlayersPanel({
   };
 
   return (
-    <div className="glass relative w-full p-3 sm:p-4">
+    <div
+      ref={panelRef}
+      className={cn(
+        "relative w-full rounded-2xl px-4 py-4 sm:px-5 sm:py-5",
+        !isActive && "glass",
+      )}
+    >
       {isActive && (
-        <div
-          role="timer"
-          aria-label={`Time remaining: ${seconds} seconds`}
-          className={cn(
-            "glass-cell pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-300 sm:top-3.5 sm:h-12 sm:w-12",
-            getTimerColor(seconds),
-            seconds <= 3 && seconds > 0 && "animate-timer-pulse",
-          )}
-        >
-          <svg
+        <>
+          <div
             aria-hidden="true"
-            viewBox="0 0 36 36"
-            className="absolute inset-0 h-full w-full -rotate-90"
-          >
-            <circle
-              cx="18"
-              cy="18"
-              r="15.5"
-              fill="none"
-              stroke="rgb(var(--glass-border) / 0.18)"
-              strokeWidth="2"
-            />
-            <circle
-              cx="18"
-              cy="18"
-              r="15.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 15.5}
-              strokeDashoffset={2 * Math.PI * 15.5 * (1 - progress / 100)}
-              className="transition-[stroke-dashoffset] duration-300 ease-out"
-            />
-          </svg>
-          <span
+            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-[30px] !border-0"
+            style={{
+              WebkitMaskImage:
+                "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
+              maskImage:
+                "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
+              WebkitMaskSize: "100% 48px, 100% calc(100% - 24px)",
+              maskSize: "100% 48px, 100% calc(100% - 24px)",
+              WebkitMaskPosition: "0 0, 0 24px",
+              maskPosition: "0 0, 0 24px",
+              WebkitMaskRepeat: "no-repeat",
+              maskRepeat: "no-repeat",
+            }}
+          />
+          {panelSize.width > 0 && panelSize.height > 0 && (
+            <svg
+              aria-hidden="true"
+              viewBox={`0 0 ${panelSize.width} ${panelSize.height + 12}`}
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible text-emerald-500"
+            >
+              <path
+                d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
+                pathLength={100}
+                fill="none"
+                stroke="rgb(var(--glass-border) / 0.28)"
+                strokeWidth="2"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                key={`${gameState.moveCount}-${gameState.currentPlayer}`}
+                d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
+                pathLength={100}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeDasharray="100 100"
+                strokeDashoffset={100 - progress}
+                strokeLinecap="butt"
+                vectorEffect="non-scaling-stroke"
+                className="animate-countdown-border"
+                style={
+                  {
+                    "--timer-duration": `${TURN_DURATION_MS}ms`,
+                  } as React.CSSProperties
+                }
+              />
+            </svg>
+          )}
+          <div
+            role="timer"
+            aria-label={`Time remaining: ${seconds} seconds`}
             className={cn(
-              "relative font-mono text-sm font-bold tabular-nums sm:text-base",
+              "pointer-events-none absolute left-1/2 top-3 z-[3] flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
               getTimerColor(seconds),
             )}
           >
-            {seconds}
-          </span>
-        </div>
+            <span className="font-mono text-base font-bold tabular-nums">
+              {seconds}
+            </span>
+          </div>
+        </>
       )}
-      <div className={cn("mb-3 flex items-center justify-between gap-2 sm:mb-3.5", isActive && "pt-12 sm:pt-14")}>
-        <div className="min-w-0 flex-1">
+      <div className="relative z-10 mb-3 flex items-center justify-between gap-2 sm:mb-3.5">
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            isActive && "max-w-[calc(50%-2rem)]",
+          )}
+        >
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
             <span>{getGameModeLabel(gameState.gameMode)}</span>
             {stats && stats.totalGames > 0 && (
@@ -188,7 +283,7 @@ export function PlayersPanel({
             size="sm"
             onClick={onHelp}
             aria-label="How to play"
-            className="size-8 p-0 text-muted-foreground sm:size-9"
+            className="size-9 p-0 text-muted-foreground sm:size-10"
           >
             <CircleHelp className="size-4" aria-hidden="true" />
           </Button>
@@ -198,7 +293,7 @@ export function PlayersPanel({
               size="sm"
               onClick={onEditSettings}
               aria-label="Edit player and opponent settings"
-              className="size-8 p-0 text-muted-foreground sm:size-9"
+              className="size-9 p-0 text-muted-foreground sm:size-10"
             >
               <Pencil className="size-4" aria-hidden="true" />
             </Button>
@@ -208,7 +303,7 @@ export function PlayersPanel({
             size="sm"
             onClick={handleNewGameClick}
             aria-label={isGameOver ? "Play again" : "Start a new game"}
-            className="size-8 p-0 text-[rgb(var(--player-color))] hover:bg-[rgb(var(--player-color)/0.15)] sm:size-9"
+            className="size-9 p-0 text-[rgb(var(--player-color))] hover:bg-[rgb(var(--player-color)/0.15)] sm:size-10"
             style={{ "--glass-sweep-color": humanColor } as React.CSSProperties}
           >
             <RotateCcw className="size-4" aria-hidden="true" />
@@ -218,7 +313,7 @@ export function PlayersPanel({
             size="sm"
             onClick={handleExitClick}
             aria-label={exitLabel}
-            className="size-8 p-0 text-white hover:bg-red-500/90 hover:text-black sm:size-9"
+            className="size-9 p-0 text-white hover:bg-red-500/90 hover:text-black sm:size-10"
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
             <LogOut className="size-4" aria-hidden="true" />
@@ -226,13 +321,18 @@ export function PlayersPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="relative z-10 grid grid-cols-2 gap-2.5">
         <PlayerCard
           playerSymbol={PlayerSymbol.X}
           player={gameState.players[PlayerSymbol.X]}
           isCurrent={gameState.currentPlayer === PlayerSymbol.X && isActive}
           isWinner={gameState.winner === PlayerSymbol.X}
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
+          aiDifficultyLabel={
+            gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
+              ? AI_DIFFICULTY_LABEL[aiDifficulty]
+              : undefined
+          }
         />
         <PlayerCard
           playerSymbol={PlayerSymbol.O}
@@ -240,11 +340,16 @@ export function PlayersPanel({
           isCurrent={gameState.currentPlayer === PlayerSymbol.O && isActive}
           isWinner={gameState.winner === PlayerSymbol.O}
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
+          aiDifficultyLabel={
+            gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
+              ? AI_DIFFICULTY_LABEL[aiDifficulty]
+              : undefined
+          }
         />
       </div>
 
       {!isActive && gameState.winner && (
-        <div className="mt-3">
+        <div className="relative z-10 mt-3">
           <GameEndActions
             headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
             message={message}
@@ -281,25 +386,28 @@ export function PlayersPanel({
   );
 }
 
-function PlayerCard({
+const PlayerCard = memo(function PlayerCard({
   playerSymbol,
   player,
   isCurrent,
   isWinner,
   isAITurn,
+  aiDifficultyLabel,
 }: {
   playerSymbol: PlayerSymbol;
   player: GameState["players"][PlayerSymbol];
   isCurrent: boolean;
   isWinner: boolean;
   isAITurn: boolean;
+  aiDifficultyLabel?: string;
 }) {
+  const displayName = player.username || `Player ${playerSymbol}`;
   return (
     <div
       role="group"
-      aria-label={`${player.username || `Player ${playerSymbol}`}, ${playerSymbol}${isCurrent ? ", current turn" : ""}`}
+      aria-label={`${displayName}, ${playerSymbol}${aiDifficultyLabel ? `, ${aiDifficultyLabel}` : ""}${isCurrent ? ", current turn" : ""}`}
       className={cn(
-        "flex min-w-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-colors",
+        "flex min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors sm:px-3.5 sm:py-3",
         isCurrent && "border-[rgb(var(--player-color)/0.4)] bg-[rgb(var(--player-color)/0.1)] shadow-sm",
         isWinner && "border-emerald-500/40 bg-emerald-500/15",
         !isCurrent && !isWinner && "glass-cell border-white/30 dark:border-white/10",
@@ -317,7 +425,12 @@ function PlayerCard({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs font-semibold sm:text-sm">
-          {player.username || `Player ${playerSymbol}`}
+          {displayName}
+          {aiDifficultyLabel && (
+            <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+              ({aiDifficultyLabel})
+            </span>
+          )}
         </div>
       </div>
       {isCurrent && !isWinner && (
@@ -330,7 +443,7 @@ function PlayerCard({
       )}
     </div>
   );
-}
+});
 
 interface GameEndActionsProps {
   headline: string | null;

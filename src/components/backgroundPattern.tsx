@@ -10,8 +10,10 @@ const COLORS = Object.values(Color);
 const GRID_STEP = 22;
 const SYMBOL_SIZE = 8;
 const SYMBOL_STROKE = 1;
-const SYMBOL_COLOR = "rgba(148,163,184,0.24)";
-const REVEAL_RADIUS = 150;
+const SYMBOL_COLOR = "rgba(148,163,184,0.15)";
+const REVEAL_RADIUS = 240;
+const SCRAMBLE_INTERVAL_MS = 70;
+const SCRAMBLE_DISTANCE = 8;
 
 const COLOR_HEX: Record<Color, [number, number, number]> = {
   [Color.BLUE]: [59, 130, 246],
@@ -147,6 +149,21 @@ function drawShape(
       ctx.stroke();
       break;
     }
+    case SymbolShape.HEART: {
+      // Heart drawn in a local coordinate system centered at (0,0).
+      // Scale factor keeps it visually balanced with the other shapes.
+      const sc = s * 0.018;
+      ctx.save();
+      ctx.scale(sc, sc);
+      ctx.beginPath();
+      ctx.moveTo(0, 30);
+      ctx.bezierCurveTo(-34, 4, -34, -34, 0, -16);
+      ctx.bezierCurveTo(34, -34, 34, 4, 0, 30);
+      ctx.closePath();
+      ctx.restore();
+      ctx.stroke();
+      break;
+    }
   }
 }
 
@@ -168,35 +185,65 @@ export function BackgroundPattern() {
     let symbols: GridSymbol[] = [];
     let raf: number | null = null;
     let lastT = 0;
+    let lastScrambleAt = -Infinity;
+    let lastScrambleX = -9999;
+    let lastScrambleY = -9999;
     let touchRelease: number | null = null;
     const pointer = { x: -9999, y: -9999, active: false, energy: 0 };
+
+    const drawSpotlight = () => {
+      if (pointer.energy < 0.01) return;
+
+      const radius = REVEAL_RADIUS * 1.15;
+      const gradient = ctx.createRadialGradient(
+        pointer.x,
+        pointer.y,
+        0,
+        pointer.x,
+        pointer.y,
+        radius,
+      );
+      gradient.addColorStop(0, `rgba(41,121,255,${pointer.energy * 0.34})`);
+      gradient.addColorStop(0.42, `rgba(56,182,255,${pointer.energy * 0.2})`);
+      gradient.addColorStop(0.72, `rgba(42,252,152,${pointer.energy * 0.09})`);
+      gradient.addColorStop(1, "rgba(2,6,23,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(
+        pointer.x - radius,
+        pointer.y - radius,
+        radius * 2,
+        radius * 2,
+      );
+    };
 
     const drawSymbol = (symbol: GridSymbol) => {
       const distance = Math.hypot(pointer.x - symbol.x, pointer.y - symbol.y);
       const proximity = Math.max(0, 1 - distance / REVEAL_RADIUS);
-      const highlight = proximity * pointer.energy;
+      const easedProximity = proximity * proximity * (3 - 2 * proximity);
+      const highlight = easedProximity * pointer.energy;
       const [r, g, b] = COLOR_HEX[symbol.color];
       const red = Math.round(148 + (r - 148) * highlight);
       const green = Math.round(163 + (g - 163) * highlight);
       const blue = Math.round(184 + (b - 184) * highlight);
-      const size = SYMBOL_SIZE * (1 + highlight * 0.55);
-      const stroke = SYMBOL_STROKE * (1 + highlight * 0.45);
+      const size = SYMBOL_SIZE * (1 + highlight * 0.42);
+      const stroke = SYMBOL_STROKE * (1 + highlight * 0.4);
 
       ctx.save();
       ctx.translate(symbol.x, symbol.y);
       ctx.rotate(symbol.rotation);
       ctx.strokeStyle =
         highlight > 0.01
-          ? `rgba(${red},${green},${blue},${0.24 + highlight * 0.54})`
+          ? `rgba(${red},${green},${blue},${0.15 + highlight * 0.84})`
           : SYMBOL_COLOR;
-      ctx.shadowBlur = highlight * 16;
-      ctx.shadowColor = `rgba(${r},${g},${b},${highlight * 0.85})`;
+      ctx.shadowBlur = highlight * 18;
+      ctx.shadowColor = `rgba(${r},${g},${b},${highlight * 0.92})`;
       drawShape(ctx, symbol.shape, size, stroke);
       ctx.restore();
     };
 
     const renderSymbols = () => {
       ctx.clearRect(0, 0, width, height);
+      drawSpotlight();
       for (const symbol of symbols) {
         drawSymbol(symbol);
       }
@@ -224,8 +271,11 @@ export function BackgroundPattern() {
       pointer.energy += (target - pointer.energy) * Math.min(1, delta / 120);
       renderSymbols();
 
-      if (pointer.active || pointer.energy > 0.01) {
+      if (Math.abs(target - pointer.energy) > 0.01) {
         raf = requestAnimationFrame(step);
+      } else {
+        pointer.energy = target;
+        renderSymbols();
       }
     };
 
@@ -241,10 +291,32 @@ export function BackgroundPattern() {
       raf = null;
     };
 
+    const scrambleNearbySymbols = (time: number) => {
+      const moved = Math.hypot(pointer.x - lastScrambleX, pointer.y - lastScrambleY);
+      if (time - lastScrambleAt < SCRAMBLE_INTERVAL_MS || moved < SCRAMBLE_DISTANCE) {
+        return;
+      }
+
+      lastScrambleAt = time;
+      lastScrambleX = pointer.x;
+      lastScrambleY = pointer.y;
+
+      for (const symbol of symbols) {
+        const distance = Math.hypot(pointer.x - symbol.x, pointer.y - symbol.y);
+        if (distance > REVEAL_RADIUS || Math.random() > 0.34) continue;
+
+        symbol.shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+        symbol.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        symbol.rotation = (Math.random() - 0.5) * 0.8;
+      }
+    };
+
     const updatePointer = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       pointer.active = true;
+      scrambleNearbySymbols(event.timeStamp);
+      renderSymbols();
       start();
     };
 
@@ -273,24 +345,29 @@ export function BackgroundPattern() {
     };
 
     resize();
-    window.addEventListener("resize", resize);
-    window.addEventListener("pointermove", updatePointer, { passive: true });
-    window.addEventListener("pointerdown", updatePointer, { passive: true });
-    window.addEventListener("pointerup", onPointerUp, { passive: true });
-    window.addEventListener("pointercancel", releasePointer);
-    window.addEventListener("pointerout", onPointerOut);
-    document.addEventListener("visibilitychange", onVisibility);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!prefersReducedMotion) {
+      window.addEventListener("resize", resize);
+      window.addEventListener("pointermove", updatePointer, { passive: true });
+      window.addEventListener("pointerdown", updatePointer, { passive: true });
+      window.addEventListener("pointerup", onPointerUp, { passive: true });
+      window.addEventListener("pointercancel", releasePointer);
+      window.addEventListener("pointerout", onPointerOut);
+      document.addEventListener("visibilitychange", onVisibility);
+    }
 
     return () => {
       stop();
       if (touchRelease !== null) window.clearTimeout(touchRelease);
-      window.removeEventListener("resize", resize);
-      window.removeEventListener("pointermove", updatePointer);
-      window.removeEventListener("pointerdown", updatePointer);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", releasePointer);
-      window.removeEventListener("pointerout", onPointerOut);
-      document.removeEventListener("visibilitychange", onVisibility);
+      if (!prefersReducedMotion) {
+        window.removeEventListener("resize", resize);
+        window.removeEventListener("pointermove", updatePointer);
+        window.removeEventListener("pointerdown", updatePointer);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", releasePointer);
+        window.removeEventListener("pointerout", onPointerOut);
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
     };
   }, []);
 

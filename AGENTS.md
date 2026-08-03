@@ -134,5 +134,5 @@ pnpm check
 - `TURN_DURATION_MS = 10_000` (10s per turn)
 - `GAME_RULES.MAX_MOVES_PER_PLAYER = 3`
 - `BOARD_SIZE = 9`
-- AI difficulties: EASY (simple tactics), NORMAL (MCTS), HARD (Minimax)
+- AI difficulties: EASY (random with center/corner preference), NORMAL (depth-4 alpha-beta minimax), HARD (depth-8 alpha-beta minimax)
 - Helpers in `constants.ts`: `oppositeSymbol(symbol)`, `randomPlayerSymbol()`, `oppositeColor(color)` — use these instead of inline ternaries

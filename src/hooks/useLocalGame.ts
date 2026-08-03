@@ -10,6 +10,7 @@ import {
   PlayerTypes,
   SymbolShape,
   TURN_DURATION_MS,
+  randomPlayerSymbol,
 } from "@/game/constants";
 import {
   type GameState,
@@ -34,9 +35,6 @@ export interface LocalGameInput {
   opponentType?: import("@/game/constants").PlayerType;
 }
 
-const randomSymbol = (): PlayerSymbol =>
-  Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;
-
 function buildInitialState(input: LocalGameInput, humanSymbol: PlayerSymbol): GameState {
   return createInitialGameState({
     gameMode: input.gameMode,
@@ -53,7 +51,7 @@ function buildInitialState(input: LocalGameInput, humanSymbol: PlayerSymbol): Ga
 }
 
 export function useLocalGame(input: LocalGameInput) {
-  const [humanSymbol] = useState<PlayerSymbol>(randomSymbol);
+  const [humanSymbol] = useState<PlayerSymbol>(randomPlayerSymbol);
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
@@ -106,20 +104,25 @@ export function useLocalGame(input: LocalGameInput) {
   );
 
   const handleReset = useCallback(() => {
+    // Stop the timer first to prevent a stale interval tick from
+    // decrementing the fresh game's turnTimeRemaining before the
+    // active-game effect restarts the interval.
+    stopTimer();
     if (aiTimeoutRef.current !== null) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
-    setGameState(buildInitialState(input, randomSymbol()));
-  }, [input]);
+    setGameState(buildInitialState(input, randomPlayerSymbol()));
+  }, [input, stopTimer]);
 
   const exit = useCallback(() => {
+    stopTimer();
     if (aiTimeoutRef.current !== null) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
     setGameState(freshGameState());
-  }, []);
+  }, [stopTimer]);
 
   useEffect(() => {
     if (gameIsActive) {
@@ -141,7 +144,7 @@ export function useLocalGame(input: LocalGameInput) {
         setGameState((prev) => {
           if (prev.winner !== null) return prev;
           const aiSymbol = prev.currentPlayer;
-          const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.EASY, aiSymbol);
+          const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.NORMAL, aiSymbol);
           if (move === null) return prev;
           const next = makeMove(prev, move);
           if (!next) return prev;

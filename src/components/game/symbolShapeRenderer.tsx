@@ -111,6 +111,22 @@ function renderShape(shape: SymbolShape, strokeWidth: number) {
       }
       return <polygon points={points.join(" ")} />;
     }
+    case SymbolShape.HEART: {
+      // Classic heart silhouette built from two arcs meeting a bottom tip.
+      // Outlined (stroke only) to match the other shapes.
+      const top = 28;
+      const bottom = 88;
+      const dipY = 42;
+      const lobeR = 22;
+      const lobeCx = 50 - lobeR - 2;
+      const lobeCy = top + lobeR;
+      const rlobeCx = 50 + lobeR + 2;
+      return (
+        <path
+          d={`M 50 ${bottom} C ${50 - 34} ${bottom - 26}, ${lobeCx - lobeR} ${lobeCy + 6}, ${lobeCx - lobeR} ${lobeCy - 4} A ${lobeR} ${lobeR} 0 0 1 ${50} ${dipY} A ${lobeR} ${lobeR} 0 0 1 ${rlobeCx + lobeR} ${lobeCy - 4} C ${rlobeCx + lobeR} ${lobeCy + 6}, ${50 + 34} ${bottom - 26}, 50 ${bottom} Z`}
+        />
+      );
+    }
     default:
       return null;
   }

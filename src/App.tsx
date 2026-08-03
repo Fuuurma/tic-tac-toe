@@ -79,7 +79,7 @@ export default function App() {
   };
 
   return (
-    <main className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:items-center sm:p-4">
+    <main id="main-content" className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:items-center sm:p-4">
       {/* Living symbol field: canvas layer above the gradient base */}
       <BackgroundPattern />
       {/* Centered black mask keeps the board readable over the symbol texture */}
@@ -87,7 +87,7 @@ export default function App() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
       />
-      <div className="relative z-10 flex w-full justify-center">
+      <div className="relative z-10 my-auto flex w-full justify-center">
         {view === "login" && (
           <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
@@ -213,6 +213,8 @@ function LocalGameSurface({
   const isAITurn =
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
+  const isBoardDisabled =
+    isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
 
   return (
     <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
@@ -220,6 +222,11 @@ function LocalGameSurface({
         gameState={gameState}
         stats={stats}
         gameMode={config.gameMode}
+        aiDifficulty={
+          config.gameMode === GameModes.VS_COMPUTER
+            ? opponentSettings.aiDifficulty
+            : undefined
+        }
         message=""
         onNewGame={handleReset}
         onExit={() => {
@@ -247,7 +254,7 @@ function LocalGameSurface({
         previewPlayer={previewPlayer}
         previewColor={previewColor}
         previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
-        disabled={isAITurn}
+        disabled={isBoardDisabled}
         onCellClick={handleCellClick}
       />
       <HelpDrawer

@@ -10,6 +10,8 @@ import {
   PlayerTypes,
   SymbolShape,
   TURN_DURATION_MS,
+  oppositeSymbol,
+  randomPlayerSymbol,
 } from "@/game/constants";
 import {
   createInitialGameState,
@@ -112,6 +114,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const roomRef = useRef<RoomClient | null>(null);
   const stateRef = useRef<GameState>(initialState.gameState);
   const hostSymbolRef = useRef<PlayerSymbol | null>(null);
+  const guestSymbolRef = useRef<PlayerSymbol | null>(null);
   const roleRef = useRef<PeerRole>(null);
   const tickRef = useRef<number | null>(null);
   const matchmakingTicketRef = useRef<string | null>(null);
@@ -132,13 +135,14 @@ export function usePeerRoom(options: PeerRoomOptions) {
   useEffect(() => {
     stateRef.current = state.gameState;
     roleRef.current = state.role;
+    guestSymbolRef.current = state.guestSymbol;
     // Any successful gameUpdate / gameStart / joined authoritative state
     // from the host supersedes the guest's optimistic move, so clear the
     // pending rollback snapshot.
     if (roleRef.current === "guest") {
       pendingGuestStateRef.current = null;
     }
-  }, [state.gameState, state.role]);
+  }, [state.gameState, state.role, state.guestSymbol]);
 
   const update = useCallback((patch: Partial<PeerRoomState>) => {
     setState((prev) => ({ ...prev, ...patch }));
@@ -198,7 +202,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
       const current = stateRef.current;
       const next = applyAuthorizedMove(current, index, actor);
       if (!next) {
-        if (actor === PlayerSymbol.O) {
+        // Only send an error rollback for guest moves. The host's own
+        // moves are validated locally and never need a wire error.
+        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+        if (actor !== hostSymbol) {
           roomRef.current?.send({ type: "error", message: "Invalid move" });
         }
         return;
@@ -213,7 +220,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (message.type === "join") {
         const state = stateRef.current;
         const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        const guestSymbol = hostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        const guestSymbol = oppositeSymbol(hostSymbol);
         const guestColor = chooseGuestColor(
           sanitizeColor(message.preferredColor),
           state.players[hostSymbol].color,
@@ -250,7 +257,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       }
       if (message.type === "move") {
         const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        const guestSymbol = hostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        const guestSymbol = oppositeSymbol(hostSymbol);
         applyHostMove(message.index, guestSymbol);
         return;
       }
@@ -269,8 +276,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
           return;
         }
         hostRematchPendingRef.current = false;
-        const newHostSymbol: PlayerSymbol = Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;
-        const newGuestSymbol = newHostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+        const newHostSymbol: PlayerSymbol = randomPlayerSymbol();
+        const newGuestSymbol = oppositeSymbol(newHostSymbol);
         hostSymbolRef.current = newHostSymbol;
         const hostPlayer = state.players[hostSymbolRef.current ?? PlayerSymbol.X];
         const guestPlayer = state.players[newGuestSymbol];
@@ -315,9 +322,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
         const state = stateRef.current;
         // Host wins by forfeit when the guest leaves (unless the game
         // already had a winner).
+        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
         const ended: GameState = state.winner
           ? state
-          : { ...state, winner: PlayerSymbol.X, gameStatus: GameStatus.COMPLETED };
+          : { ...state, winner: hostSymbol, gameStatus: GameStatus.COMPLETED };
         stateRef.current = ended;
         setState((prev) => ({ ...prev, gameState: ended, message: "Opponent left" }));
         return;
@@ -347,12 +355,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
           // Host wakes up (initial or reconnect). If opponent present, they're
           // already back; if not, wait for peer-joined.
           if (opponent) {
+            const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
             setState((prev) => ({
               ...prev,
               role: "host",
               status: "connected",
               guestDisplayName: opponent.displayName,
-              guestSymbol: PlayerSymbol.O,
+              guestSymbol: oppositeSymbol(hostSymbol),
               message: "",
             }));
           } else {
@@ -428,9 +437,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
           const current = stateRef.current;
           // Guest wins by forfeit when the host disconnects (unless the
           // game already had a winner).
+          const guestSymbol = guestSymbolRef.current ?? PlayerSymbol.O;
           const gameState = current.winner
             ? current
-            : { ...current, winner: PlayerSymbol.O, gameStatus: GameStatus.COMPLETED };
+            : { ...current, winner: guestSymbol, gameStatus: GameStatus.COMPLETED };
           stateRef.current = gameState;
           setState((prev) => ({
             ...prev,
@@ -444,9 +454,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
           stopTimer();
           hostRematchPendingRef.current = false;
           const current = stateRef.current;
+          const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
           const gameState = current.winner
             ? current
-            : { ...current, winner: PlayerSymbol.X, gameStatus: GameStatus.COMPLETED };
+            : { ...current, winner: hostSymbol, gameStatus: GameStatus.COMPLETED };
           stateRef.current = gameState;
           setState((prev) => ({
             ...prev,
@@ -473,6 +484,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
     (message: PeerMessage) => {
       if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
         stateRef.current = message.gameState;
+        if (message.type === "joined" && message.symbol) {
+          guestSymbolRef.current = message.symbol;
+        }
         setState((prev) => {
           const localSymbol =
             message.type === "joined" && message.symbol
@@ -505,9 +519,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
         // show a more specific message now.
         stopTimer();
         const current = stateRef.current;
+        const guestSymbol = guestSymbolRef.current ?? PlayerSymbol.O;
         const gameState = current.winner
           ? current
-          : { ...current, winner: PlayerSymbol.O, gameStatus: GameStatus.COMPLETED };
+          : { ...current, winner: guestSymbol, gameStatus: GameStatus.COMPLETED };
         stateRef.current = gameState;
         setState((prev) => ({
           ...prev,
@@ -575,9 +590,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const startAsHost = useCallback(
     (providedRoomId?: string, wsUrl?: string) => {
       stopTimer();
+      // Close any existing room connection before opening a new one.
+      // Without this, a "Try again" after a timeout leaves the old
+      // WebSocket open, and its message handler can corrupt the new
+      // room's state via shared refs.
+      if (roomRef.current) {
+        roomRef.current.close();
+        roomRef.current = null;
+      }
       const roomId = providedRoomId ?? generateRoomId();
-      const hostSymbol: PlayerSymbol = Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;
-      const guestSymbol = hostSymbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+      const hostSymbol: PlayerSymbol = randomPlayerSymbol();
+      const guestSymbol = oppositeSymbol(hostSymbol);
       hostSymbolRef.current = hostSymbol;
       const waitingGame = createInitialGameState({
         gameMode: GameModes.ONLINE,
@@ -614,6 +637,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const joinAsGuest = useCallback(
     (roomId: string, wsUrl?: string) => {
       stopTimer();
+      if (roomRef.current) {
+        roomRef.current.close();
+        roomRef.current = null;
+      }
       const trimmed = roomId.trim();
       if (!trimmed) {
         update({ status: "error", message: "Enter a room ID" });
@@ -657,18 +684,38 @@ export function usePeerRoom(options: PeerRoomOptions) {
         const POLL_INTERVAL_MS = 500;
         const MAX_POLL_MS = 120_000;
         const pollStart = Date.now();
+        let matched = false;
         while (Date.now() - pollStart < MAX_POLL_MS) {
           if (!matchmakingTicketRef.current) break; // user cancelled via leave()
-          const matched = await pollMatch(GAME_ID, response.ticket);
-          if (matched.status === "matched") {
+          const pollResponse = await pollMatch(GAME_ID, response.ticket);
+          if (pollResponse.status === "matched") {
+            matched = true;
             break;
           }
           await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
         }
 
+        // Did the user cancel via leave() while we were polling?
+        const userCancelled = matchmakingTicketRef.current === null;
         leaveMatch(GAME_ID, response.ticket).catch(() => {});
         matchmakingTicketRef.current = null;
         hasStartedRef.current = false;
+
+        // If the polling timed out without a match and the user didn't
+        // cancel, surface an error so they aren't left in "waiting"
+        // forever. The host room stays open — the user can share the
+        // code manually or exit.
+        if (!matched && !userCancelled) {
+          setState((prev) =>
+            prev.status === "waiting" || prev.status === "creating"
+              ? {
+                  ...prev,
+                  status: "error",
+                  message: "No opponent found after 2 minutes. Try again or share your room code.",
+                }
+              : prev,
+          );
+        }
         return;
       }
 
@@ -680,6 +727,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       }
     } catch (err) {
       matchmakingTicketRef.current = null;
+      hasStartedRef.current = false;
       update({ status: "error", message: `Matchmaking failed: ${(err as Error).message}` });
     }
   }, [joinAsGuest, options.hostDisplayName, startAsHost, stopTimer, update]);
@@ -687,7 +735,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const sendMove = useCallback(
     (index: number) => {
       if (state.role === "host") {
-        applyHostMove(index, PlayerSymbol.X);
+        applyHostMove(index, hostSymbolRef.current ?? PlayerSymbol.X);
         return;
       }
       if (state.role === "guest") {
@@ -726,8 +774,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
       roomRef.current?.send({ type: "rematchAccept" });
     } else if (state.role === "host") {
       // Host can only request a rematch when the previous game is over and
-      // the guest is still in the room.
+      // the guest is still connected. Without the status check the host can
+      // strand itself in a pending state after the opponent leaves.
       if (
+        state.status !== "connected" ||
         state.gameState.winner === null ||
         state.gameState.gameStatus !== GameStatus.COMPLETED
       ) {

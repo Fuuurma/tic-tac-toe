@@ -12,6 +12,7 @@ export const SymbolShape = {
   DIAMOND: "diamond",
   STAR: "star",
   HEXAGON: "hexagon",
+  HEART: "heart",
 } as const;
 export type SymbolShape = (typeof SymbolShape)[keyof typeof SymbolShape];
 export const AVAILABLE_SHAPES: SymbolShape[] = Object.values(SymbolShape);
@@ -24,6 +25,7 @@ export const SHAPE_LABELS: Record<SymbolShape, string> = {
   [SymbolShape.DIAMOND]: "Diamond",
   [SymbolShape.STAR]: "Star",
   [SymbolShape.HEXAGON]: "Hexagon",
+  [SymbolShape.HEART]: "Heart",
 };
 
 export const GameModes = {
@@ -152,3 +154,9 @@ const OPPOSITE_COLOR: Record<Color, Color> = {
 
 export const oppositeColor = (color: Color): Color =>
   OPPOSITE_COLOR[color] ?? Color.GRAY;
+
+export const oppositeSymbol = (symbol: PlayerSymbol): PlayerSymbol =>
+  symbol === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+
+export const randomPlayerSymbol = (): PlayerSymbol =>
+  Math.random() < 0.5 ? PlayerSymbol.X : PlayerSymbol.O;

@@ -209,7 +209,7 @@ export function SettingsSheet({
         {/* Tab content */}
         <div className="flex flex-col gap-4 overflow-y-auto">
           {tab === "player" && (
-            <div role="tabpanel" id={playerPanelId}>
+            <div role="tabpanel" id={playerPanelId} aria-hidden={false}>
               <PlayerTab
                 isOnline={isOnline}
                 value={player}
@@ -218,7 +218,7 @@ export function SettingsSheet({
             </div>
           )}
           {tab === "opponent" && showOpponentTab && (
-            <div role="tabpanel" id={opponentPanelId}>
+            <div role="tabpanel" id={opponentPanelId} aria-hidden={false}>
               <OpponentTab
                 value={opponent}
                 onChange={onOpponentChange}
@@ -395,20 +395,13 @@ export function PlayerSummaryCard({
 }: {
   settings: PlayerSettings;
   gameMode: GameModeValue;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   const isOnline = gameMode === GameModes.ONLINE;
   const colorBg = COLOR_BG_CLASSES[settings.color];
   const shape = settings.playerShape;
-
-  return (
-    <button
-      type="button"
-      onClick={onEdit}
-      aria-label="Edit your player settings"
-      className="glass-interactive flex w-full items-center gap-3.5 rounded-xl px-4 py-3.5 text-left"
-      style={{ "--glass-sweep-color": COLOR_RGB[settings.color] } as React.CSSProperties}
-    >
+  const content = (
+    <>
       <span
         aria-hidden="true"
         className={cn(
@@ -426,7 +419,30 @@ export function PlayerSummaryCard({
           {isOnline ? "Role assigned on connect" : "Random first move"}
         </span>
       </span>
-      <Pencil className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
+      {onEdit && <Pencil className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />}
+    </>
+  );
+
+  if (!onEdit) {
+    return (
+      <div
+        className="glass flex w-full items-center gap-3.5 rounded-xl px-4 py-3.5"
+        style={{ "--glass-sweep-color": COLOR_RGB[settings.color] } as React.CSSProperties}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      aria-label="Edit your player settings"
+      className="glass-interactive flex w-full items-center gap-3.5 rounded-xl px-4 py-3.5 text-left"
+      style={{ "--glass-sweep-color": COLOR_RGB[settings.color] } as React.CSSProperties}
+    >
+      {content}
     </button>
   );
 }
