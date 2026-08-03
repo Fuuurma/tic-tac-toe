@@ -15,7 +15,7 @@ import {
   PlayerSummaryCard,
   SettingsSheet,
   type PlayerSettings,
-} from "@/components/auth/playerSettingsSheet";
+} from "@/components/lobby/playerSettingsSheet";
 import { Check, Copy, Link2, Loader2, Share2, Wifi } from "lucide-react";
 
 export interface OnlineGameSurfaceProps {

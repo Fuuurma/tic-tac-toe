@@ -11,8 +11,8 @@ import {
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
 import { SymbolShapePicker } from "./symbolShapePicker";
-import { ColorPicker } from "../game/colorPicker";
-import { AI_DifficultySelector } from "../game/aiDifficultySelector";
+import { ColorPicker } from "./colorPicker";
+import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";

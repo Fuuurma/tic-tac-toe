@@ -10,7 +10,7 @@ import {
   type PlayerType,
 } from "@/game/constants";
 
-import { LoginForm, type LoginFormPayload } from "@/components/auth/loginForm";
+import { LoginForm, type LoginFormPayload } from "@/components/lobby/loginForm";
 import { BackgroundPattern } from "@/components/backgroundPattern";
 import { Board } from "@/components/game/board";
 import { HelpDrawer } from "@/components/game/helpDrawer";
@@ -20,7 +20,7 @@ import {
   type OpponentSettings,
   type PlayerSettings,
   type SettingsTab,
-} from "@/components/auth/playerSettingsSheet";
+} from "@/components/lobby/playerSettingsSheet";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { normalizeRoomId } from "@/lib/roomId";

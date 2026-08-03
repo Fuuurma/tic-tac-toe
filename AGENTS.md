@@ -86,7 +86,7 @@ pnpm check
 - `src/` — Vite + React application
   - `src/game/` — pure game domain (rules, AI, constants)
   - `src/hooks/` — React hooks (usePeerRoom, useLocalGame, useGameStats)
-  - `src/components/` — UI (board, login, panels, selectors, confirm dialog)
+  - `src/components/` — UI (board, lobby, panels, selectors, confirm dialog)
   - `src/lib/` — utilities (identity helper, WebSocket protocol, cn())
   - `src/types.ts` — (currently in logic.ts and constants.ts)
 - `e2e/` — Playwright smoke tests

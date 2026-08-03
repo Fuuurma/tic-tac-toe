@@ -13,7 +13,7 @@ separate parked experiment.
 ```
 src/game/               pure rules, AI search, shared constants
 src/hooks/              useLocalGame, usePeerRoom, useGameStats
-src/components/auth/    login form, mark/symbol pickers
+src/components/lobby/   login form, settings sheet, mark/picker selectors
 src/components/game/    board, board cell, panels, online surface
 src/lib/                peer protocol validation, RoomClient, identity, matchmaking
 e2e/                    Playwright smoke (smoke + quick-match)

@@ -1,6 +1,6 @@
 import { COLOR_BG_CLASSES, AVAILABLE_COLORS, type Color, type SymbolShape } from "@/game/constants";
 import { cn } from "@/lib/utils";
-import { SymbolShapeRenderer } from "./symbolShapeRenderer";
+import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
 interface ColorPickerProps {
   label: string;

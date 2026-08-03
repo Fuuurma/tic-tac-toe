@@ -21,7 +21,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { GameModeSelector } from "../game/gameModeSelector";
+import { GameModeSelector } from "./gameModeSelector";
 import { GameMark } from "./gameMark";
 import {
   SettingsSheet,
