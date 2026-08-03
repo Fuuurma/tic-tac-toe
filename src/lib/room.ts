@@ -14,7 +14,7 @@
  *    `guestId` reconnects.
  *  - `close()` shuts down permanently (no reconnect).
  *
- * Spec: newProjectsPlanner/migrations/2026-07-games-do-websocket-migration.md
+ * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
  */
 
 type RoomMessage = { type: string; [key: string]: unknown };

@@ -6,25 +6,25 @@ is the source of truth for cross-project priorities, reusable stack decisions,
 ports, deploy/auth notes, and agent handoffs.
 
 Before meaningful work, read:
-1. Current sprint / next work: `~/Projects/newProjectsPlanner/WORK.md`
-2. This project's state page: `~/Projects/newProjectsPlanner/projects/tic-tac-toe.md`
-3. Standard stack playbook: `~/Projects/newProjectsPlanner/tech-stack/STACK-STANDARDS.md`
-4. Agent skills/context: `~/Projects/newProjectsPlanner/tech-stack/AGENT-CONTEXT.md`
-5. Official docs index: `~/Projects/newProjectsPlanner/tech-stack/OFFICIAL-DOCS.md`
+1. Current sprint / next work: `~/Projects/hub/WORK.md`
+2. This project's state page: `~/Projects/hub/projects/tic-tac-toe.md`
+3. Standard stack playbook: `~/Projects/hub/tech-stack/STACK-STANDARDS.md`
+4. Agent skills/context: `~/Projects/hub/tech-stack/AGENT-CONTEXT.md`
+5. Official docs index: `~/Projects/hub/tech-stack/OFFICIAL-DOCS.md`
 
 Use the deeper hub docs when relevant:
-- Auth/OAuth: `~/Projects/newProjectsPlanner/tech-stack/AUTH-OAUTH.md`
-- Forms: `~/Projects/newProjectsPlanner/tech-stack/TANSTACK-FORM.md`
-- Deploy/launch: `~/Projects/newProjectsPlanner/tech-stack/SHIP-KIT.md`
-- Ports: `~/Projects/newProjectsPlanner/tech-stack/PORTS.md`
-- Secrets/accounts: `~/Projects/newProjectsPlanner/tech-stack/ACCOUNTS-SECRETS.md`
+- Auth/OAuth: `~/Projects/hub/tech-stack/AUTH-OAUTH.md`
+- Forms: `~/Projects/hub/tech-stack/TANSTACK-FORM.md`
+- Deploy/launch: `~/Projects/hub/tech-stack/SHIP-KIT.md`
+- Ports: `~/Projects/hub/tech-stack/PORTS.md`
+- Secrets/accounts: `~/Projects/hub/tech-stack/ACCOUNTS-SECRETS.md`
 
 Operational rules:
 - Run `git status --short --branch` before editing and protect dirty user/agent work.
 - Product repo code/tests are the immediate truth; when they disagree with the hub, update the hub after verifying.
 - After reading the hub pointers, keep reading this file's repo-local instructions; they are the authority for this codebase.
 - Use `pnpm@10.30.2` unless this repo explicitly documents a different toolchain.
-- When you learn a reusable pattern, fix, or project-state change, update `~/Projects/newProjectsPlanner` so the next agent starts stronger.
+- When you learn a reusable pattern, fix, or project-state change, update `~/Projects/hub` so the next agent starts stronger.
 
 ### Agent skills and generated guidance
 
@@ -121,12 +121,12 @@ pnpm check
 
 - Default transport is the shared `fuurma-matchmaking` Cloudflare Durable Object WebSocket relay
 - The historical `VITE_USE_WS_ROOM=true` flag is removed from `.env.production`; the code always uses WebSockets and there is no non-WebSocket fallback
-- Room creator = host = player X, owns game state and timer
-- Guest = player O, sends move intents to host
+- Room creator = host, owns game state and timer. The host's symbol (X or O) is randomized at room creation and again on each rematch — use `hostSymbolRef` / `guestSymbolRef` to look up the actual symbol, never hardcode X or O
+- Guest sends move intents to host; host validates, applies, and broadcasts state to guest
 - Inbound wire frames are validated by `isPeerMessage`/`isGameState` in `src/lib/peer.ts` (colors, display names, move indices, winning lines, timer bounds, game-mode/AI-difficulty/player-type enums)
 - Host resets `turnTimeRemaining` to `TURN_DURATION_MS` after `peer-reconnected` so a same-identity reconnect cannot trigger an immediate random move
 - Host gates `rematchAccept` on a pending host-issued rematch request and on the previous game being terminal; a stray guest accept is ignored
-- Host validates, applies, and broadcasts state to guest
+- Forfeit winner is determined by the actual host/guest symbol refs, not hardcoded X/O
 - `peer-left: disconnect` is transient during the 30-second reconnect grace; `peer-reconnected` restores the peer; `closed` and `expired` are final
 
 ## Key Constants
@@ -135,3 +135,4 @@ pnpm check
 - `GAME_RULES.MAX_MOVES_PER_PLAYER = 3`
 - `BOARD_SIZE = 9`
 - AI difficulties: EASY (simple tactics), NORMAL (MCTS), HARD (Minimax)
+- Helpers in `constants.ts`: `oppositeSymbol(symbol)`, `randomPlayerSymbol()`, `oppositeColor(color)` — use these instead of inline ternaries

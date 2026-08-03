@@ -43,7 +43,7 @@ import { RoomClient } from "@/lib/room";
  * `fuurma-matchmaking` Worker. The hook preserves the same public API so the
  * consuming surface (`OnlineGameSurface`) doesn't need to branch.
  *
- * Spec: newProjectsPlanner/migrations/2026-07-games-do-websocket-migration.md
+ * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
  */
 
 export type PeerRole = "host" | "guest" | null;
