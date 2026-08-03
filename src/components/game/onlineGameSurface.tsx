@@ -107,6 +107,92 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   return (
     <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
+      {/* Status banners — always on top so the user sees them first */}
+      {peer.state.status === "waiting" && (
+        <RoomIdShare
+          roomId={peer.state.roomId}
+          origin={typeof window !== "undefined" ? window.location.origin : ""}
+          onCancel={() => {
+            peer.leave();
+            onExit();
+          }}
+        />
+      )}
+      {peer.state.status === "creating" && (
+        <OnlineConnectionState
+          message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
+          onCancel={() => {
+            peer.leave();
+            onExit();
+          }}
+        />
+      )}
+      {peer.state.status === "connecting" && (
+        <OnlineConnectionState
+          message="Joining room…"
+          onCancel={() => {
+            peer.leave();
+            onExit();
+          }}
+        />
+      )}
+      {peer.state.status === "reconnecting" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2 text-amber-950 dark:text-amber-50"
+        >
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            {peer.state.message || "Reconnecting…"}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            Room stays open ~30s while the connection restores.
+          </span>
+          <Button
+            size="sm"
+            variant="glass"
+            onClick={() => peer.retryReconnect()}
+            className="h-7 px-3 text-xs"
+          >
+            Retry now
+          </Button>
+        </div>
+      )}
+      {peer.state.status === "error" && (
+        <div
+          role="alert"
+          className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
+        >
+          <span className="text-xs text-destructive">
+            {peer.state.message || "We could not connect to this room."}
+          </span>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {config.onlineAction === "quick" && (
+              <Button
+                size="sm"
+                variant="glass"
+                onClick={() => {
+                  void peer.startQuickMatch();
+                }}
+                className="h-8 px-3 text-xs"
+              >
+                Try again
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="glass"
+              onClick={onExit}
+              className="h-8 px-3 text-xs"
+            >
+              Back to setup
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Game area — below the status banners */}
       {showGame && (
         <>
           <PlayersPanel
@@ -124,6 +210,11 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             gameMode={GameModes.ONLINE}
             onEdit={peer.state.role === "host" ? handleOpenSettings : undefined}
           />
+          {peer.state.status === "connected" && peer.state.guestDisplayName && (
+            <span className="text-center text-xs text-muted-foreground">
+              Opponent: {peer.state.guestDisplayName}
+            </span>
+          )}
 
           <Board
             board={peer.state.gameState.board}
@@ -150,94 +241,6 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           />
         </>
       )}
-      <div className="text-center text-xs text-muted-foreground">
-        {peer.state.status === "waiting" && (
-          <RoomIdShare
-            roomId={peer.state.roomId}
-            origin={typeof window !== "undefined" ? window.location.origin : ""}
-            onCancel={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
-        )}
-        {peer.state.status === "creating" && (
-          <OnlineConnectionState
-            message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
-            onCancel={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
-        )}
-        {peer.state.status === "connecting" && (
-          <OnlineConnectionState
-            message="Joining room…"
-            onCancel={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
-        )}
-        {peer.state.status === "reconnecting" && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="glass flex w-full max-w-sm flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2 text-amber-950 dark:text-amber-50"
-          >
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {peer.state.message || "Reconnecting…"}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              Room stays open ~30s while the connection restores.
-            </span>
-            <Button
-              size="sm"
-              variant="glass"
-              onClick={() => peer.retryReconnect()}
-              className="h-7 px-3 text-xs"
-            >
-              Retry now
-            </Button>
-          </div>
-        )}
-        {peer.state.status === "connected" && peer.state.guestDisplayName && (
-          <span>Opponent: {peer.state.guestDisplayName}</span>
-        )}
-        {peer.state.status === "error" && (
-          <div
-            role="alert"
-            className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
-          >
-            <span className="text-xs text-destructive">
-              {peer.state.message || "We could not connect to this room."}
-            </span>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {config.onlineAction === "quick" && (
-                <Button
-                  size="sm"
-                  variant="glass"
-                  onClick={() => {
-                    void peer.startQuickMatch();
-                  }}
-                  className="h-8 px-3 text-xs"
-                >
-                  Try again
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="glass"
-                onClick={onExit}
-                className="h-8 px-3 text-xs"
-              >
-                Back to setup
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
       <SettingsSheet
         isOpen={settingsOpen && peer.state.role === "host"}
         gameMode={GameModes.ONLINE}
