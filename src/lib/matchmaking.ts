@@ -35,6 +35,17 @@ interface FindMatchOptions {
 const MATCHMAKING_BASE_URL =
   import.meta.env.VITE_MATCHMAKING_URL ?? "http://localhost:8787";
 
+export const MATCH_POLL_INITIAL_DELAY_MS = 1_000;
+export const MATCH_POLL_MAX_DELAY_MS = 4_000;
+
+export function getMatchPollDelay(attempt: number): number {
+  if (!Number.isInteger(attempt) || attempt < 0) return MATCH_POLL_INITIAL_DELAY_MS;
+  return Math.min(
+    MATCH_POLL_INITIAL_DELAY_MS * 2 ** attempt,
+    MATCH_POLL_MAX_DELAY_MS,
+  );
+}
+
 export async function findMatch(options: FindMatchOptions): Promise<MatchmakingResponse> {
   const response = await fetch(
     `${options.baseUrl ?? MATCHMAKING_BASE_URL}/api/matchmaking/${options.game}/join`,

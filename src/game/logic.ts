@@ -44,6 +44,7 @@ export interface GameState {
   gameStatus: GameStatus;
   aiDifficulty?: AI_Difficulty;
   turnTimeRemaining?: number;
+  turnDeadlineAt?: number;
 }
 
 export const freshGameState = (): GameState => ({
@@ -109,6 +110,7 @@ export const createInitialGameState = (
     gameMode: input.gameMode,
     aiDifficulty: input.aiDifficulty,
     turnTimeRemaining: TURN_DURATION_MS,
+    turnDeadlineAt: Date.now() + TURN_DURATION_MS,
     players: {
       [PlayerSymbol.X]: {
         ...state.players[PlayerSymbol.X],
@@ -216,6 +218,7 @@ export const makeMove = (
     moveCount: state.moveCount + 1,
     gameStatus: winner ? GameStatus.COMPLETED : GameStatus.ACTIVE,
     turnTimeRemaining: TURN_DURATION_MS,
+    turnDeadlineAt: Date.now() + TURN_DURATION_MS,
   };
 };
 

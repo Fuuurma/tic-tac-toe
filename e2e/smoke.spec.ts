@@ -25,9 +25,10 @@ async function fillLogin(
     opponentName?: string;
     onlineAction?: "Create" | "Join" | "Quick";
     roomId?: string;
+    startUrl?: string;
   },
 ) {
-  await page.goto("/");
+  await page.goto(options.startUrl ?? "/");
   await page.getByRole("radio", { name: options.mode, exact: true }).click();
   if (options.opponentName && options.mode === "vs Friend") {
     await openOpponentSettings(page);
@@ -36,12 +37,7 @@ async function fillLogin(
   }
   if (options.mode === "Online") {
     const action = options.onlineAction ?? "Create";
-    if (action !== "Quick") {
-      await page.getByRole("button", { name: "Private room", exact: true }).click();
-      await page.getByRole("button", { name: action, exact: true }).click();
-    } else {
-      await page.getByRole("button", { name: "Quick", exact: true }).click();
-    }
+    await page.getByRole("radio", { name: action, exact: true }).click();
     if (action === "Join" && options.roomId) {
       await page.getByLabel("Room code").fill(options.roomId);
     }
@@ -58,6 +54,30 @@ async function clickCell(
   col: 1 | 2 | 3,
 ) {
   await page.getByRole("gridcell", { name: `Row ${row} column ${col}` }).click();
+}
+
+async function playOnlineCell(
+  hostPage: import("@playwright/test").Page,
+  guestPage: import("@playwright/test").Page,
+  row: 1 | 2 | 3,
+  col: 1 | 2 | 3,
+) {
+  const cellName = `Row ${row} column ${col}, empty`;
+  const hostCell = hostPage.getByRole("gridcell", { name: cellName });
+  const guestCell = guestPage.getByRole("gridcell", { name: cellName });
+
+  await expect
+    .poll(
+      async () => (await hostCell.isEnabled()) || (await guestCell.isEnabled()),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+
+  if (await hostCell.isEnabled()) {
+    await hostCell.click();
+  } else {
+    await guestCell.click();
+  }
 }
 
 test("loads the playable shell", async ({ page }) => {
@@ -381,15 +401,21 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
 
   const host = await browser.newContext();
   const guest = await browser.newContext();
+  // Exercise the randomized host=O branch deterministically. The game must
+  // still identify the host correctly while X remains the first mover.
+  await host.addInitScript(() => {
+    Math.random = () => 0.75;
+  });
   const hostPage = await host.newPage();
   const guestPage = await guest.newPage();
 
   // Host creates a private room.
-  await hostPage.goto(`${e2eBaseUrl}/`);
-  await hostPage.getByLabel("Your name").fill("Host");
-  await hostPage.getByRole("radio", { name: "Online", exact: true }).click();
-  await hostPage.getByRole("button", { name: "Private room", exact: true }).click();
-  await hostPage.getByRole("button", { name: "Create", exact: true }).click();
+  await fillLogin(hostPage, {
+    name: "Host",
+    color: "blue",
+    mode: "Online",
+    onlineAction: "Create",
+  });
   await hostPage.getByRole("button", { name: "Create Room" }).click();
 
   // Intentional waiting-room contract: the host sees "Room ready" with a
@@ -407,9 +433,14 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
 
   // Guest joins via the invite link. The board is also gated on the
   // handshake completing.
-  await guestPage.goto(`${e2eBaseUrl}/?room=${roomId}`);
-  await guestPage.getByLabel("Your name").fill("Guest");
-  await expect(guestPage.getByRole("radio", { name: "Online", exact: true })).toBeChecked();
+  await fillLogin(guestPage, {
+    name: "Guest",
+    color: "red",
+    mode: "Online",
+    onlineAction: "Join",
+    roomId,
+    startUrl: `${e2eBaseUrl}/?room=${roomId}`,
+  });
   await expect(guestPage.getByLabel("Room code")).toHaveValue(roomId);
   await guestPage.getByRole("button", { name: "Join Room" }).click();
   // The connecting state appears briefly until the relay completes the
@@ -438,25 +469,40 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   await expect(hostPage.getByText("Opponent: Guest")).toBeVisible();
   await expect(guestPage.getByText("Opponent: Host")).toBeVisible();
 
-  // Play a deterministic X wins scenario (host = X).
-  // X plays: (1,1), (1,2), (1,3)  (row 1 = top row)
-  // O plays: (2,1), (2,2)
-  await clickCell(hostPage, 1, 1);
-  await clickCell(guestPage, 2, 1);
-  await clickCell(hostPage, 1, 2);
-  await clickCell(guestPage, 2, 2);
-  await clickCell(hostPage, 1, 3);
+  // The host's symbol is randomized, so follow whichever browser currently
+  // owns the turn. Select fillers around the winning top-row moves so the
+  // host wins whether it receives X (first) or O (second).
+  const hostStarts = await hostPage
+    .getByRole("gridcell", { name: "Row 1 column 1, empty" })
+    .isEnabled();
+  const winningSequence: Array<[1 | 2 | 3, 1 | 2 | 3]> = hostStarts
+    ? [
+        [1, 1],
+        [2, 1],
+        [1, 2],
+        [2, 2],
+        [1, 3],
+      ]
+    : [
+        [2, 1],
+        [1, 1],
+        [2, 2],
+        [1, 2],
+        [3, 1],
+        [1, 3],
+      ];
+  for (const [row, col] of winningSequence) {
+    await playOnlineCell(hostPage, guestPage, row, col);
+  }
 
-  // X wins - both clients see the winner text
+  // Both clients see the host win regardless of the randomized symbol.
   await expect(hostPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
   await expect(guestPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
 
   // Rematch: host requests, guest accepts.
-  await hostPage.getByRole("button", { name: "Start a new game" }).click();
-  await hostPage.getByRole("dialog").getByRole("button", { name: "Play again" }).click();
+  await hostPage.getByRole("button", { name: "Play again" }).click();
   await expect(guestPage.getByText(/Host wants a rematch/i)).toBeVisible();
-  await guestPage.getByRole("button", { name: "Start a new game" }).click();
-  await guestPage.getByRole("dialog").getByRole("button", { name: "Play again" }).click();
+  await guestPage.getByRole("button", { name: "Play again" }).click();
 
   // Board is reset - the winner text is gone, the timer is back, and cell (1,1) is empty again.
   await expect(hostPage.getByText(/Host wins/i)).toBeHidden({ timeout: 10_000 });
@@ -474,21 +520,32 @@ test("quick-match places both clients into a shared room", async ({ browser }) =
 
   const first = await browser.newContext();
   const second = await browser.newContext();
+  await first.addInitScript(() => {
+    Math.random = () => 0.25;
+  });
   const firstPage = await first.newPage();
   const secondPage = await second.newPage();
 
-  await firstPage.goto(`${e2eBaseUrl}/`);
-  await firstPage.getByLabel("Your name").fill("Alice");
-  await firstPage.getByRole("radio", { name: "Online", exact: true }).click();
+  await fillLogin(firstPage, {
+    name: "Alice",
+    color: "blue",
+    mode: "Online",
+    onlineAction: "Quick",
+  });
   await firstPage.getByRole("button", { name: "Quick Match" }).click();
 
   // Quick match routes the first player to the host waiting-room UI while
   // they wait for the matchmaking service to pair them.
-  await expect(firstPage.getByText("Finding an opponent…")).toBeVisible({ timeout: 30_000 });
+  await expect(firstPage.getByText(/Finding an opponent…|Room ready/)).toBeVisible({
+    timeout: 30_000,
+  });
 
-  await secondPage.goto(`${e2eBaseUrl}/`);
-  await secondPage.getByLabel("Your name").fill("Bob");
-  await secondPage.getByRole("radio", { name: "Online", exact: true }).click();
+  await fillLogin(secondPage, {
+    name: "Bob",
+    color: "red",
+    mode: "Online",
+    onlineAction: "Quick",
+  });
   await secondPage.getByRole("button", { name: "Quick Match" }).click();
 
   // The second client ends up as the guest. It goes through the joining

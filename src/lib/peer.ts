@@ -37,6 +37,8 @@ export const PEER_MAX_NAME_LENGTH = 20;
 export const PEER_MAX_BOARD_INDEX = GAME_RULES.BOARD_SIZE - 1;
 /** Turn timer wire values must stay inside the configured duration window. */
 export const PEER_MAX_TURN_MS = TURN_DURATION_MS;
+/** Absolute timer deadlines must remain finite safe integers on the wire. */
+export const PEER_MAX_TURN_DEADLINE = Number.MAX_SAFE_INTEGER;
 
 export const generateRoomId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -258,6 +260,17 @@ const isGameState = (value: unknown): value is GameState => {
       Number.isFinite(state.turnTimeRemaining) &&
       state.turnTimeRemaining >= 0 &&
       state.turnTimeRemaining <= PEER_MAX_TURN_MS)
+  ) {
+    return false;
+  }
+
+  if (
+    state.turnDeadlineAt !== undefined &&
+    state.turnDeadlineAt !== null &&
+    !(typeof state.turnDeadlineAt === "number" &&
+      Number.isSafeInteger(state.turnDeadlineAt) &&
+      state.turnDeadlineAt >= 0 &&
+      state.turnDeadlineAt <= PEER_MAX_TURN_DEADLINE)
   ) {
     return false;
   }

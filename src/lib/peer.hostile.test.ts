@@ -21,6 +21,7 @@ import {
   isPeerMessage,
   PEER_MAX_BOARD_INDEX,
   PEER_MAX_NAME_LENGTH,
+  PEER_MAX_TURN_DEADLINE,
   PEER_MAX_TURN_MS,
 } from "@/lib/peer";
 
@@ -282,6 +283,22 @@ describe("isPeerMessage hostile game-state frames", () => {
     (frame.gameState as unknown as { turnTimeRemaining: unknown }).turnTimeRemaining =
       "1000";
     expect(isPeerMessage(frame)).toBe(false);
+  });
+
+  it("accepts a safe integer turn deadline", () => {
+    const frame = validMessage();
+    frame.gameState.turnDeadlineAt = Date.now() + TURN_DURATION_MS;
+    expect(isPeerMessage(frame)).toBe(true);
+  });
+
+  it("rejects malformed turn deadlines", () => {
+    const overMax = validMessage();
+    overMax.gameState.turnDeadlineAt = PEER_MAX_TURN_DEADLINE + 1;
+    expect(isPeerMessage(overMax)).toBe(false);
+
+    const fractional = validMessage();
+    fractional.gameState.turnDeadlineAt = Date.now() + 0.5;
+    expect(isPeerMessage(fractional)).toBe(false);
   });
 
   it("rejects gameState with a maxMoves outside the configured rule range", () => {

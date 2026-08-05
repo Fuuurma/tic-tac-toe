@@ -32,6 +32,7 @@ import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import {
   buildRoomWsUrl,
   findMatch,
+  getMatchPollDelay,
   leaveMatch,
   pollMatch,
   type MatchmakingResponse,
@@ -171,18 +172,42 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const startTimer = useCallback(() => {
     stopTimer();
     tickRef.current = window.setInterval(() => {
-      const current = stateRef.current;
+      let current = stateRef.current;
       if (!isGameActive(current)) {
         stopTimer();
         return;
       }
-      const remaining = (current.turnTimeRemaining ?? TURN_DURATION_MS) - 1000;
+
+      const deadline =
+        current.turnDeadlineAt ??
+        Date.now() + (current.turnTimeRemaining ?? TURN_DURATION_MS);
+      if (current.turnDeadlineAt === undefined) {
+        current = { ...current, turnDeadlineAt: deadline };
+        stateRef.current = current;
+      }
+
+      const remaining = Math.max(0, deadline - Date.now());
       if (remaining <= 0) {
+        if (roleRef.current !== "host") {
+          setState((prev) =>
+            prev.gameState.turnDeadlineAt === deadline
+              ? { ...prev, gameState: { ...prev.gameState, turnTimeRemaining: 0 } }
+              : prev,
+          );
+          stopTimer();
+          return;
+        }
         const random = makeRandomMove(current.board);
-        if (random === null) return;
+        if (random === null) {
+          stopTimer();
+          return;
+        }
         const updated = makeMove(current, random);
-        if (!updated) return;
-        const gameState = { ...updated, turnTimeRemaining: TURN_DURATION_MS };
+        if (!updated) {
+          stopTimer();
+          return;
+        }
+        const gameState = updated;
         stateRef.current = gameState;
         setState((prev) => ({
           ...prev,
@@ -192,10 +217,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
         broadcastGameState(gameState);
         return;
       }
-      const gameState = { ...current, turnTimeRemaining: remaining };
-      commitHostState(gameState);
+
+      // Timer display is local state only. The deadline is part of the last
+      // authoritative snapshot, so ticking no longer creates wire traffic.
+      setState((prev) =>
+        prev.gameState.turnDeadlineAt === deadline
+          ? { ...prev, gameState: { ...prev.gameState, turnTimeRemaining: remaining } }
+          : prev,
+      );
     }, 1000);
-  }, [broadcastGameState, commitHostState, stopTimer]);
+  }, [broadcastGameState, stopTimer]);
 
   const applyHostMove = useCallback(
     (index: number, actor: PlayerSymbol) => {
@@ -229,6 +260,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
         const updated: GameState = {
           ...state,
           gameStatus: GameStatus.ACTIVE,
+          turnTimeRemaining: TURN_DURATION_MS,
+          turnDeadlineAt: Date.now() + TURN_DURATION_MS,
           players: {
             ...state.players,
             [guestSymbol]: {
@@ -392,12 +425,15 @@ export function usePeerRoom(options: PeerRoomOptions) {
             const reconciled = {
               ...current,
               turnTimeRemaining: TURN_DURATION_MS,
+            turnDeadlineAt: Date.now() + TURN_DURATION_MS,
             };
             commitHostState(reconciled);
             startTimer();
           } else {
             broadcastGameState(current);
           }
+        } else if (roleRef.current === "guest" && isGameActive(stateRef.current)) {
+          startTimer();
         }
         return;
       }
@@ -421,7 +457,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (event.type === "peer-left") {
         const reason = (event as { reason?: string }).reason;
         if (reason === "disconnect") {
-          if (roleRef.current === "host") stopTimer();
+          stopTimer();
           setState((prev) => ({
             ...prev,
             status: "reconnecting",
@@ -483,7 +519,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const handleGuestData = useCallback(
     (message: PeerMessage) => {
       if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
-        stateRef.current = message.gameState;
+        const gameState =
+          message.gameState.turnDeadlineAt === undefined &&
+          isGameActive(message.gameState)
+            ? {
+                ...message.gameState,
+                turnDeadlineAt:
+                  Date.now() +
+                  (message.gameState.turnTimeRemaining ?? TURN_DURATION_MS),
+              }
+            : message.gameState;
+        stateRef.current = gameState;
         if (message.type === "joined" && message.symbol) {
           guestSymbolRef.current = message.symbol;
         }
@@ -495,12 +541,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
           return {
             ...prev,
             status: "connected",
-            gameState: message.gameState,
+            gameState,
             guestSymbol: localSymbol,
             guestDisplayName:
               localSymbol === PlayerSymbol.O
-                ? message.gameState.players[PlayerSymbol.X].username
-                : message.gameState.players[PlayerSymbol.O].username,
+                ? gameState.players[PlayerSymbol.X].username
+                : gameState.players[PlayerSymbol.O].username,
             message: "",
           };
         });
@@ -604,8 +650,14 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostSymbolRef.current = hostSymbol;
       const waitingGame = createInitialGameState({
         gameMode: GameModes.ONLINE,
-        playerXName: sanitizeDisplayName(options.hostDisplayName, "Host"),
-        playerOName: "Waiting for opponent",
+        playerXName:
+          hostSymbol === PlayerSymbol.X
+            ? sanitizeDisplayName(options.hostDisplayName, "Host")
+            : "Waiting for opponent",
+        playerOName:
+          hostSymbol === PlayerSymbol.O
+            ? sanitizeDisplayName(options.hostDisplayName, "Host")
+            : "Waiting for opponent",
         playerColor: options.hostColor,
         opponentColor: chooseGuestColor(Color.BLUE, options.hostColor),
         playerShape: options.hostShape ?? PLAYER_CONFIG[hostSymbol].defaultShape,
@@ -681,9 +733,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
         // Poll the matchmaking service until the guest is paired.
         // Bounded by a max duration and the user's ability to cancel
         // via leave() (which clears the ticket ref).
-        const POLL_INTERVAL_MS = 500;
         const MAX_POLL_MS = 120_000;
         const pollStart = Date.now();
+        let pollAttempt = 0;
         let matched = false;
         while (Date.now() - pollStart < MAX_POLL_MS) {
           if (!matchmakingTicketRef.current) break; // user cancelled via leave()
@@ -692,7 +744,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
             matched = true;
             break;
           }
-          await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+          const delay = getMatchPollDelay(pollAttempt);
+          pollAttempt += 1;
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
 
         // Did the user cancel via leave() while we were polling?
@@ -810,13 +864,20 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [stopTimer]);
 
   useEffect(() => {
-    if (state.role === "host" && isGameActive(stateRef.current)) {
+    if ((state.role === "host" || state.role === "guest") && isGameActive(stateRef.current)) {
       startTimer();
     } else {
       stopTimer();
     }
     return () => stopTimer();
-  }, [state.role, state.gameState.gameStatus, state.gameState.winner, startTimer, stopTimer]);
+  }, [
+    state.role,
+    state.gameState.gameStatus,
+    state.gameState.winner,
+    state.gameState.turnDeadlineAt,
+    startTimer,
+    stopTimer,
+  ]);
 
   useEffect(() => () => leave(), [leave]);
 
