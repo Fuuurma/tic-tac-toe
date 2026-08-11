@@ -62,11 +62,12 @@ pnpm deploy                   # pnpm build && wrangler pages deploy dist
   `src/lib/identity.ts` and persisted to `localStorage`).
 - **Deploy**: Cloudflare Pages static (`dist/`).
 - **Testing**: Vitest (unit) + Playwright (smoke).
-- **AI**: Easy = random with a center/corner/edge preference,
-  Normal = depth-4 alpha-beta with depth-bounded eval,
-  Hard = depth-8 alpha-beta with similar eval.
-  Hard and Normal can exceed the mobile 100ms move-time budget;
-  a Web Worker offload is the documented mitigation.
+- **AI**: Easy = weighted random with a center/corner/edge preference,
+  Normal = depth-4 eviction-aware alpha-beta with randomized equal-score
+  choices, and Hard = depth-8 cycle-safe alpha-beta with stable best play.
+  The representative-state benchmark tracks the mobile 100ms move-time
+  budget and enforces a wider regression ceiling; tactical move ordering
+  keeps the current search bounded.
 
 ## Online Play Architecture
 
@@ -160,8 +161,9 @@ frames. Rejecting those frames is part of the contract.
 1. Add the constant to `AI_Difficulty` in
    `src/game/constants.ts`.
 2. Hook it into `getAIMove` in `src/game/ai.ts`.
-3. If the new difficulty crosses the mobile 100ms budget, route
-   it through the AI Web Worker.
+3. If the new difficulty crosses the mobile 100ms budget, optimize it
+   below the enforced regression ceiling or introduce an AI Web Worker
+   before shipping it.
 
 ## Important Notes
 
@@ -169,8 +171,8 @@ frames. Rejecting those frames is part of the contract.
    external libs → internal types/utils → components.
 2. **Immutable state**: Never mutate state directly; spread into
    a new object or use `setState`/`commitHostState`.
-3. **Performance**: Hard AI can blow the 100ms budget; see the
-   audit for the proposed Worker offload.
+3. **Performance**: Keep the representative-state AI benchmark green when
+   changing depth, evaluation, move ordering, or cycle detection.
 4. **Game logic and AI are unit-tested**: at least one Vitest
    suite covers each rule and each AI difficulty.
 5. **Don't assume Next.js, Socket.IO, or a React Native

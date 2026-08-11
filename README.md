@@ -16,7 +16,7 @@ matchmaking and a per-room Durable Object WebSocket relay. No account is require
 - Vite 8 + React 19 + TypeScript
 - Tailwind CSS v4
 - Shared Cloudflare Worker + Durable Object WebSocket relay
-- Client-side AI with three levels: Easy (random with center/corner preference), Normal (depth-4 alpha-beta minimax), and Hard (depth-8 alpha-beta minimax)
+- Client-side AI with three levels: Easy (weighted random with center/corner preference), Normal (depth-4 eviction-aware alpha-beta Minimax with varied equal-score choices), and Hard (depth-8 cycle-safe alpha-beta Minimax)
 - Vitest + Playwright
 - Cloudflare Pages for the static build
 

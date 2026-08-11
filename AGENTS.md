@@ -101,7 +101,7 @@ pnpm check
 - **Auth**: None (guest-only)
 - **Deploy**: Cloudflare Pages (static, `dist/`)
 - **Testing**: Vitest (unit) + Playwright (smoke)
-- **AI**: Easy simple tactics, Normal adversarial MCTS, Hard history-aware alpha-beta Minimax (client-side)
+- **AI**: Easy weighted random play, Normal depth-4 alpha-beta Minimax, Hard depth-8 cycle-safe alpha-beta Minimax (client-side)
 
 ## Code Style
 
@@ -134,5 +134,5 @@ pnpm check
 - `TURN_DURATION_MS = 10_000` (10s per turn)
 - `GAME_RULES.MAX_MOVES_PER_PLAYER = 3`
 - `BOARD_SIZE = 9`
-- AI difficulties: EASY (random with center/corner preference), NORMAL (depth-4 alpha-beta minimax), HARD (depth-8 alpha-beta minimax)
+- AI difficulties: EASY (weighted random with center/corner preference), NORMAL (depth-4 eviction-aware alpha-beta Minimax with randomized equal-score choices), HARD (depth-8 cycle-safe alpha-beta Minimax with stable best play)
 - Helpers in `constants.ts`: `oppositeSymbol(symbol)`, `randomPlayerSymbol()`, `oppositeColor(color)` — use these instead of inline ternaries

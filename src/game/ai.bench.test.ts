@@ -12,6 +12,7 @@ import {
 import {
   createInitialGameState,
   freshGameState,
+  getValidMoves,
   makeMove,
   type GameState,
 } from "@/game/logic";
@@ -24,16 +25,16 @@ import { getAIMove } from "@/game/ai";
  * Anything beyond ~32ms risks dropped input. We allow up to 100ms here
  * because the user explicitly opts into AI search by starting a
  * `vs Computer` game, and we want this test to flag real regressions
- * (an extra alpha-beta ply, a wider MCTS budget) without spuriously
- * failing on a noisy CI node.
+ * (an extra alpha-beta ply, a wider heuristic, or weaker move ordering)
+ * without spuriously failing on a noisy CI node.
  *
- * Hard and Normal exceed this budget when run on the main thread; the
- * fix is documented in `audits/tic-tac-toe-codebase-2026-07-26.md` and
- * is to offload AI search to a Web Worker. Until then, this benchmark
- * records the worst-case median so we can compare baselines; it does
- * not enforce the budget.
+ * This benchmark records the worst-case median so we can compare baselines.
+ * Easy is enforced because its weighted-random path should always be cheap;
+ * Normal and Hard report budget breaches without making noisy CI timing a
+ * release blocker.
  */
 const MOBILE_MOVE_BUDGET_MS = 100;
+const SEARCH_REGRESSION_CEILING_MS = 500;
 
 interface BenchRow {
   difficulty: AI_Difficulty;
@@ -102,15 +103,11 @@ function measureMedianMs(fn: () => void): number {
 }
 
 /**
- * Compute and log the per-difficulty, per-state median for documentation
- * and future regression detection. We intentionally do not fail the test
- * when Hard/Normal exceed the mobile budget, because:
- *  - The fix is a Web Worker offload, not a faster search.
- *  - Failing here would block unrelated work for a known documented
- *    limitation.
- *  - The audit record already calls this out.
- * The Easy path is enforced because it never has a legitimate reason to
- * miss the budget.
+ * Compute the per-difficulty, per-state median for future regression
+ * detection. The Easy path is enforced because it never has a legitimate
+ * reason to miss the budget. Normal and Hard still report a breach so search
+ * changes remain visible without turning shared-runner timing noise into a
+ * flaky gate.
  */
 function benchmark(): { rows: BenchRow[]; worst: BenchRow } {
   const rows: BenchRow[] = [];
@@ -147,10 +144,10 @@ describe("AI move-time budget (mobile representative states)", () => {
     }
   });
 
-  it("records the worst-case per-difficulty median for the audit", () => {
+  it("keeps search bounded and reports mobile-budget breaches", () => {
     const { rows, worst } = benchmark();
-    // Easy is enforced above; for Hard/Normal we still record the budget
-    // breach so the audit can verify the Web Worker offload decision.
+    // Easy is enforced above; for Hard/Normal we still report budget breaches
+    // so a future search change can justify optimization or a Web Worker.
     const overBudget = rows.filter(
       (row) =>
         row.difficulty !== AI_Difficulty.EASY &&
@@ -160,6 +157,12 @@ describe("AI move-time budget (mobile representative states)", () => {
       console.warn(
         `[ai.bench] ${overBudget.length} AI/state pairs exceed the ${MOBILE_MOVE_BUDGET_MS}ms mobile budget; recommend Web Worker offload for ${Array.from(new Set(overBudget.map((r) => r.difficulty))).join(", ")}.`,
       );
+    }
+    for (const row of rows) {
+      expect(
+        row.medianMs,
+        `${row.difficulty} move (${row.label}) exceeded the search regression ceiling`,
+      ).toBeLessThan(SEARCH_REGRESSION_CEILING_MS);
     }
     expect(worst.medianMs).toBeGreaterThan(0);
     expect(rows.length).toBe(representativeMobileStatesCount() * 3);
@@ -178,7 +181,7 @@ describe("Logic pure-function timing", () => {
     let s = start;
     let maxMs = 0;
     for (let i = 0; i < 18; i += 1) {
-      const valid = validMovesIndices(s.board);
+      const valid = getValidMoves(s.board);
       const idx = valid[i % valid.length];
       const t0 = performance.now();
       const next = makeMove(s, idx);
@@ -199,12 +202,4 @@ function baseGame(): GameState {
     playerColor: Color.BLUE,
     opponentColor: Color.RED,
   });
-}
-
-function validMovesIndices(board: GameState["board"]): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < board.length; i += 1) {
-    if (board[i] === null) out.push(i);
-  }
-  return out;
 }

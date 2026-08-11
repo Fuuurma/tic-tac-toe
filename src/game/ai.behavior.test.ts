@@ -31,11 +31,67 @@ describe("AI behavior regressions", () => {
     expect(getValidMoves(s.board)).toContain(move!);
   });
 
-  it("NORMAL produces a legal move when a top-row threat is on the board", () => {
+  it.each([AI_Difficulty.NORMAL, AI_Difficulty.HARD])(
+    "%s blocks an immediate top-row loss",
+    (difficulty) => {
+      let s = onlineState();
+      s = makeMove(s, 0)!; // X
+      s = makeMove(s, 3)!; // O
+      s = makeMove(s, 1)!; // X threatens 2
+
+      expect(getAIMove(s, difficulty, PlayerSymbol.O)).toBe(2);
+    },
+  );
+
+  it.each([AI_Difficulty.NORMAL, AI_Difficulty.HARD])(
+    "%s takes an immediate win instead of blocking",
+    (difficulty) => {
+      let s = onlineState();
+      s = makeMove(s, 0)!; // X
+      s = makeMove(s, 3)!; // O
+      s = makeMove(s, 1)!; // X threatens 2
+      s = makeMove(s, 4)!; // O threatens 5
+      s = makeMove(s, 8)!; // X
+
+      expect(getAIMove(s, difficulty, PlayerSymbol.O)).toBe(5);
+    },
+  );
+
+  it.each([AI_Difficulty.NORMAL, AI_Difficulty.HARD])(
+    "%s finds a win created by oldest-piece eviction",
+    (difficulty) => {
+      let s = onlineState();
+      for (const move of [0, 1, 4, 3, 6, 5]) {
+        s = makeMove(s, move)!;
+      }
+
+      // X moves at 2, evicting oldest piece 0 and completing [2, 4, 6].
+      expect(s.moves[PlayerSymbol.X]).toEqual([0, 4, 6]);
+      expect(getAIMove(s, difficulty, PlayerSymbol.X)).toBe(2);
+    },
+  );
+
+  it.each([AI_Difficulty.NORMAL, AI_Difficulty.HARD])(
+    "%s prefers an immediate eviction-cycle win over a delayed line",
+    (difficulty) => {
+      let s = onlineState();
+      for (const move of [
+        4, 8, 1, 2, 6, 7, 0, 5, 4, 8, 2, 1, 3, 6, 0, 5, 8, 2,
+      ]) {
+        s = makeMove(s, move)!;
+      }
+
+      expect(s.currentPlayer).toBe(PlayerSymbol.X);
+      expect(makeMove(s, 4)?.winner).toBe(PlayerSymbol.X);
+      expect(getAIMove(s, difficulty, PlayerSymbol.X)).toBe(4);
+    },
+  );
+
+  it("NORMAL produces a legal move when no immediate tactic exists", () => {
     let s = onlineState();
     s = makeMove(s, 0)!; // X
-    s = makeMove(s, 3)!; // O (any legal move)
-    s = makeMove(s, 1)!; // X
+    s = makeMove(s, 4)!; // O
+    s = makeMove(s, 7)!; // X
     const move = getAIMove(s, AI_Difficulty.NORMAL, PlayerSymbol.O);
     expect(move).not.toBeNull();
     expect(getValidMoves(s.board)).toContain(move!);
