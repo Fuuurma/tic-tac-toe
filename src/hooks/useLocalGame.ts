@@ -51,7 +51,7 @@ function buildInitialState(input: LocalGameInput, humanSymbol: PlayerSymbol): Ga
 }
 
 export function useLocalGame(input: LocalGameInput) {
-  const [humanSymbol] = useState<PlayerSymbol>(randomPlayerSymbol);
+  const [humanSymbol, setHumanSymbol] = useState<PlayerSymbol>(randomPlayerSymbol);
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
@@ -124,7 +124,13 @@ export function useLocalGame(input: LocalGameInput) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
-    setGameState(buildInitialState(input, randomPlayerSymbol()));
+    // Generate the new symbol once and update both the symbol state and
+    // the game state together. Without this, humanSymbol would stay stale
+    // after a reset and recordWin/recordLoss would attribute the result to
+    // the wrong player.
+    const newSymbol = randomPlayerSymbol();
+    setHumanSymbol(newSymbol);
+    setGameState(buildInitialState(input, newSymbol));
   }, [input, stopTimer]);
 
   const exit = useCallback(() => {
