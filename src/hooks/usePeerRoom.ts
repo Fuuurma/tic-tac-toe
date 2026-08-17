@@ -128,12 +128,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
     stateRef.current = state.gameState;
     roleRef.current = state.role;
     guestSymbolRef.current = state.guestSymbol;
-    // Any successful gameUpdate / gameStart / joined authoritative state
-    // from the host supersedes the guest's optimistic move, so clear the
-    // pending rollback snapshot.
-    if (roleRef.current === "guest") {
-      pendingGuestStateRef.current = null;
-    }
+    // NOTE: pendingGuestStateRef is NOT cleared here. The effect runs on
+    // every state change, including the guest's own optimistic move. If we
+    // cleared it here, the rollback path (host rejects move) would see null
+    // and the guest would be stuck with an incorrect board. Instead, the
+    // ref is cleared in handleGuestData only when an authoritative state
+    // update (joined/gameStart/gameUpdate) arrives from the host.
   }, [state.gameState, state.role, state.guestSymbol]);
 
   const update = useCallback((patch: Partial<PeerRoomState>) => {
@@ -506,6 +506,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
               }
             : message.gameState;
         stateRef.current = gameState;
+        // An authoritative state update supersedes any pending optimistic
+        // move, so clear the rollback snapshot. This is the ONLY place we
+        // clear it — the ref-sync effect does NOT clear it because that
+        // effect also fires on the guest's own optimistic move.
+        pendingGuestStateRef.current = null;
         if (message.type === "joined" && message.symbol) {
           guestSymbolRef.current = message.symbol;
         }
