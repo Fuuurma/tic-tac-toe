@@ -31,8 +31,9 @@ class MockStorage implements Storage {
 
 describe("sanitizeDisplayName", () => {
   it("returns a fallback for short or empty input", () => {
-    expect(sanitizeDisplayName("")).toMatch(/^(Guest|Player|Tactician)-\d{4}$/);
-    expect(sanitizeDisplayName("a")).toMatch(/^(Guest|Player|Tactician)-\d{4}$/);
+    // Fallback is a generated "Adjective Noun" name
+    expect(sanitizeDisplayName("")).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    expect(sanitizeDisplayName("a")).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
   });
 
   it("strips control characters and limits length", () => {
@@ -46,9 +47,19 @@ describe("sanitizeDisplayName", () => {
 });
 
 describe("generateGuestDisplayName", () => {
-  it("returns a Guest-#### style name", () => {
+  it("returns an Adjective Noun style name", () => {
     const name = generateGuestDisplayName();
-    expect(name).toMatch(/^(Guest|Player|Tactician)-\d{4}$/);
+    expect(name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    expect(name.length).toBeLessThanOrEqual(20);
+  });
+
+  it("produces variety across many calls", () => {
+    const names = new Set<string>();
+    for (let i = 0; i < 50; i++) {
+      names.add(generateGuestDisplayName());
+    }
+    // With 30x30 = 900 combinations, 50 calls should produce at least 30 unique names
+    expect(names.size).toBeGreaterThan(30);
   });
 });
 

@@ -12,7 +12,23 @@ type GuestIdentity = {
   displayName: string;
 };
 
-const GUEST_NAME_PREFIXES = ["Guest", "Player", "Tactician"] as const;
+const GUEST_NAME_ADJECTIVES = [
+  "Crimson", "Neon", "Silent", "Swift", "Cosmic",
+  "Shadow", "Solar", "Lunar", "Frozen", "Velvet",
+  "Iron", "Golden", "Azure", "Coral", "Jade",
+  "Onyx", "Ruby", "Storm", "Wild", "Clever",
+  "Noble", "Stellar", "Vivid", "Dusk", "Ember",
+  "Frost", "Mystic", "Electric", "Magnetic", "Radiant",
+] as const;
+
+const GUEST_NAME_NOUNS = [
+  "Fox", "Wolf", "Raven", "Falcon", "Tiger",
+  "Dragon", "Phoenix", "Cipher", "Echo", "Nova",
+  "Pulse", "Spark", "Blade", "Arrow", "Comet",
+  "Ghost", "Prism", "Atlas", "Orion", "Vega",
+  "Lyra", "Bolt", "Flint", "Sage", "Hawk",
+  "Lynx", "Crow", "Koi", "Panther", "Sparrow",
+] as const;
 
 const getBrowserStorage = (): Storage | null => {
   if (typeof window === "undefined") return null;
@@ -23,8 +39,6 @@ const getBrowserStorage = (): Storage | null => {
   }
 };
 
-const randomSuffix = () => Math.floor(Math.random() * 9000) + 1000;
-
 const generateGuestId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return `guest:${crypto.randomUUID()}`;
@@ -33,9 +47,11 @@ const generateGuestId = (): string => {
 };
 
 export const generateGuestDisplayName = (): string => {
-  const prefix =
-    GUEST_NAME_PREFIXES[Math.floor(Math.random() * GUEST_NAME_PREFIXES.length)];
-  return `${prefix}-${randomSuffix()}`;
+  const adjective =
+    GUEST_NAME_ADJECTIVES[Math.floor(Math.random() * GUEST_NAME_ADJECTIVES.length)];
+  const noun =
+    GUEST_NAME_NOUNS[Math.floor(Math.random() * GUEST_NAME_NOUNS.length)];
+  return `${adjective} ${noun}`;
 };
 
 export const sanitizeDisplayName = (
