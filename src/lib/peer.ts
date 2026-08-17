@@ -79,7 +79,6 @@ export const peerLeftUserMessage = (
 export type HostGuestJoinResult = {
   kind: "accepted" | "resync";
   gameState: GameState;
-  guestDisplayName: string;
   guestSymbol: PlayerSymbol;
   guestColor: Color;
 };
@@ -96,14 +95,13 @@ export const applyHostGuestJoin = (
     return {
       kind: "resync",
       gameState: state,
-      guestDisplayName: guest.username,
       guestSymbol,
       guestColor: guest.color,
     };
   }
 
   const guestColor = chooseGuestColor(join.preferredColor, state.players[hostSymbol].color);
-  const guestDisplayName = sanitizeDisplayName(join.displayName, "Guest");
+  const guestName = sanitizeDisplayName(join.displayName, "Guest");
   const gameState: GameState = {
     ...state,
     gameStatus: GameStatus.ACTIVE,
@@ -112,7 +110,7 @@ export const applyHostGuestJoin = (
     players: {
       ...state.players,
       [guestSymbol]: {
-        username: guestDisplayName,
+        username: guestName,
         color: guestColor,
         symbol: guestSymbol,
         shape: state.players[guestSymbol].shape,
@@ -124,7 +122,6 @@ export const applyHostGuestJoin = (
   return {
     kind: "accepted",
     gameState,
-    guestDisplayName,
     guestSymbol,
     guestColor,
   };

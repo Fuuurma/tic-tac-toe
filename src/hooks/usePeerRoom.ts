@@ -29,7 +29,7 @@ import {
   peerLeftUserMessage,
 } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
-import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
+import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import {
   buildRoomWsUrl,
   findMatch,
@@ -66,7 +66,6 @@ export interface PeerRoomState {
   role: PeerRole;
   status: PeerStatus;
   roomId: string;
-  guestDisplayName: string;
   hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
   message: string;
@@ -87,7 +86,6 @@ const initialState: PeerRoomState = {
   role: null,
   status: "idle",
   roomId: "",
-  guestDisplayName: "",
   hostSymbol: null,
   guestSymbol: null,
   message: "",
@@ -261,7 +259,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
           setState((prev) => ({
             ...prev,
             status: "connected",
-            guestDisplayName: result.guestDisplayName,
             guestSymbol: result.guestSymbol,
             gameState: result.gameState,
             message: "",
@@ -385,7 +382,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
               ...prev,
               role: "host",
               status: "connected",
-              guestDisplayName: opponent.displayName,
               guestSymbol: oppositeSymbol(hostSymbol),
               message: "",
             }));
@@ -524,10 +520,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
             status: "connected",
             gameState,
             guestSymbol: localSymbol,
-            guestDisplayName:
-              localSymbol !== null
-                ? gameState.players[localSymbol].username
-                : "",
             message: "",
           };
         });
@@ -634,11 +626,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
         gameMode: GameModes.ONLINE,
         playerXName:
           hostSymbol === PlayerSymbol.X
-            ? sanitizeDisplayName(options.hostDisplayName, "Host")
+            ? sanitizeDisplayName(options.hostDisplayName, generateGuestDisplayName())
             : "Waiting for opponent",
         playerOName:
           hostSymbol === PlayerSymbol.O
-            ? sanitizeDisplayName(options.hostDisplayName, "Host")
+            ? sanitizeDisplayName(options.hostDisplayName, generateGuestDisplayName())
             : "Waiting for opponent",
         playerColor: options.hostColor,
         opponentColor: chooseGuestColor(Color.BLUE, options.hostColor),
@@ -651,7 +643,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
         role: "host",
         status: "creating",
         roomId,
-        guestDisplayName: "",
         hostSymbol,
         guestSymbol,
         gameState: waitingGame,

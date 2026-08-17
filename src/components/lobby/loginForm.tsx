@@ -133,7 +133,7 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
       opponentShape,
       gameMode,
       aiDifficulty,
-      opponentName: sanitizeDisplayName(opponentName, "AI"),
+      opponentName: sanitizeDisplayName(opponentName, gameMode === GameModes.VS_FRIEND ? "Opponent" : "AI"),
       opponentType,
       onlineRoomId: onlineRoomId.trim(),
       onlineAction,
