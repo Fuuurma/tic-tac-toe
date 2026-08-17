@@ -309,8 +309,7 @@ export function PlayersPanel({
               size="sm"
               onClick={handleNewGameClick}
               aria-label={isGameOver ? "Play again" : "Start a new game"}
-              className="size-9 p-0 text-[rgb(var(--player-color))] hover:bg-[rgb(var(--player-color)/0.15)] sm:size-10"
-              style={{ "--glass-sweep-color": humanColor } as React.CSSProperties}
+              className="size-9 p-0 text-muted-foreground sm:size-10"
             >
               <RotateCcw className="size-4" aria-hidden="true" />
             </Button>
