@@ -75,17 +75,29 @@ export function useLocalGame(input: LocalGameInput) {
           stopTimer();
           return prev;
         }
-        const remaining = (prev.turnTimeRemaining ?? TURN_DURATION_MS) - 1000;
+        // Use the absolute deadline so the timer stays correct even when
+        // the browser throttles setInterval in background tabs. Falls back
+        // to decrementing turnTimeRemaining when no deadline is set.
+        const deadline =
+          prev.turnDeadlineAt ??
+          Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS);
+        const remaining = Math.max(0, deadline - Date.now());
         if (remaining <= 0) {
           const random = makeRandomMove(prev.board);
           if (random === null) return prev;
           const updated = makeMove(prev, random);
           if (updated) {
-            return { ...updated, turnTimeRemaining: TURN_DURATION_MS };
+            return updated;
           }
           return prev;
         }
-        return { ...prev, turnTimeRemaining: remaining };
+        // Only update if the deadline hasn't changed (e.g. by a concurrent
+        // move). This prevents a stale interval from overwriting a fresh
+        // turn's turnTimeRemaining.
+        if (prev.turnDeadlineAt !== undefined && prev.turnDeadlineAt !== deadline) {
+          return prev;
+        }
+        return { ...prev, turnTimeRemaining: remaining, turnDeadlineAt: deadline };
       });
     }, 1000);
   }, [stopTimer]);
@@ -97,7 +109,7 @@ export function useLocalGame(input: LocalGameInput) {
         if (prev.players[prev.currentPlayer].type === PlayerTypes.COMPUTER) return prev;
         const next = makeMove(prev, index);
         if (!next) return prev;
-        return { ...next, turnTimeRemaining: TURN_DURATION_MS };
+        return next;
       });
     },
     [],
@@ -148,7 +160,7 @@ export function useLocalGame(input: LocalGameInput) {
           if (move === null) return prev;
           const next = makeMove(prev, move);
           if (!next) return prev;
-          return { ...next, turnTimeRemaining: TURN_DURATION_MS };
+          return next;
         });
       }, AI_MOVE_DELAY_MS + Math.random() * AI_MOVE_DELAY_JITTER_MS);
     }

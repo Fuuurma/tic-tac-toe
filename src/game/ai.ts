@@ -169,7 +169,6 @@ const minimax = (
   const { winner } = checkWinner(state.board);
   if (winner !== null) return scoreTerminal(winner, context.player, depth);
   if (depth === 0) return evaluateNonTerminal(state, context.player);
-  if (state.board.every((c) => c !== null)) return 0;
 
   const positionKey = stateKey(state);
   if (context.path.has(positionKey)) return 0;

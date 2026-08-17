@@ -68,7 +68,7 @@ export function Board({
     <div className="flex w-full max-w-md flex-col gap-1.5">
       <div
         ref={boardRef}
-        className="relative mx-auto aspect-square w-full rounded-2xl border border-black/30 bg-black/35 p-2 shadow-inner sm:p-3"
+        className="relative mx-auto aspect-square w-full rounded-2xl border border-white/12 bg-black/50 p-2.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_18px_40px_rgb(0_0_0/0.4)] sm:p-3.5"
       >
         <div
           role="grid"

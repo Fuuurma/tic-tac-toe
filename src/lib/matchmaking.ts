@@ -33,7 +33,7 @@ interface FindMatchOptions {
 }
 
 const MATCHMAKING_BASE_URL =
-  import.meta.env.VITE_MATCHMAKING_URL ?? "http://localhost:8787";
+  import.meta.env.VITE_MATCHMAKING_URL ?? "http://127.0.0.1:8787";
 
 export const MATCH_POLL_INITIAL_DELAY_MS = 1_000;
 export const MATCH_POLL_MAX_DELAY_MS = 4_000;

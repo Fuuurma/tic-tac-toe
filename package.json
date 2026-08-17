@@ -17,10 +17,12 @@
     "test:watch": "vitest",
     "test:e2e": "pnpm build && playwright test",
     "check": "pnpm lint && pnpm test && pnpm test:e2e",
-    "deploy:check": "pnpm build && node -e \"const fs=require('fs');const p='dist/index.html';if(!fs.existsSync(p)){console.error('Missing '+p);process.exit(1)}console.log('dist/ looks ready')\"",
+    "deploy:check": "pnpm build && node scripts/deploy-check.mjs",
     "deploy": "pnpm build && wrangler pages deploy dist"
   },
   "dependencies": {
+    "@fontsource-variable/source-sans-3": "^5.3.0",
+    "@fontsource-variable/syne": "^5.3.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.25.0",
     "react": "^19.2.8",

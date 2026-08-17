@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AVAILABLE_COLORS,
   Color,
   GAME_ID,
   GameModes,
   GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
-  PlayerTypes,
   SymbolShape,
   TURN_DURATION_MS,
   oppositeSymbol,
@@ -23,9 +21,12 @@ import {
 import type { GameState } from "@/game/logic";
 import {
   applyAuthorizedMove,
+  applyHostGuestJoin,
   applyOptimisticMove,
+  chooseGuestColor,
   generateRoomId,
   isPeerMessage,
+  peerLeftUserMessage,
 } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import { getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
@@ -92,16 +93,6 @@ const initialState: PeerRoomState = {
   message: "",
   gameState: freshGameState(),
 };
-
-const sanitizeColor = (color: string | undefined): Color => {
-  if (!color) return Color.BLUE;
-  return (Object.values(Color) as string[]).includes(color) ? (color as Color) : Color.BLUE;
-};
-
-const chooseGuestColor = (preferred: Color, hostColor: Color): Color =>
-  preferred !== hostColor
-    ? preferred
-    : AVAILABLE_COLORS.find((color) => color !== hostColor) ?? Color.GRAY;
 
 export interface PeerRoomOptions {
   hostDisplayName: string;
@@ -249,43 +240,40 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const handleHostData = useCallback(
     (message: PeerMessage) => {
       if (message.type === "join") {
-        const state = stateRef.current;
         const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        const guestSymbol = oppositeSymbol(hostSymbol);
-        const guestColor = chooseGuestColor(
-          sanitizeColor(message.preferredColor),
-          state.players[hostSymbol].color,
+        const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
+          displayName: message.displayName,
+          preferredColor: message.preferredColor,
+        });
+        stateRef.current = result.gameState;
+        roomRef.current?.send({
+          type: "joined",
+          symbol: result.guestSymbol,
+          color: result.guestColor,
+          gameState: result.gameState,
+        });
+        roomRef.current?.send(
+          result.kind === "accepted"
+            ? { type: "gameStart", gameState: result.gameState }
+            : { type: "gameUpdate", gameState: result.gameState },
         );
-        const guestDisplayName = sanitizeDisplayName(message.displayName, "Guest");
-        const updated: GameState = {
-          ...state,
-          gameStatus: GameStatus.ACTIVE,
-          turnTimeRemaining: TURN_DURATION_MS,
-          turnDeadlineAt: Date.now() + TURN_DURATION_MS,
-          players: {
-            ...state.players,
-            [guestSymbol]: {
-              username: guestDisplayName,
-              color: guestColor,
-              symbol: guestSymbol,
-              shape: state.players[guestSymbol].shape,
-              type: PlayerTypes.HUMAN,
-              isActive: true,
-              lastMoveAt: Date.now(),
-            },
-          },
-        };
-        stateRef.current = updated;
-        roomRef.current?.send({ type: "joined", symbol: guestSymbol, color: guestColor, gameState: updated });
-        roomRef.current?.send({ type: "gameStart", gameState: updated });
-        setState((prev) => ({
-          ...prev,
-          status: "connected",
-          guestDisplayName,
-          guestSymbol,
-          gameState: updated,
-          message: "",
-        }));
+        if (result.kind === "accepted") {
+          setState((prev) => ({
+            ...prev,
+            status: "connected",
+            guestDisplayName: result.guestDisplayName,
+            guestSymbol: result.guestSymbol,
+            gameState: result.gameState,
+            message: "",
+          }));
+        } else {
+          setState((prev) => ({
+            ...prev,
+            status: "connected",
+            guestSymbol: result.guestSymbol,
+            gameState: result.gameState,
+          }));
+        }
         return;
       }
       if (message.type === "move") {
@@ -331,7 +319,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
           opponentShape: guestPlayer.shape,
           humanSymbol: newHostSymbol,
         });
-        reset.players[newGuestSymbol].isActive = true;
         stateRef.current = reset;
         setState((prev) => ({
           ...prev,
@@ -360,7 +347,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
           ? state
           : { ...state, winner: hostSymbol, gameStatus: GameStatus.COMPLETED };
         stateRef.current = ended;
-        setState((prev) => ({ ...prev, gameState: ended, message: "Opponent left" }));
+        setState((prev) => ({
+          ...prev,
+          status: "disconnected",
+          gameState: ended,
+          message: "Opponent left",
+        }));
         return;
       }
       if (message.type === "error" && message.message === "Invalid move") {
@@ -402,7 +394,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
               ...prev,
               role: "host",
               status: prev.status === "connected" ? "connected" : "waiting",
-              message: prev.status === "connected" ? "" : `Room ${prev.roomId} — waiting for opponent`,
+              message: prev.status === "connected" ? "" : `Room ${prev.roomId}. Waiting for opponent.`,
             }));
           }
         }
@@ -455,54 +447,38 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       if (event.type === "peer-left") {
-        const reason = (event as { reason?: string }).reason;
+        const reason = (event as { reason?: "disconnect" | "closed" | "expired" }).reason;
         if (reason === "disconnect") {
           stopTimer();
           setState((prev) => ({
             ...prev,
             status: "reconnecting",
-            message: roleRef.current === "guest"
-              ? "Host disconnected. Reconnecting…"
-              : "Opponent disconnected. Reconnecting…",
+            message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
           }));
           return;
         }
-        if (roleRef.current === "guest") {
-          stopTimer();
-          hostRematchPendingRef.current = false;
-          const current = stateRef.current;
-          // Guest wins by forfeit when the host disconnects (unless the
-          // game already had a winner).
-          const guestSymbol = guestSymbolRef.current ?? PlayerSymbol.O;
-          const gameState = current.winner
-            ? current
-            : { ...current, winner: guestSymbol, gameStatus: GameStatus.COMPLETED };
-          stateRef.current = gameState;
-          setState((prev) => ({
+        if (roleRef.current !== "guest" && roleRef.current !== "host") return;
+        stopTimer();
+        hostRematchPendingRef.current = false;
+        const current = stateRef.current;
+        const winnerSymbol =
+          roleRef.current === "guest"
+            ? (guestSymbolRef.current ?? PlayerSymbol.O)
+            : (hostSymbolRef.current ?? PlayerSymbol.X);
+        const gameState = current.winner
+          ? current
+          : { ...current, winner: winnerSymbol, gameStatus: GameStatus.COMPLETED };
+        stateRef.current = gameState;
+        const leaveReason = reason === "expired" ? "expired" : "closed";
+        setState((prev) => {
+          if (prev.status === "disconnected") return prev;
+          return {
             ...prev,
             status: "disconnected",
             gameState,
-            message: "Host disconnected",
-          }));
-          return;
-        }
-        if (roleRef.current === "host") {
-          stopTimer();
-          hostRematchPendingRef.current = false;
-          const current = stateRef.current;
-          const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-          const gameState = current.winner
-            ? current
-            : { ...current, winner: hostSymbol, gameStatus: GameStatus.COMPLETED };
-          stateRef.current = gameState;
-          setState((prev) => ({
-            ...prev,
-            status: "disconnected",
-            gameState,
-            message: "Opponent disconnected",
-          }));
-          return;
-        }
+            message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", leaveReason),
+          };
+        });
         return;
       }
       if (event.type === "error") {
@@ -544,9 +520,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
             gameState,
             guestSymbol: localSymbol,
             guestDisplayName:
-              localSymbol === PlayerSymbol.O
-                ? gameState.players[PlayerSymbol.X].username
-                : gameState.players[PlayerSymbol.O].username,
+              localSymbol !== null
+                ? gameState.players[localSymbol].username
+                : "",
             message: "",
           };
         });
@@ -556,7 +532,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         const state = stateRef.current;
         setState((prev) => ({
           ...prev,
-          message: `${state.players[message.requesterSymbol].username} wants a rematch — click Play Again to accept`,
+          message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
         }));
         return;
       }
@@ -641,6 +617,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       // WebSocket open, and its message handler can corrupt the new
       // room's state via shared refs.
       if (roomRef.current) {
+        roomRef.current.send({ type: "leave" });
         roomRef.current.close();
         roomRef.current = null;
       }
@@ -690,6 +667,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     (roomId: string, wsUrl?: string) => {
       stopTimer();
       if (roomRef.current) {
+        roomRef.current.send({ type: "leave" });
         roomRef.current.close();
         roomRef.current = null;
       }
@@ -841,16 +819,22 @@ export function usePeerRoom(options: PeerRoomOptions) {
       // Use the host's current symbol so the guest UI names the right player.
       const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
       roomRef.current?.send({ type: "rematchRequested", requesterSymbol: hostSymbol });
+      setState((prev) => ({
+        ...prev,
+        message: "Waiting for opponent to accept rematch",
+      }));
     }
   }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status]);
 
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {
       roomRef.current?.send({ type: "rematchDecline" });
+      setState((prev) => ({ ...prev, message: "" }));
     }
   }, [state.role]);
 
   const leave = useCallback(() => {
+    roomRef.current?.send({ type: "leave" });
     roomRef.current?.close();
     roomRef.current = null;
     stopTimer();

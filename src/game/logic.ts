@@ -25,7 +25,6 @@ export interface PlayerConfig {
   symbol: PlayerSymbol;
   shape: SymbolShape;
   type: PlayerType;
-  isActive: boolean;
   lastMoveAt?: number;
 }
 
@@ -60,7 +59,6 @@ export const freshGameState = (): GameState => ({
       symbol: PlayerSymbol.X,
       shape: PLAYER_CONFIG[PlayerSymbol.X].defaultShape,
       type: PlayerTypes.HUMAN,
-      isActive: false,
     },
     [PlayerSymbol.O]: {
       username: "",
@@ -68,7 +66,6 @@ export const freshGameState = (): GameState => ({
       symbol: PlayerSymbol.O,
       shape: PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
       type: PlayerTypes.HUMAN,
-      isActive: false,
     },
   },
   moves: { [PlayerSymbol.X]: [], [PlayerSymbol.O]: [] },
@@ -119,7 +116,6 @@ export const createInitialGameState = (
         symbol: PlayerSymbol.X,
         shape: humanSymbol === PlayerSymbol.X ? humanShape : opponentShape,
         type: opponentIsX ? opponentType : PlayerTypes.HUMAN,
-        isActive: true,
       },
       [PlayerSymbol.O]: {
         ...state.players[PlayerSymbol.O],
@@ -128,7 +124,6 @@ export const createInitialGameState = (
         symbol: PlayerSymbol.O,
         shape: humanSymbol === PlayerSymbol.O ? humanShape : opponentShape,
         type: !opponentIsX ? opponentType : PlayerTypes.HUMAN,
-        isActive: input.gameMode !== GameModes.ONLINE,
       },
     },
   };

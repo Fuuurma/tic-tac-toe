@@ -244,18 +244,18 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
         <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
           <GameMark />
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-black leading-none tracking-tight sm:text-2xl">
+            <h1 className="font-display text-xl font-extrabold leading-none tracking-tight sm:text-2xl">
               Tic Tac Toe Disappear
             </h1>
-            <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
-              Three-piece strategy
+            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+              Oldest mark vanishes. Three in a row wins.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setHelpOpen(true)}
             aria-label="How to play"
-            className="glass-interactive flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground"
+            className="glass-interactive flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
           >
             <CircleHelp className="size-4.5" aria-hidden="true" />
           </button>

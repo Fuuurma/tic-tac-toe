@@ -92,7 +92,16 @@ export default function App() {
           <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
         {view === "game" && config && (
-          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                className="glass flex items-center justify-center px-4 py-3 text-sm text-muted-foreground"
+              >
+                Loading game…
+              </div>
+            }
+          >
             <GameView
               key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
               config={config}

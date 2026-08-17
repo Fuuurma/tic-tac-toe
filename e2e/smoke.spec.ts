@@ -453,7 +453,7 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
         guestPage
           .locator("body")
           .innerText()
-          .then((t) => t.includes("Joining room") || t.includes("Opponent:")),
+          .then((t) => t.includes("Joining room") || t.includes("Tic Tac Toe game board")),
       { timeout: 5_000 },
     )
     .toBe(true);
@@ -466,8 +466,8 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   await expect(
     guestPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
   ).toBeVisible({ timeout: 90_000 });
-  await expect(hostPage.getByText("Opponent: Guest")).toBeVisible();
-  await expect(guestPage.getByText("Opponent: Host")).toBeVisible();
+  await expect(hostPage.getByRole("group", { name: /^Guest,/ })).toBeVisible();
+  await expect(guestPage.getByRole("group", { name: /^Host,/ })).toBeVisible();
 
   // The host's symbol is randomized, so follow whichever browser currently
   // owns the turn. Select fillers around the winning top-row moves so the
@@ -553,7 +553,7 @@ test("quick-match places both clients into a shared room", async ({ browser }) =
   await expect(
     secondPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
   ).toBeVisible({ timeout: 90_000 });
-  await expect(secondPage.getByText(/Opponent: Alice/i)).toBeVisible();
+  await expect(secondPage.getByRole("group", { name: /^Alice,/i })).toBeVisible();
 
   await first.close();
   await second.close();

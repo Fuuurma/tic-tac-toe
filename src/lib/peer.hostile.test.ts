@@ -22,6 +22,7 @@ import {
   PEER_MAX_BOARD_INDEX,
   PEER_MAX_NAME_LENGTH,
   PEER_MAX_TURN_DEADLINE,
+  PEER_MAX_ERROR_LENGTH,
   PEER_MAX_TURN_MS,
 } from "@/lib/peer";
 
@@ -33,7 +34,6 @@ const baselineState = () => {
     playerColor: Color.BLUE,
     opponentColor: Color.RED,
   });
-  state.players[PlayerSymbol.O].isActive = true;
   state.turnTimeRemaining = TURN_DURATION_MS;
   return state;
 };
@@ -182,6 +182,15 @@ describe("isPeerMessage hostile frames", () => {
   it("rejects error frames with non-string messages", () => {
     expect(isPeerMessage({ type: "error", message: 42 })).toBe(false);
     expect(isPeerMessage({ type: "error" })).toBe(false);
+  });
+
+  it("rejects error frames that exceed the wire length cap", () => {
+    expect(
+      isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH + 1) }),
+    ).toBe(false);
+    expect(
+      isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH) }),
+    ).toBe(true);
   });
 });
 

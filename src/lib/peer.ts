@@ -10,12 +10,14 @@ import {
   SymbolShape,
   TURN_DURATION_MS,
   WINNING_COMBINATIONS,
+  oppositeSymbol,
   type AI_Difficulty as _AI_DifficultyType,
   type GameMode as _GameModeType,
   type GameStatus as _GameStatusType,
   type PlayerType as _PlayerTypeType,
 } from "@/game/constants";
 import { isValidMove, makeMove, type GameState } from "@/game/logic";
+import { sanitizeDisplayName } from "@/lib/identity";
 
 export type PeerMessage =
   | { type: "join"; displayName: string; guestId: string; preferredColor?: Color }
@@ -39,12 +41,93 @@ export const PEER_MAX_BOARD_INDEX = GAME_RULES.BOARD_SIZE - 1;
 export const PEER_MAX_TURN_MS = TURN_DURATION_MS;
 /** Absolute timer deadlines must remain finite safe integers on the wire. */
 export const PEER_MAX_TURN_DEADLINE = Number.MAX_SAFE_INTEGER;
+/** Error strings on the wire are UX copy, not an unbounded dump. */
+export const PEER_MAX_ERROR_LENGTH = 200;
+
+const fallbackRoomId = (): string =>
+  `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.padEnd(32, "0").slice(0, 32);
 
 export const generateRoomId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID().slice(0, 8);
+    return crypto.randomUUID();
   }
-  return Math.random().toString(36).slice(2, 10);
+  return fallbackRoomId();
+};
+
+export const chooseGuestColor = (preferred: Color | undefined, hostColor: Color): Color => {
+  if (preferred && preferred !== hostColor) return preferred;
+  return AVAILABLE_COLORS.find((color) => color !== hostColor) ?? Color.GRAY;
+};
+
+export const peerLeftUserMessage = (
+  role: "host" | "guest",
+  reason: "disconnect" | "closed" | "expired",
+): string => {
+  if (reason === "disconnect") {
+    return role === "guest"
+      ? "Host disconnected. Reconnecting…"
+      : "Opponent disconnected. Reconnecting…";
+  }
+  if (reason === "expired") {
+    return role === "guest"
+      ? "Host did not reconnect in time"
+      : "Opponent did not reconnect in time";
+  }
+  return role === "guest" ? "Host left the room" : "Opponent left the room";
+};
+
+export type HostGuestJoinResult = {
+  kind: "accepted" | "resync";
+  gameState: GameState;
+  guestDisplayName: string;
+  guestSymbol: PlayerSymbol;
+  guestColor: Color;
+};
+
+/** First join starts the match. Later joins (reconnect) resync without resetting. */
+export const applyHostGuestJoin = (
+  state: GameState,
+  hostSymbol: PlayerSymbol,
+  join: { displayName: string; preferredColor?: Color },
+): HostGuestJoinResult => {
+  const guestSymbol = oppositeSymbol(hostSymbol);
+  if (state.gameStatus !== GameStatus.WAITING) {
+    const guest = state.players[guestSymbol];
+    return {
+      kind: "resync",
+      gameState: state,
+      guestDisplayName: guest.username,
+      guestSymbol,
+      guestColor: guest.color,
+    };
+  }
+
+  const guestColor = chooseGuestColor(join.preferredColor, state.players[hostSymbol].color);
+  const guestDisplayName = sanitizeDisplayName(join.displayName, "Guest");
+  const gameState: GameState = {
+    ...state,
+    gameStatus: GameStatus.ACTIVE,
+    turnTimeRemaining: TURN_DURATION_MS,
+    turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+    players: {
+      ...state.players,
+      [guestSymbol]: {
+        username: guestDisplayName,
+        color: guestColor,
+        symbol: guestSymbol,
+        shape: state.players[guestSymbol].shape,
+        type: PlayerTypes.HUMAN,
+        lastMoveAt: Date.now(),
+      },
+    },
+  };
+  return {
+    kind: "accepted",
+    gameState,
+    guestDisplayName,
+    guestSymbol,
+    guestColor,
+  };
 };
 
 export const applyAuthorizedMove = (
@@ -170,7 +253,6 @@ const isPlayerConfig = (value: unknown): boolean => {
   if (!isPlayerSymbol(p.symbol)) return false;
   if (!isSymbolShape(p.shape)) return false;
   if (!isPlayerType(p.type)) return false;
-  if (typeof p.isActive !== "boolean") return false;
   if (
     p.lastMoveAt !== undefined &&
     p.lastMoveAt !== null &&
@@ -306,7 +388,11 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
     case "leave":
       return true;
     case "error":
-      return typeof message.message === "string";
+      return (
+        typeof message.message === "string" &&
+        message.message.length > 0 &&
+        message.message.length <= PEER_MAX_ERROR_LENGTH
+      );
     default:
       return false;
   }

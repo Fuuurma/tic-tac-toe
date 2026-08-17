@@ -1,27 +1,34 @@
 # Deployment Guide — Cloudflare Pages
 
-## Quick Deploy (Recommended)
+## Release deployment
 
 ### Prerequisites
 - [Cloudflare account](https://dash.cloudflare.com)
-- [GitHub repository](https://github.com) with your code
+- Wrangler authentication for the Cloudflare account that owns the existing
+  `tic-tac-toe` Pages project
 
 ### Steps
 
-1. **Push to GitHub**
+1. **Validate and push**
    ```bash
-   git add .
-   git commit -m "deploy: ship first slice"
+   pnpm check
    git push origin main
    ```
 
-2. **Create Cloudflare Pages project**
-   - Go to [Cloudflare Dashboard](https://dash.cloudflare.com) → Workers & Pages → Create
-   - Connect your GitHub repo
-   - Framework preset: **None**
-   - Build command: `pnpm build`
-   - Build output directory: `dist`
-   - Click Deploy
+   The default local browser run covers the shell, local play, and AI. Before
+   release, also run the two-session online specs with the local Worker and
+   preview running, then repeat them against the deployed URL.
+
+2. **Deploy the existing Pages project**
+   ```bash
+   pnpm deploy
+   ```
+
+   A Git push is not deployment proof. Confirm that Wrangler reports a new
+   production deployment for the `tic-tac-toe` project:
+   ```bash
+   pnpm exec wrangler pages deployment list --project-name tic-tac-toe
+   ```
 
 3. **Smoke the live URL**
    ```bash
@@ -33,7 +40,7 @@
 The "Quick" button in the Online game mode requires a Cloudflare
 Worker for matchmaking (POST /join, GET /poll, POST /leave). The
 client hits `${VITE_MATCHMAKING_URL}/api/matchmaking/tictactoe/...`
-and falls back to `http://localhost:8787` in dev.
+and falls back to `http://127.0.0.1:8787` in dev.
 
 1. **Deploy the matchmaking Worker** (separate Cloudflare Worker).
    The expected contract is in `src/lib/matchmaking.ts`:
@@ -50,7 +57,7 @@ and falls back to `http://localhost:8787` in dev.
    ```
 
    Without this, the Quick button falls back to
-   `http://localhost:8787` (dev only) and won't work in production.
+   `http://127.0.0.1:8787` (dev only) and won't work in production.
 
 3. **Room ID URL pre-fill** (optional)
    The app reads `?room=<id>` from the URL and pre-fills the Join
@@ -64,16 +71,9 @@ pnpm build
 pnpm preview     # serves dist/ on 127.0.0.1:4110
 ```
 
-## CLI deploy (alternative to GitHub integration)
-
-If you prefer the CLI over the dashboard:
-
-```bash
-pnpm deploy      # builds and runs `wrangler pages deploy dist`
-```
-
-This requires `npx wrangler login` first to authenticate your
-Cloudflare account. The project name in `wrangler.jsonc` is `tic-tac-toe`.
+The deploy command builds and runs `wrangler pages deploy dist`. It requires
+Wrangler authentication. The project name in `wrangler.jsonc` is
+`tic-tac-toe`.
 
 ## Troubleshooting
 

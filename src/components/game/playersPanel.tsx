@@ -30,6 +30,7 @@ interface PlayersPanelProps {
   onExit: () => void;
   onHelp?: () => void;
   onEditSettings?: () => void;
+  onDeclineRematch?: () => void;
 }
 
 const formatTime = (ms: number | undefined): number => {
@@ -50,8 +51,8 @@ const getTimerColor = (seconds: number): string => {
 };
 
 const getGameModeLabel = (mode: string): string => {
-  if (mode === GameModes.VS_COMPUTER) return "VS Computer";
-  if (mode === GameModes.VS_FRIEND) return "VS Friend";
+  if (mode === GameModes.VS_COMPUTER) return "vs Computer";
+  if (mode === GameModes.VS_FRIEND) return "vs Friend";
   if (mode === GameModes.ONLINE) return "Online";
   return mode.replace("_", " ");
 };
@@ -92,6 +93,7 @@ export function PlayersPanel({
   onExit,
   onHelp,
   onEditSettings,
+  onDeclineRematch,
 }: PlayersPanelProps) {
   const [showExit, setShowExit] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
@@ -244,7 +246,7 @@ export function PlayersPanel({
             isActive && "max-w-[calc(50%-2rem)]",
           )}
         >
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
             <span>{getGameModeLabel(gameState.gameMode)}</span>
             {stats && stats.totalGames > 0 && (
               <span
@@ -279,15 +281,17 @@ export function PlayersPanel({
           )}
         </div>
         <div className="flex shrink-0 justify-end gap-1.5">
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={onHelp}
-            aria-label="How to play"
-            className="size-9 p-0 text-muted-foreground sm:size-10"
-          >
-            <CircleHelp className="size-4" aria-hidden="true" />
-          </Button>
+          {onHelp && (
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onHelp}
+              aria-label="How to play"
+              className="size-9 p-0 text-muted-foreground sm:size-10"
+            >
+              <CircleHelp className="size-4" aria-hidden="true" />
+            </Button>
+          )}
           {onEditSettings && (
             <Button
               variant="glass"
@@ -356,6 +360,7 @@ export function PlayersPanel({
           <GameEndActions
             headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
             message={message}
+            onDeclineRematch={onDeclineRematch}
           />
         </div>
       )}
@@ -451,14 +456,16 @@ const PlayerCard = memo(function PlayerCard({
 interface GameEndActionsProps {
   headline: string | null;
   message: string | null;
+  onDeclineRematch?: () => void;
 }
 
 function GameEndActions({
   headline,
   message,
+  onDeclineRematch,
 }: GameEndActionsProps) {
   return (
-    <div className="flex flex-col gap-1 text-center">
+    <div className="flex flex-col gap-1.5 text-center">
       {headline && (
         <div
           role="status"
@@ -471,6 +478,17 @@ function GameEndActions({
         <div role="status" className="text-xs text-muted-foreground">
           {message}
         </div>
+      )}
+      {onDeclineRematch && (
+        <Button
+          type="button"
+          variant="glass"
+          size="sm"
+          onClick={onDeclineRematch}
+          className="mx-auto mt-1"
+        >
+          Decline rematch
+        </Button>
       )}
     </div>
   );

@@ -34,3 +34,7 @@ jobs:
         run: pnpm build
       - name: Production artifact preflight
         run: pnpm run deploy:check
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser smoke
+        run: pnpm exec playwright test

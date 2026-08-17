@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const MATCHMAKING_URL =
-  process.env.VITE_MATCHMAKING_URL ?? "http://localhost:8787";
+  process.env.VITE_MATCHMAKING_URL ?? "http://127.0.0.1:8787";
 
 async function matchmakingReachable(): Promise<boolean> {
   // Quick match depends on the matchmaking Worker. Skip when it's not
@@ -58,8 +58,8 @@ test("quick match pairs two players", async ({ browser }) => {
   await guestPage.getByRole("button", { name: "Quick Match" }).click();
 
   // Both reach the board and connect
-  await expect(hostPage.getByText("Opponent: Guest")).toBeVisible({ timeout: 90_000 });
-  await expect(guestPage.getByText("Opponent: Host")).toBeVisible({ timeout: 90_000 });
+  await expect(hostPage.getByRole("group", { name: /^Guest,/ })).toBeVisible({ timeout: 90_000 });
+  await expect(guestPage.getByRole("group", { name: /^Host,/ })).toBeVisible({ timeout: 90_000 });
 
   // Host plays top-left
   await hostPage.getByRole("gridcell", { name: "Row 1 column 1" }).click();

@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "@/App";
 import { ErrorBoundary } from "@/components/errorBoundary";
+import "@fontsource-variable/syne";
+import "@fontsource-variable/source-sans-3";
 import "@/index.css";
 
 const container = document.getElementById("root");

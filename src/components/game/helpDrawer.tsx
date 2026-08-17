@@ -12,12 +12,12 @@ const TIPS: { Icon: typeof Clock; title: string; body: string }[] = [
   {
     Icon: Grid3x3,
     title: "Three-piece limit",
-    body: "Each player can only have 3 marks on the board at once. Place a 4th and your oldest mark vanishes — so plan your moves.",
+    body: "Each player can only have 3 marks on the board at once. Place a 4th and your oldest mark vanishes, so plan your moves.",
   },
   {
     Icon: MoveRight,
     title: "Oldest mark moves first",
-    body: "When you place your 4th mark, the oldest one is automatically removed. Watch the wiggling border — that's the mark that goes next.",
+    body: "When you place your 4th mark, the oldest one is automatically removed. Watch the wiggling border. That is the mark that goes next.",
   },
   {
     Icon: Trophy,
@@ -27,7 +27,7 @@ const TIPS: { Icon: typeof Clock; title: string; body: string }[] = [
   {
     Icon: Keyboard,
     title: "Keyboard shortcuts",
-    body: "Press 1–9 to place your mark on the matching cell. The layout reads left-to-right, top-to-bottom: 1 is top-left, 9 is bottom-right.",
+    body: "Press 1-9 to place your mark on the matching cell. The layout reads left to right, top to bottom: 1 is top-left, 9 is bottom-right.",
   },
   {
     Icon: Clock,
@@ -117,20 +117,22 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
         )}
         style={{ "--glass-alpha": "0.92" } as React.CSSProperties}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 pb-2">
+        <div className="flex shrink-0 flex-col gap-2 pb-2">
           <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
-          <h2 id={titleId} className="text-lg font-bold tracking-tight">
-            How to play
-          </h2>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Close help"
-            className="glass-interactive flex size-8 items-center justify-center rounded-full text-muted-foreground"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <h2 id={titleId} className="text-lg font-bold tracking-tight">
+              How to play
+            </h2>
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Close help"
+              className="glass-interactive flex size-8 items-center justify-center rounded-lg text-muted-foreground"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
         <ul className="flex flex-1 flex-col justify-center gap-4 overflow-y-auto py-2">
           {TIPS.map(({ Icon, title, body }) => (

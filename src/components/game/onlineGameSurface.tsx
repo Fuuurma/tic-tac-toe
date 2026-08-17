@@ -12,10 +12,10 @@ import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
 import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
 import {
-  PlayerSummaryCard,
   SettingsSheet,
   type PlayerSettings,
 } from "@/components/lobby/playerSettingsSheet";
+import { HelpDrawer } from "@/components/game/helpDrawer";
 import { Check, Copy, Link2, Loader2, Share2, Wifi } from "lucide-react";
 
 export interface OnlineGameSurfaceProps {
@@ -71,6 +71,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   const message = onlineMessage(peer.state.status, peer.state.message);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   // Seed from the live host player data; the next rematch picks the values
   // up via `peer.updatePendingSettings`. We refresh the buffered values each
   // time the user opens the sheet so they always edit the latest identity.
@@ -219,21 +220,18 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             message={message}
             gameMode={GameModes.ONLINE}
             onNewGame={peer.state.status === "connected" ? () => peer.requestRematch() : undefined}
+            onHelp={() => setHelpOpen(true)}
+            onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
+            onDeclineRematch={
+              peer.state.role === "guest" && /wants a rematch/i.test(peer.state.message)
+                ? () => peer.declineRematch()
+                : undefined
+            }
             onExit={() => {
               peer.leave();
               onExit();
             }}
           />
-          <PlayerSummaryCard
-            settings={pendingPlayerSettings}
-            gameMode={GameModes.ONLINE}
-            onEdit={peer.state.role === "host" ? handleOpenSettings : undefined}
-          />
-          {peer.state.status === "connected" && peer.state.guestDisplayName && (
-            <span className="text-center text-xs text-muted-foreground">
-              Opponent: {peer.state.guestDisplayName}
-            </span>
-          )}
 
           <Board
             board={peer.state.gameState.board}
@@ -287,6 +285,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           setSettingsOpen(false);
         }}
       />
+      <HelpDrawer inline isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
@@ -349,7 +348,7 @@ function RoomIdShare({
       </p>
       <span
         aria-label={`Room code ${roomId}`}
-        className="glass-cell rounded-lg px-4 py-2 font-mono text-xl font-bold tracking-[0.2em] text-foreground"
+        className="glass-cell max-w-full break-all rounded-lg px-3 py-2 font-mono text-sm font-bold tracking-wide text-foreground sm:text-base"
       >
         {roomId}
       </span>

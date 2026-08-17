@@ -31,7 +31,7 @@ describe("freshGameState", () => {
 });
 
 describe("createInitialGameState", () => {
-  it("initializes players, sets X active and the game active", () => {
+  it("initializes players and sets the game active", () => {
     const state = createInitialGameState({
       gameMode: GameModes.VS_COMPUTER,
       playerXName: "Alice",
@@ -41,9 +41,7 @@ describe("createInitialGameState", () => {
     });
     expect(state.players[PlayerSymbol.X].username).toBe("Alice");
     expect(state.players[PlayerSymbol.X].color).toBe(Color.BLUE);
-    expect(state.players[PlayerSymbol.X].isActive).toBe(true);
     expect(state.players[PlayerSymbol.O].type).toBe("COMPUTER");
-    expect(state.players[PlayerSymbol.O].isActive).toBe(true);
     expect(state.gameStatus).toBe("ACTIVE");
     expect(state.gameMode).toBe(GameModes.VS_COMPUTER);
   });
