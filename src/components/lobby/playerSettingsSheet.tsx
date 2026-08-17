@@ -135,6 +135,7 @@ export function SettingsSheet({
   const isOnline = gameMode === GameModes.ONLINE;
   const showOpponentTab = !isOnline;
   const isAI = opponent.opponentType === PlayerTypes.COMPUTER;
+  const activeColor = tab === "opponent" ? opponent.opponentColor : player.color;
 
   return (
     <div
@@ -151,6 +152,7 @@ export function SettingsSheet({
         ref={panelRef}
         tabIndex={-1}
         className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-7 outline-none sm:rounded-2xl sm:border-b"
+        style={{ "--player-color": COLOR_RGB[activeColor] } as React.CSSProperties}
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
           <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
