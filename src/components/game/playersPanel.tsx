@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
-import { CircleHelp, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
+import { CircleHelp, Copy, Check, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
 
 interface PlayersPanelProps {
@@ -99,8 +99,20 @@ export function PlayersPanel({
 }: PlayersPanelProps) {
   const [showExit, setShowExit] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
+  const [copiedRoom, setCopiedRoom] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
+
+  const copyRoomCode = async () => {
+    if (!roomCode) return;
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopiedRoom(true);
+      window.setTimeout(() => setCopiedRoom(false), 1800);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
 
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
@@ -251,13 +263,21 @@ export function PlayersPanel({
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
             {roomCode && (
-              <span
-                className="glass-cell max-w-40 min-w-0 truncate rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground"
-                title={`Room code: ${roomCode}`}
+              <button
+                type="button"
+                onClick={copyRoomCode}
+                className="glass-cell inline-flex max-w-40 min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                title={`Room code: ${roomCode} — click to copy`}
+                aria-label={`Room code ${roomCode}, click to copy`}
               >
                 <span className="sr-only">Room code </span>
-                {roomCode}
-              </span>
+                <span className="truncate">{roomCode}</span>
+                {copiedRoom ? (
+                  <Check className="size-3 shrink-0 text-emerald-500" aria-hidden="true" />
+                ) : (
+                  <Copy className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                )}
+              </button>
             )}
             {stats && stats.totalGames > 0 && (
               <span
