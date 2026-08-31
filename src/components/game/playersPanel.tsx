@@ -251,7 +251,11 @@ export function PlayersPanel({
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
             {roomCode && (
-              <span className="glass-cell rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground">
+              <span
+                className="glass-cell max-w-40 min-w-0 truncate rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground"
+                title={`Room code: ${roomCode}`}
+              >
+                <span className="sr-only">Room code </span>
                 {roomCode}
               </span>
             )}
