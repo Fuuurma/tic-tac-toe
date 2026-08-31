@@ -392,6 +392,20 @@ export function usePeerRoom(options: PeerRoomOptions) {
               message: prev.status === "connected" ? "" : `Room ${prev.roomId}. Waiting for opponent.`,
             }));
           }
+        } else if (role === "guest") {
+          // Guest received welcome from the relay. The host will follow with
+          // `joined` (carrying our assigned symbol + initial game state), but
+          // record our role/status now so we don't sit in "connecting"
+          // indefinitely if `joined` is delayed or never arrives. The symbol
+          // is still derived from `joined`; welcome only confirms the relay
+          // accepted us and tells us whether the host is already present.
+          roleRef.current = "guest";
+          setState((prev) => ({
+            ...prev,
+            role: "guest",
+            status: opponent ? "connected" : "connecting",
+            message: opponent ? "" : "Waiting for host…",
+          }));
         }
         return;
       }
@@ -734,7 +748,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
         // Did the user cancel via leave() while we were polling?
         const userCancelled = matchmakingTicketRef.current === null;
-        leaveMatch(GAME_ID, response.ticket).catch(() => {});
+        // Cancel the matchmaking ticket on the Worker side. Log (don't
+        // swallow) a rejection: a silent `.catch(() => {})` here would
+        // hide a real Worker-side leak. We don't surface it to the UI
+        // because the match attempt is already over by this point.
+        leaveMatch(GAME_ID, response.ticket).catch((err) => {
+          console.error("Matchmaking leave failed after poll:", (err as Error).message);
+        });
         matchmakingTicketRef.current = null;
         hasStartedRef.current = false;
 
@@ -855,7 +875,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
     stopTimer();
     const ticket = matchmakingTicketRef.current;
     if (ticket) {
-      leaveMatch(GAME_ID, ticket).catch(() => {});
+      leaveMatch(GAME_ID, ticket).catch((err) => {
+        console.error("Matchmaking leave failed on leave:", (err as Error).message);
+      });
       matchmakingTicketRef.current = null;
     }
     hasStartedRef.current = false;
@@ -877,6 +899,32 @@ export function usePeerRoom(options: PeerRoomOptions) {
     startTimer,
     stopTimer,
   ]);
+
+  // Unmount cleanup: if the component tears down while a quick-match is
+  // mid-poll, the async `startQuickMatch` loop would otherwise keep polling
+  // for up to 2 minutes and only cancel the ticket at the very end. That
+  // leaks the ticket on the Worker side for the whole grace window. Nilling
+  // the ticket ref here breaks the poll loop immediately, and we fire a
+  // best-effort `leaveMatch` so the Worker drops the ticket now. We also
+  // close the room socket and stop the timer. No setState on unmount.
+  useEffect(() => {
+    return () => {
+      const ticket = matchmakingTicketRef.current;
+      if (ticket) {
+        matchmakingTicketRef.current = null;
+        leaveMatch(GAME_ID, ticket).catch((err) => {
+          console.error("Matchmaking leave failed on unmount:", (err as Error).message);
+        });
+      }
+      hasStartedRef.current = false;
+      if (roomRef.current) {
+        roomRef.current.send({ type: "leave" });
+        roomRef.current.close();
+        roomRef.current = null;
+      }
+      stopTimer();
+    };
+  }, [stopTimer]);
 
   const retryReconnect = useCallback(() => {
     roomRef.current?.reconnectNow();
