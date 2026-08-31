@@ -4,7 +4,6 @@ import { createInitialGameState } from "@/game/logic";
 import {
   applyAuthorizedMove,
   applyHostGuestJoin,
-  applyOptimisticMove,
   generateRoomId,
   isPeerMessage,
   PEER_MAX_ERROR_LENGTH,
@@ -38,20 +37,11 @@ describe("applyAuthorizedMove", () => {
   });
 });
 
-describe("applyOptimisticMove", () => {
-  it("lets the online guest see a legal move before the relay round trip", () => {
-    const afterHostMove = applyAuthorizedMove(onlineState(), 0, PlayerSymbol.X)!;
-    const next = applyOptimisticMove(afterHostMove, 4, PlayerSymbol.O);
-
-    expect(next?.board[4]).toBe(PlayerSymbol.O);
-    expect(next?.currentPlayer).toBe(PlayerSymbol.X);
-  });
-});
-
 describe("isPeerMessage", () => {
   it("accepts supported protocol messages", () => {
     expect(isPeerMessage({ type: "move", index: 4 })).toBe(true);
     expect(isPeerMessage({ type: "leave" })).toBe(true);
+    expect(isPeerMessage({ type: "rematchCancel" })).toBe(true);
   });
 
   it("rejects unknown or malformed protocol messages", () => {

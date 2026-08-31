@@ -7,7 +7,6 @@ import {
 } from "@/game/constants";
 import {
   applyAuthorizedMove,
-  applyOptimisticMove,
 } from "@/lib/peer";
 import {
   createInitialGameState,
@@ -81,7 +80,7 @@ function* representativeMobileStates(): Generator<{
     s.gameStatus = GameModes.ONLINE as unknown as GameState["gameStatus"];
     yield {
       label: "dead-end-eviction",
-      state: applyOptimisticMove(s, 4, PlayerSymbol.X)!,
+      state: applyAuthorizedMove(s, 4, PlayerSymbol.X)!,
     };
   }
 }

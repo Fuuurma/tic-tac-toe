@@ -22,7 +22,6 @@ import type { GameState } from "@/game/logic";
 import {
   applyAuthorizedMove,
   applyHostGuestJoin,
-  applyOptimisticMove,
   chooseGuestColor,
   generateRoomId,
   isPeerMessage,
@@ -533,6 +532,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
         }));
         return;
       }
+      if (message.type === "rematchCancel") {
+        // Host withdrew a pending rematch request before the guest responded.
+        // Clear the prompt so the guest UI no longer offers accept/decline.
+        setState((prev) =>
+          /wants a rematch/i.test(prev.message)
+            ? { ...prev, message: "Rematch request withdrawn" }
+            : prev,
+        );
+        return;
+      }
       if (message.type === "leave") {
         // Host explicitly left. The close event will follow, but we can
         // show a more specific message now.
@@ -769,7 +778,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (state.role === "guest") {
         const guestSymbol = state.guestSymbol;
         const optimistic = guestSymbol
-          ? applyOptimisticMove(stateRef.current, index, guestSymbol)
+          ? applyAuthorizedMove(stateRef.current, index, guestSymbol)
           : null;
         if (!optimistic) return;
 
@@ -829,6 +838,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
     }
   }, [state.role]);
 
+  const cancelRematch = useCallback(() => {
+    // Only the host issues rematch requests, so only the host can withdraw
+    // one. If no request is pending there is nothing to cancel — bail out
+    // without touching the wire or local state so a stray tap is a no-op.
+    if (state.role !== "host" || !hostRematchPendingRef.current) return;
+    hostRematchPendingRef.current = false;
+    roomRef.current?.send({ type: "rematchCancel" });
+    setState((prev) => ({ ...prev, message: "" }));
+  }, [state.role]);
+
   const leave = useCallback(() => {
     roomRef.current?.send({ type: "leave" });
     roomRef.current?.close();
@@ -859,8 +878,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
     stopTimer,
   ]);
 
-  useEffect(() => () => leave(), [leave]);
-
   const retryReconnect = useCallback(() => {
     roomRef.current?.reconnectNow();
   }, []);
@@ -877,6 +894,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     sendMove,
     requestRematch,
     declineRematch,
+    cancelRematch,
     retryReconnect,
     leave,
     updatePendingSettings,

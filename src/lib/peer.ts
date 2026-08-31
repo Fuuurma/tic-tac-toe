@@ -28,6 +28,7 @@ export type PeerMessage =
   | { type: "rematchRequested"; requesterSymbol: PlayerSymbol }
   | { type: "rematchAccept" }
   | { type: "rematchDecline" }
+  | { type: "rematchCancel" }
   | { type: "leave" }
   | { type: "error"; message: string };
 
@@ -142,17 +143,6 @@ export const applyAuthorizedMove = (
   }
   return makeMove(state, index);
 };
-
-/**
- * Apply a move locally while the online host validates and broadcasts it.
- * The next authoritative game update can still replace this state if the
- * relay rejects or supersedes the move.
- */
-export const applyOptimisticMove = (
-  state: GameState,
-  index: number,
-  actor: PlayerSymbol,
-): GameState | null => applyAuthorizedMove(state, index, actor);
 
 const isPlayerSymbol = (value: unknown): value is PlayerSymbol =>
   value === PlayerSymbol.X || value === PlayerSymbol.O;
@@ -382,6 +372,7 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
       return isPlayerSymbol(message.requesterSymbol);
     case "rematchAccept":
     case "rematchDecline":
+    case "rematchCancel":
     case "leave":
       return true;
     case "error":
