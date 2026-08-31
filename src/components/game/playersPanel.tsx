@@ -26,6 +26,7 @@ interface PlayersPanelProps {
   stats?: GameStats;
   gameMode?: GameMode;
   aiDifficulty?: AI_DifficultyType;
+  roomCode?: string;
   onNewGame?: () => void;
   onExit: () => void;
   onHelp?: () => void;
@@ -89,6 +90,7 @@ export function PlayersPanel({
   stats,
   gameMode,
   aiDifficulty,
+  roomCode,
   onNewGame,
   onExit,
   onHelp,
@@ -246,8 +248,13 @@ export function PlayersPanel({
             isActive && "max-w-[calc(50%-2rem)]",
           )}
         >
-          <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-            <span>{getGameModeLabel(gameState.gameMode)}</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
+            {roomCode && (
+              <span className="glass-cell rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground">
+                {roomCode}
+              </span>
+            )}
             {stats && stats.totalGames > 0 && (
               <span
                 role="status"

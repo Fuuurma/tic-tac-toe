@@ -247,9 +247,6 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
             <h1 className="font-display text-xl font-extrabold leading-none tracking-tight sm:text-2xl">
               Tic Tac Toe Disappear
             </h1>
-            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-              Oldest mark vanishes. Three in a row wins.
-            </p>
           </div>
           <button
             type="button"

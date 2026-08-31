@@ -248,12 +248,6 @@ function PlayerTab({
 }) {
   return (
     <>
-      <SymbolShapePicker
-        value={value.playerShape}
-        disabled={isOnline}
-        onChange={(shape) => onChange({ ...value, playerShape: shape })}
-      />
-
       <label htmlFor="sheet-name" className="block">
         <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           <User className="size-3.5" />
@@ -277,6 +271,12 @@ function PlayerTab({
         value={value.color}
         onChange={(nextColor) => onChange({ ...value, color: nextColor })}
       />
+
+      <SymbolShapePicker
+        value={value.playerShape}
+        disabled={isOnline}
+        onChange={(shape) => onChange({ ...value, playerShape: shape })}
+      />
     </>
   );
 }
@@ -296,60 +296,50 @@ function OpponentTab({
 
   return (
     <>
-      {/* Type toggle: Human / AI */}
-      <div className="flex flex-col gap-2">
-        <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Type
-        </span>
-        <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            role="radio"
-            aria-label="Human"
-            aria-checked={!isAI}
-            data-state={!isAI ? "active" : "inactive"}
-            onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
-            className={cn(
-              "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              !isAI
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-            )}
-          >
-            <User className="size-3.5" aria-hidden="true" />
-            Human
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-label="AI"
-            aria-checked={isAI}
-            data-state={isAI ? "active" : "inactive"}
-            onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
-            className={cn(
-              "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              isAI
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-            )}
-          >
-            <Bot className="size-3.5" aria-hidden="true" />
-            AI
-          </button>
-        </div>
+      {/* Type toggle: AI / Human — AI first to match the lobby game-mode order */}
+      <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          role="radio"
+          aria-label="AI"
+          aria-checked={isAI}
+          data-state={isAI ? "active" : "inactive"}
+          onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
+          className={cn(
+            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+            isAI
+              ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+              : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+          )}
+        >
+          <Bot className="size-3.5" aria-hidden="true" />
+          AI
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-label="Human"
+          aria-checked={!isAI}
+          data-state={!isAI ? "active" : "inactive"}
+          onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
+          className={cn(
+            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+            !isAI
+              ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+              : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+          )}
+        >
+          <User className="size-3.5" aria-hidden="true" />
+          Human
+        </button>
       </div>
 
       {/* AI difficulty — only when AI */}
       {isAI && (
-        <div className="flex flex-col gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Difficulty
-          </span>
-          <AI_DifficultySelector
-            selectedDifficulty={value.aiDifficulty}
-            onDifficultyChange={(d) => onChange({ ...value, aiDifficulty: d })}
-          />
-        </div>
+        <AI_DifficultySelector
+          selectedDifficulty={value.aiDifficulty}
+          onDifficultyChange={(d) => onChange({ ...value, aiDifficulty: d })}
+        />
       )}
 
       <label htmlFor="sheet-opponent-name" className="block">

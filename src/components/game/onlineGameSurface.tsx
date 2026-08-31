@@ -107,7 +107,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   };
 
   return (
-    <div className="flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
+    <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
       {/* Status banners — always on top so the user sees them first */}
       {peer.state.status === "waiting" && (
         <RoomIdShare
@@ -219,6 +219,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             gameState={peer.state.gameState}
             message={message}
             gameMode={GameModes.ONLINE}
+            roomCode={peer.state.roomId || undefined}
             onNewGame={peer.state.status === "connected" ? () => peer.requestRematch() : undefined}
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}

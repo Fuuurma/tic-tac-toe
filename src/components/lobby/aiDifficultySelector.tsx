@@ -7,10 +7,10 @@ interface AI_DifficultySelectorProps {
   onDifficultyChange: (difficulty: AI_DifficultyType) => void;
 }
 
-const DIFFICULTIES: { value: AI_DifficultyType; label: string; hint: string }[] = [
-  { value: AI_Difficulty.EASY, label: "Easy", hint: "Relaxed" },
-  { value: AI_Difficulty.NORMAL, label: "Normal", hint: "Smart" },
-  { value: AI_Difficulty.HARD, label: "Hard", hint: "Expert" },
+const DIFFICULTIES: { value: AI_DifficultyType; label: string }[] = [
+  { value: AI_Difficulty.EASY, label: "Easy" },
+  { value: AI_Difficulty.NORMAL, label: "Normal" },
+  { value: AI_Difficulty.HARD, label: "Hard" },
 ];
 
 export function AI_DifficultySelector({
@@ -24,7 +24,7 @@ export function AI_DifficultySelector({
         aria-label="AI difficulty"
         className="grid grid-cols-3 gap-2"
       >
-        {DIFFICULTIES.map(({ value, label, hint }) => {
+        {DIFFICULTIES.map(({ value, label }) => {
           const active = selectedDifficulty === value;
           return (
             <button
@@ -36,19 +36,14 @@ export function AI_DifficultySelector({
               data-state={active ? "active" : "inactive"}
               onClick={() => onDifficultyChange(value)}
               className={cn(
-                "flex min-h-12 flex-col items-stretch justify-center gap-1 rounded-lg border px-2 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                 active
                   ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
                   : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
               )}
             >
-              <span className="flex items-center justify-between gap-1">
-                <span className="text-xs font-semibold">{label}</span>
-                {active && <Check className="size-3.5 text-[rgb(var(--player-color))]" aria-hidden="true" />}
-              </span>
-              <span className="text-[11px] font-normal leading-tight text-muted-foreground">
-                {hint}
-              </span>
+              <span>{label}</span>
+              {active && <Check className="size-3.5 text-[rgb(var(--player-color))]" aria-hidden="true" />}
             </button>
           );
         })}
