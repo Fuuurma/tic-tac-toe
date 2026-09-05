@@ -38,6 +38,10 @@ const MATCHMAKING_BASE_URL =
 export const MATCH_POLL_INITIAL_DELAY_MS = 1_000;
 export const MATCH_POLL_MAX_DELAY_MS = 4_000;
 
+/** Hard fetch timeout — a hung connection must not stall the poll loop. */
+export const MATCHMAKING_TIMEOUT_MS = 10_000;
+const LEAVE_TIMEOUT_MS = 5_000;
+
 export function getMatchPollDelay(attempt: number): number {
   if (!Number.isInteger(attempt) || attempt < 0) return MATCH_POLL_INITIAL_DELAY_MS;
   return Math.min(
@@ -57,6 +61,7 @@ export async function findMatch(options: FindMatchOptions): Promise<MatchmakingR
         displayName: options.displayName,
         guestId: options.guestId,
       }),
+      signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS),
     },
   );
 
@@ -74,7 +79,7 @@ export async function pollMatch(
 ): Promise<MatchmakingResponse> {
   const response = await fetch(
     `${baseUrl}/api/matchmaking/${game}/poll?ticket=${encodeURIComponent(ticket)}`,
-    { method: "GET" },
+    { method: "GET", signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS) },
   );
 
   if (!response.ok) {
@@ -93,6 +98,7 @@ export async function leaveMatch(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticket }),
+    signal: AbortSignal.timeout(LEAVE_TIMEOUT_MS),
   });
   if (!response.ok) {
     throw new Error(`Matchmaking leave failed: ${response.status} ${await response.text()}`);
