@@ -15,13 +15,10 @@ import {
   createInitialGameState,
   freshGameState,
   isGameActive,
-  makeMove,
-  makeRandomMove,
 } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import {
   applyAuthorizedMove,
-  applyHostGuestJoin,
   chooseGuestColor,
   generateRoomId,
   isPeerMessage,
@@ -38,6 +35,12 @@ import {
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { RoomClient } from "@/lib/room";
+import {
+  startTurnTimer,
+  stopTurnTimer,
+} from "./peer-room/turnTimer";
+import { applyHostMove as applyHostMoveMsg, handleHostMessage } from "./peer-room/hostProtocol";
+import { handleGuestMessage } from "./peer-room/guestProtocol";
 
 /**
  * Online play hook for tic-tac-toe.
@@ -137,13 +140,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
     setState((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const stopTimer = useCallback(() => {
-    if (tickRef.current !== null) {
-      window.clearInterval(tickRef.current);
-      tickRef.current = null;
-    }
-  }, []);
-
   const broadcastGameState = useCallback((gameState: GameState) => {
     roomRef.current?.send({ type: "gameUpdate", gameState });
   }, []);
@@ -157,214 +153,37 @@ export function usePeerRoom(options: PeerRoomOptions) {
     [broadcastGameState],
   );
 
-  const startTimer = useCallback(() => {
-    stopTimer();
-    tickRef.current = window.setInterval(() => {
-      let current = stateRef.current;
-      if (!isGameActive(current)) {
-        stopTimer();
-        return;
-      }
-
-      const deadline =
-        current.turnDeadlineAt ??
-        Date.now() + (current.turnTimeRemaining ?? TURN_DURATION_MS);
-      if (current.turnDeadlineAt === undefined) {
-        current = { ...current, turnDeadlineAt: deadline };
-        stateRef.current = current;
-      }
-
-      const remaining = Math.max(0, deadline - Date.now());
-      if (remaining <= 0) {
-        if (roleRef.current !== "host") {
-          setState((prev) =>
-            prev.gameState.turnDeadlineAt === deadline
-              ? { ...prev, gameState: { ...prev.gameState, turnTimeRemaining: 0 } }
-              : prev,
-          );
-          stopTimer();
-          return;
-        }
-        const random = makeRandomMove(current.board);
-        if (random === null) {
-          stopTimer();
-          return;
-        }
-        const updated = makeMove(current, random);
-        if (!updated) {
-          stopTimer();
-          return;
-        }
-        const gameState = updated;
-        stateRef.current = gameState;
-        setState((prev) => ({
-          ...prev,
-          gameState,
-          message: `${current.players[current.currentPlayer].username || "Player"} ran out of time`,
-        }));
-        broadcastGameState(gameState);
-        return;
-      }
-
-      // Timer display is local state only. The deadline is part of the last
-      // authoritative snapshot, so ticking no longer creates wire traffic.
-      setState((prev) =>
-        prev.gameState.turnDeadlineAt === deadline
-          ? { ...prev, gameState: { ...prev.gameState, turnTimeRemaining: remaining } }
-          : prev,
-      );
-    }, 1000);
-  }, [broadcastGameState, stopTimer]);
-
-  const applyHostMove = useCallback(
-    (index: number, actor: PlayerSymbol) => {
-      const current = stateRef.current;
-      const next = applyAuthorizedMove(current, index, actor);
-      if (!next) {
-        // Only send an error rollback for guest moves. The host's own
-        // moves are validated locally and never need a wire error.
-        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        if (actor !== hostSymbol) {
-          roomRef.current?.send({ type: "error", message: "Invalid move" });
-        }
-        return;
-      }
-      commitHostState({ ...next, turnTimeRemaining: TURN_DURATION_MS });
-    },
-    [commitHostState],
+  // Turn clock + host/guest protocols live in peer-room modules
+  // (god-hook decomposition); this hook is the composition root.
+  const turnTimerDeps = useCallback(
+    () => ({ stateRef, roleRef, tickRef, setState, broadcastGameState }),
+    [broadcastGameState],
   );
+  const stopTimer = useCallback(() => stopTurnTimer({ tickRef }), []);
+  const startTimer = useCallback(() => startTurnTimer(turnTimerDeps()), [turnTimerDeps]);
 
+  const hostDeps = useCallback(
+    () => ({
+      stateRef,
+      roomRef,
+      hostSymbolRef,
+      hostRematchPendingRef,
+      hostPendingSettingsRef,
+      pendingGuestStateRef,
+      setState,
+      commitHostState,
+      broadcastGameState,
+      stopTimer,
+    }),
+    [broadcastGameState, commitHostState, stopTimer],
+  );
+  const applyHostMove = useCallback(
+    (index: number, actor: PlayerSymbol) => applyHostMoveMsg(hostDeps(), index, actor),
+    [hostDeps],
+  );
   const handleHostData = useCallback(
-    (message: PeerMessage) => {
-      if (message.type === "join") {
-        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
-          displayName: message.displayName,
-          preferredColor: message.preferredColor,
-        });
-        stateRef.current = result.gameState;
-        roomRef.current?.send({
-          type: "joined",
-          symbol: result.guestSymbol,
-          color: result.guestColor,
-          gameState: result.gameState,
-        });
-        roomRef.current?.send(
-          result.kind === "accepted"
-            ? { type: "gameStart", gameState: result.gameState }
-            : { type: "gameUpdate", gameState: result.gameState },
-        );
-        if (result.kind === "accepted") {
-          setState((prev) => ({
-            ...prev,
-            status: "connected",
-            guestSymbol: result.guestSymbol,
-            gameState: result.gameState,
-            message: "",
-          }));
-        } else {
-          setState((prev) => ({
-            ...prev,
-            status: "connected",
-            guestSymbol: result.guestSymbol,
-            gameState: result.gameState,
-          }));
-        }
-        return;
-      }
-      if (message.type === "move") {
-        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        const guestSymbol = oppositeSymbol(hostSymbol);
-        applyHostMove(message.index, guestSymbol);
-        return;
-      }
-      if (message.type === "rematchAccept") {
-        const state = stateRef.current;
-        // Two gates:
-        // 1. The host must have issued a rematch request that's still pending.
-        //    A stray guest message without a pending request is ignored.
-        // 2. The current game must already be terminal — we never reset a
-        //    game that's still in progress, even if both sides agree.
-        if (
-          !hostRematchPendingRef.current ||
-          state.winner === null ||
-          state.gameStatus !== GameStatus.COMPLETED
-        ) {
-          return;
-        }
-        hostRematchPendingRef.current = false;
-        const newHostSymbol: PlayerSymbol = randomPlayerSymbol();
-        const newGuestSymbol = oppositeSymbol(newHostSymbol);
-        hostSymbolRef.current = newHostSymbol;
-        const hostPlayer = state.players[hostSymbolRef.current ?? PlayerSymbol.X];
-        const guestPlayer = state.players[newGuestSymbol];
-        // If the host edited their identity mid-game via the edit button,
-        // pull that into the next match instead of keeping the previous one.
-        const pending = hostPendingSettingsRef.current;
-        const hostName = pending?.displayName ?? hostPlayer.username;
-        const hostColor = pending?.color ?? hostPlayer.color;
-        const hostShape = pending?.playerShape ?? hostPlayer.shape;
-        if (pending) hostPendingSettingsRef.current = null;
-        const reset = createInitialGameState({
-          gameMode: GameModes.ONLINE,
-          playerXName: newHostSymbol === PlayerSymbol.X ? hostName : guestPlayer.username,
-          playerOName: newHostSymbol === PlayerSymbol.O ? hostName : guestPlayer.username,
-          playerColor: hostColor,
-          opponentColor: guestPlayer.color,
-          playerShape: hostShape,
-          opponentShape: guestPlayer.shape,
-          humanSymbol: newHostSymbol,
-        });
-        stateRef.current = reset;
-        setState((prev) => ({
-          ...prev,
-          hostSymbol: newHostSymbol,
-          guestSymbol: newGuestSymbol,
-          gameState: reset,
-          message: "",
-        }));
-        broadcastGameState(reset);
-        roomRef.current?.send({ type: "gameStart", gameState: reset });
-        return;
-      }
-      if (message.type === "rematchDecline") {
-        hostRematchPendingRef.current = false;
-        setState((prev) => ({ ...prev, message: "Rematch declined" }));
-        return;
-      }
-      if (message.type === "leave") {
-        stopTimer();
-        hostRematchPendingRef.current = false;
-        const state = stateRef.current;
-        // Host wins by forfeit when the guest leaves (unless the game
-        // already had a winner).
-        const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-        const ended: GameState = state.winner
-          ? state
-          : { ...state, winner: hostSymbol, gameStatus: GameStatus.COMPLETED };
-        stateRef.current = ended;
-        setState((prev) => ({
-          ...prev,
-          status: "disconnected",
-          gameState: ended,
-          message: "Opponent left",
-        }));
-        return;
-      }
-      if (message.type === "error" && message.message === "Invalid move") {
-        // The host rejected the guest's most recent optimistic move. Roll
-        // back to the last authoritative state we received so the UI and
-        // gameState ref do not drift while we wait for the next gameUpdate.
-        const previous = pendingGuestStateRef.current;
-        if (previous) {
-          stateRef.current = previous;
-          pendingGuestStateRef.current = null;
-          setState((prev) => ({ ...prev, gameState: previous, message: "Move was rejected by host" }));
-        }
-        return;
-      }
-    },
-    [applyHostMove, broadcastGameState, stopTimer],
+    (message: PeerMessage) => handleHostMessage(hostDeps(), message),
+    [hostDeps],
   );
 
   const handleWsEvent = useCallback(
@@ -501,85 +320,19 @@ export function usePeerRoom(options: PeerRoomOptions) {
     [broadcastGameState, commitHostState, startTimer, stopTimer],
   );
 
-  const handleGuestData = useCallback(
-    (message: PeerMessage) => {
-      if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
-        const gameState =
-          message.gameState.turnDeadlineAt === undefined &&
-          isGameActive(message.gameState)
-            ? {
-                ...message.gameState,
-                turnDeadlineAt:
-                  Date.now() +
-                  (message.gameState.turnTimeRemaining ?? TURN_DURATION_MS),
-              }
-            : message.gameState;
-        stateRef.current = gameState;
-        // An authoritative state update supersedes any pending optimistic
-        // move, so clear the rollback snapshot. This is the ONLY place we
-        // clear it — the ref-sync effect does NOT clear it because that
-        // effect also fires on the guest's own optimistic move.
-        pendingGuestStateRef.current = null;
-        if (message.type === "joined" && message.symbol) {
-          guestSymbolRef.current = message.symbol;
-        }
-        setState((prev) => {
-          const localSymbol =
-            message.type === "joined" && message.symbol
-              ? message.symbol
-              : prev.guestSymbol;
-          return {
-            ...prev,
-            status: "connected",
-            gameState,
-            guestSymbol: localSymbol,
-            message: "",
-          };
-        });
-        return;
-      }
-      if (message.type === "rematchRequested") {
-        const state = stateRef.current;
-        setState((prev) => ({
-          ...prev,
-          message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
-        }));
-        return;
-      }
-      if (message.type === "rematchCancel") {
-        // Host withdrew a pending rematch request before the guest responded.
-        // Clear the prompt so the guest UI no longer offers accept/decline.
-        setState((prev) =>
-          /wants a rematch/i.test(prev.message)
-            ? { ...prev, message: "Rematch request withdrawn" }
-            : prev,
-        );
-        return;
-      }
-      if (message.type === "leave") {
-        // Host explicitly left. The close event will follow, but we can
-        // show a more specific message now.
-        stopTimer();
-        const current = stateRef.current;
-        const guestSymbol = guestSymbolRef.current ?? PlayerSymbol.O;
-        const gameState = current.winner
-          ? current
-          : { ...current, winner: guestSymbol, gameStatus: GameStatus.COMPLETED };
-        stateRef.current = gameState;
-        setState((prev) => ({
-          ...prev,
-          status: "disconnected",
-          gameState,
-          message: "Host left the game",
-        }));
-        return;
-      }
-      if (message.type === "error") {
-        setState((prev) => ({ ...prev, message: message.message }));
-        return;
-      }
-    },
+  const guestDeps = useCallback(
+    () => ({
+      stateRef,
+      guestSymbolRef,
+      pendingGuestStateRef,
+      setState,
+      stopTimer,
+    }),
     [stopTimer],
+  );
+  const handleGuestData = useCallback(
+    (message: PeerMessage) => handleGuestMessage(guestDeps(), message),
+    [guestDeps],
   );
 
   const buildRoomClient = useCallback((wsUrl: string, role: "host" | "guest"): RoomClient => {
