@@ -137,12 +137,20 @@ export function handleRelayEvent(
   if (event.type === "peer-left") {
     const reason = (event as { reason?: "disconnect" | "closed" | "expired" }).reason;
     if (reason === "disconnect") {
-      stopTimer();
-      setState((prev) => ({
-        ...prev,
-        status: "reconnecting",
-        message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
-      }));
+      // Don't override a deliberate leave/forfeit — the host/guest
+      // protocol sets status to "disconnected" + winner before the
+      // relay's transient disconnect event arrives. Without this guard
+      // the disconnect flips it back to "reconnecting" for the 30s
+      // grace, hiding the forfeit result (fleet audit 2026-09-06 P2-1).
+      setState((prev) => {
+        if (prev.status === "disconnected") return prev;
+        stopTimer();
+        return {
+          ...prev,
+          status: "reconnecting",
+          message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
+        };
+      });
       return;
     }
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
