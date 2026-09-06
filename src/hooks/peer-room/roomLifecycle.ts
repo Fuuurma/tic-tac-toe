@@ -46,16 +46,25 @@ export interface RoomLifecycleDeps {
   stopTimer: () => void;
 }
 
-/** Closes any open room connection before opening a new one. Without
- *  this, a "Try again" after a timeout leaves the old WebSocket open,
- *  and its message handler can corrupt the new room's state via
- *  shared refs. */
-function closeExistingRoom(roomRef: RoomLifecycleDeps["roomRef"]) {
+/** Graceful teardown: notify the peer/relay BEFORE closing the socket.
+ *  F7 regression pin — every close path must send `{type:"leave"}` first;
+ *  a frame sent after close is silently dropped, so the peer never learns
+ *  the room was left deliberately. Best-effort: send's boolean is ignored
+ *  (a dead socket simply can't deliver). No-op on a null ref. */
+export function leaveRoom(roomRef: { current: RoomClient | null }) {
   if (roomRef.current) {
     roomRef.current.send({ type: "leave" });
     roomRef.current.close();
     roomRef.current = null;
   }
+}
+
+/** Closes any open room connection before opening a new one. Without
+ *  this, a "Try again" after a timeout leaves the old WebSocket open,
+ *  and its message handler can corrupt the new room's state via
+ *  shared refs. */
+function closeExistingRoom(roomRef: RoomLifecycleDeps["roomRef"]) {
+  leaveRoom(roomRef);
 }
 
 export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "host" | "guest"): RoomClient {

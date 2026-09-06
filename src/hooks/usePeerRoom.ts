@@ -13,6 +13,7 @@ import { handleRelayEvent } from "./peer-room/relayEvents";
 import { abandonTicket, runQuickMatch } from "./peer-room/matchmaking";
 import {
   joinAsGuest as joinAsGuestImpl,
+  leaveRoom,
   startAsHost as startAsHostImpl,
 } from "./peer-room/roomLifecycle";
 import { applyHostMove as applyHostMoveMsg, handleHostMessage } from "./peer-room/hostProtocol";
@@ -320,9 +321,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [state.role]);
 
   const leave = useCallback(() => {
-    roomRef.current?.send({ type: "leave" });
-    roomRef.current?.close();
-    roomRef.current = null;
+    leaveRoom(roomRef);
     stopTimer();
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
@@ -356,11 +355,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     return () => {
       abandonTicket({ matchmakingTicketRef }, "on unmount");
       hasStartedRef.current = false;
-      if (roomRef.current) {
-        roomRef.current.send({ type: "leave" });
-        roomRef.current.close();
-        roomRef.current = null;
-      }
+      leaveRoom(roomRef);
       stopTimer();
     };
   }, [stopTimer]);
