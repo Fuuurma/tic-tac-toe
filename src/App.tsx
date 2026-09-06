@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { ErrorBoundary } from "@/components/errorBoundary";
 import {
   Color,
   GameModes,
@@ -92,22 +93,24 @@ export default function App() {
           <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
         {view === "game" && config && (
-          <Suspense
-            fallback={
-              <div
-                role="status"
-                className="glass flex items-center justify-center px-4 py-3 text-sm text-muted-foreground"
-              >
-                Loading game…
-              </div>
-            }
-          >
-            <GameView
-              key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
-              config={config}
-              onExit={handleExit}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense
+              fallback={
+                <div
+                  role="status"
+                  className="glass flex items-center justify-center px-4 py-3 text-sm text-muted-foreground"
+                >
+                  Loading game…
+                </div>
+              }
+            >
+              <GameView
+                key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
+                config={config}
+                onExit={handleExit}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
       </div>
     </main>
