@@ -7,10 +7,12 @@ import {
   PlayerTypes,
   SymbolShape,
 } from "@/game/constants";
+import { GameStatus } from "@/game/constants";
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
 import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
+import { useGameStats } from "@/hooks/useGameStats";
 import {
   SettingsSheet,
   type PlayerSettings,
@@ -65,6 +67,30 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   const localSymbol: PlayerSymbol | null =
     peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
+
+  // Record online game results (fleet audit 2026-09-02 P2-6: online
+  // wins/losses were silently dropped — useGameStats was only wired in
+  // LocalGameSurface).
+  const { recordWin, recordLoss } = useGameStats();
+  const recordedMoveCount = useRef<number>(-1);
+  useEffect(() => {
+    if (peer.state.gameState.gameStatus === GameStatus.ACTIVE && peer.state.gameState.moveCount === 0) {
+      recordedMoveCount.current = -1;
+    }
+    if (peer.state.gameState.winner !== null && localSymbol !== null) {
+      if (peer.state.gameState.moveCount === recordedMoveCount.current) return;
+      recordedMoveCount.current = peer.state.gameState.moveCount;
+      if (peer.state.gameState.winner === localSymbol) recordWin();
+      else recordLoss();
+    }
+  }, [
+    peer.state.gameState.winner,
+    peer.state.gameState.gameStatus,
+    peer.state.gameState.moveCount,
+    localSymbol,
+    recordWin,
+    recordLoss,
+  ]);
 
   const previewPlayer: PlayerSymbol | undefined =
     localSymbol !== null && peer.state.gameState.currentPlayer === localSymbol
