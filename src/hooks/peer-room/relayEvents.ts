@@ -183,9 +183,13 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "error") {
+    // Cap message length — a hostile relay or injected error could
+    // send an arbitrarily long string (fleet audit 2026-09-06 P4).
+    const PEER_MAX_ERROR_LENGTH = 200;
+    const raw = String((event as { message?: string }).message ?? "Room error");
     setState((prev) => ({
       ...prev,
-      message: String((event as { message?: string }).message ?? "Room error"),
+      message: raw.slice(0, PEER_MAX_ERROR_LENGTH),
     }));
     return;
   }

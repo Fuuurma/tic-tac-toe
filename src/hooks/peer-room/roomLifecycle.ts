@@ -83,7 +83,14 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     // type:"error" to the relay handler swallowed the host's
     // "Invalid move" message, leaving the guest's optimistic-move
     // rollback dead (fleet critic 2026-09-06 P2).
-    const isRelayError = msg.type === "error" && "code" in msg;
+    // Validate code is a non-empty string — a peer adding `code:"x"`
+    // to a peer error would otherwise bypass isPeerMessage validation
+    // (fleet audit 2026-09-06 P4).
+    const isRelayError =
+      msg.type === "error" &&
+      "code" in msg &&
+      typeof msg.code === "string" &&
+      msg.code.length > 0;
     if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || isRelayError) {
       handleWsEvent(msg as { type: string; [k: string]: unknown });
       if (msg.type === "welcome" && role === "guest") {
