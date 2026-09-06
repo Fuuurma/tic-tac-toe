@@ -91,6 +91,7 @@ export interface InitialGameStateInput {
 
 export const createInitialGameState = (
   input: InitialGameStateInput,
+  now: number = Date.now(),
 ): GameState => {
   const state = freshGameState();
   const humanSymbol = input.humanSymbol ?? PlayerSymbol.X;
@@ -107,7 +108,9 @@ export const createInitialGameState = (
     gameMode: input.gameMode,
     aiDifficulty: input.aiDifficulty,
     turnTimeRemaining: TURN_DURATION_MS,
-    turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+    // `now` is injectable so unit tests + replay can pin the deadline;
+    // production callers omit it and the engine reads the wall clock.
+    turnDeadlineAt: now + TURN_DURATION_MS,
     players: {
       [PlayerSymbol.X]: {
         ...state.players[PlayerSymbol.X],
@@ -170,6 +173,7 @@ export const checkWinner = (board: Board): {
 export const makeMove = (
   state: GameState,
   index: number,
+  now: number = Date.now(),
 ): GameState | null => {
   if (!isValidMove(state, index, state.currentPlayer)) return null;
   const board = state.board.slice();
@@ -192,7 +196,10 @@ export const makeMove = (
     ...state.players,
     [symbol]: {
       ...state.players[symbol],
-      lastMoveAt: Date.now(),
+      // `now` is injectable so unit tests + replay can pin
+      // lastMoveAt; production callers omit it and the engine
+      // reads the wall clock.
+      lastMoveAt: now,
     },
   };
   return {
@@ -213,7 +220,7 @@ export const makeMove = (
     moveCount: state.moveCount + 1,
     gameStatus: winner ? GameStatus.COMPLETED : GameStatus.ACTIVE,
     turnTimeRemaining: TURN_DURATION_MS,
-    turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+    turnDeadlineAt: now + TURN_DURATION_MS,
   };
 };
 
