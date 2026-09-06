@@ -46,22 +46,25 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // This is self-contained — it does NOT rely on the parent remounting via
   // a `key` prop to reset the connection.
   //
-  // `peer`'s action functions are stable (useCallback in usePeerRoom), so
-  // reading them directly inside the effect is safe; the old render-time
-  // `peerRef.current = peer` sync violated the ref rules (fleet P1
-  // 2026-09-06) and is gone.
+  // The peer ACTION functions are useCallback-stable in usePeerRoom, so
+  // the effect depends on them individually — NOT on the `peer` object,
+  // which is a fresh literal every render (dep on `peer` + the 1s turn
+  // timer re-render = leave/reconnect every second; regression caught by
+  // the fleet critic 2026-09-06). The old render-time
+  // `peerRef.current = peer` sync violated the ref rules and is gone.
+  const { startQuickMatch, joinAsGuest, startAsHost, leave } = peer;
   useEffect(() => {
     if (config.onlineAction === "quick") {
-      peer.startQuickMatch();
+      startQuickMatch();
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
-      peer.joinAsGuest(config.onlineRoomId);
+      joinAsGuest(config.onlineRoomId);
     } else {
-      peer.startAsHost(config.onlineRoomId || undefined);
+      startAsHost(config.onlineRoomId || undefined);
     }
     return () => {
-      peer.leave();
+      leave();
     };
-  }, [config.onlineAction, config.onlineRoomId, peer]);
+  }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, leave]);
 
   const localSymbol: PlayerSymbol | null =
     peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
