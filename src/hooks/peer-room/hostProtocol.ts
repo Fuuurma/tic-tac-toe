@@ -29,9 +29,6 @@ export interface HostProtocolDeps {
   hostSymbolRef: { current: PlayerSymbol | null };
   hostRematchPendingRef: { current: boolean };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
-  /** Guest-side optimistic-move snapshot — read by the (defensive)
-   *  host-side "Invalid move" branch, unchanged from the original. */
-  pendingGuestStateRef: { current: GameState | null };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
@@ -67,7 +64,6 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     hostSymbolRef,
     hostRematchPendingRef,
     hostPendingSettingsRef,
-    pendingGuestStateRef,
     setState,
     broadcastGameState,
     stopTimer,
@@ -132,9 +128,14 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       hostRematchPendingRef.current = false;
       const newHostSymbol: PlayerSymbol = randomPlayerSymbol();
       const newGuestSymbol = oppositeSymbol(newHostSymbol);
+      // Read BOTH player configs from the OLD state BEFORE overwriting
+      // hostSymbolRef — when symbols swap, indexing by the NEW symbol
+      // would give each side the other player's name/color/shape
+      // (fleet critic 2026-09-06 P1).
+      const oldHostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      const hostPlayer = state.players[oldHostSymbol];
+      const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
       hostSymbolRef.current = newHostSymbol;
-      const hostPlayer = state.players[hostSymbolRef.current ?? PlayerSymbol.X];
-      const guestPlayer = state.players[newGuestSymbol];
       // If the host edited their identity mid-game via the edit button,
       // pull that into the next match instead of keeping the previous one.
       const pending = hostPendingSettingsRef.current;
@@ -188,17 +189,9 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       }));
       return;
     }
-    if (message.type === "error" && message.message === "Invalid move") {
-      // The host rejected the guest's most recent optimistic move. Roll
-      // back to the last authoritative state we received so the UI and
-      // gameState ref do not drift while we wait for the next gameUpdate.
-      const previous = pendingGuestStateRef.current;
-      if (previous) {
-        stateRef.current = previous;
-        pendingGuestStateRef.current = null;
-        setState((prev) => ({ ...prev, gameState: previous, message: "Move was rejected by host" }));
-      }
-      return;
-    }
+    // NOTE: the host never receives {type:"error", message:"Invalid
+    // move"} — the host SENDS it. The rollback branch for that message
+    // lives in guestProtocol.ts (fleet critic 2026-09-06: it was
+    // misplaced here, making the guest rollback dead code).
   }
 }

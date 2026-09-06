@@ -108,6 +108,24 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       return;
     }
     if (message.type === "error") {
+      // Host rejected the guest's most recent optimistic move. Roll
+      // back to the last authoritative state so the UI and gameState
+      // ref do not drift while we wait for the next gameUpdate.
+      // (Branch moved here from hostProtocol — the host SENDS this
+      // error, only the GUEST receives it. Fleet critic 2026-09-06.)
+      if (message.message === "Invalid move") {
+        const previous = pendingGuestStateRef.current;
+        if (previous) {
+          stateRef.current = previous;
+          pendingGuestStateRef.current = null;
+          setState((prev) => ({
+            ...prev,
+            gameState: previous,
+            message: "Move was rejected by host",
+          }));
+        }
+        return;
+      }
       setState((prev) => ({ ...prev, message: message.message }));
       return;
     }
