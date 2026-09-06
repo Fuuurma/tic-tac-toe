@@ -40,30 +40,28 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     gameMode: GameModes.ONLINE,
   });
 
-  // Ref to the latest peer functions so the connection effect can read them
-  // without depending on the peer object (which is a new reference every
-  // render). This avoids stale closures while keeping deps explicit.
-  const peerRef = useRef(peer);
-  peerRef.current = peer;
-
   // Connection effect: runs when the action or room ID changes.
   // The cleanup leaves the room before re-connecting, so changing the action
   // mid-session disconnects cleanly instead of leaking a stale connection.
   // This is self-contained — it does NOT rely on the parent remounting via
   // a `key` prop to reset the connection.
+  //
+  // `peer`'s action functions are stable (useCallback in usePeerRoom), so
+  // reading them directly inside the effect is safe; the old render-time
+  // `peerRef.current = peer` sync violated the ref rules (fleet P1
+  // 2026-09-06) and is gone.
   useEffect(() => {
-    const p = peerRef.current;
     if (config.onlineAction === "quick") {
-      p.startQuickMatch();
+      peer.startQuickMatch();
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
-      p.joinAsGuest(config.onlineRoomId);
+      peer.joinAsGuest(config.onlineRoomId);
     } else {
-      p.startAsHost(config.onlineRoomId || undefined);
+      peer.startAsHost(config.onlineRoomId || undefined);
     }
     return () => {
-      p.leave();
+      peer.leave();
     };
-  }, [config.onlineAction, config.onlineRoomId]);
+  }, [config.onlineAction, config.onlineRoomId, peer]);
 
   const localSymbol: PlayerSymbol | null =
     peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
