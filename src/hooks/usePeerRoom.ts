@@ -1,30 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Color,
-  GAME_ID,
-  GameModes,
-  GameStatus,
-  PLAYER_CONFIG,
-  PlayerSymbol,
-  SymbolShape,
-  oppositeSymbol,
-  randomPlayerSymbol,
-} from "@/game/constants";
-import {
-  createInitialGameState,
-  freshGameState,
-  isGameActive,
-} from "@/game/logic";
+import { Color, GameModes, GameStatus, PlayerSymbol, SymbolShape } from "@/game/constants";
+import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import {
-  applyAuthorizedMove,
-  chooseGuestColor,
-  generateRoomId,
-  isPeerMessage,
-} from "@/lib/peer";
+import { applyAuthorizedMove } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
-import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
-import { buildRoomWsUrl } from "@/lib/matchmaking";
 import { RoomClient } from "@/lib/room";
 import {
   startTurnTimer,
@@ -32,6 +11,10 @@ import {
 } from "./peer-room/turnTimer";
 import { handleRelayEvent } from "./peer-room/relayEvents";
 import { abandonTicket, runQuickMatch } from "./peer-room/matchmaking";
+import {
+  joinAsGuest as joinAsGuestImpl,
+  startAsHost as startAsHostImpl,
+} from "./peer-room/roomLifecycle";
 import { applyHostMove as applyHostMoveMsg, handleHostMessage } from "./peer-room/hostProtocol";
 import { handleGuestMessage } from "./peer-room/guestProtocol";
 
@@ -214,129 +197,33 @@ export function usePeerRoom(options: PeerRoomOptions) {
     [guestDeps],
   );
 
-  const buildRoomClient = useCallback((wsUrl: string, role: "host" | "guest"): RoomClient => {
-    const identity = getOrCreateGuestIdentity();
-    const client = new RoomClient({
-      wsUrl,
-      game: GAME_ID,
-      guestId: identity.guestId,
-      displayName: options.hostDisplayName,
-      role,
-    });
-    client.setMessageHandler((msg) => {
-      if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || msg.type === "error") {
-        handleWsEvent(msg as { type: string; [k: string]: unknown });
-        if (msg.type === "welcome" && role === "guest") {
-          const identity = getOrCreateGuestIdentity();
-          client.send({
-            type: "join",
-            displayName: options.hostDisplayName,
-            guestId: identity.guestId,
-            preferredColor: options.hostColor,
-          });
-        }
-      } else if (isPeerMessage(msg)) {
-        const m = msg as PeerMessage;
-        if (stateRef.current && roleRef.current) {
-          if (roleRef.current === "host") {
-            handleHostData(m);
-          } else {
-            handleGuestData(m);
-          }
-        }
-      }
-    });
-    client.setStatusHandler((status, detail) => {
-      if (status === "connected" && roleRef.current === null) {
-        // initial room connect: status will be set in welcome handler
-      } else if (status === "reconnecting") {
-        setState((prev) => ({ ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." }));
-      } else if (status === "disconnected") {
-        setState((prev) => ({ ...prev, status: "disconnected", message: detail ?? "Disconnected" }));
-      } else if (status === "error") {
-        setState((prev) => ({ ...prev, status: "error", message: detail ?? "Connection error" }));
-      }
-    });
-    roomRef.current = client;
-    return client;
-  }, [handleGuestData, handleHostData, handleWsEvent, options.hostDisplayName, options.hostColor]);
+  const lifecycleDeps = useCallback(
+    () => ({
+      roomRef,
+      stateRef,
+      roleRef,
+      hostSymbolRef,
+      hostDisplayName: options.hostDisplayName,
+      hostColor: options.hostColor,
+      hostShape: options.hostShape,
+      setState,
+      update,
+      handleWsEvent,
+      handleHostData,
+      handleGuestData,
+      stopTimer,
+    }),
+    [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
+  );
 
   const startAsHost = useCallback(
-    (providedRoomId?: string, wsUrl?: string) => {
-      stopTimer();
-      // Close any existing room connection before opening a new one.
-      // Without this, a "Try again" after a timeout leaves the old
-      // WebSocket open, and its message handler can corrupt the new
-      // room's state via shared refs.
-      if (roomRef.current) {
-        roomRef.current.send({ type: "leave" });
-        roomRef.current.close();
-        roomRef.current = null;
-      }
-      const roomId = providedRoomId ?? generateRoomId();
-      const hostSymbol: PlayerSymbol = randomPlayerSymbol();
-      const guestSymbol = oppositeSymbol(hostSymbol);
-      hostSymbolRef.current = hostSymbol;
-      const waitingGame = createInitialGameState({
-        gameMode: GameModes.ONLINE,
-        playerXName:
-          hostSymbol === PlayerSymbol.X
-            ? sanitizeDisplayName(options.hostDisplayName, generateGuestDisplayName())
-            : "Waiting for opponent",
-        playerOName:
-          hostSymbol === PlayerSymbol.O
-            ? sanitizeDisplayName(options.hostDisplayName, generateGuestDisplayName())
-            : "Waiting for opponent",
-        playerColor: options.hostColor,
-        opponentColor: chooseGuestColor(Color.BLUE, options.hostColor),
-        playerShape: options.hostShape ?? PLAYER_CONFIG[hostSymbol].defaultShape,
-        humanSymbol: hostSymbol,
-      });
-      waitingGame.gameStatus = GameStatus.WAITING;
-      stateRef.current = waitingGame;
-      update({
-        role: "host",
-        status: "creating",
-        roomId,
-        hostSymbol,
-        guestSymbol,
-        gameState: waitingGame,
-        message: "",
-      });
-      roleRef.current = "host";
-
-      const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, GAME_ID);
-      const room = buildRoomClient(resolvedUrl, "host");
-      room.connect().catch((err) => {
-        update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
-      });
-    },
-    [buildRoomClient, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
+    (providedRoomId?: string, wsUrl?: string) => startAsHostImpl(lifecycleDeps(), providedRoomId, wsUrl),
+    [lifecycleDeps],
   );
 
   const joinAsGuest = useCallback(
-    (roomId: string, wsUrl?: string) => {
-      stopTimer();
-      if (roomRef.current) {
-        roomRef.current.send({ type: "leave" });
-        roomRef.current.close();
-        roomRef.current = null;
-      }
-      const trimmed = roomId.trim();
-      if (!trimmed) {
-        update({ status: "error", message: "Enter a room ID" });
-        return;
-      }
-      update({ role: "guest", status: "connecting", roomId: trimmed, message: "Connecting..." });
-      roleRef.current = "guest";
-
-      const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, GAME_ID);
-      const room = buildRoomClient(resolvedUrl, "guest");
-      room.connect().catch((err) => {
-        update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
-      });
-    },
-    [buildRoomClient, stopTimer, update],
+    (roomId: string, wsUrl?: string) => joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl),
+    [lifecycleDeps],
   );
 
 
