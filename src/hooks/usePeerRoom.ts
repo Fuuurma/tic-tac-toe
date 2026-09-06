@@ -24,20 +24,14 @@ import {
 } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
-import {
-  buildRoomWsUrl,
-  findMatch,
-  getMatchPollDelay,
-  leaveMatch,
-  pollMatch,
-  type MatchmakingResponse,
-} from "@/lib/matchmaking";
+import { buildRoomWsUrl } from "@/lib/matchmaking";
 import { RoomClient } from "@/lib/room";
 import {
   startTurnTimer,
   stopTurnTimer,
 } from "./peer-room/turnTimer";
 import { handleRelayEvent } from "./peer-room/relayEvents";
+import { abandonTicket, runQuickMatch } from "./peer-room/matchmaking";
 import { applyHostMove as applyHostMoveMsg, handleHostMessage } from "./peer-room/hostProtocol";
 import { handleGuestMessage } from "./peer-room/guestProtocol";
 
@@ -345,86 +339,18 @@ export function usePeerRoom(options: PeerRoomOptions) {
     [buildRoomClient, stopTimer, update],
   );
 
+
   const startQuickMatch = useCallback(async () => {
-    if (hasStartedRef.current) return;
-    hasStartedRef.current = true;
-    stopTimer();
-    update({ status: "creating", message: "Finding match…" });
-    const identity = getOrCreateGuestIdentity();
-    const sessionId = crypto.randomUUID();
-    try {
-      const response: MatchmakingResponse = await findMatch({
-        game: GAME_ID,
-        peerId: sessionId,
-        displayName: options.hostDisplayName,
-        guestId: identity.guestId,
-      });
-
-      if (response.status === "waiting") {
-        matchmakingTicketRef.current = response.ticket;
-        const wsUrl = buildRoomWsUrl(response.roomId, GAME_ID);
-        startAsHost(response.roomId, wsUrl);
-
-        // Poll the matchmaking service until the guest is paired.
-        // Bounded by a max duration and the user's ability to cancel
-        // via leave() (which clears the ticket ref).
-        const MAX_POLL_MS = 120_000;
-        const pollStart = Date.now();
-        let pollAttempt = 0;
-        let matched = false;
-        while (Date.now() - pollStart < MAX_POLL_MS) {
-          if (!matchmakingTicketRef.current) break; // user cancelled via leave()
-          const pollResponse = await pollMatch(GAME_ID, response.ticket);
-          if (pollResponse.status === "matched") {
-            matched = true;
-            break;
-          }
-          const delay = getMatchPollDelay(pollAttempt);
-          pollAttempt += 1;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-
-        // Did the user cancel via leave() while we were polling?
-        const userCancelled = matchmakingTicketRef.current === null;
-        // Cancel the matchmaking ticket on the Worker side. Log (don't
-        // swallow) a rejection: a silent `.catch(() => {})` here would
-        // hide a real Worker-side leak. We don't surface it to the UI
-        // because the match attempt is already over by this point.
-        leaveMatch(GAME_ID, response.ticket).catch((err) => {
-          console.error("Matchmaking leave failed after poll:", (err as Error).message);
-        });
-        matchmakingTicketRef.current = null;
-        hasStartedRef.current = false;
-
-        // If the polling timed out without a match and the user didn't
-        // cancel, surface an error so they aren't left in "waiting"
-        // forever. The host room stays open — the user can share the
-        // code manually or exit.
-        if (!matched && !userCancelled) {
-          setState((prev) =>
-            prev.status === "waiting" || prev.status === "creating"
-              ? {
-                  ...prev,
-                  status: "error",
-                  message: "No opponent found after 2 minutes. Try again or share your room code.",
-                }
-              : prev,
-          );
-        }
-        return;
-      }
-
-      if (response.status === "matched") {
-        matchmakingTicketRef.current = null;
-        hasStartedRef.current = false;
-        joinAsGuest(response.match.roomId, response.match.wsUrl);
-        return;
-      }
-    } catch (err) {
-      matchmakingTicketRef.current = null;
-      hasStartedRef.current = false;
-      update({ status: "error", message: `Matchmaking failed: ${(err as Error).message}` });
-    }
+    await runQuickMatch({
+      matchmakingTicketRef,
+      hasStartedRef,
+      stopTimer,
+      setStatus: update,
+      patchStatus: setState,
+      hostDisplayName: options.hostDisplayName,
+      startAsHost,
+      joinAsGuest,
+    });
   }, [joinAsGuest, options.hostDisplayName, startAsHost, stopTimer, update]);
 
   const sendMove = useCallback(
@@ -511,13 +437,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     roomRef.current?.close();
     roomRef.current = null;
     stopTimer();
-    const ticket = matchmakingTicketRef.current;
-    if (ticket) {
-      leaveMatch(GAME_ID, ticket).catch((err) => {
-        console.error("Matchmaking leave failed on leave:", (err as Error).message);
-      });
-      matchmakingTicketRef.current = null;
-    }
+    abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
     setState((prev) => ({ ...prev, status: "disconnected", message: "You left" }));
   }, [stopTimer]);
@@ -547,13 +467,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // close the room socket and stop the timer. No setState on unmount.
   useEffect(() => {
     return () => {
-      const ticket = matchmakingTicketRef.current;
-      if (ticket) {
-        matchmakingTicketRef.current = null;
-        leaveMatch(GAME_ID, ticket).catch((err) => {
-          console.error("Matchmaking leave failed on unmount:", (err as Error).message);
-        });
-      }
+      abandonTicket({ matchmakingTicketRef }, "on unmount");
       hasStartedRef.current = false;
       if (roomRef.current) {
         roomRef.current.send({ type: "leave" });
