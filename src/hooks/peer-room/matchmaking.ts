@@ -89,13 +89,28 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // via leave() (which clears the ticket ref).
       const pollStart = Date.now();
       let pollAttempt = 0;
+      let consecutiveFailures = 0;
       let matched = false;
       while (Date.now() - pollStart < MAX_POLL_MS) {
         if (!matchmakingTicketRef.current) break; // user cancelled via leave()
-        const pollResponse = await pollMatch(GAME_ID, response.ticket);
-        if (pollResponse.status === "matched") {
-          matched = true;
-          break;
+        try {
+          const pollResponse = await pollMatch(GAME_ID, response.ticket);
+          consecutiveFailures = 0;
+          if (pollResponse.status === "matched") {
+            matched = true;
+            break;
+          }
+        } catch (err) {
+          // A transient network error must not abort the whole
+          // quick-match attempt (fleet 2026-09-06): count consecutive
+          // failures and keep backing off; bail only when the service
+          // is persistently unreachable.
+          consecutiveFailures += 1;
+          console.warn(
+            `Matchmaking poll failed (${consecutiveFailures}):`,
+            (err as Error).message,
+          );
+          if (consecutiveFailures >= 5) throw err;
         }
         const delay = getMatchPollDelay(pollAttempt);
         pollAttempt += 1;
