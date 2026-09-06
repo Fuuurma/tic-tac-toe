@@ -56,6 +56,10 @@ export function handleRelayEvent(
       // Host wakes up (initial or reconnect). If opponent present, they're
       // already back; if not, wait for peer-joined.
       if (opponent) {
+        // Host reconnects with opponent present — restart the turn
+        // timer. Without this the timer stays stopped from the
+        // peer-left:disconnect event and the host's display is frozen
+        // (fleet audit 2026-09-06 P2-2).
         setState((prev) => ({
           ...prev,
           role: "host",
@@ -63,6 +67,7 @@ export function handleRelayEvent(
           guestSymbol: oppositeSymbol(hostSymbolRef.current ?? PlayerSymbol.X),
           message: "",
         }));
+        startTimer();
       } else {
         setState((prev) => ({
           ...prev,
