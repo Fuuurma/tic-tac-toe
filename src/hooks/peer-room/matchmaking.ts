@@ -30,6 +30,8 @@ export interface MatchmakingDeps {
   hostDisplayName: string;
   startAsHost: (roomId?: string, wsUrl?: string) => void;
   joinAsGuest: (roomId: string, wsUrl?: string) => void;
+  /** Test seam: shrink the 2-minute quick-match poll ceiling. */
+  maxPollMs?: number;
 }
 
 const MAX_POLL_MS = 120_000;
@@ -64,6 +66,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     hostDisplayName,
     startAsHost,
     joinAsGuest,
+    maxPollMs: maxPollMsArg,
   } = deps;
   if (hasStartedRef.current) return;
   hasStartedRef.current = true;
@@ -88,10 +91,11 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // Bounded by a max duration and the user's ability to cancel
       // via leave() (which clears the ticket ref).
       const pollStart = Date.now();
+      const maxPollMs = maxPollMsArg ?? MAX_POLL_MS;
       let pollAttempt = 0;
       let consecutiveFailures = 0;
       let matched = false;
-      while (Date.now() - pollStart < MAX_POLL_MS) {
+      while (Date.now() - pollStart < maxPollMs) {
         if (!matchmakingTicketRef.current) break; // user cancelled via leave()
         try {
           const pollResponse = await pollMatch(GAME_ID, response.ticket);
@@ -119,7 +123,15 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
 
       // Did the user cancel via leave() while we were polling?
       const userCancelled = matchmakingTicketRef.current === null;
-      abandonTicket(deps, "after poll");
+      if (matched) {
+        // The poll consumed the ticket — the guest is on their way to
+        // our host room. Firing leaveMatch for a consumed ticket either
+        // 404s or risks tearing down the pairing (fleet 2026-09-07),
+        // so just drop the ref.
+        matchmakingTicketRef.current = null;
+      } else {
+        abandonTicket(deps, "after poll");
+      }
       hasStartedRef.current = false;
 
       // If the polling timed out without a match and the user didn't
