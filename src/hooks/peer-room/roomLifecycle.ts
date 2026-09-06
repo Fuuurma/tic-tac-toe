@@ -78,7 +78,13 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     role,
   });
   client.setMessageHandler((msg) => {
-    if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || msg.type === "error") {
+    // Relay errors carry a `code` field (lib/room.ts ErrorMessage);
+    // HOST-sent `{type:"error"}` peer messages do not. Routing every
+    // type:"error" to the relay handler swallowed the host's
+    // "Invalid move" message, leaving the guest's optimistic-move
+    // rollback dead (fleet critic 2026-09-06 P2).
+    const isRelayError = msg.type === "error" && "code" in msg;
+    if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || isRelayError) {
       handleWsEvent(msg as { type: string; [k: string]: unknown });
       if (msg.type === "welcome" && role === "guest") {
         const identity = getOrCreateGuestIdentity();
