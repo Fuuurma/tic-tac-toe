@@ -93,6 +93,7 @@ export class RoomClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
   private welcomeRejecters: Array<(reason: Error) => void> = [];
+  private pendingConnect: Promise<RoomSession> | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -140,7 +141,18 @@ export class RoomClient {
     if (this.status === "connected" && this.role) {
       return { role: this.role, opponent: this.opponent };
     }
-    return this.openSocket();
+    // Guard against concurrent connect() calls: if a socket is already
+    // opening, reuse the pending promise instead of creating a second
+    // WebSocket. Without this, multiple calls each push resolvers and a
+    // single `welcome` resolves all of them — masking connection failures
+    // from the duplicate socket (P2 race fix).
+    if (this.pendingConnect) {
+      return this.pendingConnect;
+    }
+    this.pendingConnect = this.openSocket().finally(() => {
+      this.pendingConnect = null;
+    });
+    return this.pendingConnect;
   }
 
   send(message: RoomMessage): boolean {
@@ -296,10 +308,14 @@ export class RoomClient {
   private scheduleReconnect(): void {
     if (this.closedByUser || !this.opts.autoReconnect) return;
     if (this.reconnectTimer) return;
-    const delay = Math.min(
+    const base = Math.min(
       this.opts.maxBackoffMs,
       1000 * 2 ** Math.min(this.reconnectAttempt, 4),
     );
+    // Add ±25% jitter to prevent thundering herd when a DO restarts many
+    // clients simultaneously (P14 fix).
+    const jitter = base * (0.75 + Math.random() * 0.5);
+    const delay = Math.round(jitter);
     this.reconnectAttempt += 1;
     this.setStatus("reconnecting", `Reconnecting in ${Math.round(delay / 100) / 10}s`);
     this.reconnectTimer = setTimeout(() => {

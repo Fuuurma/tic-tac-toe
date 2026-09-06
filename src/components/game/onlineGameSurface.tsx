@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AI_Difficulty,
   Color,
@@ -38,22 +38,30 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     gameMode: GameModes.ONLINE,
   });
 
+  // Ref to the latest peer functions so the connection effect can read them
+  // without depending on the peer object (which is a new reference every
+  // render). This avoids stale closures while keeping deps explicit.
+  const peerRef = useRef(peer);
+  peerRef.current = peer;
+
+  // Connection effect: runs when the action or room ID changes.
+  // The cleanup leaves the room before re-connecting, so changing the action
+  // mid-session disconnects cleanly instead of leaking a stale connection.
+  // This is self-contained — it does NOT rely on the parent remounting via
+  // a `key` prop to reset the connection.
   useEffect(() => {
+    const p = peerRef.current;
     if (config.onlineAction === "quick") {
-      peer.startQuickMatch();
+      p.startQuickMatch();
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
-      peer.joinAsGuest(config.onlineRoomId);
+      p.joinAsGuest(config.onlineRoomId);
     } else {
-      peer.startAsHost(config.onlineRoomId || undefined);
+      p.startAsHost(config.onlineRoomId || undefined);
     }
     return () => {
-      peer.leave();
+      p.leave();
     };
-    // Intentionally empty deps: this component is remounted via the `key`
-    // prop in App.tsx whenever the config changes, so the effect only runs
-    // once per mount. Adding `config` or `peer` would cause double-connects.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [config.onlineAction, config.onlineRoomId]);
 
   const localSymbol: PlayerSymbol | null =
     peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;

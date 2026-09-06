@@ -339,7 +339,10 @@ const isGameState = (value: unknown): value is GameState => {
     !(typeof state.turnDeadlineAt === "number" &&
       Number.isSafeInteger(state.turnDeadlineAt) &&
       state.turnDeadlineAt >= 0 &&
-      state.turnDeadlineAt <= PEER_MAX_TURN_DEADLINE)
+      // Upper bound: deadline must be within a reasonable window (24h from
+      // now). A timestamp years ahead passes MAX_SAFE_INTEGER but would
+      // break the timer display (P15 fix).
+      state.turnDeadlineAt <= Date.now() + 24 * 60 * 60 * 1000)
   ) {
     return false;
   }
