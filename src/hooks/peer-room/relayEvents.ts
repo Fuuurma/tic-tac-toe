@@ -133,6 +133,23 @@ export function handleRelayEvent(
         broadcastGameState(current);
       }
     } else if (roleRef.current === "guest" && isGameActive(stateRef.current)) {
+      // Resynthesize a fresh turnDeadlineAt from the remaining time —
+      // the old deadline is stale after a disconnect. Without this the
+      // guest timer ticks against a past deadline, briefly showing 0
+      // and potentially firing the local "ran out of time" branch
+      // before the host's gameUpdate arrives (fleet 09-07 P1).
+      const current = stateRef.current;
+      const remaining = current.turnTimeRemaining ?? TURN_DURATION_MS;
+      const resynthesized = {
+        ...current,
+        turnDeadlineAt: Date.now() + remaining,
+      };
+      stateRef.current = resynthesized;
+      setState((prev) =>
+        prev.gameState === current
+          ? { ...prev, gameState: resynthesized }
+          : prev,
+      );
       startTimer();
     }
     return;
