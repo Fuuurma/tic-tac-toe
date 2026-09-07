@@ -261,7 +261,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
         // authoritative and will reconcile this state when it arrives; if the
         // host rejects this move, the rollback path restores the snapshot we
         // save here so the guest does not drift from the relay's truth.
-        pendingGuestStateRef.current = stateRef.current;
+        // Keep the FIRST optimistic snapshot: a rapid double-sendMove
+        // would otherwise overwrite S0 with S1 (which already contains
+        // move 1), so a host rejection of move 1 could not roll back
+        // (fleet 09-07 P3).
+        if (pendingGuestStateRef.current === null) {
+          pendingGuestStateRef.current = stateRef.current;
+        }
         stateRef.current = optimistic;
         setState((prev) => ({ ...prev, gameState: optimistic }));
       }

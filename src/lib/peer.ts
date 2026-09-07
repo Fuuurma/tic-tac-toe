@@ -127,7 +127,7 @@ export const applyHostGuestJoin = (
     ...state,
     gameStatus: GameStatus.ACTIVE,
     turnTimeRemaining: TURN_DURATION_MS,
-    turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+    turnDeadlineAt: now + TURN_DURATION_MS,
     players: {
       ...state.players,
       [guestSymbol]: {
@@ -136,7 +136,7 @@ export const applyHostGuestJoin = (
         symbol: guestSymbol,
         shape: state.players[guestSymbol].shape,
         type: PlayerTypes.HUMAN,
-        lastMoveAt: Date.now(),
+        lastMoveAt: now,
       },
     },
   };

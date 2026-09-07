@@ -49,7 +49,9 @@ export function applyHostMove(deps: HostProtocolDeps, index: number, actor: Play
       }
       return;
     }
-    commitHostState({ ...next, turnTimeRemaining: TURN_DURATION_MS });
+    // makeMove already sets turnTimeRemaining to a full TURN_DURATION_MS
+    // for the next player — no override needed (devin 09-07 finding 5).
+    commitHostState(next);
   }
 }
 
