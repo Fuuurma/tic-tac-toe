@@ -360,16 +360,30 @@ const isGameState = (value: unknown): value is GameState => {
     !(typeof state.turnDeadlineAt === "number" &&
       Number.isSafeInteger(state.turnDeadlineAt) &&
       state.turnDeadlineAt >= 0 &&
-      // Upper bound: deadline must be within a reasonable window (24h from
-      // now). A timestamp years ahead passes MAX_SAFE_INTEGER but would
-      // break the timer display (P15 fix).
-      state.turnDeadlineAt <= Date.now() + 24 * 60 * 60 * 1000)
+      // Upper bound: deadline must be within a reasonable window (24h
+      // from now, plus a clock-skew tolerance). The raw `Date.now()`
+      // bound dropped legitimate updates whenever the two devices'
+      // clocks differed by more than the remaining turn time (devin
+      // 09-07 20:05 finding 4) — the sender's clock may simply be
+      // behind ours. The absolute ceiling still blocks the
+      // years-ahead garbage the P15 fix targeted.
+      state.turnDeadlineAt <= Date.now() + PEER_CLOCK_SKEW_TOLERANCE_MS + 24 * 60 * 60 * 1000)
   ) {
     return false;
   }
 
   return true;
 };
+
+/**
+ * Clock-skew tolerance for wall-clock fields in peer payloads (devin
+ * 09-07 20:05 finding 4): two devices' clocks can legitimately differ
+ * by minutes; validation must not reject a frame whose deadline was
+ * computed against the sender's clock. Five minutes is far beyond any
+ * plausible NTP-disciplined skew and far below anything that would
+ * break the timer display.
+ */
+export const PEER_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
 export const isPeerMessage = (value: unknown): value is PeerMessage => {
   if (!value || typeof value !== "object" || !("type" in value)) return false;
