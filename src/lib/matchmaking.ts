@@ -117,8 +117,11 @@ export function buildRoomWsUrl(
   game: string,
   baseUrl: string = MATCHMAKING_BASE_URL,
 ): string {
+  // Note: the `game` query param is intentionally NOT set here —
+  // RoomClient.openSocket owns it (single writer, devin 09-07 20:05
+  // finding 6); a double-set silently overwrote whatever the caller's
+  // wsUrl carried.
   const httpUrl = new URL(`/room/${roomId}`, baseUrl);
-  httpUrl.searchParams.set("game", game);
   const wsUrl = new URL(httpUrl.toString());
   wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
   return wsUrl.toString();
