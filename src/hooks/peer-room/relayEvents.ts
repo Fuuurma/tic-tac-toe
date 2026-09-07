@@ -217,7 +217,10 @@ export function handleRelayEvent(
   if (event.type === "error") {
     // Cap message length — a hostile relay or injected error could
     // send an arbitrarily long string (fleet audit 2026-09-06 P4).
-    const raw = String((event as { message?: string }).message ?? "Room error");
+    // Validate message is a string; reject non-string values from a
+    // malicious or buggy relay (fleet needs-work 2026-09-07 P2).
+    const msg = (event as { message?: unknown }).message;
+    const raw = typeof msg === "string" ? msg : "Room error";
     setState((prev) => ({
       ...prev,
       message: raw.slice(0, PEER_MAX_ERROR_LENGTH),
