@@ -140,8 +140,12 @@ describe("applyHostGuestJoin", () => {
       5_000,
     );
     expect(result.kind).toBe("resync");
-    expect(result.gameState.turnDeadlineAt).toBeUndefined();
-    expect(result.gameState.turnTimeRemaining).toBe(0);
+    // Host keeps its own live state untouched...
+    expect(result.gameState.turnDeadlineAt).toBe(1_000);
+    // ...while the wire payload strips the deadline and clamps the
+    // remaining time at 0.
+    expect(result.wireGameState.turnDeadlineAt).toBeUndefined();
+    expect(result.wireGameState.turnTimeRemaining).toBe(0);
   });
 
   it("resync payload carries live remaining time from the host clock", () => {
@@ -162,8 +166,12 @@ describe("applyHostGuestJoin", () => {
       5_000,
     );
     expect(result.kind).toBe("resync");
-    expect(result.gameState.turnDeadlineAt).toBeUndefined();
-    expect(result.gameState.turnTimeRemaining).toBe(7_000);
+    // Host keeps its own live state untouched...
+    expect(result.gameState.turnDeadlineAt).toBe(12_000);
+    // ...while the wire payload strips the deadline and preserves the
+    // remaining time computed from the host clock.
+    expect(result.wireGameState.turnDeadlineAt).toBeUndefined();
+    expect(result.wireGameState.turnTimeRemaining).toBe(7_000);
   });
 });
 

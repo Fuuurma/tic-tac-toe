@@ -79,7 +79,12 @@ export const peerLeftUserMessage = (
 
 export type HostGuestJoinResult = {
   kind: "accepted" | "resync";
+  /** The HOST's live state — always keeps its own turnDeadlineAt. */
   gameState: GameState;
+  /** The payload to SEND to the guest. On resync this strips the
+   *  stored deadline (computed before any disconnect) and carries
+   *  turnTimeRemaining instead, so the guest resynthesizes fresh. */
+  wireGameState: GameState;
   guestSymbol: PlayerSymbol;
   guestColor: Color;
 };
@@ -105,7 +110,12 @@ export const applyHostGuestJoin = (
         : state.turnTimeRemaining;
     return {
       kind: "resync",
-      gameState: { ...state, turnDeadlineAt: undefined, turnTimeRemaining },
+      gameState: state,
+      wireGameState: {
+        ...state,
+        turnDeadlineAt: undefined,
+        turnTimeRemaining,
+      },
       guestSymbol,
       guestColor: guest.color,
     };
@@ -133,6 +143,7 @@ export const applyHostGuestJoin = (
   return {
     kind: "accepted",
     gameState,
+    wireGameState: gameState,
     guestSymbol,
     guestColor,
   };
