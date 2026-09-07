@@ -100,6 +100,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // optimistic move. If the host rejects the move via `{type:"error", message:"Invalid move"}`,
   // we roll back so the UI does not drift from the relay's source of truth.
   const pendingGuestStateRef = useRef<GameState | null>(null);
+  // Reconnect-grace bookkeeping (fleet 09-07 finding 2): the move the
+  // last full timer reset was granted for.
+  const reconnectResetsRef = useRef({ moveCount: -1 });
 
   useEffect(() => {
     stateRef.current = state.gameState;
@@ -170,6 +173,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostSymbolRef,
       guestSymbolRef,
       hostRematchPendingRef,
+      reconnectResetsRef,
       setState,
       commitHostState,
       broadcastGameState,

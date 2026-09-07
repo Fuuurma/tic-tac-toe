@@ -25,6 +25,10 @@ export interface RelayEventDeps {
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
   hostRematchPendingRef: { current: boolean };
+  /** Last move the reconnect grace reset the timer for (fleet 09-07
+   *  finding 2: one full reset per move — repeated reconnects within
+   *  the same turn keep the remaining time). */
+  reconnectResetsRef: { current: { moveCount: number } };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
@@ -43,6 +47,7 @@ export function handleRelayEvent(
     hostSymbolRef,
     guestSymbolRef,
     hostRematchPendingRef,
+  reconnectResetsRef,
     setState,
     commitHostState,
     broadcastGameState,
@@ -107,11 +112,21 @@ export function handleRelayEvent(
       // very next tick can fire a forced random move.
       const current = stateRef.current;
       if (isGameActive(current)) {
-        const reconciled = {
-          ...current,
-          turnTimeRemaining: TURN_DURATION_MS,
-          turnDeadlineAt: Date.now() + TURN_DURATION_MS,
-        };
+        // Bound the reconnect grace (fleet 09-07 finding 2): a full
+        // reset is allowed once per move — repeated disconnect/
+        // reconnect cycles within the same turn keep the remaining
+        // time, so a guest can't stall the timeout indefinitely. The
+        // broadcast still catches the rejoining guest up either way.
+        const fullResetAllowed =
+          reconnectResetsRef.current.moveCount !== current.moveCount;
+        reconnectResetsRef.current.moveCount = current.moveCount;
+        const reconciled = fullResetAllowed
+          ? {
+              ...current,
+              turnTimeRemaining: TURN_DURATION_MS,
+              turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+            }
+          : current;
         commitHostState(reconciled);
         startTimer();
       } else {
