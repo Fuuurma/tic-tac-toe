@@ -119,6 +119,52 @@ describe("applyHostGuestJoin", () => {
     expect(result.gameState.board[0]).toBe(PlayerSymbol.X);
     expect(result.gameState.players[PlayerSymbol.O].username).toBe("Guest");
   });
+
+  it("resync payload drops the stale deadline and clamps remaining time (DESIGN-resync-rollback)", () => {
+    const first = applyHostGuestJoin(waitingHostState(), PlayerSymbol.X, {
+      displayName: "Guest",
+      preferredColor: Color.RED,
+    });
+    const afterMove = applyAuthorizedMove(first.gameState, 0, PlayerSymbol.X);
+    expect(afterMove).not.toBeNull();
+    // turnDeadlineAt far in the past relative to the host `now`.
+    const staleState = {
+      ...afterMove!,
+      turnDeadlineAt: 1_000,
+      turnTimeRemaining: undefined,
+    };
+    const result = applyHostGuestJoin(
+      staleState,
+      PlayerSymbol.X,
+      { displayName: "Returning", preferredColor: Color.RED },
+      5_000,
+    );
+    expect(result.kind).toBe("resync");
+    expect(result.gameState.turnDeadlineAt).toBeUndefined();
+    expect(result.gameState.turnTimeRemaining).toBe(0);
+  });
+
+  it("resync payload carries live remaining time from the host clock", () => {
+    const first = applyHostGuestJoin(waitingHostState(), PlayerSymbol.X, {
+      displayName: "Guest",
+      preferredColor: Color.RED,
+    });
+    const afterMove = applyAuthorizedMove(first.gameState, 0, PlayerSymbol.X);
+    expect(afterMove).not.toBeNull();
+    const liveState = {
+      ...afterMove!,
+      turnDeadlineAt: 12_000,
+    };
+    const result = applyHostGuestJoin(
+      liveState,
+      PlayerSymbol.X,
+      { displayName: "Returning", preferredColor: Color.RED },
+      5_000,
+    );
+    expect(result.kind).toBe("resync");
+    expect(result.gameState.turnDeadlineAt).toBeUndefined();
+    expect(result.gameState.turnTimeRemaining).toBe(7_000);
+  });
 });
 
 describe("peerLeftUserMessage", () => {

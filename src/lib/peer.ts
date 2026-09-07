@@ -89,13 +89,23 @@ export const applyHostGuestJoin = (
   state: GameState,
   hostSymbol: PlayerSymbol,
   join: { displayName: string; preferredColor?: Color },
+  now: number = Date.now(),
 ): HostGuestJoinResult => {
   const guestSymbol = oppositeSymbol(hostSymbol);
   if (state.gameStatus !== GameStatus.WAITING) {
     const guest = state.players[guestSymbol];
+    // Resync (docs/DESIGN-resync-rollback): the stored deadline was
+    // computed on the host clock before any disconnect, so a guest gone
+    // for minutes would honor a stale/expired timer. Send the REMAINING
+    // time instead — the guest's synthesis path (now +
+    // turnTimeRemaining) always produces a fresh deadline.
+    const turnTimeRemaining =
+      state.turnDeadlineAt !== undefined
+        ? Math.max(0, state.turnDeadlineAt - now)
+        : state.turnTimeRemaining;
     return {
       kind: "resync",
-      gameState: state,
+      gameState: { ...state, turnDeadlineAt: undefined, turnTimeRemaining },
       guestSymbol,
       guestColor: guest.color,
     };
