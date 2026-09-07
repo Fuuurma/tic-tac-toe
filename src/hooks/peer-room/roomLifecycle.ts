@@ -103,12 +103,12 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
         });
       }
     } else if (isPeerMessage(msg)) {
-      const m = msg as PeerMessage;
+      // isPeerMessage is a type predicate — msg is already PeerMessage.
       if (stateRef.current && roleRef.current) {
         if (roleRef.current === "host") {
-          handleHostData(m);
+          handleHostData(msg);
         } else {
-          handleGuestData(m);
+          handleGuestData(msg);
         }
       }
     }
