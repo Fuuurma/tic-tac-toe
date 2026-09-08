@@ -245,17 +245,55 @@ body,
   }
 }
 
-/* Gentle opacity pulse for the piece that will be removed next.
-   Slower than shimmer/wiggle so the cue reads as "fading away"
-   rather than "active/alert". Respects reduced-motion. */
-@keyframes blink-fade {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
+/* S.O.S morse blink for the piece that will be removed next.
+   Pattern: ... --- ... (three short, three long, three short)
+   with letter gaps between S/O and a word gap before repeat.
+   The tilt (wiggle) runs separately on the cell border.
+   Respects reduced-motion. */
+@keyframes sos-blink {
+  /* S: ... — three short dips */
+  0% { opacity: 1; }
+  1% { opacity: 0.3; }
+  3% { opacity: 0.3; }
+  4% { opacity: 1; }
+  6% { opacity: 1; }
+  7% { opacity: 0.3; }
+  9% { opacity: 0.3; }
+  10% { opacity: 1; }
+  12% { opacity: 1; }
+  13% { opacity: 0.3; }
+  15% { opacity: 0.3; }
+  16% { opacity: 1; }
+  /* Letter gap S→O */
+  24% { opacity: 1; }
+  /* O: --- — three long dips */
+  25% { opacity: 0.3; }
+  32% { opacity: 0.3; }
+  33% { opacity: 1; }
+  36% { opacity: 1; }
+  37% { opacity: 0.3; }
+  44% { opacity: 0.3; }
+  45% { opacity: 1; }
+  48% { opacity: 1; }
+  49% { opacity: 0.3; }
+  56% { opacity: 0.3; }
+  57% { opacity: 1; }
+  /* Letter gap O→S */
+  65% { opacity: 1; }
+  /* S: ... — three short dips */
+  66% { opacity: 0.3; }
+  68% { opacity: 0.3; }
+  69% { opacity: 1; }
+  71% { opacity: 1; }
+  72% { opacity: 0.3; }
+  74% { opacity: 0.3; }
+  75% { opacity: 1; }
+  77% { opacity: 1; }
+  78% { opacity: 0.3; }
+  80% { opacity: 0.3; }
+  81% { opacity: 1; }
+  /* Word gap (pause before repeat) */
+  100% { opacity: 1; }
 }
 
 .animate-shimmer {
@@ -276,8 +314,8 @@ body,
 .animate-countdown-border {
   animation: countdown-border var(--timer-duration) linear forwards;
 }
-.animate-blink-fade {
-  animation: blink-fade 1.2s ease-in-out infinite;
+.animate-sos-blink {
+  animation: sos-blink 3.4s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

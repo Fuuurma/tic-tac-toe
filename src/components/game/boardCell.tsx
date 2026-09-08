@@ -102,7 +102,7 @@ export const BoardCell = memo(function BoardCell({
           strokeWidth={7}
           className={cn(
             "h-3/5 w-3/5 transition-all duration-300 ease-out animate-pop-in",
-            isNextToRemove && !isWinningCell && "animate-blink-fade",
+            isNextToRemove && !isWinningCell && "animate-sos-blink",
             SYMBOL_COLOR[valueColor ?? Color.GRAY],
           )}
         />
