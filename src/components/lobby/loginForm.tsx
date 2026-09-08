@@ -212,19 +212,24 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
     [color],
   );
 
+  const startGame = useCallback(() => {
+    const err = validate(payload);
+    if (err) {
+      setError(err);
+      return false;
+    }
+    setError(null);
+    saveDisplayName(payload.displayName);
+    onStart(payload);
+    return true;
+  }, [payload, onStart]);
+
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      const err = validate(payload);
-      if (err) {
-        setError(err);
-        return;
-      }
-      setError(null);
-      saveDisplayName(payload.displayName);
-      onStart(payload);
+      startGame();
     },
-    [payload, onStart],
+    [startGame],
   );
 
   const aiDifficultyLabel =
@@ -269,7 +274,6 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
 
           <PlayerSummaryCard
             settings={playerSettings}
-            gameMode={gameMode}
             onEdit={() => {
               setSettingsTab("player");
               setSettingsOpen(true);
@@ -405,6 +409,19 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
         onPlayerChange={handlePlayerSettingsChange}
         onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
+        onStart={() => {
+          if (startGame()) setSettingsOpen(false);
+        }}
+        startLabel={
+          gameMode === GameModes.ONLINE
+            ? onlineAction === "quick"
+              ? "Quick Match"
+              : onlineAction === "create"
+                ? "Create Room"
+                : "Join Room"
+            : "Start Game"
+        }
+        startDisabled={!isValid}
       />
 
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />

@@ -114,7 +114,6 @@ export async function leaveMatch(
  */
 export function buildRoomWsUrl(
   roomId: string,
-  game: string,
   baseUrl: string = MATCHMAKING_BASE_URL,
 ): string {
   // Note: the `game` query param is intentionally NOT set here —

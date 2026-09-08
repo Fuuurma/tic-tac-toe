@@ -173,7 +173,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   });
   roleRef.current = "host";
 
-  const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId, GAME_ID);
+  const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId);
   const room = buildRoomClient(deps, resolvedUrl, "host");
   room.connect().catch((err) => {
     update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
@@ -192,7 +192,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   update({ role: "guest", status: "connecting", roomId: trimmed, message: "Connecting..." });
   roleRef.current = "guest";
 
-  const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed, GAME_ID);
+  const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
   const room = buildRoomClient(deps, resolvedUrl, "guest");
   room.connect().catch((err) => {
     update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });

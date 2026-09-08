@@ -14,7 +14,7 @@ import { SymbolShapePicker } from "./symbolShapePicker";
 import { ColorPicker } from "./colorPicker";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
-import { Bot, Pencil, User, X } from "lucide-react";
+import { Bot, Pencil, Play, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sanitizeDisplayName } from "@/lib/identity";
 
@@ -113,6 +113,9 @@ interface SettingsSheetProps {
   onPlayerChange: (next: PlayerSettings) => void;
   onOpponentChange: (next: OpponentSettings) => void;
   onClose: () => void;
+  onStart?: () => void;
+  startLabel?: string;
+  startDisabled?: boolean;
 }
 
 export function SettingsSheet({
@@ -125,6 +128,9 @@ export function SettingsSheet({
   onPlayerChange,
   onOpponentChange,
   onClose,
+  onStart,
+  startLabel,
+  startDisabled,
 }: SettingsSheetProps) {
   const { containerRef, panelRef, titleId, sheetId } = useSheetFocus(isOpen, onClose);
   const playerPanelId = `${sheetId}-panel-player`;
@@ -228,6 +234,30 @@ export function SettingsSheet({
             </div>
           )}
         </div>
+
+        {onStart && (
+          <Button
+            type="button"
+            size="lg"
+            variant="glass"
+            disabled={startDisabled}
+            onClick={onStart}
+            className={cn(
+              "h-12 w-full shrink-0 text-base font-bold sm:h-14",
+              startDisabled && "cursor-not-allowed opacity-50",
+            )}
+            style={{
+              "--glass-sweep-color": COLOR_RGB[activeColor],
+              "--glass-tint": COLOR_RGB[activeColor],
+              "--glass-alpha": "0.15",
+              "--glass-sheen": COLOR_RGB[activeColor],
+              "--glass-sheen-alpha": "0.25",
+            } as React.CSSProperties}
+          >
+            <Play className="h-5 w-5" aria-hidden="true" />
+            {startLabel ?? "Start Game"}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -382,14 +412,11 @@ function OpponentTab({
 
 export function PlayerSummaryCard({
   settings,
-  gameMode,
   onEdit,
 }: {
   settings: PlayerSettings;
-  gameMode: GameModeValue;
   onEdit?: () => void;
 }) {
-  const isOnline = gameMode === GameModes.ONLINE;
   const colorBg = COLOR_BG_CLASSES[settings.color];
   const shape = settings.playerShape;
   const content = (
@@ -406,9 +433,6 @@ export function PlayerSummaryCard({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-base font-bold text-foreground">
           {settings.displayName || "You"}
-        </span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">
-          {isOnline ? "Role assigned on connect" : "Random first move"}
         </span>
       </span>
       {onEdit && <Pencil className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />}
@@ -484,9 +508,6 @@ export function OpponentSummaryCard({
               ({aiDifficultyLabel.toLowerCase()})
             </span>
           )}
-        </span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">
-          {isAI ? "Computer opponent" : "Pass and play"}
         </span>
       </span>
       <Pencil className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />

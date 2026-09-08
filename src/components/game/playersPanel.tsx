@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -32,6 +32,7 @@ interface PlayersPanelProps {
   onHelp?: () => void;
   onEditSettings?: () => void;
   onDeclineRematch?: () => void;
+  onPauseChange?: (paused: boolean) => void;
 }
 
 const formatTime = (ms: number | undefined): number => {
@@ -96,12 +97,17 @@ export function PlayersPanel({
   onHelp,
   onEditSettings,
   onDeclineRematch,
+  onPauseChange,
 }: PlayersPanelProps) {
   const [showExit, setShowExit] = useState(false);
   const [showNewGame, setShowNewGame] = useState(false);
   const [copiedRoom, setCopiedRoom] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    onPauseChange?.(showExit || showNewGame);
+  }, [showExit, showNewGame, onPauseChange]);
 
   const copyRoomCode = async () => {
     if (!roomCode) return;

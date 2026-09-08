@@ -6,7 +6,6 @@ import {
   leaveMatch,
   pollMatch,
 } from "@/lib/matchmaking";
-import { getOrCreateGuestIdentity } from "@/lib/identity";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/matchmaking")>();
@@ -29,6 +28,16 @@ const mockedFindMatch = vi.mocked(findMatch);
 const mockedPollMatch = vi.mocked(pollMatch);
 const mockedLeaveMatch = vi.mocked(leaveMatch);
 const mockedBuildRoomWsUrl = vi.mocked(buildRoomWsUrl);
+
+function makeMatch(overrides: { roomId: string; wsUrl?: string }) {
+  return {
+    roomId: overrides.roomId,
+    role: "guest" as const,
+    host: { peerId: "p1", displayName: "Host", guestId: "g1" },
+    guest: { peerId: "p2", displayName: "Guest", guestId: "g2" },
+    wsUrl: overrides.wsUrl,
+  };
+}
 
 function makeDeps(overrides: Partial<MatchmakingDeps> = {}) {
   const matchmakingTicketRef = { current: null as string | null };
@@ -81,7 +90,7 @@ describe("runQuickMatch", () => {
     const { deps, hasStartedRef } = makeDeps();
     mockedFindMatch.mockResolvedValue({
       status: "matched",
-      match: { roomId: "r2", wsUrl: "wss://relay.example/room/r2" },
+      match: makeMatch({ roomId: "r2", wsUrl: "wss://relay.example/room/r2" }),
     });
 
     await runQuickMatch(deps);
@@ -95,7 +104,7 @@ describe("runQuickMatch", () => {
   it("hosts + polls, and does NOT leaveMatch a ticket the poll consumed", async () => {
     const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
-    mockedPollMatch.mockResolvedValue({ status: "matched" });
+    mockedPollMatch.mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1" }) });
 
     await runQuickMatch(deps);
 
@@ -112,7 +121,7 @@ describe("runQuickMatch", () => {
   it("leaves the ticket and surfaces an error when polling times out", async () => {
     const { deps, matchmakingTicketRef } = makeDeps();
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
-    mockedPollMatch.mockResolvedValue({ status: "waiting" });
+    mockedPollMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
 
     await runQuickMatch(deps);
 
@@ -133,7 +142,7 @@ describe("runQuickMatch", () => {
     // First poll: the user's leave() nils the ticket ref mid-flight.
     mockedPollMatch.mockImplementation(async () => {
       matchmakingTicketRef.current = null;
-      return { status: "waiting" };
+      return { status: "waiting", ticket: "t1", roomId: "r1" };
     });
 
     await runQuickMatch(deps);
@@ -170,7 +179,7 @@ describe("runQuickMatch", () => {
     mockedPollMatch
       .mockRejectedValueOnce(new Error("flash 502"))
       .mockRejectedValueOnce(new Error("flash 503"))
-      .mockResolvedValue({ status: "matched" });
+      .mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1" }) });
 
     await runQuickMatch(deps);
 
@@ -184,7 +193,7 @@ describe("runQuickMatch", () => {
   it("is a no-op while a match attempt is already in flight... via hasStarted", async () => {
     const { deps, hasStartedRef } = makeDeps();
     hasStartedRef.current = true;
-    mockedFindMatch.mockResolvedValue({ status: "matched", match: { roomId: "r", wsUrl: "wss://x" } });
+    mockedFindMatch.mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r", wsUrl: "wss://x" }) });
 
     await runQuickMatch(deps);
 
@@ -198,6 +207,6 @@ describe("runQuickMatch", () => {
 
     await runQuickMatch(deps);
 
-    expect(mockedBuildRoomWsUrl).toHaveBeenCalledWith("r9", expect.any(String));
+    expect(mockedBuildRoomWsUrl).toHaveBeenCalledWith("r9");
   });
 });

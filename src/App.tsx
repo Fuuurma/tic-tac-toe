@@ -190,9 +190,14 @@ function LocalGameSurface({
       opponentSettings.opponentType,
     ],
   );
-  const { gameState, humanSymbol, handleCellClick, handleReset, exit } = useLocalGame(input);
+  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused } = useLocalGame(input);
   const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
+  const [panelPaused, setPanelPaused] = useState(false);
+
+  useEffect(() => {
+    setPaused(settingsOpen || helpOpen || panelPaused);
+  }, [settingsOpen, helpOpen, panelPaused, setPaused]);
 
   useEffect(() => {
     // Reset the recorded-game marker when a fresh game starts.
@@ -250,6 +255,7 @@ function LocalGameSurface({
           setSettingsTab("player");
           setSettingsOpen(true);
         }}
+        onPauseChange={setPanelPaused}
       />
       <Board
         board={gameState.board}

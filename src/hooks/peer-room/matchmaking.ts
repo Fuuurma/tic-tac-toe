@@ -84,7 +84,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
 
     if (response.status === "waiting") {
       matchmakingTicketRef.current = response.ticket;
-      const wsUrl = buildRoomWsUrl(response.roomId, GAME_ID);
+      const wsUrl = buildRoomWsUrl(response.roomId);
       startAsHost(response.roomId, wsUrl);
 
       // Poll the matchmaking service until the guest is paired.

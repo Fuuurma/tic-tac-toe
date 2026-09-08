@@ -1,7 +1,6 @@
 import {
   GameStatus,
   GameModes,
-  TURN_DURATION_MS,
   PlayerSymbol,
   oppositeSymbol,
   randomPlayerSymbol,
@@ -78,16 +77,20 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         preferredColor: message.preferredColor,
       });
       stateRef.current = result.gameState;
+      // Send the WIRE payload (deadline stripped, fresh remaining) — the
+      // host state keeps its own deadline for turn expiry (fleet 09-08
+      // devin report: this send site had shipped the stale state).
+      const wireGameState = result.wireGameState;
       roomRef.current?.send({
         type: "joined",
         symbol: result.guestSymbol,
         color: result.guestColor,
-        gameState: result.gameState,
+        gameState: wireGameState,
       });
       roomRef.current?.send(
         result.kind === "accepted"
-          ? { type: "gameStart", gameState: result.gameState }
-          : { type: "gameUpdate", gameState: result.gameState },
+          ? { type: "gameStart", gameState: wireGameState }
+          : { type: "gameUpdate", gameState: wireGameState },
       );
       if (result.kind === "accepted") {
         setState((prev) => ({

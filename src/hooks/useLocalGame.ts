@@ -55,6 +55,7 @@ export function useLocalGame(input: LocalGameInput) {
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
+  const [paused, setPaused] = useState(false);
   const tickRef = useRef<number | null>(null);
   const aiTimeoutRef = useRef<number | null>(null);
   const gameIsActive = isGameActive(gameState);
@@ -143,15 +144,16 @@ export function useLocalGame(input: LocalGameInput) {
   }, [stopTimer]);
 
   useEffect(() => {
-    if (gameIsActive) {
+    if (gameIsActive && !paused) {
       startTimer();
     } else {
       stopTimer();
     }
-  }, [gameIsActive, startTimer, stopTimer]);
+  }, [gameIsActive, paused, startTimer, stopTimer]);
 
   useEffect(() => {
     if (
+      !paused &&
       gameState.gameStatus === GameStatus.ACTIVE &&
       currentPlayerType === PlayerTypes.COMPUTER
     ) {
@@ -183,6 +185,7 @@ export function useLocalGame(input: LocalGameInput) {
     gameState.moveCount,
     currentPlayerType,
     input.aiDifficulty,
+    paused,
   ]);
 
   useEffect(
@@ -195,5 +198,5 @@ export function useLocalGame(input: LocalGameInput) {
     [stopTimer],
   );
 
-  return { gameState, humanSymbol, handleCellClick, handleReset, exit };
+  return { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused };
 }
