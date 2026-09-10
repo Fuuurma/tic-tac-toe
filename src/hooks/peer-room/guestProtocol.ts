@@ -56,11 +56,18 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       if (message.type === "joined" && message.symbol) {
         guestSymbolRef.current = message.symbol;
       }
+      // On gameStart (including rematch with symbol swap), update the
+      // guest's symbol from the host's authoritative assignment.
+      if (message.type === "gameStart" && message.symbol) {
+        guestSymbolRef.current = message.symbol;
+      }
       setState((prev) => {
         const localSymbol =
           message.type === "joined" && message.symbol
             ? message.symbol
-            : prev.guestSymbol;
+            : message.type === "gameStart" && message.symbol
+              ? message.symbol
+              : prev.guestSymbol;
         return {
           ...prev,
           status: "connected",

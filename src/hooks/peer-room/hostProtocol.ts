@@ -89,7 +89,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       });
       roomRef.current?.send(
         result.kind === "accepted"
-          ? { type: "gameStart", gameState: wireGameState }
+          ? { type: "gameStart", symbol: result.guestSymbol, gameState: wireGameState }
           : { type: "gameUpdate", gameState: wireGameState },
       );
       if (result.kind === "accepted") {
@@ -167,7 +167,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         message: "",
       }));
       broadcastGameState(reset);
-      roomRef.current?.send({ type: "gameStart", gameState: reset });
+      roomRef.current?.send({ type: "gameStart", symbol: newGuestSymbol, gameState: reset });
       return;
     }
     if (message.type === "rematchDecline") {

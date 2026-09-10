@@ -114,3 +114,69 @@ describe('hostProtocol.handleHostMessage — rematch identity', () => {
     expect(reset?.players[otherSymbol].username).toBe('Bob');
   });
 });
+
+describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () => {
+  const gameState = (overrides: Partial<GameState>): GameState => {
+    const base = createInitialGameState({
+      gameMode: GameModes.ONLINE,
+      playerXName: 'Host',
+      playerOName: 'Guest',
+      playerColor: 'blue' as never,
+      opponentColor: 'red' as never,
+      humanSymbol: 'X' as never,
+    });
+    return { ...base, ...overrides } as GameState;
+  };
+
+  it('updates guestSymbol when gameStart carries a swapped symbol after rematch', () => {
+    // Guest was initially O (from joined). After rematch, host swaps
+    // to O, so guest is now X. The gameStart message must carry the
+    // new guest symbol.
+    const newState = gameState({});
+    const guestSymbolRef = { current: 'O' as never };
+    let lastState: { guestSymbol?: string } = {};
+    const deps = {
+      stateRef: { current: newState },
+      guestSymbolRef,
+      pendingGuestStateRef: { current: null },
+      setState: (fn: (prev: never) => never) => {
+        lastState = fn({ guestSymbol: 'O' } as never);
+      },
+      stopTimer: () => {},
+    };
+
+    // Simulate gameStart after rematch where host swapped to O → guest is X
+    handleGuestMessage(deps as never, {
+      type: 'gameStart',
+      symbol: 'X' as never,
+      gameState: newState,
+    });
+
+    expect(guestSymbolRef.current).toBe('X');
+    expect(lastState.guestSymbol).toBe('X');
+  });
+
+  it('preserves guestSymbol when gameStart carries the same symbol', () => {
+    const newState = gameState({});
+    const guestSymbolRef = { current: 'O' as never };
+    let lastState: { guestSymbol?: string } = {};
+    const deps = {
+      stateRef: { current: newState },
+      guestSymbolRef,
+      pendingGuestStateRef: { current: null },
+      setState: (fn: (prev: never) => never) => {
+        lastState = fn({ guestSymbol: 'O' } as never);
+      },
+      stopTimer: () => {},
+    };
+
+    handleGuestMessage(deps as never, {
+      type: 'gameStart',
+      symbol: 'O' as never,
+      gameState: newState,
+    });
+
+    expect(guestSymbolRef.current).toBe('O');
+    expect(lastState.guestSymbol).toBe('O');
+  });
+});

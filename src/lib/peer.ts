@@ -22,7 +22,7 @@ import { sanitizeDisplayName } from "@/lib/identity";
 export type PeerMessage =
   | { type: "join"; displayName: string; guestId: string; preferredColor?: Color }
   | { type: "joined"; symbol: PlayerSymbol; color: Color; gameState: GameState }
-  | { type: "gameStart"; gameState: GameState }
+  | { type: "gameStart"; symbol: PlayerSymbol; gameState: GameState }
   | { type: "gameUpdate"; gameState: GameState }
   | { type: "move"; index: number }
   | { type: "rematchRequested"; requesterSymbol: PlayerSymbol }
@@ -402,6 +402,7 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
         isGameState(message.gameState)
       );
     case "gameStart":
+      return isGameState(message.gameState) && isPlayerSymbol(message.symbol);
     case "gameUpdate":
       return isGameState(message.gameState);
     case "move":
