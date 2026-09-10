@@ -15,7 +15,7 @@ export function SymbolShapePicker({
 }: SymbolShapePickerProps) {
   return (
     <fieldset className="flex flex-col gap-2" disabled={disabled}>
-      <legend className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <legend className="text-[11px] font-semibold tracking-normal text-muted-foreground">
         Your shape
       </legend>
       <div

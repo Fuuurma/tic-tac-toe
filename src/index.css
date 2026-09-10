@@ -114,8 +114,8 @@
   --color-gray-500: oklch(0.55 0.01 220);
   --color-emerald-600: oklch(0.62 0.17 160);
   --color-emerald-400: oklch(0.76 0.16 160);
-  --gradient-light: linear-gradient(180deg, rgb(0 0 0) 0%, rgb(0 0 0) 100%);
-  --gradient-dark: linear-gradient(180deg, rgb(0 0 0) 0%, rgb(0 0 0) 100%);
+  --gradient-light: linear-gradient(180deg, oklch(0.97 0.005 220) 0%, oklch(0.92 0.01 220) 100%);
+  --gradient-dark: linear-gradient(180deg, oklch(0.16 0.02 220) 0%, oklch(0.10 0.01 220) 100%);
 
   /* Dark center mask: keeps the board and its controls clear above the
      repeated symbol texture. */
@@ -301,6 +301,19 @@ body,
 }
 .animate-pop-in {
   animation: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Win-line craft moment: a one-shot emerald glow pulse that sweeps
+   across the three winning cells. Uses box-shadow so it layers on top
+   of the existing emerald bg/border without replacing them. 200ms
+   matches DESIGN.md micro duration. Respects reduced-motion. */
+@keyframes win-glow {
+  0% { box-shadow: 0 0 0 0 oklch(0.76 0.16 160 / 0); }
+  40% { box-shadow: 0 0 24px 4px oklch(0.76 0.16 160 / 0.5); }
+  100% { box-shadow: 0 0 0 0 oklch(0.76 0.16 160 / 0); }
+}
+.animate-win-glow {
+  animation: win-glow 0.6s ease-out;
 }
 .animate-wiggle {
   animation: wiggle 1.4s ease-in-out infinite;

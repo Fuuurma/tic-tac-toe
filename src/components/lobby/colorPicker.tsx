@@ -21,7 +21,7 @@ export function ColorPicker({
     <fieldset className="flex flex-col gap-2">
       <legend className="sr-only">{label}</legend>
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-normal text-muted-foreground">
           <span
             aria-hidden="true"
             className="glass-cell flex size-5 items-center justify-center rounded text-foreground"

@@ -90,7 +90,7 @@ export const BoardCell = memo(function BoardCell({
         !isDisabled && !value && "hover:border-[rgb(var(--player-color)/0.5)] hover:bg-[rgb(var(--player-color)/0.1)]",
         !isDisabled && value && "hover:shadow-sm",
         isDisabled && !value && "cursor-not-allowed opacity-50",
-        isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30",
+        isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30 animate-win-glow",
         !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
         !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],
         !isWinningCell && !isNextToRemove && value && valueColor && OCCUPIED_TINT_CLASSES[valueColor],
