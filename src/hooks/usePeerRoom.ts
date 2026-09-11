@@ -48,6 +48,12 @@ export interface PeerRoomState {
   hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
   message: string;
+  /**
+   * True while a host rematch request is pending on the guest. This is
+   * the source of truth for rematch-prompt UI — never derive it by
+   * matching user-facing message copy with a regex.
+   */
+  rematchIncoming: boolean;
   gameState: GameState;
 }
 
@@ -68,6 +74,7 @@ const initialState: PeerRoomState = {
   hostSymbol: null,
   guestSymbol: null,
   message: "",
+  rematchIncoming: false,
   gameState: freshGameState(),
 };
 
@@ -316,7 +323,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {
       roomRef.current?.send({ type: "rematchDecline" });
-      setState((prev) => ({ ...prev, message: "" }));
+      setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
     }
   }, [state.role]);
 
@@ -335,7 +342,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     stopTimer();
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
-    setState((prev) => ({ ...prev, status: "disconnected", message: "You left" }));
+    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false }));
   }, [stopTimer]);
 
   useEffect(() => {

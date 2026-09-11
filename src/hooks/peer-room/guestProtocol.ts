@@ -77,6 +77,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           gameState,
           guestSymbol: localSymbol,
           message: "",
+          rematchIncoming: false,
         };
       });
       return;
@@ -86,15 +87,18 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       setState((prev) => ({
         ...prev,
         message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
+        rematchIncoming: true,
       }));
       return;
     }
     if (message.type === "rematchCancel") {
       // Host withdrew a pending rematch request before the guest responded.
       // Clear the prompt so the guest UI no longer offers accept/decline.
+      // Gate on the explicit rematchIncoming flag — never on the
+      // user-facing message copy.
       setState((prev) =>
-        /wants a rematch/i.test(prev.message)
-          ? { ...prev, message: "Rematch request withdrawn" }
+        prev.rematchIncoming
+          ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false }
           : prev,
       );
       return;
@@ -114,6 +118,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
         status: "disconnected",
         gameState,
         message: "Host left the game",
+        rematchIncoming: false,
       }));
       return;
     }

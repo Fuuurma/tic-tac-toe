@@ -103,6 +103,7 @@ export function handleRelayEvent(
       ...prev,
       status: "connected",
       message: "",
+      rematchIncoming: false,
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -186,6 +187,7 @@ export function handleRelayEvent(
           ...prev,
           status: "reconnecting",
           message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
+          rematchIncoming: false,
         };
       });
       return;
@@ -210,6 +212,7 @@ export function handleRelayEvent(
         status: "disconnected",
         gameState,
         message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", leaveReason),
+        rematchIncoming: false,
       };
     });
     return;

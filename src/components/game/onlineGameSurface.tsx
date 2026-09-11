@@ -259,7 +259,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
             onDeclineRematch={
-              peer.state.role === "guest" && /wants a rematch/i.test(peer.state.message)
+              peer.state.role === "guest" && peer.state.rematchIncoming
                 ? () => peer.declineRematch()
                 : undefined
             }
