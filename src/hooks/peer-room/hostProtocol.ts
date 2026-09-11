@@ -7,7 +7,7 @@ import {
 } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove, applyHostGuestJoin } from "@/lib/peer";
+import { applyAuthorizedMove, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
@@ -167,7 +167,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         message: "",
       }));
       broadcastGameState(reset);
-      roomRef.current?.send({ type: "gameStart", symbol: newGuestSymbol, gameState: reset });
+      roomRef.current?.send({ type: "gameStart", symbol: newGuestSymbol, gameState: toWireGameState(reset) });
       return;
     }
     if (message.type === "rematchDecline") {

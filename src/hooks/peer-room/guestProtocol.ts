@@ -37,16 +37,19 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
   } = deps;
   {
     if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
-      const gameState =
-        message.gameState.turnDeadlineAt === undefined &&
-        isGameActive(message.gameState)
-          ? {
-              ...message.gameState,
-              turnDeadlineAt:
-                Date.now() +
-                (message.gameState.turnTimeRemaining ?? TURN_DURATION_MS),
-            }
-          : message.gameState;
+      // Anchor the deadline to THIS clock: the wire state carries only
+      // `turnTimeRemaining` (toWireGameState strips the host's absolute
+      // deadline), so `now + remaining` is skew-free. A deadline that does
+      // arrive (older/hostile peer) is still host-clock — ignore it and
+      // synthesize the same way.
+      const gameState = isGameActive(message.gameState)
+        ? {
+            ...message.gameState,
+            turnDeadlineAt:
+              Date.now() +
+              (message.gameState.turnTimeRemaining ?? TURN_DURATION_MS),
+          }
+        : message.gameState;
       stateRef.current = gameState;
       // An authoritative state update supersedes any pending optimistic
       // move, so clear the rollback snapshot. This is the ONLY place we

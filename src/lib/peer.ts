@@ -89,6 +89,25 @@ export type HostGuestJoinResult = {
   guestColor: Color;
 };
 
+/** Wire payload for any host→guest state send. The absolute
+ *  `turnDeadlineAt` is computed on the HOST clock — a guest whose clock
+ *  skews would honor it verbatim and corrupt its displayed countdown
+ *  (devin 09-01 finding; forfeits stay host-authoritative). Strip it and
+ *  send the remaining duration instead: the guest anchors
+ *  `now + turnTimeRemaining` on its own clock, trading skew for one-way
+ *  latency. */
+export const toWireGameState = (
+  state: GameState,
+  now: number = Date.now(),
+): GameState => ({
+  ...state,
+  turnDeadlineAt: undefined,
+  turnTimeRemaining:
+    state.turnDeadlineAt !== undefined
+      ? Math.max(0, state.turnDeadlineAt - now)
+      : state.turnTimeRemaining,
+});
+
 /** First join starts the match. Later joins (reconnect) resync without resetting. */
 export const applyHostGuestJoin = (
   state: GameState,
@@ -104,18 +123,10 @@ export const applyHostGuestJoin = (
     // for minutes would honor a stale/expired timer. Send the REMAINING
     // time instead — the guest's synthesis path (now +
     // turnTimeRemaining) always produces a fresh deadline.
-    const turnTimeRemaining =
-      state.turnDeadlineAt !== undefined
-        ? Math.max(0, state.turnDeadlineAt - now)
-        : state.turnTimeRemaining;
     return {
       kind: "resync",
       gameState: state,
-      wireGameState: {
-        ...state,
-        turnDeadlineAt: undefined,
-        turnTimeRemaining,
-      },
+      wireGameState: toWireGameState(state, now),
       guestSymbol,
       guestColor: guest.color,
     };
@@ -143,7 +154,7 @@ export const applyHostGuestJoin = (
   return {
     kind: "accepted",
     gameState,
-    wireGameState: gameState,
+    wireGameState: toWireGameState(gameState, now),
     guestSymbol,
     guestColor,
   };

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Color, GameModes, GameStatus, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove } from "@/lib/peer";
+import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import { RoomClient } from "@/lib/room";
 import {
@@ -121,7 +121,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, []);
 
   const broadcastGameState = useCallback((gameState: GameState) => {
-    roomRef.current?.send({ type: "gameUpdate", gameState });
+    roomRef.current?.send({ type: "gameUpdate", gameState: toWireGameState(gameState) });
   }, []);
 
   const commitHostState = useCallback(
