@@ -24,13 +24,13 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Type-check
-        run: pnpm exec tsc -b
       - name: Lint
         run: pnpm lint
       - name: Unit tests
         run: pnpm test
       - name: Build
+        # `build` = `tsc -b && vite build`: the standalone Type-check step was
+        # a redundant second cold type-check (brief ad633b4d).
         run: pnpm build
       - name: Production artifact preflight
         run: pnpm run deploy:check
