@@ -196,17 +196,23 @@ export function handleRelayEvent(
     stopTimer();
     hostRematchPendingRef.current = false;
     const current = stateRef.current;
-    const winnerSymbol =
-      roleRef.current === "guest"
-        ? (guestSymbolRef.current ?? PlayerSymbol.O)
-        : (hostSymbolRef.current ?? PlayerSymbol.X);
-    const gameState = current.winner
-      ? current
-      : { ...current, winner: winnerSymbol, gameStatus: GameStatus.COMPLETED };
-    stateRef.current = gameState;
     const leaveReason = reason === "expired" ? "expired" : "closed";
     setState((prev) => {
       if (prev.status === "disconnected") return prev;
+      // Crown the surviving side's symbol — prefer the live ref, fall back
+      // to the symbol recorded in state. Symbols randomize each rematch
+      // (randomPlayerSymbol), so a hardcoded X/O default crowns the wrong
+      // winner when the ref is momentarily null. If we never learned the
+      // symbol (leave before assignment), crown nobody rather than guess.
+      const mySymbol =
+        roleRef.current === "guest"
+          ? (guestSymbolRef.current ?? prev.guestSymbol)
+          : (hostSymbolRef.current ?? prev.hostSymbol);
+      const gameState =
+        current.winner || mySymbol === null
+          ? current
+          : { ...current, winner: mySymbol, gameStatus: GameStatus.COMPLETED };
+      stateRef.current = gameState;
       return {
         ...prev,
         status: "disconnected",
