@@ -49,12 +49,25 @@ const scoreTerminal = (
   return -WIN_SCORE - depthRemaining;
 };
 
+// Would `symbol` win by placing at `index`? Replicates makeMove's
+// oldest-piece eviction then checks the board only — no GameState
+// copy (fleet finding: full makeMove per valid move per leaf was
+// hot-path allocation).
+const wouldWin = (state: GameState, index: number, symbol: PlayerSymbol): boolean => {
+  const board = state.board.slice();
+  const playerMoves = state.moves[symbol];
+  if (playerMoves.length >= state.maxMoves) {
+    const oldest = playerMoves[0];
+    if (oldest !== undefined) board[oldest] = null;
+  }
+  board[index] = symbol;
+  return checkWinner(board).winner === symbol;
+};
+
 const countImmediateWins = (state: GameState, symbol: PlayerSymbol): number => {
-  const stateForSymbol =
-    state.currentPlayer === symbol ? state : { ...state, currentPlayer: symbol };
   let wins = 0;
   for (const index of getValidMoves(state.board)) {
-    if (makeMove(stateForSymbol, index)?.winner === symbol) wins += 1;
+    if (wouldWin(state, index, symbol)) wins += 1;
   }
   return wins;
 };
