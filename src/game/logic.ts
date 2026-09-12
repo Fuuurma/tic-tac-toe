@@ -230,14 +230,3 @@ export const makeRandomMove = (board: Board): number | null => {
   return valid[Math.floor(Math.random() * valid.length)];
 };
 
-export const resolveOpponentColor = (
-  gameMode: GameMode,
-  playerColor: Color,
-  opponentColor: Color,
-): Color => {
-  if (gameMode === GameModes.VS_FRIEND && opponentColor === playerColor) {
-    const fallback = AVAILABLE_COLORS.find((c) => c !== playerColor);
-    return fallback ?? opponentColor;
-  }
-  return opponentColor;
-};

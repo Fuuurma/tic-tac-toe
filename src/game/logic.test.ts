@@ -16,7 +16,6 @@ import {
   getValidMoves,
   isValidMove,
   makeMove,
-  resolveOpponentColor,
 } from "@/game/logic";
 
 describe("freshGameState", () => {
@@ -216,15 +215,6 @@ describe("oppositeColor", () => {
   });
   it("is symmetric", () => {
     expect(oppositeColor(oppositeColor(Color.GREEN))).toBe(Color.GREEN);
-  });
-});
-
-describe("resolveOpponentColor", () => {
-  it("avoids the same color in vs Friend mode", () => {
-    expect(resolveOpponentColor(GameModes.VS_FRIEND, Color.BLUE, Color.BLUE)).not.toBe(Color.BLUE);
-  });
-  it("keeps the opponent color in vs Computer mode", () => {
-    expect(resolveOpponentColor(GameModes.VS_COMPUTER, Color.BLUE, Color.RED)).toBe(Color.RED);
   });
 });
 
