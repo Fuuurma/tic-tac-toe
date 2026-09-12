@@ -28,13 +28,37 @@ jobs:
         run: pnpm lint
       - name: Unit tests
         run: pnpm test
+      - name: Check out fuurma-matchmaking
+        # Public sibling repo — the online specs probe a real matchmaking
+        # Worker instead of skipping (needs-work 2026-09-10).
+        uses: actions/checkout@v4
+        with:
+          repository: Fuuurma/fuurma-matchmaking
+          path: fuurma-matchmaking
+      - name: Start local matchmaking Worker
+        working-directory: fuurma-matchmaking
+        run: |
+          pnpm install --frozen-lockfile
+          (pnpm dev > /tmp/matchmaking.log 2>&1 &)
+          for i in $(seq 1 45); do
+            curl -sf -o /dev/null http://127.0.0.1:8787/api/matchmaking/tictactoe/health && exit 0
+            sleep 1
+          done
+          cat /tmp/matchmaking.log
+          exit 1
       - name: Build
         # `build` = `tsc -b && vite build`: the standalone Type-check step was
         # a redundant second cold type-check (brief ad633b4d).
+        # VITE_MATCHMAKING_URL is baked into the bundle — point it at the
+        # local Worker so the online smoke exercises the real relay.
+        env:
+          VITE_MATCHMAKING_URL: http://127.0.0.1:8787
         run: pnpm build
       - name: Production artifact preflight
         run: pnpm run deploy:check
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Browser smoke
+        env:
+          VITE_MATCHMAKING_URL: http://127.0.0.1:8787
         run: pnpm exec playwright test

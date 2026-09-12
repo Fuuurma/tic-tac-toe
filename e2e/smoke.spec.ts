@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { onlineSmokeEnabled } from "./matchmaking";
 
 async function openPlayerSettings(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Edit your player settings" }).click();
@@ -395,9 +396,9 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
 
   // Online smoke requires a reachable matchmaking Worker (deployed via
   // E2E_BASE_URL, or local via the VITE_MATCHMAKING_URL we point at the
-  // sibling fuurma-matchmaking Wrangler dev server).
-  const e2eBaseUrl = process.env.E2E_BASE_URL;
-  test.skip(!e2eBaseUrl, "Online P2P smoke requires E2E_BASE_URL");
+  // sibling fuurma-matchmaking Wrangler dev server). Same reachability
+  // gate as quick-match — CI runs the sibling worker so this executes.
+  test.skip(!(await onlineSmokeEnabled()), "Online P2P smoke requires E2E_BASE_URL or a reachable matchmaking Worker");
 
   const host = await browser.newContext();
   const guest = await browser.newContext();
