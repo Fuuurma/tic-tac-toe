@@ -66,7 +66,6 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     hostRematchPendingRef,
     hostPendingSettingsRef,
     setState,
-    broadcastGameState,
     stopTimer,
   } = deps;
   {
@@ -166,7 +165,10 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         gameState: reset,
         message: "",
       }));
-      broadcastGameState(reset);
+      // gameStart alone carries the reset + the swapped guest symbol —
+      // a gameUpdate alongside it duplicated the same state on the wire
+      // and was applied twice by the guest's shared handler branch
+      // (fleet brief 62c86d31).
       roomRef.current?.send({ type: "gameStart", symbol: newGuestSymbol, gameState: toWireGameState(reset) });
       return;
     }

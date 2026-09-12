@@ -66,7 +66,7 @@ describe("handleRelayEvent peer-reconnected", () => {
   });
 
   it("guest with inactive game does not resync the deadline", () => {
-    const game = activeGame({ gameStatus: GameStatus.IDLE });
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
     const { deps } = makeDeps(game, "guest");
 
     handleRelayEvent(deps, { type: "peer-reconnected" });
