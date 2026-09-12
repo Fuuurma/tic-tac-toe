@@ -72,6 +72,29 @@ export function handleRelayEvent(
           guestSymbol: oppositeSymbol(hostSymbolRef.current ?? PlayerSymbol.X),
           message: "",
         }));
+        // Host's own reconnect must resync like peer-reconnected does:
+        // during the outage the timer kept ticking and may have applied a
+        // local-only forced move the guest never saw — broadcast the
+        // authoritative state either way, and reset the stale deadline
+        // (bounded: once per move, same guard as peer-reconnected) so the
+        // first post-reconnect tick can't instantly force a move
+        // (fleet needs-work 2026-09-07 P1 / 09-08 P2).
+        const current = stateRef.current;
+        if (isGameActive(current)) {
+          const fullResetAllowed =
+            reconnectResetsRef.current.moveCount !== current.moveCount;
+          reconnectResetsRef.current.moveCount = current.moveCount;
+          const reconciled = fullResetAllowed
+            ? {
+                ...current,
+                turnTimeRemaining: TURN_DURATION_MS,
+                turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+              }
+            : current;
+          commitHostState(reconciled);
+        } else {
+          broadcastGameState(current);
+        }
         startTimer();
       } else {
         setState((prev) => ({

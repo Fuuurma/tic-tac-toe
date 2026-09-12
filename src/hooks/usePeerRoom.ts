@@ -346,7 +346,15 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [stopTimer]);
 
   useEffect(() => {
-    if ((state.role === "host" || state.role === "guest") && isGameActive(stateRef.current)) {
+    // state.status gates the timer: while "reconnecting" the socket is down
+    // and a forced-move broadcast is silently dropped (RoomClient.send →
+    // false), applying a move locally the peer never sees — permanent
+    // host/guest divergence (fleet needs-work 2026-09-07 P1 + 09-08 P2).
+    if (
+      (state.role === "host" || state.role === "guest") &&
+      state.status === "connected" &&
+      isGameActive(stateRef.current)
+    ) {
       startTimer();
     } else {
       stopTimer();
@@ -354,6 +362,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     return () => stopTimer();
   }, [
     state.role,
+    state.status,
     state.gameState.gameStatus,
     state.gameState.winner,
     state.gameState.turnDeadlineAt,
