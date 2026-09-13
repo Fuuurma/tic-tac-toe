@@ -1,6 +1,5 @@
 import {
   AI_Difficulty,
-  AVAILABLE_COLORS,
   Color,
   GAME_RULES,
   GameMode,
