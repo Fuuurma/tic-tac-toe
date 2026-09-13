@@ -34,6 +34,7 @@ export interface RelayEventDeps {
   broadcastGameState: (gameState: GameState) => void;
   startTimer: () => void;
   stopTimer: () => void;
+  clearRematchTimeout: () => void;
 }
 
 /** Handles one relay lifecycle event (routed by type in buildRoomClient). */
@@ -53,6 +54,7 @@ export function handleRelayEvent(
     broadcastGameState,
     startTimer,
     stopTimer,
+    clearRematchTimeout,
   } = deps;
   if (event.type === "welcome") {
     const role = (event as { role?: string }).role;
@@ -218,6 +220,7 @@ export function handleRelayEvent(
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
     stopTimer();
     hostRematchPendingRef.current = false;
+    clearRematchTimeout();
     const current = stateRef.current;
     const leaveReason = reason === "expired" ? "expired" : "closed";
     setState((prev) => {

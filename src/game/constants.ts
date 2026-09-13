@@ -73,6 +73,7 @@ export const GAME_RULES = {
   MAX_MOVES_PER_PLAYER: 3,
 } as const;
 export const TURN_DURATION_MS = 10_000;
+export const REMATCH_TIMEOUT_MS = 30_000;
 export const AI_MOVE_DELAY_MS = 700;
 export const AI_MOVE_DELAY_JITTER_MS = 600;
 export const GAME_ID = "tictactoe";

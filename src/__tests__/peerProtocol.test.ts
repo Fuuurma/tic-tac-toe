@@ -35,6 +35,7 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
       pendingGuestStateRef,
       setState: (fn: (prev: never) => never) => patches.push(fn),
       stopTimer: () => {},
+      clearRematchTimeout: () => {},
     };
 
     handleGuestMessage(deps as never, { type: 'error', message: 'Invalid move' });
@@ -53,6 +54,7 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
       pendingGuestStateRef,
       setState: () => {},
       stopTimer: () => {},
+      clearRematchTimeout: () => {},
     };
 
     const before = stateRef.current;
@@ -93,6 +95,7 @@ describe('hostProtocol.handleHostMessage — rematch identity', () => {
     commitHostState: () => {},
     broadcastGameState: () => {},
     stopTimer: () => {},
+    clearRematchTimeout: () => {},
   });
 
   it('keeps each player their own identity when symbols swap on rematch', () => {
@@ -143,6 +146,7 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
         lastState = fn({ guestSymbol: 'O' } as never);
       },
       stopTimer: () => {},
+      clearRematchTimeout: () => {},
     };
 
     // Simulate gameStart after rematch where host swapped to O → guest is X
@@ -168,6 +172,7 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
         lastState = fn({ guestSymbol: 'O' } as never);
       },
       stopTimer: () => {},
+      clearRematchTimeout: () => {},
     };
 
     handleGuestMessage(deps as never, {

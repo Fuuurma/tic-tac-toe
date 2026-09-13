@@ -45,6 +45,7 @@ function makeDeps(game: GameState, role: PeerRole) {
     broadcastGameState: (g) => void calls.broadcasts.push(g),
     startTimer: vi.fn(),
     stopTimer: vi.fn(),
+    clearRematchTimeout: vi.fn(),
   };
   return { deps, calls, getRoom: () => roomState };
 }
@@ -95,5 +96,16 @@ describe("handleRelayEvent peer-reconnected", () => {
     handleRelayEvent(deps, { type: "peer-reconnected" });
     expect(calls.committed).toHaveLength(1);
     expect(calls.committed[0].turnDeadlineAt).toBe(committed.turnDeadlineAt);
+  });
+
+  it("peer-left expired clears the rematch deadline + pending flag", () => {
+    const game = activeGame();
+    const { deps } = makeDeps(game, "host");
+    deps.hostRematchPendingRef.current = true;
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "expired" });
+
+    expect(deps.hostRematchPendingRef.current).toBe(false);
+    expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 });
