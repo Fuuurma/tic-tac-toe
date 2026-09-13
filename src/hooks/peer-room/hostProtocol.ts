@@ -32,6 +32,7 @@ export interface HostProtocolDeps {
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
   stopTimer: () => void;
+  clearRematchTimeout: () => void;
 }
 
 export function applyHostMove(deps: HostProtocolDeps, index: number, actor: PlayerSymbol) {
@@ -67,6 +68,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     hostPendingSettingsRef,
     setState,
     stopTimer,
+    clearRematchTimeout,
   } = deps;
   {
     if (message.type === "join") {
@@ -130,6 +132,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         return;
       }
       hostRematchPendingRef.current = false;
+      clearRematchTimeout?.();
       const newHostSymbol: PlayerSymbol = randomPlayerSymbol();
       const newGuestSymbol = oppositeSymbol(newHostSymbol);
       // Read BOTH player configs from the OLD state BEFORE overwriting
@@ -174,12 +177,14 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     }
     if (message.type === "rematchDecline") {
       hostRematchPendingRef.current = false;
+      clearRematchTimeout?.();
       setState((prev) => ({ ...prev, message: "Rematch declined" }));
       return;
     }
     if (message.type === "leave") {
       stopTimer();
       hostRematchPendingRef.current = false;
+      clearRematchTimeout?.();
       const state = stateRef.current;
       // Host wins by forfeit when the guest leaves (unless the game
       // already had a winner).

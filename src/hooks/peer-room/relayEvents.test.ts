@@ -45,6 +45,7 @@ function makeDeps(game: GameState, role: PeerRole) {
     broadcastGameState: (g) => void calls.broadcasts.push(g),
     startTimer: vi.fn(),
     stopTimer: vi.fn(),
+    clearRematchTimeout: vi.fn(),
   };
   return { deps, calls, getRoom: () => roomState };
 }
