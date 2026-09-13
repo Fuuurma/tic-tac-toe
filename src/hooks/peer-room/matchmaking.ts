@@ -159,7 +159,12 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       return;
     }
   } catch (err) {
-    matchmakingTicketRef.current = null;
+    // Best-effort ticket release: when the failure was partial (poll route
+    // erroring while the service stays up) the ticket is still queued
+    // server-side — a leave frees it; when the service is truly unreachable
+    // the leave fails harmlessly (bounded, logged). abandonTicket no-ops on
+    // a nil ref, so the user-cancel path still single-fires via leave().
+    abandonTicket(deps, "after error");
     hasStartedRef.current = false;
     setStatus({ status: "error", message: `Matchmaking failed: ${(err as Error).message}` });
   }

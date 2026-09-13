@@ -164,9 +164,11 @@ describe("runQuickMatch", () => {
     await runQuickMatch(deps);
 
     expect(mockedPollMatch).toHaveBeenCalledTimes(5);
-    // The catch path nils the ref directly — no leaveMatch on a dead
-    // session, and the UI is told.
-    expect(mockedLeaveMatch).not.toHaveBeenCalled();
+    // The catch path fires a best-effort leave: when the failure is partial
+    // (poll route down, service up) it frees the still-queued ticket; when
+    // the service is truly unreachable the leave fails harmlessly (fleet
+    // 2026-09-13 ticket-leak finding). The UI is told either way.
+    expect(mockedLeaveMatch).toHaveBeenCalledWith("tictactoe", "t1");
     expect(deps.setStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: "error", message: expect.stringContaining("Matchmaking failed") }),
     );
