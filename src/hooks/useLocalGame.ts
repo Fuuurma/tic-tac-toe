@@ -55,7 +55,7 @@ export function useLocalGame(input: LocalGameInput) {
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
-  const [paused, setPaused] = useState(false);
+  const [paused, setPausedState] = useState(false);
   const tickRef = useRef<number | null>(null);
   const aiTimeoutRef = useRef<number | null>(null);
   const gameIsActive = isGameActive(gameState);
@@ -141,27 +141,39 @@ export function useLocalGame(input: LocalGameInput) {
     setGameState(freshGameState());
   }, [stopTimer]);
 
-  useEffect(() => {
-    if (gameIsActive && !paused) {
+  // Pause/unpause is one atomic transition: the flag and the gameState
+  // deadline adjustment move together at the call site, not in an effect —
+  // synchronous setState inside useEffect triggers cascading renders
+  // (react-hooks/set-state-in-effect, backlog-stale 09-14).
+  const pausedRef = useRef(false);
+  const setPaused = useCallback((target: boolean) => {
+    // Repeat calls with the same target must not re-freeze: a second
+    // pause would recompute turnTimeRemaining off the already-stale
+    // deadline and drain it while paused.
+    if (pausedRef.current === target) return;
+    pausedRef.current = target;
+    setPausedState(target);
+    setGameState((prev) => {
+      if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return prev;
+      if (target) {
+        // Freeze the exact remaining time; the resume branch rebuilds
+        // the deadline from it.
+        if (prev.turnDeadlineAt === undefined) return prev;
+        return { ...prev, turnTimeRemaining: Math.max(0, prev.turnDeadlineAt - Date.now()) };
+      }
       // Rebuild the absolute deadline from the frozen remaining time so
       // time spent paused doesn't count down the turn. Without this the
       // deadline keeps aging while the interval is stopped and the first
       // tick after resume can fire an immediate forced move.
-      setGameState((prev) => {
-        if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return prev;
-        if (prev.turnDeadlineAt === undefined) return prev;
-        return { ...prev, turnDeadlineAt: Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS) };
-      });
+      if (prev.turnDeadlineAt === undefined) return prev;
+      return { ...prev, turnDeadlineAt: Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS) };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (gameIsActive && !paused) {
       startTimer();
     } else {
-      if (paused) {
-        // Freeze the exact remaining time; the resume branch rebuilds
-        // the deadline from it.
-        setGameState((prev) => {
-          if (prev.turnDeadlineAt === undefined) return prev;
-          return { ...prev, turnTimeRemaining: Math.max(0, prev.turnDeadlineAt - Date.now()) };
-        });
-      }
       stopTimer();
     }
   }, [gameIsActive, paused, startTimer, stopTimer]);
