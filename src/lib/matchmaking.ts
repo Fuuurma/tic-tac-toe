@@ -24,6 +24,16 @@ export type MatchmakingResponse =
   | { status: "waiting"; ticket: string; roomId: string }
   | { status: "matched"; match: Match };
 
+function isParticipant(value: unknown): value is Match["host"] {
+  if (typeof value !== "object" || value === null) return false;
+  const p = value as Record<string, unknown>;
+  return (
+    typeof p.peerId === "string" &&
+    typeof p.displayName === "string" &&
+    typeof p.guestId === "string"
+  );
+}
+
 /** The wire is not the type system: a 200 with `{}`, an error body, or a
  *  newer response shape must not flow through as a cast — downstream reads
  *  `response.ticket` (→ `?ticket=undefined` poll loop) and `match.roomId`
@@ -42,15 +52,21 @@ export function parseMatchmakingResponse(data: unknown): MatchmakingResponse {
   }
   if (d.status === "matched" && typeof d.match === "object" && d.match !== null) {
     const m = d.match as Record<string, unknown>;
+    const { roomId, role, host, guest, wsUrl } = m;
     if (
-      typeof m.roomId === "string" &&
-      (m.role === "host" || m.role === "guest") &&
-      typeof m.host === "object" &&
-      m.host !== null &&
-      typeof m.guest === "object" &&
-      m.guest !== null
+      typeof roomId === "string" &&
+      (role === "host" || role === "guest") &&
+      isParticipant(host) &&
+      isParticipant(guest) &&
+      (wsUrl === undefined || typeof wsUrl === "string")
     ) {
-      return { status: "matched", match: m as unknown as Match };
+      return {
+        status: "matched",
+        match:
+          wsUrl === undefined
+            ? { roomId, role, host, guest }
+            : { roomId, role, host, guest, wsUrl },
+      };
     }
   }
   throw new Error("Malformed matchmaking response: unexpected shape");
