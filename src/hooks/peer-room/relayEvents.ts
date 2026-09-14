@@ -171,11 +171,11 @@ export function handleRelayEvent(
         turnDeadlineAt: Date.now() + remaining,
       };
       stateRef.current = resynthesized;
-      setState((prev) =>
-        prev.gameState === current
-          ? { ...prev, gameState: resynthesized }
-          : prev,
-      );
+      // Commit unconditionally: the ref above is already resynthesized,
+      // so gating this setState on reference equality would skip the
+      // render while leaving the ref diverged (fleet F35). Every other
+      // gameState commit in this slice writes ref + render together.
+      setState((prev) => ({ ...prev, gameState: resynthesized }));
       startTimer();
     }
     return;
