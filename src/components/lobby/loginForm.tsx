@@ -500,7 +500,7 @@ function Field({
 
   return (
     <label htmlFor={id} className="block" data-invalid={error ? "true" : undefined}>
-      <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold tracking-normal text-muted-foreground">
         {icon}
         {label}
       </span>
