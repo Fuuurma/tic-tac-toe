@@ -126,14 +126,19 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
 
   const payload: LoginFormPayload = useMemo(
     () => ({
-      displayName: sanitizeDisplayName(displayName),
+      // Raw state, not pre-sanitized: the inputs now store the typed text via
+      // filterDisplayNameInput, and validate() compares it against the
+      // sanitized form. Sanitizing here would silently substitute a random
+      // guest fallback for a too-short name and pass validation with a name
+      // the user never typed.
+      displayName,
       color,
       opponentColor,
       playerShape,
       opponentShape,
       gameMode,
       aiDifficulty,
-      opponentName: sanitizeDisplayName(opponentName, gameMode === GameModes.VS_FRIEND ? "Opponent" : "AI"),
+      opponentName,
       opponentType,
       onlineRoomId: onlineRoomId.trim(),
       onlineAction,

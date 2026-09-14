@@ -72,6 +72,23 @@ export const sanitizeDisplayName = (
   return normalized.length >= DISPLAY_NAME_MIN_LENGTH ? normalized : fallback;
 };
 
+/**
+ * Per-keystroke filter for the name input — strips only characters that are
+ * never legal, and deliberately does NOT trim, collapse spaces, or substitute
+ * a fallback. sanitizeDisplayName's fallback made clearing the field snap back
+ * to a random guest name and ate trailing spaces mid-word, so retyping a name
+ * was impossible (needs-work 2026-09-10). Validation still runs the full
+ * sanitize at save time.
+ */
+export const filterDisplayNameInput = (value: string): string =>
+  Array.from(value)
+    .filter((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint > 31 && codePoint !== 127 && character !== "<" && character !== ">";
+    })
+    .join("")
+    .slice(0, DISPLAY_NAME_MAX_LENGTH);
+
 export const getOrCreateGuestIdentity = (
   storage: Storage | null = getBrowserStorage(),
 ): GuestIdentity => {

@@ -16,7 +16,7 @@ import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, Play, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sanitizeDisplayName } from "@/lib/identity";
+import { filterDisplayNameInput } from "@/lib/identity";
 
 export type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -288,7 +288,7 @@ function PlayerTab({
           type="text"
           value={value.displayName}
           placeholder="Your name"
-          onChange={(e) => onChange({ ...value, displayName: sanitizeDisplayName(e.target.value) })}
+          onChange={(e) => onChange({ ...value, displayName: filterDisplayNameInput(e.target.value) })}
           maxLength={20}
           autoComplete="off"
           className="h-10 w-full rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
@@ -383,7 +383,7 @@ function OpponentTab({
           value={value.opponentName}
           placeholder={isAI ? "AI" : "Opponent"}
           onChange={(e) =>
-            onChange({ ...value, opponentName: sanitizeDisplayName(e.target.value, isAI ? "AI" : "Opponent") })
+            onChange({ ...value, opponentName: filterDisplayNameInput(e.target.value) })
           }
           maxLength={20}
           autoComplete="off"

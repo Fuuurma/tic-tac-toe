@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  filterDisplayNameInput,
   generateGuestDisplayName,
   getOrCreateGuestIdentity,
   IDENTITY_STORAGE_KEYS,
@@ -43,6 +44,23 @@ describe("sanitizeDisplayName", () => {
 
   it("trims and collapses internal whitespace to single spaces", () => {
     expect(sanitizeDisplayName("  Alice   Bob  ")).toBe("Alice Bob");
+  });
+});
+
+describe("filterDisplayNameInput", () => {
+  it("keeps empty and below-min input raw — clearing the field must not snap to a guest fallback", () => {
+    expect(filterDisplayNameInput("")).toBe("");
+    expect(filterDisplayNameInput("A")).toBe("A");
+  });
+
+  it("keeps internal and trailing spaces so multi-word names are typeable", () => {
+    expect(filterDisplayNameInput("John ")).toBe("John ");
+    expect(filterDisplayNameInput("John  Doe")).toBe("John  Doe");
+  });
+
+  it("still strips control characters and angle brackets, and caps length", () => {
+    expect(filterDisplayNameInput("Al\u0000ice<>")).toBe("Alice");
+    expect(filterDisplayNameInput("x".repeat(50))).toHaveLength(20);
   });
 });
 
