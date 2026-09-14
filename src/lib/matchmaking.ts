@@ -32,8 +32,15 @@ interface FindMatchOptions {
   baseUrl?: string;
 }
 
+const _matchmakingUrl = import.meta.env.VITE_MATCHMAKING_URL;
+if (import.meta.env.PROD && !_matchmakingUrl) {
+  throw new Error(
+    "Missing VITE_MATCHMAKING_URL: production builds must define it (see .env.production); refusing the localhost fallback.",
+  );
+}
+
 const MATCHMAKING_BASE_URL =
-  import.meta.env.VITE_MATCHMAKING_URL ?? "http://127.0.0.1:8787";
+  _matchmakingUrl ?? "http://127.0.0.1:8787";
 
 export const MATCH_POLL_INITIAL_DELAY_MS = 1_000;
 export const MATCH_POLL_MAX_DELAY_MS = 4_000;
