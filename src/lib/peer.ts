@@ -378,7 +378,11 @@ const isGameState = (value: unknown): value is GameState => {
       // 09-07 20:05 finding 4) — the sender's clock may simply be
       // behind ours. The absolute ceiling still blocks the
       // years-ahead garbage the P15 fix targeted.
-      state.turnDeadlineAt <= Date.now() + PEER_CLOCK_SKEW_TOLERANCE_MS + 24 * 60 * 60 * 1000)
+      state.turnDeadlineAt <=
+        Math.min(
+          PEER_MAX_TURN_DEADLINE,
+          Date.now() + PEER_CLOCK_SKEW_TOLERANCE_MS + 24 * 60 * 60 * 1000,
+        ))
   ) {
     return false;
   }
