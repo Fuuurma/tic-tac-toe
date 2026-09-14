@@ -205,9 +205,13 @@ export function handleRelayEvent(
       // relay's transient disconnect event arrives. Without this guard
       // the disconnect flips it back to "reconnecting" for the 30s
       // grace, hiding the forfeit result (fleet audit 2026-09-06 P2-1).
+      // stopTimer runs OUTSIDE the updater: updaters must stay pure
+      // (StrictMode double-invokes them), so the transition is detected
+      // inside and the side effect fires once below (fleet 2026-09-10).
+      let transitioned = false;
       setState((prev) => {
         if (prev.status === "disconnected") return prev;
-        stopTimer();
+        transitioned = true;
         return {
           ...prev,
           status: "reconnecting",
@@ -215,6 +219,7 @@ export function handleRelayEvent(
           rematchIncoming: false,
         };
       });
+      if (transitioned) stopTimer();
       return;
     }
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
