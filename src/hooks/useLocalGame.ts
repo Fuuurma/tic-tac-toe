@@ -92,12 +92,10 @@ export function useLocalGame(input: LocalGameInput) {
           }
           return prev;
         }
-        // Only update if the deadline hasn't changed (e.g. by a concurrent
-        // move). This prevents a stale interval from overwriting a fresh
-        // turn's turnTimeRemaining.
-        if (prev.turnDeadlineAt !== undefined && prev.turnDeadlineAt !== deadline) {
-          return prev;
-        }
+        // `deadline` derives from this same `prev` snapshot, so there is no
+        // cross-tick staleness to guard against here: a concurrent move
+        // produces a fresh `prev` on the next tick, which recomputes the
+        // deadline from the new state's turnDeadlineAt.
         return { ...prev, turnTimeRemaining: remaining, turnDeadlineAt: deadline };
       });
     }, 1000);
