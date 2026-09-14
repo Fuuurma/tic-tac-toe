@@ -46,7 +46,7 @@ pnpm test                     # vitest run (unit)
 pnpm test:e2e                 # pnpm build && playwright test
 pnpm check                    # pnpm lint && pnpm test && pnpm test:e2e
 pnpm deploy:check             # build + sanity-check the dist artifact
-pnpm deploy                   # pnpm build && wrangler pages deploy dist
+pnpm deploy                   # deploy:check (build + dist preflight) && wrangler pages deploy dist
 ```
 
 ## Stack

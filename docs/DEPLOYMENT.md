@@ -71,7 +71,8 @@ pnpm build
 pnpm preview     # serves dist/ on 127.0.0.1:4110
 ```
 
-The deploy command builds and runs `wrangler pages deploy dist`. It requires
+The deploy command runs `deploy:check` (build + dist preflight) and then
+`wrangler pages deploy dist`. It requires
 Wrangler authentication. The project name in `wrangler.jsonc` is
 `tic-tac-toe`.
 
