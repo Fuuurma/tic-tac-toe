@@ -45,7 +45,7 @@ import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { normalizeRoomId } from "@/lib/roomId";
 
-export interface LoginFormPayload {
+export interface LobbyFormPayload {
   displayName: string;
   color: Color;
   opponentColor: Color;
@@ -59,13 +59,13 @@ export interface LoginFormPayload {
   onlineAction: "create" | "join" | "quick";
 }
 
-interface LoginFormProps {
+interface LobbyFormProps {
   initialRoomId?: string;
-  onStart: (payload: LoginFormPayload) => void;
+  onStart: (payload: LobbyFormPayload) => void;
 }
 
 const getRoomCodeError = (
-  action: LoginFormPayload["onlineAction"],
+  action: LobbyFormPayload["onlineAction"],
   roomId: string,
 ): string | null => {
   if (action === "join") {
@@ -80,7 +80,7 @@ const getRoomCodeError = (
   return null;
 };
 
-const validate = (payload: LoginFormPayload): string | null => {
+const validate = (payload: LobbyFormPayload): string | null => {
   if (sanitizeDisplayName(payload.displayName) !== payload.displayName) {
     return "Enter a valid name (2-20 characters, no control characters).";
   }
@@ -99,7 +99,7 @@ const validate = (payload: LoginFormPayload): string | null => {
   return null;
 };
 
-export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
+export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
   const [displayName, setDisplayName] = useState<string>(
     () => getOrCreateGuestIdentity().displayName,
   );
@@ -124,7 +124,7 @@ export function LoginForm({ initialRoomId = "", onStart }: LoginFormProps) {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const payload: LoginFormPayload = useMemo(
+  const payload: LobbyFormPayload = useMemo(
     () => ({
       // Raw state, not pre-sanitized: the inputs now store the typed text via
       // filterDisplayNameInput, and validate() compares it against the

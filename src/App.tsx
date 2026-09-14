@@ -11,7 +11,7 @@ import {
   type PlayerType,
 } from "@/game/constants";
 
-import { LoginForm, type LoginFormPayload } from "@/components/lobby/loginForm";
+import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { BackgroundPattern } from "@/components/backgroundPattern";
 import { Board } from "@/components/game/board";
 import { HelpDrawer } from "@/components/game/helpDrawer";
@@ -54,7 +54,7 @@ export default function App() {
     return normalizeRoomId(new URLSearchParams(window.location.search).get("room"));
   });
 
-  const handleStart = (payload: LoginFormPayload) => {
+  const handleStart = (payload: LobbyFormPayload) => {
     setConfig({
       displayName: payload.displayName,
       color: payload.color,
@@ -90,7 +90,7 @@ export default function App() {
       />
       <div className="relative z-10 my-auto flex w-full justify-center">
         {view === "login" && (
-          <LoginForm initialRoomId={initialRoomId} onStart={handleStart} />
+          <LobbyForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
         {view === "game" && config && (
           <ErrorBoundary>
