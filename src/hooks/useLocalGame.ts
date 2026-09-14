@@ -72,8 +72,9 @@ export function useLocalGame(input: LocalGameInput) {
     stopTimer();
     tickRef.current = window.setInterval(() => {
       setGameState((prev) => {
+        // Updater must stay pure (StrictMode double-invokes it): timer
+        // teardown is owned by the gameIsActive effect below.
         if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) {
-          stopTimer();
           return prev;
         }
         // Use the absolute deadline so the timer stays correct even when
