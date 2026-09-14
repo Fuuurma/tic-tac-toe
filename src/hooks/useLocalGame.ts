@@ -145,8 +145,25 @@ export function useLocalGame(input: LocalGameInput) {
 
   useEffect(() => {
     if (gameIsActive && !paused) {
+      // Rebuild the absolute deadline from the frozen remaining time so
+      // time spent paused doesn't count down the turn. Without this the
+      // deadline keeps aging while the interval is stopped and the first
+      // tick after resume can fire an immediate forced move.
+      setGameState((prev) => {
+        if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return prev;
+        if (prev.turnDeadlineAt === undefined) return prev;
+        return { ...prev, turnDeadlineAt: Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS) };
+      });
       startTimer();
     } else {
+      if (paused) {
+        // Freeze the exact remaining time; the resume branch rebuilds
+        // the deadline from it.
+        setGameState((prev) => {
+          if (prev.turnDeadlineAt === undefined) return prev;
+          return { ...prev, turnTimeRemaining: Math.max(0, prev.turnDeadlineAt - Date.now()) };
+        });
+      }
       stopTimer();
     }
   }, [gameIsActive, paused, startTimer, stopTimer]);
