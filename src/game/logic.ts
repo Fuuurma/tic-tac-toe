@@ -140,7 +140,7 @@ export const getValidMoves = (board: Board): number[] => {
 };
 
 export const isValidMove = (state: GameState, index: number, symbol: PlayerSymbol): boolean => {
-  if (state.winner !== null) return false;
+  if (state.gameStatus !== GameStatus.ACTIVE || state.winner !== null) return false;
   if (state.currentPlayer !== symbol) return false;
   if (index < 0 || index >= GAME_RULES.BOARD_SIZE) return false;
   if (state.board[index] !== null) return false;

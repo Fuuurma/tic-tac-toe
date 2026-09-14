@@ -3,6 +3,7 @@ import {
   AI_Difficulty,
   Color,
   GameModes,
+  GameStatus,
   PlayerSymbol,
 } from "@/game/constants";
 import {
@@ -77,7 +78,7 @@ function* representativeMobileStates(): Generator<{
     const s = freshGameState();
     s.players[PlayerSymbol.X].color = Color.BLUE;
     s.players[PlayerSymbol.O].color = Color.RED;
-    s.gameStatus = GameModes.ONLINE as unknown as GameState["gameStatus"];
+    s.gameStatus = GameStatus.ACTIVE;
     yield {
       label: "dead-end-eviction",
       state: applyAuthorizedMove(s, 4, PlayerSymbol.X)!,

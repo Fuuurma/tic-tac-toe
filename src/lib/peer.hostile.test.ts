@@ -13,7 +13,6 @@ import {
 } from "@/game/constants";
 import {
   createInitialGameState,
-  freshGameState,
   makeMove,
 } from "@/game/logic";
 import {
@@ -349,7 +348,7 @@ describe("isPeerMessage hostile game-state frames", () => {
   });
 
   it("accepts a fully well-formed state built from the freshGameState + legal move", () => {
-    const next = makeMove(freshGameState(), 0);
+    const next = makeMove(baselineState(), 0);
     if (!next) throw new Error("seed move must be legal");
     const state = {
       ...baselineState(),

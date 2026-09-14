@@ -24,6 +24,38 @@ export type MatchmakingResponse =
   | { status: "waiting"; ticket: string; roomId: string }
   | { status: "matched"; match: Match };
 
+/** The wire is not the type system: a 200 with `{}`, an error body, or a
+ *  newer response shape must not flow through as a cast — downstream reads
+ *  `response.ticket` (→ `?ticket=undefined` poll loop) and `match.roomId`
+ *  (→ crash) verbatim (devin 2026-09-10 finding). */
+export function parseMatchmakingResponse(data: unknown): MatchmakingResponse {
+  if (typeof data !== "object" || data === null) {
+    throw new Error("Malformed matchmaking response: not an object");
+  }
+  const d = data as Record<string, unknown>;
+  if (
+    d.status === "waiting" &&
+    typeof d.ticket === "string" &&
+    typeof d.roomId === "string"
+  ) {
+    return { status: "waiting", ticket: d.ticket, roomId: d.roomId };
+  }
+  if (d.status === "matched" && typeof d.match === "object" && d.match !== null) {
+    const m = d.match as Record<string, unknown>;
+    if (
+      typeof m.roomId === "string" &&
+      (m.role === "host" || m.role === "guest") &&
+      typeof m.host === "object" &&
+      m.host !== null &&
+      typeof m.guest === "object" &&
+      m.guest !== null
+    ) {
+      return { status: "matched", match: m as unknown as Match };
+    }
+  }
+  throw new Error("Malformed matchmaking response: unexpected shape");
+}
+
 interface FindMatchOptions {
   game: string;
   peerId: string;
@@ -76,7 +108,7 @@ export async function findMatch(options: FindMatchOptions): Promise<MatchmakingR
     throw new Error(`Matchmaking join failed: ${response.status} ${await response.text()}`);
   }
 
-  return response.json() as Promise<MatchmakingResponse>;
+  return parseMatchmakingResponse(await response.json());
 }
 
 export async function pollMatch(
@@ -93,7 +125,7 @@ export async function pollMatch(
     throw new Error(`Matchmaking poll failed: ${response.status} ${await response.text()}`);
   }
 
-  return response.json() as Promise<MatchmakingResponse>;
+  return parseMatchmakingResponse(await response.json());
 }
 
 export async function leaveMatch(

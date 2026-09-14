@@ -245,6 +245,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       handleHostData,
       handleGuestData,
       stopTimer,
+      hostRematchPendingRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );

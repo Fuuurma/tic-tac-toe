@@ -44,6 +44,7 @@ export interface RoomLifecycleDeps {
   handleHostData: (message: PeerMessage) => void;
   handleGuestData: (message: PeerMessage) => void;
   stopTimer: () => void;
+  hostRematchPendingRef?: { current: boolean };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -141,6 +142,11 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
+  // A stale pending-rematch flag must not leak into the new room —
+  // without this a stray rematchAccept arriving right after the room
+  // swap is honored against a game that never asked for one
+  // (needs-work 2026-09-10 P2).
+  if (deps.hostRematchPendingRef) deps.hostRematchPendingRef.current = false;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -184,6 +190,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
+  if (deps.hostRematchPendingRef) deps.hostRematchPendingRef.current = false;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });

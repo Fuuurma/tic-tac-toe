@@ -18,6 +18,10 @@ import {
   makeMove,
 } from "@/game/logic";
 
+// Tests that exercise moves must start ACTIVE — freshGameState() is the
+// WAITING lobby state and isValidMove now (correctly) rejects non-active games.
+const activeState = () => ({ ...freshGameState(), gameStatus: GameStatus.ACTIVE });
+
 describe("freshGameState", () => {
   it("returns a clean state with an empty 3x3 board", () => {
     const state = freshGameState();
@@ -76,7 +80,7 @@ describe("getValidMoves", () => {
   });
 
   it("excludes occupied cells", () => {
-    const state = makeMove(freshGameState(), 4)!;
+    const state = makeMove(activeState(), 4)!;
     const valid = getValidMoves(state.board);
     expect(valid).not.toContain(4);
     expect(valid).toHaveLength(8);
@@ -85,7 +89,7 @@ describe("getValidMoves", () => {
 
 describe("isValidMove", () => {
   it("rejects moves after the game has ended", () => {
-    const state = freshGameState();
+    const state = activeState();
     let s = makeMove(state, 0)!;
     s = makeMove(s, 3)!;
     s = makeMove(s, 1)!;
@@ -96,19 +100,25 @@ describe("isValidMove", () => {
   });
 
   it("rejects moves on occupied cells", () => {
-    const state = makeMove(freshGameState(), 4)!;
+    const state = makeMove(activeState(), 4)!;
     expect(isValidMove(state, 4, PlayerSymbol.O)).toBe(false);
   });
 
   it("rejects moves by the wrong player", () => {
-    const state = freshGameState();
+    const state = activeState();
     expect(isValidMove(state, 0, PlayerSymbol.O)).toBe(false);
+  });
+
+  it("rejects moves while the game is WAITING — a peer packet must not move a not-yet-active game", () => {
+    const state = { ...freshGameState(), gameStatus: GameStatus.WAITING };
+    expect(state.winner).toBeNull();
+    expect(isValidMove(state, 0, PlayerSymbol.X)).toBe(false);
   });
 });
 
 describe("checkWinner", () => {
   it("detects a row win for X", () => {
-    let s = freshGameState();
+    let s = activeState();
     s = makeMove(s, 0)!;
     s = makeMove(s, 3)!;
     s = makeMove(s, 1)!;
@@ -120,7 +130,7 @@ describe("checkWinner", () => {
   });
 
   it("detects a column win for O", () => {
-    let s = freshGameState();
+    let s = activeState();
     s = makeMove(s, 0)!;
     s = makeMove(s, 3)!;
     s = makeMove(s, 1)!;
@@ -133,7 +143,7 @@ describe("checkWinner", () => {
   });
 
   it("detects a diagonal win", () => {
-    let s = freshGameState();
+    let s = activeState();
     s = makeMove(s, 0)!;
     s = makeMove(s, 1)!;
     s = makeMove(s, 4)!;
@@ -145,7 +155,7 @@ describe("checkWinner", () => {
   });
 
   it("returns null winner for an unfinished board", () => {
-    const s = makeMove(freshGameState(), 0)!;
+    const s = makeMove(activeState(), 0)!;
     expect(checkWinner(s.board).winner).toBeNull();
   });
 });
