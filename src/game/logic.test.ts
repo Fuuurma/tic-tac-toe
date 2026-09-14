@@ -16,11 +16,14 @@ import {
   getValidMoves,
   isValidMove,
   makeMove,
+  type GameState,
 } from "@/game/logic";
 
 // Tests that exercise moves must start ACTIVE — freshGameState() is the
 // WAITING lobby state and isValidMove now (correctly) rejects non-active games.
-const activeState = () => ({ ...freshGameState(), gameStatus: GameStatus.ACTIVE });
+// Annotated GameState (not the narrow ACTIVE literal) so makeMove's broad
+// return type stays assignable across chained moves incl. terminal states.
+const activeState = (): GameState => ({ ...freshGameState(), gameStatus: GameStatus.ACTIVE });
 
 describe("freshGameState", () => {
   it("returns a clean state with an empty 3x3 board", () => {

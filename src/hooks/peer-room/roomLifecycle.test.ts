@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { RoomClient } from "@/lib/room";
+import { Color, GameModes } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, type RoomLifecycleDeps } from "./roomLifecycle";
 
@@ -72,7 +73,15 @@ describe("joinAsGuest rematch-flag reset", () => {
   function lifecycleDeps(hostRematchPendingRef: { current: boolean }): RoomLifecycleDeps {
     return {
       roomRef: { current: null },
-      stateRef: { current: createInitialGameState({ gameMode: "LOCAL" as never }) },
+      stateRef: {
+        current: createInitialGameState({
+          gameMode: GameModes.ONLINE,
+          playerXName: "Host",
+          playerOName: "Guest",
+          playerColor: Color.BLUE,
+          opponentColor: Color.RED,
+        }),
+      },
       roleRef: { current: null },
       hostSymbolRef: { current: null },
       hostDisplayName: "Host",
