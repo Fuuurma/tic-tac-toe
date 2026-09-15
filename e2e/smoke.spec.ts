@@ -440,7 +440,7 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
     mode: "Online",
     onlineAction: "Join",
     roomId,
-    startUrl: `${e2eBaseUrl}/?room=${roomId}`,
+    startUrl: `/?room=${roomId}`,
   });
   await expect(guestPage.getByLabel("Room code")).toHaveValue(roomId);
   await guestPage.getByRole("button", { name: "Join Room" }).click();
@@ -516,8 +516,10 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
 test("quick-match places both clients into a shared room", async ({ browser }) => {
   test.setTimeout(180_000);
 
-  const e2eBaseUrl = process.env.E2E_BASE_URL;
-  test.skip(!e2eBaseUrl, "Quick match smoke requires E2E_BASE_URL");
+  test.skip(
+    !(await onlineSmokeEnabled()),
+    "Quick match smoke requires E2E_BASE_URL or a reachable matchmaking Worker",
+  );
 
   const first = await browser.newContext();
   const second = await browser.newContext();
