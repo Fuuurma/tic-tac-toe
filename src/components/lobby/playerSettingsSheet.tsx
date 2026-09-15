@@ -279,7 +279,7 @@ function PlayerTab({
   return (
     <>
       <label htmlFor="sheet-name" className="block">
-        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold tracking-normal text-muted-foreground">
           <User className="size-3.5" />
           Name
         </span>
@@ -373,7 +373,7 @@ function OpponentTab({
       )}
 
       <label htmlFor="sheet-opponent-name" className="block">
-        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold tracking-normal text-muted-foreground">
           <User className="size-3.5" />
           Name
         </span>

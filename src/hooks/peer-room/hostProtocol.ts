@@ -187,18 +187,27 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       clearRematchTimeout();
       const state = stateRef.current;
       // Host wins by forfeit when the guest leaves (unless the game
-      // already had a winner).
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-      const ended: GameState = state.winner
-        ? state
-        : { ...state, winner: hostSymbol, gameStatus: GameStatus.COMPLETED };
-      stateRef.current = ended;
-      setState((prev) => ({
-        ...prev,
-        status: "disconnected",
-        gameState: ended,
-        message: "Opponent left",
-      }));
+      // already had a winner). Symbols randomize per rematch — prefer
+      // the live ref, fall back to the state-recorded symbol, and crown
+      // nobody rather than guess X/O when neither is known yet.
+      setState((prev) => {
+        const hostSymbol = hostSymbolRef.current ?? prev.hostSymbol;
+        const ended: GameState =
+          state.winner || hostSymbol === null
+            ? state
+            : {
+                ...state,
+                winner: hostSymbol,
+                gameStatus: GameStatus.COMPLETED,
+              };
+        stateRef.current = ended;
+        return {
+          ...prev,
+          status: "disconnected" as const,
+          gameState: ended,
+          message: "Opponent left",
+        };
+      });
       return;
     }
     // NOTE: the host never receives {type:"error", message:"Invalid

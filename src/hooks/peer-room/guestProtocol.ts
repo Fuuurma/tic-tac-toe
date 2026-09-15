@@ -108,18 +108,28 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       // show a more specific message now.
       stopTimer();
       const current = stateRef.current;
-      const guestSymbol = guestSymbolRef.current ?? PlayerSymbol.O;
-      const gameState = current.winner
-        ? current
-        : { ...current, winner: guestSymbol, gameStatus: GameStatus.COMPLETED };
-      stateRef.current = gameState;
-      setState((prev) => ({
-        ...prev,
-        status: "disconnected",
-        gameState,
-        message: "Host left the game",
-        rematchIncoming: false,
-      }));
+      setState((prev) => {
+        // Symbols randomize per rematch — prefer the live ref, fall back
+        // to the state-recorded symbol, and crown nobody rather than
+        // guess X/O when neither is known yet.
+        const guestSymbol = guestSymbolRef.current ?? prev.guestSymbol;
+        const gameState =
+          current.winner || guestSymbol === null
+            ? current
+            : {
+                ...current,
+                winner: guestSymbol,
+                gameStatus: GameStatus.COMPLETED,
+              };
+        stateRef.current = gameState;
+        return {
+          ...prev,
+          status: "disconnected" as const,
+          gameState,
+          message: "Host left the game",
+          rematchIncoming: false,
+        };
+      });
       return;
     }
     if (message.type === "error") {
