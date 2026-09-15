@@ -295,18 +295,3 @@ export const getAIMove = (
       return easyMove(state);
   }
 };
-
-export const canAIMove = (
-  state: GameState,
-  playerSymbol: PlayerSymbol | null,
-): boolean => {
-  // Same guard as getAIMove: an AI move can only fire when the AI is
-  // actually the player to move and the game is in progress.
-  if (
-    !isGameActive(state) ||
-    playerSymbol !== state.currentPlayer
-  ) {
-    return false;
-  }
-  return getValidMoves(state.board).length > 0;
-};

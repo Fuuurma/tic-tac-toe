@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AI_Difficulty, GameModes, Color, PlayerSymbol } from "@/game/constants";
-import { canAIMove, getAIMove } from "@/game/ai";
+import { getAIMove } from "@/game/ai";
 import {
   createInitialGameState,
   freshGameState,
@@ -146,17 +146,4 @@ describe("getAIMove", () => {
   });
 });
 
-describe("canAIMove", () => {
-  it("returns true when it is the AI's turn and there is a valid move", () => {
-    const state = onlineState();
-    expect(canAIMove(state, PlayerSymbol.X)).toBe(true);
-  });
-  it("returns false when the symbol does not match the current player", () => {
-    const state = onlineState();
-    expect(canAIMove(state, PlayerSymbol.O)).toBe(false);
-  });
 
-  it("returns false for a waiting game", () => {
-    expect(canAIMove(freshGameState(), PlayerSymbol.X)).toBe(false);
-  });
-});
