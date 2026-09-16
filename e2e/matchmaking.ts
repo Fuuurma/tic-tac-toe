@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 
 /**
  * The preview bundle bakes VITE_MATCHMAKING_URL at build time — an explicit
- * env override wins, otherwise `pnpm build` (mode=production) reads
- * .env.production. Probe the same URL the bundle will actually call so the
- * reachability gate tracks reality instead of a hardcoded default.
+ * env override wins, otherwise an untracked local .env.production. Probe the
+ * same URL the bundle will actually call so the reachability gate tracks
+ * reality instead of a hardcoded default.
  */
 function envProductionMatchmakingUrl(): string | undefined {
   try {
@@ -27,8 +27,8 @@ export const MATCHMAKING_URL =
 
 /**
  * Online specs depend on the matchmaking Worker — a deployed target via
- * E2E_BASE_URL, the production URL baked by .env.production, or a local
- * sibling `wrangler dev` on :8787. HEAD-probe it so the specs skip cleanly
+ * E2E_BASE_URL, the production URL baked from the build environment, or a
+ * local sibling `wrangler dev` on :8787. HEAD-probe it so the specs skip cleanly
  * instead of failing on connection refused.
  */
 export async function matchmakingReachable(): Promise<boolean> {

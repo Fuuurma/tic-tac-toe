@@ -83,7 +83,7 @@ interface FindMatchOptions {
 const _matchmakingUrl = import.meta.env.VITE_MATCHMAKING_URL;
 if (import.meta.env.PROD && !_matchmakingUrl) {
   throw new Error(
-    "Missing VITE_MATCHMAKING_URL: production builds must define it (see .env.production); refusing the localhost fallback.",
+    "Missing VITE_MATCHMAKING_URL: production builds must define it (set it in the build environment; see .env.example); refusing the localhost fallback.",
   );
 }
 

@@ -67,9 +67,14 @@ and falls back to `http://127.0.0.1:8787` in dev.
 ## Local preview
 
 ```bash
-pnpm build
+VITE_MATCHMAKING_URL=http://127.0.0.1:8787 pnpm build
 pnpm preview     # serves dist/ on 127.0.0.1:4110
 ```
+
+The preview bundle bakes `VITE_MATCHMAKING_URL` at build time (no committed
+default — `.env.production` is intentionally empty and git-ignored), so the
+build needs the variable exported. Point it at the sibling matchmaking Worker
+on `:8787` for local previews.
 
 The deploy command runs `deploy:check` (build + dist preflight) and then
 `wrangler pages deploy dist`. It requires
