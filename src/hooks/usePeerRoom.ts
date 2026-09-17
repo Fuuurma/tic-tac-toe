@@ -277,7 +277,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const sendMove = useCallback(
     (index: number) => {
       if (state.role === "host") {
-        applyHostMove(index, hostSymbolRef.current ?? PlayerSymbol.X);
+        const hostSymbol = hostSymbolRef.current;
+        // The ref is assigned synchronously in startAsHost; if it is null
+        // the room was never initialized — never guess X and apply a move
+        // for the wrong side. No-op instead.
+        if (hostSymbol === null) return;
+        applyHostMove(index, hostSymbol);
         return;
       }
       if (state.role === "guest") {
@@ -333,7 +338,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
       }
       hostRematchPendingRef.current = true;
       // Use the host's current symbol so the guest UI names the right player.
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      // Prefer the live ref, fall back to the state-recorded symbol; never
+      // guess X when neither is known.
+      const hostSymbol = hostSymbolRef.current ?? state.hostSymbol;
+      if (hostSymbol === null) {
+        hostRematchPendingRef.current = false;
+        return;
+      }
       roomRef.current?.send({ type: "rematchRequested", requesterSymbol: hostSymbol });
       clearRematchTimeout();
       rematchTimeoutRef.current = window.setTimeout(expireRematch, REMATCH_TIMEOUT_MS);
@@ -342,7 +353,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         message: "Waiting for opponent to accept rematch",
       }));
     }
-  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, clearRematchTimeout, expireRematch]);
+  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, state.hostSymbol, clearRematchTimeout, expireRematch]);
 
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {
