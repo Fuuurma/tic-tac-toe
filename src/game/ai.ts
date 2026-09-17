@@ -119,17 +119,24 @@ const scorePositions = (state: GameState, symbol: PlayerSymbol): number => {
   return score;
 };
 
-const evaluateNonTerminal = (state: GameState, player: PlayerSymbol): number => {
+export const evaluateNonTerminal = (state: GameState, player: PlayerSymbol): number => {
   const opponent = oppositeSymbol(player);
   const playerWins = countImmediateWins(state, player);
   const opponentWins = countImmediateWins(state, opponent);
 
-  const score =
+  let score =
     scoreLines(state, player) -
     scoreLines(state, opponent) +
     scorePositions(state, player) -
     scorePositions(state, opponent) +
     (playerWins - opponentWins) * IMMEDIATE_THREAT_SCORE;
+
+  // A threat is more valuable when its owner is actually about to move.
+  if (state.currentPlayer === player) {
+    score += playerWins * IMMEDIATE_THREAT_SCORE;
+  } else {
+    score -= opponentWins * IMMEDIATE_THREAT_SCORE;
+  }
   return score;
 };
 
