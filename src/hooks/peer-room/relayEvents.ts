@@ -2,7 +2,6 @@ import {
   GameStatus,
   TURN_DURATION_MS,
   PlayerSymbol,
-  oppositeSymbol,
 } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
@@ -71,7 +70,7 @@ export function handleRelayEvent(
           ...prev,
           role: "host",
           status: "connected",
-          guestSymbol: oppositeSymbol(hostSymbolRef.current ?? PlayerSymbol.X),
+          guestSymbol: guestSymbolRef.current ?? prev.guestSymbol,
           message: "",
         }));
         // Host's own reconnect must resync like peer-reconnected does:

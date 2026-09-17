@@ -24,8 +24,12 @@ function activeGame(overrides: Partial<GameState> = {}): GameState {
   };
 }
 
-function makeDeps(game: GameState, role: PeerRole) {
-  let roomState = { gameState: game } as PeerRoomState;
+function makeDeps(
+  game: GameState,
+  role: PeerRole,
+  roomInit: Partial<PeerRoomState> = {},
+) {
+  let roomState = { gameState: game, ...roomInit } as PeerRoomState;
   const calls = { committed: [] as GameState[], broadcasts: [] as GameState[] };
   const deps: RelayEventDeps = {
     stateRef: { current: game },
@@ -107,5 +111,37 @@ describe("handleRelayEvent peer-reconnected", () => {
 
     expect(deps.hostRematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handleRelayEvent symbol fallbacks", () => {
+  it("host welcome keeps the recorded guestSymbol when the ref is unassigned", () => {
+    const game = activeGame();
+    const { deps, getRoom } = makeDeps(game, "host", {
+      hostSymbol: PlayerSymbol.O,
+      guestSymbol: PlayerSymbol.X,
+    });
+    deps.hostSymbolRef.current = null;
+    deps.guestSymbolRef.current = null;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(getRoom().guestSymbol).toBe(PlayerSymbol.X);
+  });
+
+  it("guest peer-left before symbol assignment crowns nobody", () => {
+    const game = activeGame();
+    const { deps, getRoom } = makeDeps(game, "guest", { guestSymbol: null });
+    deps.guestSymbolRef.current = null;
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().gameState.winner).toBeNull();
+    expect(deps.stateRef.current.winner).toBeNull();
   });
 });

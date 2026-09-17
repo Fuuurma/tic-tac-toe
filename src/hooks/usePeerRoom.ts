@@ -236,6 +236,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       stateRef,
       roleRef,
       hostSymbolRef,
+      guestSymbolRef,
       hostDisplayName: options.hostDisplayName,
       hostColor: options.hostColor,
       hostShape: options.hostShape,
@@ -277,7 +278,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const sendMove = useCallback(
     (index: number) => {
       if (state.role === "host") {
-        applyHostMove(index, hostSymbolRef.current ?? PlayerSymbol.X);
+        const hostSymbol = hostSymbolRef.current ?? state.hostSymbol;
+        if (hostSymbol === null) return;
+        applyHostMove(index, hostSymbol);
         return;
       }
       if (state.role === "guest") {
@@ -305,7 +308,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         setState((prev) => ({ ...prev, gameState: optimistic }));
       }
     },
-    [applyHostMove, state.guestSymbol, state.role],
+    [applyHostMove, state.guestSymbol, state.hostSymbol, state.role],
   );
 
   const requestRematch = useCallback(() => {
@@ -331,9 +334,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
       ) {
         return;
       }
-      hostRematchPendingRef.current = true;
       // Use the host's current symbol so the guest UI names the right player.
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      const hostSymbol = hostSymbolRef.current ?? state.hostSymbol;
+      if (hostSymbol === null) return;
+      hostRematchPendingRef.current = true;
       roomRef.current?.send({ type: "rematchRequested", requesterSymbol: hostSymbol });
       clearRematchTimeout();
       rematchTimeoutRef.current = window.setTimeout(expireRematch, REMATCH_TIMEOUT_MS);
@@ -342,7 +346,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         message: "Waiting for opponent to accept rematch",
       }));
     }
-  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, clearRematchTimeout, expireRematch]);
+  }, [state.role, state.hostSymbol, state.gameState.winner, state.gameState.gameStatus, state.status, clearRematchTimeout, expireRematch]);
 
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {

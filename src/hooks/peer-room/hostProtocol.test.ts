@@ -68,3 +68,20 @@ describe("handleHostMessage rematch deadline", () => {
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 });
+
+describe("handleHostMessage unassigned host symbol", () => {
+  it("ignores a guest move instead of guessing X", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O,
+    };
+    const { deps } = makeDeps(game);
+    deps.hostSymbolRef.current = null;
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
+  });
+});

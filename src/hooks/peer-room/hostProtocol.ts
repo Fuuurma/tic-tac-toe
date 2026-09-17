@@ -43,8 +43,8 @@ export function applyHostMove(deps: HostProtocolDeps, index: number, actor: Play
     if (!next) {
       // Only send an error rollback for guest moves. The host's own
       // moves are validated locally and never need a wire error.
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-      if (actor !== hostSymbol) {
+      const hostSymbol = hostSymbolRef.current;
+      if (hostSymbol !== null && actor !== hostSymbol) {
         roomRef.current?.send({ type: "error", message: "Invalid move" });
       }
       return;
@@ -72,7 +72,8 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
   } = deps;
   {
     if (message.type === "join") {
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      const hostSymbol = hostSymbolRef.current;
+      if (hostSymbol === null) return;
       const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
         displayName: message.displayName,
         preferredColor: message.preferredColor,
@@ -112,13 +113,15 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       return;
     }
     if (message.type === "move") {
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      const hostSymbol = hostSymbolRef.current;
+      if (hostSymbol === null) return;
       const guestSymbol = oppositeSymbol(hostSymbol);
       applyHostMove(deps, message.index, guestSymbol);
       return;
     }
     if (message.type === "rematchAccept") {
       const state = stateRef.current;
+      const oldHostSymbol = hostSymbolRef.current;
       // Two gates:
       // 1. The host must have issued a rematch request that's still pending.
       //    A stray guest message without a pending request is ignored.
@@ -127,7 +130,8 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       if (
         !hostRematchPendingRef.current ||
         state.winner === null ||
-        state.gameStatus !== GameStatus.COMPLETED
+        state.gameStatus !== GameStatus.COMPLETED ||
+        oldHostSymbol === null
       ) {
         return;
       }
@@ -139,7 +143,6 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // hostSymbolRef — when symbols swap, indexing by the NEW symbol
       // would give each side the other player's name/color/shape
       // (fleet critic 2026-09-06 P1).
-      const oldHostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
       const hostPlayer = state.players[oldHostSymbol];
       const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
       hostSymbolRef.current = newHostSymbol;
