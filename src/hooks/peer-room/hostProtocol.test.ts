@@ -4,7 +4,7 @@ import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState } from "../usePeerRoom";
-import { handleHostMessage, type HostProtocolDeps } from "./hostProtocol";
+import { applyHostMove, handleHostMessage, type HostProtocolDeps } from "./hostProtocol";
 
 // Regression pins for the rematch deadline wiring — every path that
 // resolves a pending host rematch request must clear its timeout
@@ -66,6 +66,39 @@ describe("handleHostMessage rematch deadline", () => {
 
     expect(deps.hostRematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handleHostMessage invalid guest move", () => {
+  it("replies 'Invalid move' so the guest rolls back its optimistic move", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.X, // host's turn — a guest move is illegal
+    };
+    const { deps } = makeDeps(game);
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Invalid move",
+    });
+  });
+
+  it("does not send a wire error for the host's own rejected move", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O, // guest's turn — host move is illegal
+    };
+    const { deps } = makeDeps(game);
+
+    applyHostMove(deps, 0, PlayerSymbol.X);
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
   });
 });
 

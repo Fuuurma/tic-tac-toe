@@ -278,11 +278,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const sendMove = useCallback(
     (index: number) => {
       if (state.role === "host") {
-        const hostSymbol = hostSymbolRef.current ?? state.hostSymbol;
-        // The ref is assigned synchronously in startAsHost; the recorded
-        // state symbol is the reconnect fallback. If both are null the room
-        // was never initialized — never guess X and apply a move for the
-        // wrong side. No-op instead.
+        // hostSymbolRef is the single source of truth: it is assigned
+        // synchronously in startAsHost and never cleared, so state.hostSymbol
+        // can only ever lag it, never lead it (F161 — a `?? state.hostSymbol`
+        // fallback was a second null policy for the same concept). Null means
+        // the room was never initialized — never guess X and apply a move
+        // for the wrong side. No-op instead.
+        const hostSymbol = hostSymbolRef.current;
         if (hostSymbol === null) return;
         applyHostMove(index, hostSymbol);
         return;
@@ -312,7 +314,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         setState((prev) => ({ ...prev, gameState: optimistic }));
       }
     },
-    [applyHostMove, state.guestSymbol, state.hostSymbol, state.role],
+    [applyHostMove, state.guestSymbol, state.role],
   );
 
   const requestRematch = useCallback(() => {
@@ -339,10 +341,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       hostRematchPendingRef.current = true;
-      // Use the host's current symbol so the guest UI names the right player.
-      // Prefer the live ref, fall back to the state-recorded symbol; never
-      // guess X when neither is known.
-      const hostSymbol = hostSymbolRef.current ?? state.hostSymbol;
+      // Use the host's current symbol so the guest UI names the right
+      // player. The ref is the single source of truth (F161 — no
+      // state-symbol fallback); null means the room was never
+      // initialized, so never guess X.
+      const hostSymbol = hostSymbolRef.current;
       if (hostSymbol === null) {
         hostRematchPendingRef.current = false;
         return;
@@ -355,7 +358,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         message: "Waiting for opponent to accept rematch",
       }));
     }
-  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, state.hostSymbol, clearRematchTimeout, expireRematch]);
+  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, clearRematchTimeout, expireRematch]);
 
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {

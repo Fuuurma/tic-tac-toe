@@ -115,10 +115,30 @@ describe("handleRelayEvent peer-reconnected", () => {
 });
 
 describe("handleRelayEvent symbol fallbacks", () => {
-  it("host welcome keeps the recorded guestSymbol when the ref is unassigned", () => {
+  it("host welcome derives the guest symbol from the live host symbol", () => {
     const game = activeGame();
     const { deps, getRoom } = makeDeps(game, "host", {
       hostSymbol: PlayerSymbol.O,
+      guestSymbol: PlayerSymbol.X,
+    });
+    deps.hostSymbolRef.current = PlayerSymbol.O;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(getRoom().guestSymbol).toBe(PlayerSymbol.X);
+  });
+
+  it("host welcome keeps the recorded guestSymbol when no host symbol was ever assigned", () => {
+    const game = activeGame();
+    // Both the ref AND the recorded host symbol are null — the keep-branch
+    // (`hostSymbol === null ? prev.guestSymbol : ...`) is the only thing
+    // that can produce X here; a derive-off-a-default regression flips it.
+    const { deps, getRoom } = makeDeps(game, "host", {
+      hostSymbol: null,
       guestSymbol: PlayerSymbol.X,
     });
     deps.hostSymbolRef.current = null;
@@ -131,6 +151,7 @@ describe("handleRelayEvent symbol fallbacks", () => {
     });
 
     expect(getRoom().guestSymbol).toBe(PlayerSymbol.X);
+    expect(getRoom().hostSymbol).toBeNull();
   });
 
   it("guest peer-left before symbol assignment crowns nobody", () => {
