@@ -43,8 +43,11 @@ export function applyHostMove(deps: HostProtocolDeps, index: number, actor: Play
     if (!next) {
       // Only send an error rollback for guest moves. The host's own
       // moves are validated locally and never need a wire error.
+      // If the host symbol is unknown, send nothing rather than guess
+      // X and misclassify the failed move.
       const hostSymbol = hostSymbolRef.current;
-      if (hostSymbol !== null && actor !== hostSymbol) {
+      if (hostSymbol === null) return;
+      if (actor !== hostSymbol) {
         roomRef.current?.send({ type: "error", message: "Invalid move" });
       }
       return;
@@ -72,6 +75,9 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
   } = deps;
   {
     if (message.type === "join") {
+      // hostSymbolRef is assigned synchronously in startAsHost; a null
+      // here means the room was never initialized — ignore the join
+      // rather than assign symbols off a guessed X.
       const hostSymbol = hostSymbolRef.current;
       if (hostSymbol === null) return;
       const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
@@ -121,7 +127,6 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     }
     if (message.type === "rematchAccept") {
       const state = stateRef.current;
-      const oldHostSymbol = hostSymbolRef.current;
       // Two gates:
       // 1. The host must have issued a rematch request that's still pending.
       //    A stray guest message without a pending request is ignored.
@@ -130,8 +135,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       if (
         !hostRematchPendingRef.current ||
         state.winner === null ||
-        state.gameStatus !== GameStatus.COMPLETED ||
-        oldHostSymbol === null
+        state.gameStatus !== GameStatus.COMPLETED
       ) {
         return;
       }
@@ -142,7 +146,10 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // Read BOTH player configs from the OLD state BEFORE overwriting
       // hostSymbolRef — when symbols swap, indexing by the NEW symbol
       // would give each side the other player's name/color/shape
-      // (fleet critic 2026-09-06 P1).
+      // (fleet critic 2026-09-06 P1). A null ref means the room was never
+      // initialized — bail rather than remap off a guessed X.
+      const oldHostSymbol = hostSymbolRef.current;
+      if (oldHostSymbol === null) return;
       const hostPlayer = state.players[oldHostSymbol];
       const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
       hostSymbolRef.current = newHostSymbol;

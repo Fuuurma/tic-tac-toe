@@ -2,6 +2,7 @@ import {
   GameStatus,
   TURN_DURATION_MS,
   PlayerSymbol,
+  oppositeSymbol,
 } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
@@ -66,13 +67,19 @@ export function handleRelayEvent(
         // timer. Without this the timer stays stopped from the
         // peer-left:disconnect event and the host's display is frozen
         // (fleet audit 2026-09-06 P2-2).
-        setState((prev) => ({
-          ...prev,
-          role: "host",
-          status: "connected",
-          guestSymbol: guestSymbolRef.current ?? prev.guestSymbol,
-          message: "",
-        }));
+        // Prefer the live ref, fall back to the state-recorded symbol;
+        // never guess X — without a known host symbol keep the recorded
+        // guest symbol rather than derive off a wrong default.
+        setState((prev) => {
+          const hostSymbol = hostSymbolRef.current ?? prev.hostSymbol;
+          return {
+            ...prev,
+            role: "host",
+            status: "connected",
+            guestSymbol: hostSymbol === null ? prev.guestSymbol : oppositeSymbol(hostSymbol),
+            message: "",
+          };
+        });
         // Host's own reconnect must resync like peer-reconnected does:
         // during the outage the timer kept ticking and may have applied a
         // local-only forced move the guest never saw — broadcast the
