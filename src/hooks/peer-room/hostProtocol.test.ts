@@ -68,3 +68,39 @@ describe("handleHostMessage rematch deadline", () => {
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 });
+
+describe("handleHostMessage unassigned host symbol", () => {
+  it("rejects a guest move with an error so the guest rolls back (F159)", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O,
+    };
+    const { deps } = makeDeps(game);
+    deps.hostSymbolRef.current = null;
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Invalid move",
+    });
+  });
+
+  it("answers a guest join with 'Room not ready' instead of a silent drop", () => {
+    const { deps } = makeDeps(freshGameState());
+    deps.hostSymbolRef.current = null;
+
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Room not ready",
+    });
+  });
+});

@@ -236,6 +236,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       stateRef,
       roleRef,
       hostSymbolRef,
+      guestSymbolRef,
       hostDisplayName: options.hostDisplayName,
       hostColor: options.hostColor,
       hostShape: options.hostShape,
@@ -277,10 +278,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const sendMove = useCallback(
     (index: number) => {
       if (state.role === "host") {
-        const hostSymbol = hostSymbolRef.current;
-        // The ref is assigned synchronously in startAsHost; if it is null
-        // the room was never initialized — never guess X and apply a move
-        // for the wrong side. No-op instead.
+        const hostSymbol = hostSymbolRef.current ?? state.hostSymbol;
+        // The ref is assigned synchronously in startAsHost; the recorded
+        // state symbol is the reconnect fallback. If both are null the room
+        // was never initialized — never guess X and apply a move for the
+        // wrong side. No-op instead.
         if (hostSymbol === null) return;
         applyHostMove(index, hostSymbol);
         return;
@@ -310,7 +312,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         setState((prev) => ({ ...prev, gameState: optimistic }));
       }
     },
-    [applyHostMove, state.guestSymbol, state.role],
+    [applyHostMove, state.guestSymbol, state.hostSymbol, state.role],
   );
 
   const requestRematch = useCallback(() => {
