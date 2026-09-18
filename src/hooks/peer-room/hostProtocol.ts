@@ -76,10 +76,14 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
   {
     if (message.type === "join") {
       // hostSymbolRef is assigned synchronously in startAsHost; a null
-      // here means the room was never initialized — ignore the join
-      // rather than assign symbols off a guessed X.
+      // here means the room was never initialized — tell the guest the
+      // room isn't ready instead of dropping the join silently (F159:
+      // a silent drop leaves the guest waiting on `joined` forever).
       const hostSymbol = hostSymbolRef.current;
-      if (hostSymbol === null) return;
+      if (hostSymbol === null) {
+        roomRef.current?.send({ type: "error", message: "Room not ready" });
+        return;
+      }
       const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
         displayName: message.displayName,
         preferredColor: message.preferredColor,
@@ -120,7 +124,13 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     }
     if (message.type === "move") {
       const hostSymbol = hostSymbolRef.current;
-      if (hostSymbol === null) return;
+      // A null ref means the room was never initialized — send "Invalid
+      // move" so the guest rolls back its optimistic move instead of
+      // diverging on a silent drop (F159).
+      if (hostSymbol === null) {
+        roomRef.current?.send({ type: "error", message: "Invalid move" });
+        return;
+      }
       const guestSymbol = oppositeSymbol(hostSymbol);
       applyHostMove(deps, message.index, guestSymbol);
       return;
@@ -147,9 +157,13 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // hostSymbolRef — when symbols swap, indexing by the NEW symbol
       // would give each side the other player's name/color/shape
       // (fleet critic 2026-09-06 P1). A null ref means the room was never
-      // initialized — bail rather than remap off a guessed X.
+      // initialized — tell the guest instead of leaving it thinking the
+      // rematch went through (F159).
       const oldHostSymbol = hostSymbolRef.current;
-      if (oldHostSymbol === null) return;
+      if (oldHostSymbol === null) {
+        roomRef.current?.send({ type: "error", message: "Room not ready" });
+        return;
+      }
       const hostPlayer = state.players[oldHostSymbol];
       const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
       hostSymbolRef.current = newHostSymbol;

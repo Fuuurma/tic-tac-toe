@@ -70,7 +70,7 @@ describe("handleHostMessage rematch deadline", () => {
 });
 
 describe("handleHostMessage unassigned host symbol", () => {
-  it("ignores a guest move instead of guessing X", () => {
+  it("rejects a guest move with an error so the guest rolls back (F159)", () => {
     const game: GameState = {
       ...freshGameState(),
       gameStatus: GameStatus.ACTIVE,
@@ -82,6 +82,25 @@ describe("handleHostMessage unassigned host symbol", () => {
     handleHostMessage(deps, { type: "move", index: 0 });
 
     expect(deps.stateRef.current).toBe(game);
-    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Invalid move",
+    });
+  });
+
+  it("answers a guest join with 'Room not ready' instead of a silent drop", () => {
+    const { deps } = makeDeps(freshGameState());
+    deps.hostSymbolRef.current = null;
+
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Room not ready",
+    });
   });
 });
