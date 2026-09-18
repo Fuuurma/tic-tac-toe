@@ -35,7 +35,7 @@ export interface RoomLifecycleDeps {
   stateRef: { current: GameState };
   roleRef: { current: "host" | "guest" | null };
   hostSymbolRef: { current: PlayerSymbol | null };
-  guestSymbolRef?: { current: PlayerSymbol | null };
+  guestSymbolRef: { current: PlayerSymbol | null };
   hostDisplayName: string;
   hostColor: Color;
   hostShape?: SymbolShape;
@@ -45,7 +45,7 @@ export interface RoomLifecycleDeps {
   handleHostData: (message: PeerMessage) => void;
   handleGuestData: (message: PeerMessage) => void;
   stopTimer: () => void;
-  hostRematchPendingRef?: { current: boolean };
+  hostRematchPendingRef: { current: boolean };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -147,7 +147,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // without this a stray rematchAccept arriving right after the room
   // swap is honored against a game that never asked for one
   // (needs-work 2026-09-10 P2).
-  if (deps.hostRematchPendingRef) deps.hostRematchPendingRef.current = false;
+  deps.hostRematchPendingRef.current = false;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -191,7 +191,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
-  if (deps.hostRematchPendingRef) deps.hostRematchPendingRef.current = false;
+  deps.hostRematchPendingRef.current = false;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });
@@ -200,7 +200,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   // The guest's symbol is assigned by the host's `joined` message — clear
   // any symbol carried over from a previous room so a peer leaving before
   // `joined` arrives crowns nobody instead of a stale recorded symbol.
-  if (deps.guestSymbolRef) deps.guestSymbolRef.current = null;
+  deps.guestSymbolRef.current = null;
   update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, message: "Connecting..." });
   roleRef.current = "guest";
 

@@ -41,13 +41,15 @@ export function applyHostMove(deps: HostProtocolDeps, index: number, actor: Play
     const current = stateRef.current;
     const next = applyAuthorizedMove(current, index, actor);
     if (!next) {
-      // Only send an error rollback for guest moves. The host's own
-      // moves are validated locally and never need a wire error.
-      // If the host symbol is unknown, send nothing rather than guess
-      // X and misclassify the failed move.
-      const hostSymbol = hostSymbolRef.current;
-      if (hostSymbol === null) return;
-      if (actor !== hostSymbol) {
+      // Only the guest's failed moves get a wire error — it drives the
+      // guest's optimistic-move rollback (F159). The host's own moves are
+      // validated locally and never need one. No null special-case: every
+      // caller already rejects an unassigned hostSymbol before dispatching
+      // here, and a real actor symbol never equals a null ref anyway, so
+      // the error would still go out and the guest would roll back rather
+      // than diverge (F160 — the old `hostSymbol === null` early-return
+      // was unreachable dead code).
+      if (actor !== hostSymbolRef.current) {
         roomRef.current?.send({ type: "error", message: "Invalid move" });
       }
       return;

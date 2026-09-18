@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { RoomClient } from "@/lib/room";
-import { Color, GameModes } from "@/game/constants";
+import { Color, GameModes, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, type RoomLifecycleDeps } from "./roomLifecycle";
 
@@ -70,8 +70,9 @@ describe("joinAsGuest rematch-flag reset", () => {
   // needs-work 2026-09-10 P2: hostRematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
   // would be honored against a game that never asked for one.
-  function lifecycleDeps(hostRematchPendingRef: { current: boolean }): RoomLifecycleDeps {
-    return {
+  function lifecycleDeps(hostRematchPendingRef: { current: boolean }) {
+    const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
+    const deps: RoomLifecycleDeps = {
       roomRef: { current: null },
       stateRef: {
         current: createInitialGameState({
@@ -84,6 +85,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       },
       roleRef: { current: null },
       hostSymbolRef: { current: null },
+      guestSymbolRef,
       hostDisplayName: "Host",
       hostColor: "blue" as never,
       setState: vi.fn(),
@@ -94,11 +96,18 @@ describe("joinAsGuest rematch-flag reset", () => {
       stopTimer: vi.fn(),
       hostRematchPendingRef,
     };
+    return { deps, guestSymbolRef };
   }
 
   it("clears a stale pending-rematch flag on room entry", () => {
     const hostRematchPendingRef = { current: true };
-    joinAsGuest(lifecycleDeps(hostRematchPendingRef), "ROOM42", "ws://127.0.0.1:1");
+    joinAsGuest(lifecycleDeps(hostRematchPendingRef).deps, "ROOM42", "ws://127.0.0.1:1");
     expect(hostRematchPendingRef.current).toBe(false);
+  });
+
+  it("clears a stale guest symbol on room entry so a pre-join leave crowns nobody", () => {
+    const { deps, guestSymbolRef } = lifecycleDeps({ current: false });
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+    expect(guestSymbolRef.current).toBeNull();
   });
 });
