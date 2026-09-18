@@ -30,7 +30,7 @@ const OnlineGameSurface = lazy(() =>
   import("./components/game/onlineGameSurface").then((m) => ({ default: m.OnlineGameSurface })),
 );
 
-type View = "login" | "game";
+type View = "lobby" | "game";
 
 interface GameConfig {
   displayName: string;
@@ -47,7 +47,7 @@ interface GameConfig {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>("login");
+  const [view, setView] = useState<View>("lobby");
   const [config, setConfig] = useState<GameConfig | null>(null);
   const [initialRoomId] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -75,7 +75,7 @@ export default function App() {
   };
 
   const handleExit = () => {
-    setView("login");
+    setView("lobby");
     setConfig(null);
   };
 
@@ -89,7 +89,7 @@ export default function App() {
         className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
       />
       <div className="relative z-10 my-auto flex w-full justify-center">
-        {view === "login" && (
+        {view === "lobby" && (
           <LobbyForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
         {view === "game" && config && (

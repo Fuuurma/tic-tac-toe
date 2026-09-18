@@ -17,7 +17,7 @@ async function closeOpponentSettings(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Close" }).click();
 }
 
-async function fillLogin(
+async function fillLobby(
   page: import("@playwright/test").Page,
   options: {
     name: string;
@@ -102,7 +102,7 @@ test("remembers the display name after starting a game", async ({ page }) => {
 });
 
 test("starts a vs Computer game with a random first player", async ({ page }) => {
-  await fillLogin(page, { name: "Alice", color: "blue", mode: "vs Computer" });
+  await fillLobby(page, { name: "Alice", color: "blue", mode: "vs Computer" });
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
 
@@ -149,7 +149,7 @@ test("sets up a private room with a custom code or a friend code", async ({ page
 });
 
 test("starts a vs Computer game and the AI responds", async ({ page }) => {
-  await fillLogin(page, { name: "AI Player", color: "blue", mode: "vs Computer" });
+  await fillLobby(page, { name: "AI Player", color: "blue", mode: "vs Computer" });
   // Difficulty is now inside the opponent sheet.
   await openOpponentSettings(page);
   const difficultyGroup = page.getByRole("radiogroup", { name: "AI difficulty" });
@@ -211,7 +211,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
 });
 
 test("starts a vs Friend game and the turn alternates", async ({ page }) => {
-  await fillLogin(page, {
+  await fillLobby(page, {
     name: "Alice",
     color: "blue",
     mode: "vs Friend",
@@ -239,7 +239,7 @@ test("starts a vs Friend game and the turn alternates", async ({ page }) => {
 });
 
 test("customizes distinct colors for both VS Friend players", async ({ page }) => {
-  await fillLogin(page, {
+  await fillLobby(page, {
     name: "Alice",
     color: "blue",
     mode: "vs Friend",
@@ -299,7 +299,7 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
 });
 
 test("supports 1-9 keyboard shortcuts without hijacking dialogs", async ({ page }) => {
-  await fillLogin(page, {
+  await fillLobby(page, {
     name: "Alice",
     color: "blue",
     mode: "vs Friend",
@@ -330,7 +330,7 @@ test("supports 1-9 keyboard shortcuts without hijacking dialogs", async ({ page 
 });
 
 test("highlights winning cells without drawing a win line", async ({ page }) => {
-  await fillLogin(page, {
+  await fillLobby(page, {
     name: "Alice",
     color: "blue",
     mode: "vs Friend",
@@ -349,7 +349,7 @@ test("highlights winning cells without drawing a win line", async ({ page }) => 
 });
 
 test("marks the oldest X piece as 'next to be removed' after the 3rd move", async ({ page }) => {
-  await fillLogin(page, {
+  await fillLobby(page, {
     name: "Alice",
     color: "blue",
     mode: "vs Friend",
@@ -411,7 +411,7 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   const guestPage = await guest.newPage();
 
   // Host creates a private room.
-  await fillLogin(hostPage, {
+  await fillLobby(hostPage, {
     name: "Host",
     color: "blue",
     mode: "Online",
@@ -434,7 +434,7 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
 
   // Guest joins via the invite link. The board is also gated on the
   // handshake completing.
-  await fillLogin(guestPage, {
+  await fillLobby(guestPage, {
     name: "Guest",
     color: "red",
     mode: "Online",
@@ -529,7 +529,7 @@ test("quick-match places both clients into a shared room", async ({ browser }) =
   const firstPage = await first.newPage();
   const secondPage = await second.newPage();
 
-  await fillLogin(firstPage, {
+  await fillLobby(firstPage, {
     name: "Alice",
     color: "blue",
     mode: "Online",
@@ -543,7 +543,7 @@ test("quick-match places both clients into a shared room", async ({ browser }) =
     timeout: 30_000,
   });
 
-  await fillLogin(secondPage, {
+  await fillLobby(secondPage, {
     name: "Bob",
     color: "red",
     mode: "Online",

@@ -68,7 +68,7 @@ src/game/               pure rules, state, and AI
 src/hooks/              useLocalGame, usePeerRoom, useGameStats
 src/lib/                peer protocol, RoomClient, identity, matchmaking, utils
 src/components/         board, lobby, panels, selectors, online surface
-  components/lobby/     login form, settings sheet, pickers
+  components/lobby/     lobby form, settings sheet, pickers
   components/game/      board, cells, panels, online surface, help
   components/ui/        button, card primitives
 e2e/                    Playwright smoke tests
