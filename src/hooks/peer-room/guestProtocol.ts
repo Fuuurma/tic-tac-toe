@@ -1,7 +1,7 @@
-import { GameStatus, TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
+import { TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import type { PeerMessage } from "@/lib/peer";
+import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
 import type { PeerRoomState } from "../usePeerRoom";
 
 /**
@@ -113,14 +113,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
         // to the state-recorded symbol, and crown nobody rather than
         // guess X/O when neither is known yet.
         const guestSymbol = guestSymbolRef.current ?? prev.guestSymbol;
-        const gameState =
-          current.winner || guestSymbol === null
-            ? current
-            : {
-                ...current,
-                winner: guestSymbol,
-                gameStatus: GameStatus.COMPLETED,
-              };
+        const gameState = applyForfeitIfActive(current, guestSymbol);
         stateRef.current = gameState;
         return {
           ...prev,

@@ -165,4 +165,33 @@ describe("handleRelayEvent symbol fallbacks", () => {
     expect(getRoom().gameState.winner).toBeNull();
     expect(deps.stateRef.current.winner).toBeNull();
   });
+
+  it("peer-left during WAITING does not crown a phantom winner (F146)", () => {
+    const game = {
+      ...freshGameState(),
+      gameStatus: GameStatus.WAITING,
+      moveCount: 0,
+    };
+    const { deps, getRoom } = makeDeps(game, "host", {
+      hostSymbol: PlayerSymbol.X,
+      guestSymbol: null,
+    });
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().gameState.winner).toBeNull();
+    expect(getRoom().gameState.gameStatus).toBe(GameStatus.WAITING);
+    expect(deps.stateRef.current.winner).toBeNull();
+  });
+
+  it("peer-left during ACTIVE still forfeits to the surviving host", () => {
+    const game = activeGame();
+    const { deps, getRoom } = makeDeps(game, "host", { hostSymbol: PlayerSymbol.X });
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "expired" });
+
+    expect(getRoom().gameState.winner).toBe(PlayerSymbol.X);
+    expect(getRoom().gameState.gameStatus).toBe(GameStatus.COMPLETED);
+  });
 });

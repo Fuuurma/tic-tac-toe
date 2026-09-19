@@ -8,10 +8,14 @@
  * Lifecycle:
  *  - `connect()` opens a WebSocket and resolves once the server sends
  *    `welcome` (after the client sends `hello`).
- *  - On disconnect, the client auto-reconnects with exponential backoff
- *    (capped at 15s), re-sends `hello`, and re-resolves with a fresh
- *    `welcome`. The DO reassigns the same role because the same
- *    `guestId` reconnects.
+ *  - After a `welcome` has been received once, a later disconnect
+ *    auto-reconnects with exponential backoff (capped at 15s), re-sends
+ *    `hello`, and re-resolves with a fresh `welcome`. The DO reassigns
+ *    the same role because the same `guestId` reconnects.
+ *  - A socket that closes *before* the first `welcome` is a failed
+ *    initial connect, not a drop: the promise rejects and the client
+ *    does not retry. Mid-session reconnect must not run when no session
+ *    was ever established (F151).
  *  - `close()` shuts down permanently (no reconnect).
  *
  * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
@@ -94,6 +98,8 @@ export class RoomClient {
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
   private welcomeRejecters: Array<(reason: Error) => void> = [];
   private pendingConnect: Promise<RoomSession> | null = null;
+  /** True once the relay has welcomed this client at least once. */
+  private sessionEstablished = false;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -208,7 +214,7 @@ export class RoomClient {
     }
     this.setStatus("reconnecting", "Reconnecting now…");
     this.openSocket().catch(() => {
-      if (this.opts.autoReconnect) this.scheduleReconnect();
+      if (this.canAutoReconnect()) this.scheduleReconnect();
     });
   }
 
@@ -222,7 +228,7 @@ export class RoomClient {
         ws = new WebSocket(url.toString());
       } catch (err) {
         reject(err instanceof Error ? err : new Error("websocket construction failed"));
-        if (this.opts.autoReconnect) this.scheduleReconnect();
+        if (this.canAutoReconnect()) this.scheduleReconnect();
         return;
       }
       this.ws = ws;
@@ -263,6 +269,7 @@ export class RoomClient {
           this.role = welcome.role;
           this.opponent = welcome.opponent;
           this.reconnectAttempt = 0;
+          this.sessionEstablished = true;
           this.setStatus("connected");
           const session: RoomSession = { role: welcome.role, opponent: welcome.opponent };
           // Resolve any pending `connect()` call.
@@ -291,7 +298,8 @@ export class RoomClient {
           return;
         }
         settleWelcome(null, new Error("socket closed before welcome"));
-        if (this.opts.autoReconnect) this.scheduleReconnect();
+        if (this.canAutoReconnect()) this.scheduleReconnect();
+        else if (!this.sessionEstablished) this.setStatus("error", "Could not connect");
         else this.setStatus("disconnected");
       });
 
@@ -305,8 +313,12 @@ export class RoomClient {
     });
   }
 
+  private canAutoReconnect(): boolean {
+    return this.opts.autoReconnect && this.sessionEstablished && !this.closedByUser;
+  }
+
   private scheduleReconnect(): void {
-    if (this.closedByUser || !this.opts.autoReconnect) return;
+    if (!this.canAutoReconnect()) return;
     if (this.reconnectTimer) return;
     const base = Math.min(
       this.opts.maxBackoffMs,
