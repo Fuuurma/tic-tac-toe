@@ -215,7 +215,10 @@ export function PlayersPanel({
               aria-hidden="true"
               viewBox={`0 0 ${panelSize.width} ${panelSize.height + 12}`}
               preserveAspectRatio="none"
-              className="pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible text-emerald-500"
+              className={cn(
+                "pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible",
+                getTimerColor(seconds),
+              )}
             >
               <path
                 d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
