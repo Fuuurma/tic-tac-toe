@@ -7,7 +7,7 @@ import {
 } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
+import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
@@ -222,14 +222,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // nobody rather than guess X/O when neither is known yet.
       setState((prev) => {
         const hostSymbol = hostSymbolRef.current ?? prev.hostSymbol;
-        const ended: GameState =
-          state.winner || hostSymbol === null
-            ? state
-            : {
-                ...state,
-                winner: hostSymbol,
-                gameStatus: GameStatus.COMPLETED,
-              };
+        const ended = applyForfeitIfActive(state, hostSymbol);
         stateRef.current = ended;
         return {
           ...prev,

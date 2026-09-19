@@ -1,12 +1,11 @@
 import {
-  GameStatus,
   TURN_DURATION_MS,
   PlayerSymbol,
   oppositeSymbol,
 } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
+import { applyForfeitIfActive, peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
@@ -253,10 +252,7 @@ export function handleRelayEvent(
         roleRef.current === "guest"
           ? (guestSymbolRef.current ?? prev.guestSymbol)
           : (hostSymbolRef.current ?? prev.hostSymbol);
-      const gameState =
-        current.winner || mySymbol === null
-          ? current
-          : { ...current, winner: mySymbol, gameStatus: GameStatus.COMPLETED };
+      const gameState = applyForfeitIfActive(current, mySymbol);
       stateRef.current = gameState;
       return {
         ...prev,
