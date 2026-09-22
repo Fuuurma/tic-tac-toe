@@ -86,7 +86,7 @@ export function Board({
               {[0, 1, 2].map((col) => {
                 const index = row * 3 + col;
                 const value = board[index];
-                const isNext = value !== null && nextToRemove[value] === index;
+                const isNext = value !== null && winningCombination === null && nextToRemove[value] === index;
                 const isWinning = winningCombination?.includes(index) ?? false;
                 return (
                   <BoardCell
