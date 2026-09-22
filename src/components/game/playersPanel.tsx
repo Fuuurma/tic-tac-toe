@@ -359,7 +359,7 @@ export function PlayersPanel({
             size="sm"
             onClick={handleExitClick}
             aria-label={exitLabel}
-            className="size-9 p-0 text-white hover:bg-red-500/90 hover:text-black sm:size-10"
+            className="size-9 p-0 text-muted-foreground hover:text-red-500 sm:size-10"
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
             <LogOut className="size-4" aria-hidden="true" />
