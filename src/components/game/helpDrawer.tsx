@@ -128,7 +128,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
               type="button"
               onClick={onClose}
               aria-label="Close help"
-              className="glass-interactive flex size-8 items-center justify-center rounded-lg text-muted-foreground"
+              className="glass-interactive flex size-11 items-center justify-center rounded-lg text-muted-foreground"
             >
               <X className="size-4" aria-hidden="true" />
             </button>

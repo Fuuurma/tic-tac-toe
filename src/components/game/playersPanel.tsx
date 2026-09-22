@@ -327,7 +327,7 @@ export function PlayersPanel({
               size="sm"
               onClick={onHelp}
               aria-label="How to play"
-              className="size-9 p-0 text-muted-foreground sm:size-10"
+              className="size-11 p-0 text-muted-foreground"
             >
               <CircleHelp className="size-4" aria-hidden="true" />
             </Button>
@@ -338,7 +338,7 @@ export function PlayersPanel({
               size="sm"
               onClick={onEditSettings}
               aria-label="Edit player and opponent settings"
-              className="size-9 p-0 text-muted-foreground sm:size-10"
+              className="size-11 p-0 text-muted-foreground"
             >
               <Pencil className="size-4" aria-hidden="true" />
             </Button>
@@ -349,7 +349,7 @@ export function PlayersPanel({
               size="sm"
               onClick={handleNewGameClick}
               aria-label={isGameOver ? "Play again" : "Start a new game"}
-              className="size-9 p-0 text-muted-foreground sm:size-10"
+              className="size-11 p-0 text-muted-foreground"
             >
               <RotateCcw className="size-4" aria-hidden="true" />
             </Button>
@@ -359,7 +359,7 @@ export function PlayersPanel({
             size="sm"
             onClick={handleExitClick}
             aria-label={exitLabel}
-            className="size-9 p-0 text-muted-foreground hover:text-red-500 sm:size-10"
+            className="size-11 p-0 text-muted-foreground hover:text-red-500"
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
             <LogOut className="size-4" aria-hidden="true" />
