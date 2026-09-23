@@ -284,6 +284,11 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
                 ? () => peer.declineRematch()
                 : undefined
             }
+            onCancelRematch={
+              peer.state.role === "host" && peer.state.rematchOutgoing
+                ? () => peer.cancelRematch()
+                : undefined
+            }
             onExit={() => {
               peer.leave();
               onExit();

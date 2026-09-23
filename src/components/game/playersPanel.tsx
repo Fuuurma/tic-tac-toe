@@ -33,6 +33,7 @@ interface PlayersPanelProps {
   onEditSettings?: () => void;
   onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
+  onCancelRematch?: () => void;
   onPauseChange?: (paused: boolean) => void;
 }
 
@@ -99,6 +100,7 @@ export function PlayersPanel({
   onEditSettings,
   onAcceptRematch,
   onDeclineRematch,
+  onCancelRematch,
   onPauseChange,
 }: PlayersPanelProps) {
   const [showExit, setShowExit] = useState(false);
@@ -403,6 +405,7 @@ export function PlayersPanel({
             message={message}
             onAcceptRematch={onAcceptRematch}
             onDeclineRematch={onDeclineRematch}
+            onCancelRematch={onCancelRematch}
           />
         </div>
       )}
@@ -500,6 +503,7 @@ interface GameEndActionsProps {
   message: string | null;
   onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
+  onCancelRematch?: () => void;
 }
 
 function GameEndActions({
@@ -507,6 +511,7 @@ function GameEndActions({
   message,
   onAcceptRematch,
   onDeclineRematch,
+  onCancelRematch,
 }: GameEndActionsProps) {
   return (
     <div className="flex flex-col gap-1.5 text-center">
@@ -523,8 +528,18 @@ function GameEndActions({
           {message}
         </div>
       )}
-      {(onAcceptRematch || onDeclineRematch) && (
+      {(onAcceptRematch || onDeclineRematch || onCancelRematch) && (
         <div className="mx-auto mt-1 flex flex-wrap items-center justify-center gap-1.5">
+          {onCancelRematch && (
+            <Button
+              type="button"
+              variant="glass"
+              size="sm"
+              onClick={onCancelRematch}
+            >
+              Cancel rematch
+            </Button>
+          )}
           {onAcceptRematch && (
             <Button
               type="button"

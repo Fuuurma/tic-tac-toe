@@ -177,6 +177,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     guestSymbol,
     gameState: waitingGame,
     message: "",
+    rematchOutgoing: false,
   });
   roleRef.current = "host";
 
@@ -201,7 +202,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   // any symbol carried over from a previous room so a peer leaving before
   // `joined` arrives crowns nobody instead of a stale recorded symbol.
   deps.guestSymbolRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, message: "Connecting..." });
+  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, message: "Connecting...", rematchOutgoing: false });
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);

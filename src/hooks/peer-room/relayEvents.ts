@@ -256,6 +256,7 @@ export function handleRelayEvent(
         gameState,
         message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", leaveReason),
         rematchIncoming: false,
+        rematchOutgoing: false,
       };
     });
     return;

@@ -193,6 +193,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         guestSymbol: newGuestSymbol,
         gameState: reset,
         message: "",
+        rematchOutgoing: false,
       }));
       // gameStart alone carries the reset + the swapped guest symbol —
       // a gameUpdate alongside it duplicated the same state on the wire
@@ -204,7 +205,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     if (message.type === "rematchDecline") {
       hostRematchPendingRef.current = false;
       clearRematchTimeout();
-      setState((prev) => ({ ...prev, message: "Rematch declined" }));
+      setState((prev) => ({ ...prev, message: "Rematch declined", rematchOutgoing: false }));
       return;
     }
     if (message.type === "leave") {
@@ -232,6 +233,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           status: "disconnected" as const,
           gameState: ended,
           message: "Opponent left",
+          rematchOutgoing: false,
         };
       });
       return;

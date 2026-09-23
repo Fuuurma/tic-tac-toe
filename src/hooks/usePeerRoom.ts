@@ -54,6 +54,12 @@ export interface PeerRoomState {
    * matching user-facing message copy with a regex.
    */
   rematchIncoming: boolean;
+  /**
+   * True while this client (host) has issued a rematch request the guest
+   * has not answered yet. Source of truth for the host's cancel UI —
+   * mirrors hostRematchPendingRef as renderable state.
+   */
+  rematchOutgoing: boolean;
   gameState: GameState;
 }
 
@@ -75,6 +81,7 @@ const initialState: PeerRoomState = {
   guestSymbol: null,
   message: "",
   rematchIncoming: false,
+  rematchOutgoing: false,
   gameState: freshGameState(),
 };
 
@@ -213,7 +220,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     if (!hostRematchPendingRef.current) return;
     hostRematchPendingRef.current = false;
     roomRef.current?.send({ type: "rematchCancel" });
-    setState((prev) => ({ ...prev, message: "Rematch request expired" }));
+    setState((prev) => ({ ...prev, message: "Rematch request expired", rematchOutgoing: false }));
   }, []);
 
   const hostDeps = useCallback(
@@ -404,6 +411,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       setState((prev) => ({
         ...prev,
         message: "Waiting for opponent to accept rematch",
+        rematchOutgoing: true,
       }));
     }
   }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, clearRematchTimeout, expireRematch]);
@@ -423,7 +431,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     hostRematchPendingRef.current = false;
     clearRematchTimeout();
     roomRef.current?.send({ type: "rematchCancel" });
-    setState((prev) => ({ ...prev, message: "" }));
+    setState((prev) => ({ ...prev, message: "", rematchOutgoing: false }));
   }, [state.role, clearRematchTimeout]);
 
   const leave = useCallback(() => {
@@ -435,7 +443,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     hasStartedRef.current = false;
     hostRematchPendingRef.current = false;
     clearRematchTimeout();
-    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false }));
+    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {
