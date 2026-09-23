@@ -46,6 +46,8 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const hasPreviousFocusRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const sheetId = useId();
   const titleId = `${sheetId}-title`;
 
@@ -67,7 +69,7 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && panel) {
@@ -92,7 +94,7 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return { containerRef, panelRef, titleId, sheetId };
 }
