@@ -105,6 +105,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   const message = onlineMessage(peer.state.status, peer.state.message);
 
+  // Online rematch is terminal-only: requestRematch no-ops mid-game for both
+  // roles, so don't offer "Start a new game" until the game is over.
+  const isOnlineGameOver =
+    peer.state.gameState.winner !== null ||
+    peer.state.gameState.gameStatus !== GameStatus.ACTIVE;
+  const canRequestRematch = peer.state.status === "connected" && isOnlineGameOver;
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // Seed from the live host player data; the next rematch picks the values
@@ -255,7 +262,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             message={message}
             gameMode={GameModes.ONLINE}
             roomCode={peer.state.roomId || undefined}
-            onNewGame={peer.state.status === "connected" ? () => peer.requestRematch() : undefined}
+            onNewGame={canRequestRematch ? () => peer.requestRematch() : undefined}
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
             onDeclineRematch={
