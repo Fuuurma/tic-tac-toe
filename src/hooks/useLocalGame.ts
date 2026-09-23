@@ -188,11 +188,17 @@ export function useLocalGame(input: LocalGameInput) {
       if (aiTimeoutRef.current !== null) {
         window.clearTimeout(aiTimeoutRef.current);
       }
+      const scheduledSymbol = gameState.currentPlayer;
       aiTimeoutRef.current = window.setTimeout(() => {
         setGameState((prev) => {
-          if (prev.winner !== null) return prev;
-          const aiSymbol = prev.currentPlayer;
-          const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.NORMAL, aiSymbol);
+          if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return prev;
+          // The turn may have flipped (e.g. timer forced move) after this
+          // timeout was scheduled: only move when it is still the
+          // scheduled AI side to play, otherwise the AI would commit a
+          // move for the wrong side.
+          if (prev.currentPlayer !== scheduledSymbol) return prev;
+          if (prev.players[prev.currentPlayer].type !== PlayerTypes.COMPUTER) return prev;
+          const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.NORMAL, scheduledSymbol);
           if (move === null) return prev;
           const next = makeMove(prev, move);
           if (!next) return prev;
