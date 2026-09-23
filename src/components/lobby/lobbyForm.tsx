@@ -84,6 +84,9 @@ const validate = (payload: LobbyFormPayload): string | null => {
   if (sanitizeDisplayName(payload.displayName) !== payload.displayName) {
     return "Enter a valid name (2-20 characters, no control characters).";
   }
+  if (payload.gameMode === GameModes.VS_FRIEND && sanitizeDisplayName(payload.opponentName) !== payload.opponentName) {
+    return "Enter a valid opponent name (2-20 characters, no control characters).";
+  }
   if (!AVAILABLE_COLORS.includes(payload.color)) {
     return "Pick a color.";
   }
