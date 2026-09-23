@@ -31,6 +31,7 @@ interface PlayersPanelProps {
   onExit: () => void;
   onHelp?: () => void;
   onEditSettings?: () => void;
+  onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
   onPauseChange?: (paused: boolean) => void;
 }
@@ -96,6 +97,7 @@ export function PlayersPanel({
   onExit,
   onHelp,
   onEditSettings,
+  onAcceptRematch,
   onDeclineRematch,
   onPauseChange,
 }: PlayersPanelProps) {
@@ -399,6 +401,7 @@ export function PlayersPanel({
           <GameEndActions
             headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
             message={message}
+            onAcceptRematch={onAcceptRematch}
             onDeclineRematch={onDeclineRematch}
           />
         </div>
@@ -495,12 +498,14 @@ const PlayerCard = memo(function PlayerCard({
 interface GameEndActionsProps {
   headline: string | null;
   message: string | null;
+  onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
 }
 
 function GameEndActions({
   headline,
   message,
+  onAcceptRematch,
   onDeclineRematch,
 }: GameEndActionsProps) {
   return (
@@ -518,16 +523,28 @@ function GameEndActions({
           {message}
         </div>
       )}
-      {onDeclineRematch && (
-        <Button
-          type="button"
-          variant="glass"
-          size="sm"
-          onClick={onDeclineRematch}
-          className="mx-auto mt-1"
-        >
-          Decline rematch
-        </Button>
+      {(onAcceptRematch || onDeclineRematch) && (
+        <div className="mx-auto mt-1 flex flex-wrap items-center justify-center gap-1.5">
+          {onAcceptRematch && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onAcceptRematch}
+            >
+              Accept rematch
+            </Button>
+          )}
+          {onDeclineRematch && (
+            <Button
+              type="button"
+              variant="glass"
+              size="sm"
+              onClick={onDeclineRematch}
+            >
+              Decline rematch
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

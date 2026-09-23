@@ -274,6 +274,11 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
             onPauseChange={setPanelPaused}
+            onAcceptRematch={
+              peer.state.role === "guest" && peer.state.rematchIncoming
+                ? () => peer.requestRematch()
+                : undefined
+            }
             onDeclineRematch={
               peer.state.role === "guest" && peer.state.rematchIncoming
                 ? () => peer.declineRematch()
