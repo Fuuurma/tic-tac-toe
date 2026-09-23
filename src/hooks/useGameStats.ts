@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
 
 export interface GameStats {
@@ -54,32 +54,32 @@ export function useGameStats() {
   const [stats, setStats] = useState<GameStats>(() => readStats(guestId));
 
   const recordWin = useCallback(() => {
-    setStats((prev) => {
-      const currentStreak = prev.currentWinStreak + 1;
-      const next: GameStats = {
-        ...prev,
-        totalGames: prev.totalGames + 1,
-        wins: prev.wins + 1,
-        currentWinStreak: currentStreak,
-        bestWinStreak: Math.max(prev.bestWinStreak, currentStreak),
-      };
-      writeStats(guestId, next);
-      return next;
-    });
+    setStats((prev) => ({
+      ...prev,
+      totalGames: prev.totalGames + 1,
+      wins: prev.wins + 1,
+      currentWinStreak: prev.currentWinStreak + 1,
+      bestWinStreak: Math.max(
+        prev.bestWinStreak,
+        prev.currentWinStreak + 1,
+      ),
+    }));
   }, [guestId]);
 
   const recordLoss = useCallback(() => {
-    setStats((prev) => {
-      const next: GameStats = {
-        ...prev,
-        totalGames: prev.totalGames + 1,
-        losses: prev.losses + 1,
-        currentWinStreak: 0,
-      };
-      writeStats(guestId, next);
-      return next;
-    });
+    setStats((prev) => ({
+      ...prev,
+      totalGames: prev.totalGames + 1,
+      losses: prev.losses + 1,
+      currentWinStreak: 0,
+    }));
   }, [guestId]);
+
+  // Persist on every stats change — updaters must stay pure (StrictMode
+  // double-invokes them, which would double the localStorage write).
+  useEffect(() => {
+    writeStats(guestId, stats);
+  }, [guestId, stats]);
 
   return { stats, recordWin, recordLoss };
 }
