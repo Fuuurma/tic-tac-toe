@@ -114,6 +114,14 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [panelPaused, setPanelPaused] = useState(false);
+  // Mid-game overlays pause the turn clock like local play does: without
+  // this the host's 10s timer keeps running (and can force a random move)
+  // while the Settings sheet, Help drawer, or exit/rematch confirm is open.
+  const setPeerPaused = peer.setPaused;
+  useEffect(() => {
+    setPeerPaused(settingsOpen || helpOpen || panelPaused);
+  }, [settingsOpen, helpOpen, panelPaused, setPeerPaused]);
   // Seed from the live host player data; the next rematch picks the values
   // up via `peer.updatePendingSettings`. We refresh the buffered values each
   // time the user opens the sheet so they always edit the latest identity.
@@ -265,6 +273,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             onNewGame={canRequestRematch ? () => peer.requestRematch() : undefined}
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
+            onPauseChange={setPanelPaused}
             onDeclineRematch={
               peer.state.role === "guest" && peer.state.rematchIncoming
                 ? () => peer.declineRematch()

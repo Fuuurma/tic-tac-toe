@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape } from "@/game/constants";
+import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, TURN_DURATION_MS } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
@@ -115,6 +115,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // Reconnect-grace bookkeeping (fleet 09-07 finding 2): the move the
   // last full timer reset was granted for.
   const reconnectResetsRef = useRef({ moveCount: -1 });
+  // Overlay pause (fleet 09-22: host's mid-game Settings/Help overlays did
+  // not pause the 10s turn timer while local play pauses via setPaused).
+  // While paused the interval is stopped and the deadline is frozen; on
+  // resume the deadline is rebuilt from the frozen remaining time so the
+  // paused span never counts down the turn.
+  const pausedRef = useRef(false);
+  const [paused, setPausedState] = useState(false);
 
   useEffect(() => {
     stateRef.current = state.gameState;
@@ -153,6 +160,47 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
   const stopTimer = useCallback(() => stopTurnTimer({ tickRef }), []);
   const startTimer = useCallback(() => startTurnTimer(turnTimerDeps()), [turnTimerDeps]);
+
+  const setPaused = useCallback(
+    (target: boolean) => {
+      // Repeat calls with the same target must not re-freeze: a second
+      // pause would recompute turnTimeRemaining off the already-stale
+      // deadline and drain it while paused (same guard as useLocalGame).
+      if (pausedRef.current === target) return;
+      pausedRef.current = target;
+      setPausedState(target);
+      const current = stateRef.current;
+      if (!isGameActive(current)) return;
+      if (target) {
+        // Freeze the exact remaining time; the resume branch rebuilds
+        // the deadline from it. Stop the interval now so no tick can
+        // fire before the active-game effect below re-runs off `paused`.
+        stopTimer();
+        if (current.turnDeadlineAt === undefined) return;
+        const frozen: GameState = {
+          ...current,
+          turnTimeRemaining: Math.max(0, current.turnDeadlineAt - Date.now()),
+        };
+        stateRef.current = frozen;
+        setState((prev) => ({ ...prev, gameState: frozen }));
+        return;
+      }
+      // Rebuild the absolute deadline from the frozen remaining time so
+      // time spent paused doesn't count down the turn. The host owns the
+      // authoritative clock, so it broadcasts the rebuilt state and the
+      // guest resynthesizes a fresh deadline from the remaining time on
+      // receipt. A paused guest only freezes its local display.
+      if (current.turnDeadlineAt === undefined) return;
+      const rebuilt: GameState = {
+        ...current,
+        turnDeadlineAt: Date.now() + (current.turnTimeRemaining ?? TURN_DURATION_MS),
+      };
+      stateRef.current = rebuilt;
+      setState((prev) => ({ ...prev, gameState: rebuilt }));
+      if (roleRef.current === "host") broadcastGameState(rebuilt);
+    },
+    [broadcastGameState, stopTimer],
+  );
 
   const clearRematchTimeout = useCallback(() => {
     if (rematchTimeoutRef.current !== null) {
@@ -381,6 +429,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const leave = useCallback(() => {
     leaveRoom(roomRef);
     stopTimer();
+    pausedRef.current = false;
+    setPausedState(false);
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
     hostRematchPendingRef.current = false;
@@ -396,6 +446,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     if (
       (state.role === "host" || state.role === "guest") &&
       state.status === "connected" &&
+      !paused &&
       isGameActive(stateRef.current)
     ) {
       startTimer();
@@ -406,6 +457,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [
     state.role,
     state.status,
+    paused,
     state.gameState.gameStatus,
     state.gameState.winner,
     state.gameState.turnDeadlineAt,
@@ -449,5 +501,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
     retryReconnect,
     leave,
     updatePendingSettings,
+    setPaused,
   };
 }
