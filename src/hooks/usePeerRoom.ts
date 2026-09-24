@@ -54,6 +54,12 @@ export interface PeerRoomState {
    * matching user-facing message copy with a regex.
    */
   rematchIncoming: boolean;
+  /**
+   * 1-based position in the matchmaking FIFO queue while a quick-match
+   * ticket is queued (reported by the Worker on join/poll). `null` when
+   * not searching or when the service doesn't report positions.
+   */
+  queuePosition: number | null;
   gameState: GameState;
 }
 
@@ -75,6 +81,7 @@ const initialState: PeerRoomState = {
   guestSymbol: null,
   message: "",
   rematchIncoming: false,
+  queuePosition: null,
   gameState: freshGameState(),
 };
 
@@ -369,7 +376,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     hasStartedRef.current = false;
     hostRematchPendingRef.current = false;
     clearRematchTimeout();
-    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false }));
+    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, queuePosition: null }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {

@@ -157,6 +157,11 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       {peer.state.status === "creating" && (
         <OnlineConnectionState
           message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
+          detail={
+            config.onlineAction === "quick" && peer.state.queuePosition != null
+              ? `Position ${peer.state.queuePosition} in queue`
+              : undefined
+          }
           onCancel={() => {
             peer.leave();
             onExit();
@@ -446,9 +451,11 @@ function RoomIdShare({
 
 function OnlineConnectionState({
   message,
+  detail,
   onCancel,
 }: {
   message: string;
+  detail?: string;
   onCancel: () => void;
 }) {
   return (
@@ -457,6 +464,11 @@ function OnlineConnectionState({
         <Loader2 className="size-4 animate-spin text-[rgb(var(--player-color))]" aria-hidden="true" />
         {message}
       </span>
+      {detail && (
+        <p role="status" aria-live="polite" className="text-[11px] leading-tight text-muted-foreground">
+          {detail}
+        </p>
+      )}
       <p className="text-[11px] leading-tight text-muted-foreground">
         You can return to setup if you want to choose a different room.
       </p>
