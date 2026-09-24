@@ -118,6 +118,24 @@ describe("runQuickMatch", () => {
     expect(deps.patchStatus).not.toHaveBeenCalled();
   });
 
+  it("publishes the FIFO queue position from join and poll responses", async () => {
+    const { deps } = makeDeps();
+    mockedFindMatch.mockResolvedValue({
+      status: "waiting",
+      ticket: "t1",
+      roomId: "r1",
+      position: 4,
+    });
+    mockedPollMatch
+      .mockResolvedValueOnce({ status: "waiting", ticket: "t1", roomId: "r1", position: 2 })
+      .mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1" }) });
+
+    await runQuickMatch(deps);
+
+    expect(deps.setStatus).toHaveBeenCalledWith({ queuePosition: 4 });
+    expect(deps.setStatus).toHaveBeenCalledWith({ queuePosition: 2 });
+  });
+
   it("leaves the ticket and surfaces an error when polling times out", async () => {
     const { deps, matchmakingTicketRef } = makeDeps();
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
