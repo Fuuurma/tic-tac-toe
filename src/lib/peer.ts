@@ -299,6 +299,16 @@ const isGameState = (value: unknown): value is GameState => {
   if (state.winningCombination !== null && !isWinningCombination(state.winningCombination)) {
     return false;
   }
+  // F192: a claimed win must actually exist on the board — cross-check
+  // that every cell of the winning line holds the winner's symbol, not
+  // just that the two fields are individually well-formed.
+  if (
+    state.winner !== null &&
+    state.winningCombination !== null &&
+    !state.winningCombination.every((i) => (state.board as unknown[])[i] === state.winner)
+  ) {
+    return false;
+  }
   if (state.lastMoveIndex !== null && !isBoundedCellIndex(state.lastMoveIndex)) {
     return false;
   }

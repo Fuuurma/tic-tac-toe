@@ -259,7 +259,21 @@ describe("isPeerMessage hostile game-state frames", () => {
     const frame = validMessage();
     frame.gameState.winner = PlayerSymbol.X;
     frame.gameState.winningCombination = [...WINNING_COMBINATIONS[0]] as never;
+    // F192: the claimed line must exist on the board — place the win.
+    for (const i of WINNING_COMBINATIONS[0]) {
+      frame.gameState.board[i] = PlayerSymbol.X;
+    }
     expect(isPeerMessage(frame)).toBe(true);
+  });
+
+  it("rejects a winner + winningCombination the board does not contain (F192)", () => {
+    const frame = validMessage();
+    // All-O board but a claimed X win — individually valid fields,
+    // collectively impossible.
+    frame.gameState.board = Array(9).fill(PlayerSymbol.O) as never;
+    frame.gameState.winner = PlayerSymbol.X;
+    frame.gameState.winningCombination = [...WINNING_COMBINATIONS[0]] as never;
+    expect(isPeerMessage(frame)).toBe(false);
   });
 
   it("rejects gameState with lastMoveIndex out of range", () => {

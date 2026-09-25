@@ -89,6 +89,7 @@ export class RoomClient {
   private role: RoomRole | null = null;
   private opponent: { guestId: string; displayName: string } | null = null;
   private closedByUser = false;
+  private hadSession = false;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
@@ -222,7 +223,7 @@ export class RoomClient {
         ws = new WebSocket(url.toString());
       } catch (err) {
         reject(err instanceof Error ? err : new Error("websocket construction failed"));
-        if (this.opts.autoReconnect) this.scheduleReconnect();
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
         return;
       }
       this.ws = ws;
@@ -262,6 +263,7 @@ export class RoomClient {
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
+          this.hadSession = true;
           this.reconnectAttempt = 0;
           this.setStatus("connected");
           const session: RoomSession = { role: welcome.role, opponent: welcome.opponent };
@@ -291,7 +293,11 @@ export class RoomClient {
           return;
         }
         settleWelcome(null, new Error("socket closed before welcome"));
-        if (this.opts.autoReconnect) this.scheduleReconnect();
+        // F151: auto-reconnect exists to recover an ESTABLISHED session —
+        // a socket that dies before `welcome` means the relay rejected or
+        // is unreachable; retrying forever would overwrite the terminal
+        // error status the caller just set. Only retry post-session drops.
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
         else this.setStatus("disconnected");
       });
 

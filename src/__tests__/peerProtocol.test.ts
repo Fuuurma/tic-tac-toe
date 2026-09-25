@@ -185,3 +185,44 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
     expect(lastState.guestSymbol).toBe('O');
   });
 });
+
+describe('guestProtocol.handleGuestMessage — rematch prompt gate (F191)', () => {
+  const makeGuestDeps = (state: GameState, patches: unknown[]) => ({
+    stateRef: { current: state },
+    guestSymbolRef: { current: 'O' as never },
+    pendingGuestStateRef: { current: null },
+    setState: (fn: (prev: never) => never) => patches.push(fn),
+    stopTimer: () => {},
+    clearRematchTimeout: () => {},
+  });
+  const withPlayers = { X: { username: 'Host' }, O: { username: 'Guest' } };
+
+  it('ignores rematchRequested during an active game', () => {
+    const state = gameState({
+      gameStatus: GameStatus.ACTIVE,
+      players: withPlayers,
+      winner: null,
+    } as never);
+    const patches: unknown[] = [];
+    handleGuestMessage(makeGuestDeps(state, patches) as never, {
+      type: 'rematchRequested',
+      requesterSymbol: 'X' as never,
+    });
+    expect(patches).toHaveLength(0);
+  });
+
+  it('accepts rematchRequested on a completed game', () => {
+    const state = gameState({
+      gameStatus: GameStatus.COMPLETED,
+      players: withPlayers,
+      winner: 'X' as never,
+    } as never);
+    const patches: Array<(prev: never) => { rematchIncoming?: boolean }> = [];
+    handleGuestMessage(makeGuestDeps(state, patches) as never, {
+      type: 'rematchRequested',
+      requesterSymbol: 'X' as never,
+    });
+    expect(patches).toHaveLength(1);
+    expect(patches[0]({} as never).rematchIncoming).toBe(true);
+  });
+});

@@ -84,6 +84,10 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     }
     if (message.type === "rematchRequested") {
       const state = stateRef.current;
+      // F191: mirror the host-side accept gate — a rematch prompt is only
+      // meaningful on a terminal game. A mid-game request from a hostile
+      // or buggy host must not pop the prompt over live play.
+      if (state.winner === null || state.gameStatus !== GameStatus.COMPLETED) return;
       setState((prev) => ({
         ...prev,
         message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
