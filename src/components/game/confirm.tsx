@@ -85,7 +85,7 @@ export function Confirm({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className="glass animate-pop-in absolute inset-x-0 -top-3 bottom-0 z-50 flex flex-col justify-center rounded-[30px] px-5 py-6 sm:px-6 sm:py-7"
+      className="glass animate-pop-in absolute inset-x-0 -top-3 bottom-0 z-50 flex flex-col justify-center rounded-2xl px-5 py-6 sm:px-6 sm:py-7"
       style={{
         "--glass-alpha": "0.96",
         "--player-color": destructive ? "239 68 68" : playerColor,

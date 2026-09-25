@@ -193,10 +193,14 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       // Rebuild the absolute deadline from the frozen remaining time so
-      // time spent paused doesn't count down the turn. The host owns the
-      // authoritative clock, so it broadcasts the rebuilt state and the
-      // guest resynthesizes a fresh deadline from the remaining time on
-      // receipt. A paused guest only freezes its local display.
+      // time spent paused doesn't count down the turn. Host-only: the
+      // host owns the authoritative clock and broadcasts the rebuilt
+      // state. A guest resume must NOT rebuild — the guest's deadline
+      // stayed truthful while its display froze (the host clock kept
+      // draining), so Date.now()+frozen would overstate remaining by the
+      // pause duration (F226). Unpausing leaves the real deadline; the
+      // host's next broadcast corrects any drift.
+      if (roleRef.current !== "host") return;
       if (current.turnDeadlineAt === undefined) return;
       const rebuilt: GameState = {
         ...current,
@@ -204,7 +208,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       };
       stateRef.current = rebuilt;
       setState((prev) => ({ ...prev, gameState: rebuilt }));
-      if (roleRef.current === "host") broadcastGameState(rebuilt);
+      broadcastGameState(rebuilt);
     },
     [broadcastGameState, stopTimer],
   );
@@ -332,6 +336,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   const sendMove = useCallback(
     (index: number) => {
+      // Paused = game frozen (mid-game overlays); no move may commit on
+      // either side while the clock can't drain (F225).
+      if (pausedRef.current) return;
       if (state.role === "host") {
         // hostSymbolRef is the single source of truth: it is assigned
         // synchronously in startAsHost and never cleared, so state.hostSymbol
@@ -510,5 +517,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
     leave,
     updatePendingSettings,
     setPaused,
+    paused,
   };
 }

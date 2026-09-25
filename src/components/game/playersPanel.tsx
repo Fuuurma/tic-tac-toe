@@ -200,7 +200,7 @@ export function PlayersPanel({
         <>
           <div
             aria-hidden="true"
-            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-[30px] !border-0"
+            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-2xl !border-0"
             style={{
               WebkitMaskImage:
                 "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",

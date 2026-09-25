@@ -196,7 +196,7 @@ function LocalGameSurface({
       opponentSettings.opponentType,
     ],
   );
-  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused } = useLocalGame(input);
+  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
   const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
   const [panelPaused, setPanelPaused] = useState(false);
@@ -237,7 +237,7 @@ function LocalGameSurface({
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
   const isBoardDisabled =
-    isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
+    paused || isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
 
   return (
     <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">

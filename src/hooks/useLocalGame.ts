@@ -56,8 +56,15 @@ export function useLocalGame(input: LocalGameInput) {
     buildInitialState(input, humanSymbol),
   );
   const [paused, setPausedState] = useState(false);
+  const pausedRef = useRef(false);
   const tickRef = useRef<number | null>(null);
   const aiTimeoutRef = useRef<number | null>(null);
+  // Latest snapshot for the interval tick: the forced-move computation
+  // must run outside the state updater (purity — see the comment in the
+  // tick below), so the tick reads this ref instead of taking `prev`
+  // inside setGameState. Synced in the post-render effect near the
+  // bottom of the hook.
+  const gameStateRef = useRef(gameState);
   const gameIsActive = isGameActive(gameState);
   const currentPlayerType = gameState.players[gameState.currentPlayer].type;
 
@@ -71,39 +78,39 @@ export function useLocalGame(input: LocalGameInput) {
   const startTimer = useCallback(() => {
     stopTimer();
     tickRef.current = window.setInterval(() => {
-      setGameState((prev) => {
-        // Updater must stay pure (StrictMode double-invokes it): timer
-        // teardown is owned by the gameIsActive effect below.
-        if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) {
-          return prev;
-        }
-        // Use the absolute deadline so the timer stays correct even when
-        // the browser throttles setInterval in background tabs. Falls back
-        // to decrementing turnTimeRemaining when no deadline is set.
-        const deadline =
-          prev.turnDeadlineAt ??
-          Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS);
-        const remaining = Math.max(0, deadline - Date.now());
-        if (remaining <= 0) {
-          const random = makeRandomMove(prev.board);
-          if (random === null) return prev;
-          const updated = makeMove(prev, random);
-          if (updated) {
-            return updated;
-          }
-          return prev;
-        }
-        // `deadline` derives from this same `prev` snapshot, so there is no
-        // cross-tick staleness to guard against here: a concurrent move
-        // produces a fresh `prev` on the next tick, which recomputes the
-        // deadline from the new state's turnDeadlineAt.
-        return { ...prev, turnTimeRemaining: remaining, turnDeadlineAt: deadline };
-      });
+      // Updaters must stay pure (StrictMode double-invokes them), so the
+      // impure work — Date.now() and the random forced move — runs here
+      // off the latest snapshot, matching peer-room turnTimer. The
+      // updater then only applies the precomputed result when the state
+      // is still the snapshot we decided from; a concurrent commit
+      // (click, AI move) makes the next tick recompute fresh.
+      const prev = gameStateRef.current;
+      if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return;
+      // Use the absolute deadline so the timer stays correct even when
+      // the browser throttles setInterval in background tabs. Falls back
+      // to decrementing turnTimeRemaining when no deadline is set.
+      const deadline =
+        prev.turnDeadlineAt ??
+        Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS);
+      const remaining = Math.max(0, deadline - Date.now());
+      if (remaining <= 0) {
+        const random = makeRandomMove(prev.board);
+        if (random === null) return;
+        const updated = makeMove(prev, random);
+        if (!updated) return;
+        setGameState((cur) => (cur === prev ? updated : cur));
+        return;
+      }
+      const next = { ...prev, turnTimeRemaining: remaining, turnDeadlineAt: deadline };
+      setGameState((cur) => (cur === prev ? next : cur));
     }, 1000);
   }, [stopTimer]);
 
   const handleCellClick = useCallback(
     (index: number) => {
+      // Paused = game frozen (mid-game overlays); the board's disabled
+      // prop is the UI gate, this is the hook-side seam (F225).
+      if (pausedRef.current) return;
       setGameState((prev) => {
         if (!isValidMove(prev, index, prev.currentPlayer)) return prev;
         if (prev.players[prev.currentPlayer].type === PlayerTypes.COMPUTER) return prev;
@@ -146,7 +153,6 @@ export function useLocalGame(input: LocalGameInput) {
   // deadline adjustment move together at the call site, not in an effect —
   // synchronous setState inside useEffect triggers cascading renders
   // (react-hooks/set-state-in-effect, backlog-stale 09-14).
-  const pausedRef = useRef(false);
   const setPaused = useCallback((target: boolean) => {
     // Repeat calls with the same target must not re-freeze: a second
     // pause would recompute turnTimeRemaining off the already-stale
@@ -178,6 +184,13 @@ export function useLocalGame(input: LocalGameInput) {
       stopTimer();
     }
   }, [gameIsActive, paused, startTimer, stopTimer]);
+
+  // Keep the interval tick's snapshot current. Post-render effect (not
+  // assignment during render) so StrictMode render discards can't
+  // poison the ref with uncommitted state.
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   useEffect(() => {
     if (
@@ -232,5 +245,5 @@ export function useLocalGame(input: LocalGameInput) {
     [stopTimer],
   );
 
-  return { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused };
+  return { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused };
 }

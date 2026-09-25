@@ -311,6 +311,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             previewColor={previewColor}
             previewShape={previewPlayer ? peer.state.gameState.players[previewPlayer].shape : undefined}
             disabled={
+              peer.paused ||
               peer.state.status !== "connected" ||
               localSymbol === null ||
               peer.state.gameState.currentPlayer !== localSymbol ||
