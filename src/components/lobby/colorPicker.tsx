@@ -48,7 +48,7 @@ export function ColorPicker({
               title={colorName}
               onClick={() => onChange(color)}
               className={cn(
-                "flex min-h-9 items-center justify-between gap-1 rounded-lg border px-1.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:px-2 sm:text-xs",
+                "flex min-h-11 items-center justify-between gap-1 rounded-lg border px-1.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:px-2 sm:text-xs",
                 isSelected
                   ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground ring-2 ring-[rgb(var(--player-color)/0.3)]"
                   : "border-border/70 bg-background/50 hover:border-[rgb(var(--player-color)/0.6)] hover:bg-muted/40",
