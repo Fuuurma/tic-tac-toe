@@ -298,9 +298,9 @@ export function PlayersPanel({
                 aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses`}
                 className="font-medium normal-case tracking-normal text-muted-foreground"
               >
-                <span className="text-emerald-600 dark:text-emerald-400">{stats.wins}W</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{stats.wins} wins</span>
                 <span className="mx-0.5 text-muted-foreground/50">·</span>
-                <span className="text-red-500">{stats.losses}L</span>
+                <span className="text-red-500">{stats.losses} losses</span>
                 {stats.currentWinStreak > 1 && (
                   <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
                     · <Flame className="size-3" aria-hidden="true" />
