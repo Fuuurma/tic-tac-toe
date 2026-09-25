@@ -47,7 +47,11 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const hasPreviousFocusRef = useRef(false);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  // Latest-ref assignment belongs in the commit phase, not render
+  // (react-doctor no-ref-current-in-render).
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   const sheetId = useId();
   const titleId = `${sheetId}-title`;
 
