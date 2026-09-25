@@ -280,7 +280,7 @@ export function PlayersPanel({
                 type="button"
                 onClick={copyRoomCode}
                 className="glass-cell inline-flex max-w-40 min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                title={`Room code: ${roomCode} — click to copy`}
+                title={`Room code: ${roomCode}, click to copy`}
                 aria-label={`Room code ${roomCode}, click to copy`}
               >
                 <span className="sr-only">Room code </span>
