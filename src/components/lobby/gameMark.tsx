@@ -26,7 +26,7 @@ export function GameMark() {
             !mark && "bg-transparent",
           )}
         >
-          {mark && <SymbolShapeRenderer shape={mark} strokeWidth={12} className="h-3.5 w-3.5" />}
+          {mark && <SymbolShapeRenderer shape={mark} strokeWidth={12} className="h-2.5 w-2.5" />}
         </span>
       ))}
     </div>
