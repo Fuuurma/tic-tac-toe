@@ -98,9 +98,15 @@ export default function App() {
               fallback={
                 <div
                   role="status"
-                  className="glass flex items-center justify-center px-4 py-3 text-sm text-muted-foreground"
+                  aria-live="polite"
+                  aria-busy="true"
+                  className="glass flex min-h-[480px] w-full max-w-md flex-col items-center justify-center gap-3 px-4 py-3 text-sm text-muted-foreground"
                 >
-                  Loading game…
+                  <span
+                    aria-hidden="true"
+                    className="block aspect-square w-full motion-safe:animate-pulse rounded-2xl bg-current opacity-20"
+                  />
+                  <span>Loading game…</span>
                 </div>
               }
             >
