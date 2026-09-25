@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { COLOR_BG_CLASSES, AVAILABLE_COLORS, type Color, type SymbolShape } from "@/game/constants";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
@@ -61,9 +62,7 @@ export function ColorPicker({
                 <span className="truncate">{colorName}</span>
               </span>
               {isSelected && (
-                <span aria-hidden="true" className="shrink-0 text-[rgb(var(--player-color))]">
-                  ✓
-                </span>
+                <Check className="size-3.5 shrink-0 text-[rgb(var(--player-color))]" aria-hidden="true" />
               )}
             </button>
           );
