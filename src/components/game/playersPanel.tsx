@@ -129,15 +129,6 @@ export function PlayersPanel({
     gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
-  const progress = isActive
-    ? Math.max(
-        0,
-        Math.min(
-          100,
-          ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100,
-        ),
-      )
-    : 0;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? "Leave game" : "Exit game";
 
@@ -240,7 +231,6 @@ export function PlayersPanel({
                 stroke="currentColor"
                 strokeWidth="3"
                 strokeDasharray="100 100"
-                strokeDashoffset={100 - progress}
                 strokeLinecap="butt"
                 vectorEffect="non-scaling-stroke"
                 className="animate-countdown-border"
