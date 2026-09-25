@@ -172,7 +172,7 @@ export function SettingsSheet({
             size="sm"
             onClick={onClose}
             aria-label="Close"
-            className="size-8 p-0"
+            className="size-11 p-0"
           >
             <X className="size-4" aria-hidden="true" />
           </Button>

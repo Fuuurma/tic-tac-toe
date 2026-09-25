@@ -268,7 +268,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             type="button"
             onClick={() => setHelpOpen(true)}
             aria-label="How to play"
-            className="glass-interactive flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+            className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
           >
             <CircleHelp className="size-4.5" aria-hidden="true" />
           </button>
