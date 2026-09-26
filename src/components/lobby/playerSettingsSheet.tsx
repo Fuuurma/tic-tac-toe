@@ -511,7 +511,7 @@ export function OpponentSummaryCard({
           {displayName}
           {isAI && aiDifficultyLabel && (
             <span className="text-xs font-medium text-muted-foreground">
-              ({aiDifficultyLabel.toLowerCase()})
+              ({aiDifficultyLabel})
             </span>
           )}
         </span>
