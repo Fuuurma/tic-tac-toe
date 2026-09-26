@@ -305,7 +305,9 @@ export function PlayersPanel({
               role="status"
               className={cn(
                 "mt-1 truncate text-xs sm:text-sm",
-                message && !message.endsWith("'s turn.")
+                // An explicit status message is alert-worthy; the default
+                // turn label is not. Key off message presence, not copy.
+                message
                   ? "font-medium text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground",
               )}
