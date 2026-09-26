@@ -78,6 +78,20 @@ describe("handleHostMessage rematch deadline", () => {
     expect(deps.hostRematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
+
+  it("leave during WAITING does not crown a phantom host win (F146)", () => {
+    const waiting: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.WAITING,
+    };
+    const { deps, getRoom } = makeDeps(waiting);
+
+    handleHostMessage(deps, { type: "leave" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().gameState.winner).toBeNull();
+    expect(getRoom().gameState.gameStatus).toBe(GameStatus.WAITING);
+  });
 });
 
 describe("handleHostMessage invalid guest move", () => {
