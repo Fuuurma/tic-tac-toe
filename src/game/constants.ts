@@ -59,7 +59,18 @@ export const Color = {
   GRAY: "gray",
 } as const;
 export type Color = (typeof Color)[keyof typeof Color];
-export const AVAILABLE_COLORS: Color[] = Object.values(Color);
+// Canonical defaults (X blue, O red) lead; purple is an extended pick, not a
+// default, so it sits last and never in the primary 4-up row beside blue/red.
+export const AVAILABLE_COLORS: Color[] = [
+  Color.BLUE,
+  Color.RED,
+  Color.GREEN,
+  Color.YELLOW,
+  Color.ORANGE,
+  Color.PINK,
+  Color.GRAY,
+  Color.PURPLE,
+];
 
 export const AI_Difficulty = {
   EASY: "EASY",
