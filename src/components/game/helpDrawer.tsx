@@ -102,7 +102,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
       aria-modal="true"
       aria-labelledby={titleId}
       className={cn(
-        "z-50 flex justify-center bg-black/50",
+        "z-50 flex justify-center bg-overlay-scrim",
         inline
           ? "absolute inset-0 items-stretch p-0"
           : "fixed inset-0 items-end p-0 sm:items-center",

@@ -64,7 +64,7 @@ export function useGameStats() {
         prev.currentWinStreak + 1,
       ),
     }));
-  }, [guestId]);
+  }, []);
 
   const recordLoss = useCallback(() => {
     setStats((prev) => ({
@@ -73,7 +73,7 @@ export function useGameStats() {
       losses: prev.losses + 1,
       currentWinStreak: 0,
     }));
-  }, [guestId]);
+  }, []);
 
   // Persist on every stats change — updaters must stay pure (StrictMode
   // double-invokes them, which would double the localStorage write).

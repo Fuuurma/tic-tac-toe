@@ -155,7 +155,7 @@ export function SettingsSheet({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-overlay-scrim p-0 sm:items-center"
       onClick={(e) => {
         if (e.target === containerRef.current) onClose();
       }}

@@ -97,6 +97,8 @@
   --color-accent-foreground: oklch(0.18 0.02 220);
   --color-border: oklch(0.9 0.01 220);
   --color-input: oklch(0.9 0.01 220);
+  /* F247: one scrim for every modal overlay — was bg-black/40 vs /50. */
+  --color-overlay-scrim: oklch(0 0 0 / 0.5);
   --color-ring: oklch(0.55 0.16 205);
   --color-primary: oklch(0.55 0.16 205);
   --color-primary-foreground: oklch(0.98 0 0);

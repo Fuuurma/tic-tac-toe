@@ -331,7 +331,7 @@ export function PlayersPanel({
               variant="glass"
               size="sm"
               onClick={onEditSettings}
-              aria-label="Edit player and opponent settings"
+              aria-label="Edit player settings"
               className="size-11 p-0 text-muted-foreground"
             >
               <Pencil className="size-4" aria-hidden="true" />
