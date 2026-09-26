@@ -530,15 +530,6 @@ function GameEndActions({
               Cancel rematch
             </Button>
           )}
-          {onAcceptRematch && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={onAcceptRematch}
-            >
-              Accept rematch
-            </Button>
-          )}
           {onDeclineRematch && (
             <Button
               type="button"
@@ -547,6 +538,15 @@ function GameEndActions({
               onClick={onDeclineRematch}
             >
               Decline rematch
+            </Button>
+          )}
+          {onAcceptRematch && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onAcceptRematch}
+            >
+              Accept rematch
             </Button>
           )}
         </div>
