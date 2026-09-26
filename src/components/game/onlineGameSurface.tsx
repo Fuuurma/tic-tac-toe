@@ -18,7 +18,9 @@ import {
   type PlayerSettings,
 } from "@/components/lobby/playerSettingsSheet";
 import { HelpDrawer } from "@/components/game/helpDrawer";
-import { Check, Copy, Link2, Loader2, Share2, Wifi } from "lucide-react";
+import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
+import { Loader2, Share2, Wifi } from "lucide-react";
+import { MorphIcon } from "morphicons/react";
 
 export interface OnlineGameSurfaceProps {
   config: {
@@ -422,11 +424,11 @@ function RoomIdShare({
           onClick={() => onCopy("code", roomId)}
           className="w-full sm:w-auto"
         >
-          {copied === "code" ? (
-            <Check className="size-3.5 text-emerald-500" aria-hidden="true" />
-          ) : (
-            <Copy className="size-3.5" aria-hidden="true" />
-          )}
+          <MorphIcon
+            icon={copied === "code" ? CheckIcon : CopyIcon}
+            className={`size-3.5 ${copied === "code" ? "text-emerald-500" : ""}`}
+            aria-hidden="true"
+          />
           Copy code
         </Button>
         <Button
@@ -435,11 +437,11 @@ function RoomIdShare({
           onClick={() => onCopy("link", shareUrl)}
           className="w-full sm:w-auto"
         >
-          {copied === "link" ? (
-            <Check className="size-3.5 text-emerald-500" aria-hidden="true" />
-          ) : (
-            <Link2 className="size-3.5" aria-hidden="true" />
-          )}
+          <MorphIcon
+            icon={copied === "link" ? CheckIcon : LinkIcon}
+            className={`size-3.5 ${copied === "link" ? "text-emerald-500" : ""}`}
+            aria-hidden="true"
+          />
           Copy invite link
         </Button>
         {canShare && (

@@ -17,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
-import { CircleHelp, Copy, Check, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
+import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
+import { CircleHelp, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
+import { MorphIcon } from "morphicons/react";
 import { ThinkingOrb } from "thinking-orbs";
 
 interface PlayersPanelProps {
@@ -283,11 +285,11 @@ export function PlayersPanel({
               >
                 <span className="sr-only">Room code </span>
                 <span className="truncate">{roomCode}</span>
-                {copiedRoom ? (
-                  <Check className="size-3 shrink-0 text-emerald-500" aria-hidden="true" />
-                ) : (
-                  <Copy className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                )}
+                <MorphIcon
+                  icon={copiedRoom ? CheckIcon : CopyIcon}
+                  className={`size-3 shrink-0 ${copiedRoom ? "text-emerald-500" : "text-muted-foreground"}`}
+                  aria-hidden="true"
+                />
               </button>
             )}
             {stats && stats.totalGames > 0 && (
