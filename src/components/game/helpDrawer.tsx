@@ -44,6 +44,10 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
   const hasPreviousFocusRef = useRef(false);
   const dialogId = useId();
   const titleId = `${dialogId}-title`;
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -62,7 +66,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && panelRef.current) {
@@ -87,7 +91,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
