@@ -50,7 +50,6 @@ const AI_DIFFICULTY_LABEL: Record<AI_DifficultyType, string> = {
 
 const getTimerColor = (seconds: number): string => {
   if (seconds <= 3) return "text-red-500";
-  if (seconds <= 6) return "text-amber-500";
   return "text-emerald-500";
 };
 
