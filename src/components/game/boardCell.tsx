@@ -76,8 +76,11 @@ export const BoardCell = memo(function BoardCell({
       aria-label={buildAriaLabel(index, value, isNextToRemove)}
       aria-keyshortcuts={String(index + 1)}
       aria-disabled={isDisabled || value !== null}
-      disabled={isDisabled || value !== null}
-      onClick={() => onClick(index)}
+      disabled={isDisabled}
+      onClick={() => {
+        if (isDisabled || value !== null) return;
+        onClick(index);
+      }}
       onMouseEnter={() => onHover?.(index)}
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(index)}
