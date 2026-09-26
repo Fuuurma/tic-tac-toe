@@ -44,7 +44,7 @@ const formatTime = (ms: number | undefined): number => {
 
 const AI_DIFFICULTY_LABEL: Record<AI_DifficultyType, string> = {
   [AI_Difficulty.EASY]: "easy",
-  [AI_Difficulty.NORMAL]: "medium",
+  [AI_Difficulty.NORMAL]: "normal",
   [AI_Difficulty.HARD]: "hard",
 };
 
