@@ -143,6 +143,15 @@ export function PlayersPanel({
   );
   const humanColor = humanPlayer ? COLOR_RGB[humanPlayer.color] : "255 255 255";
 
+  // A confirm hidden by the game ending (`isOpen` gates on `isActive`) must
+  // not survive into the next game, where it would re-open unprompted.
+  useEffect(() => {
+    if (isGameOver) {
+      setShowExit(false);
+      setShowNewGame(false);
+    }
+  }, [isGameOver]);
+
   useLayoutEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
