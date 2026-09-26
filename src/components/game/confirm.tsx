@@ -89,12 +89,15 @@ export function Confirm({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className="glass animate-pop-in absolute inset-x-0 -top-3 bottom-0 z-50 flex flex-col justify-center rounded-2xl px-5 py-6 sm:px-6 sm:py-7"
-      style={{
-        "--glass-alpha": "0.96",
-        "--player-color": destructive ? "239 68 68" : playerColor,
-      } as React.CSSProperties}
+      className="absolute inset-x-0 -top-3 bottom-0 z-50 flex flex-col justify-center rounded-2xl bg-overlay-scrim p-4"
     >
+      <div
+        className="glass animate-pop-in rounded-2xl px-5 py-6 sm:px-6 sm:py-7"
+        style={{
+          "--glass-alpha": "0.96",
+          "--player-color": destructive ? "239 68 68" : playerColor,
+        } as React.CSSProperties}
+      >
       <h2 id={titleId} className="text-base font-semibold">
         {title}
       </h2>
@@ -120,6 +123,7 @@ export function Confirm({
         >
           {confirmText}
         </Button>
+      </div>
       </div>
     </div>
   );
