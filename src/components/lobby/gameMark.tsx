@@ -19,10 +19,8 @@ export function GameMark() {
           key={index}
           className={cn(
             "grid size-full min-h-0 min-w-0 place-items-center rounded-md transition-colors",
-            mark === SymbolShape.X &&
+            mark &&
               "bg-[rgb(var(--player-color)/0.15)] text-[rgb(var(--player-color))] shadow-[inset_0_0_0_1px_rgb(var(--player-color)/0.3)]",
-            mark === SymbolShape.O &&
-              "bg-foreground/10 text-foreground/70 shadow-[inset_0_0_0_1px_var(--border)]",
             !mark && "bg-transparent",
           )}
         >
