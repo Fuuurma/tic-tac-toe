@@ -203,6 +203,9 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       return;
     }
     if (message.type === "rematchDecline") {
+      // F254: mirror rematchAccept's pending gate — a stray decline with no
+      // outstanding request must not stamp "Rematch declined" over live UI.
+      if (!hostRematchPendingRef.current) return;
       hostRematchPendingRef.current = false;
       clearRematchTimeout();
       setState((prev) => ({ ...prev, message: "Rematch declined", rematchOutgoing: false }));

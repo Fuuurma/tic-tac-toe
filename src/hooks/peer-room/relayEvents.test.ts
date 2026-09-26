@@ -6,6 +6,7 @@ import {
 } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
+import type { RoomClient } from "@/lib/room";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
@@ -32,6 +33,7 @@ function makeDeps(
   let roomState = { gameState: game, ...roomInit } as PeerRoomState;
   const calls = { committed: [] as GameState[], broadcasts: [] as GameState[] };
   const deps: RelayEventDeps = {
+    roomRef: { current: null },
     stateRef: { current: game },
     roleRef: { current: role },
     hostSymbolRef: { current: PlayerSymbol.X },
@@ -164,5 +166,16 @@ describe("handleRelayEvent symbol fallbacks", () => {
     expect(getRoom().status).toBe("disconnected");
     expect(getRoom().gameState.winner).toBeNull();
     expect(deps.stateRef.current.winner).toBeNull();
+  });
+
+  it("F234: terminal peer-left severs the socket so the relay's close can't reconnect", () => {
+    const game = activeGame();
+    const { deps } = makeDeps(game, "host");
+    const close = vi.fn();
+    deps.roomRef.current = { close } as unknown as RoomClient;
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    expect(close).toHaveBeenCalledOnce();
   });
 });

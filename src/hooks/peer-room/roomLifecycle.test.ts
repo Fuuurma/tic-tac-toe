@@ -3,6 +3,7 @@ import type { RoomClient } from "@/lib/room";
 import { Color, GameModes, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, type RoomLifecycleDeps } from "./roomLifecycle";
+import type { PendingPlayerSettings } from "../usePeerRoom";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
 // closing the socket. A frame sent after close is silently dropped, so the
@@ -70,7 +71,10 @@ describe("joinAsGuest rematch-flag reset", () => {
   // needs-work 2026-09-10 P2: hostRematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
   // would be honored against a game that never asked for one.
-  function lifecycleDeps(hostRematchPendingRef: { current: boolean }) {
+  function lifecycleDeps(
+    hostRematchPendingRef: { current: boolean },
+    hostPendingSettingsRef = { current: null as PendingPlayerSettings | null },
+  ) {
     const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
     const deps: RoomLifecycleDeps = {
       roomRef: { current: null },
@@ -95,9 +99,23 @@ describe("joinAsGuest rematch-flag reset", () => {
       handleGuestData: vi.fn(),
       stopTimer: vi.fn(),
       hostRematchPendingRef,
+      hostPendingSettingsRef,
     };
     return { deps, guestSymbolRef };
   }
+
+  it("F241: clears stale pending identity settings on room entry", () => {
+    const hostRematchPendingRef = { current: false };
+    const hostPendingSettingsRef = {
+      current: { displayName: "OldHost" } as PendingPlayerSettings,
+    };
+    joinAsGuest(
+      lifecycleDeps(hostRematchPendingRef, hostPendingSettingsRef).deps,
+      "ROOM42",
+      "ws://127.0.0.1:1",
+    );
+    expect(hostPendingSettingsRef.current).toBeNull();
+  });
 
   it("clears a stale pending-rematch flag on room entry", () => {
     const hostRematchPendingRef = { current: true };

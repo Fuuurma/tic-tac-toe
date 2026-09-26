@@ -254,6 +254,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   const relayDeps = useCallback(
     () => ({
+      roomRef,
       stateRef,
       roleRef,
       hostSymbolRef,
@@ -306,6 +307,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       handleGuestData,
       stopTimer,
       hostRematchPendingRef,
+      hostPendingSettingsRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );
@@ -449,6 +451,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
     hostRematchPendingRef.current = false;
+    // F241: pending identity edits are room-scoped — never let them leak
+    // into the next room's rematch.
+    hostPendingSettingsRef.current = null;
     clearRematchTimeout();
     setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false }));
   }, [stopTimer, clearRematchTimeout]);
@@ -491,10 +496,14 @@ export function usePeerRoom(options: PeerRoomOptions) {
     return () => {
       abandonTicket({ matchmakingTicketRef }, "on unmount");
       hasStartedRef.current = false;
+      // F257: an armed 30s rematch timeout must not survive unmount — it
+      // would fire send() on a closed room and setState on a dead tree.
+      hostRematchPendingRef.current = false;
+      clearRematchTimeout();
       leaveRoom(roomRef);
       stopTimer();
     };
-  }, [stopTimer]);
+  }, [stopTimer, clearRematchTimeout]);
 
   const retryReconnect = useCallback(() => {
     roomRef.current?.reconnectNow();

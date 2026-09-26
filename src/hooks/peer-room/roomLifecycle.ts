@@ -22,7 +22,7 @@ import {
 } from "@/lib/matchmaking";
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { RoomClient } from "@/lib/room";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
 
 /**
  * Room lifecycle controller, extracted from usePeerRoom (god-hook
@@ -46,6 +46,7 @@ export interface RoomLifecycleDeps {
   handleGuestData: (message: PeerMessage) => void;
   stopTimer: () => void;
   hostRematchPendingRef: { current: boolean };
+  hostPendingSettingsRef: { current: PendingPlayerSettings | null };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -148,6 +149,9 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // swap is honored against a game that never asked for one
   // (needs-work 2026-09-10 P2).
   deps.hostRematchPendingRef.current = false;
+  // F241: pending identity edits are room-scoped — a leftover from the
+  // previous room would apply silently on the next room's rematch accept.
+  deps.hostPendingSettingsRef.current = null;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -193,6 +197,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   stopTimer();
   closeExistingRoom(roomRef);
   deps.hostRematchPendingRef.current = false;
+  deps.hostPendingSettingsRef.current = null;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });

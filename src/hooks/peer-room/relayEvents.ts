@@ -7,6 +7,7 @@ import {
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
+import type { RoomClient } from "@/lib/room";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
 
@@ -20,6 +21,7 @@ import type { PeerRoomState } from "../usePeerRoom";
  * connection status machine and the host's reconnect reconciliation.
  */
 export interface RelayEventDeps {
+  roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
   roleRef: { current: PeerRole };
   hostSymbolRef: { current: PlayerSymbol | null };
@@ -234,6 +236,12 @@ export function handleRelayEvent(
     clearRematchTimeout();
     const current = stateRef.current;
     const leaveReason = reason === "expired" ? "expired" : "closed";
+    // F234: the session is terminal — sever the socket client-side so the
+    // relay's later close can't trigger auto-reconnect (hadSession is true
+    // post-F151) and strand the survivor on a dead room. close() fires the
+    // status handler synchronously, so it must run BEFORE the terminal
+    // setState below or "You left" would clobber the peer-left message.
+    deps.roomRef.current?.close();
     setState((prev) => {
       if (prev.status === "disconnected") return prev;
       // Crown the surviving side's symbol — prefer the live ref, fall back

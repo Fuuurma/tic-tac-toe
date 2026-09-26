@@ -59,6 +59,17 @@ describe("handleHostMessage rematch deadline", () => {
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 
+  it("F254: a stray rematchDecline with no pending request writes nothing", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.hostRematchPendingRef.current = false;
+    const before = getRoom().message;
+
+    handleHostMessage(deps, { type: "rematchDecline" });
+
+    expect(getRoom().message).toBe(before);
+    expect(deps.clearRematchTimeout).not.toHaveBeenCalled();
+  });
+
   it("leave clears the pending flag + timeout", () => {
     const { deps } = makeDeps(terminalGame());
 
