@@ -31,22 +31,31 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background p-6 text-center">
-          <div className="space-y-2">
-            <h1 className="font-display text-2xl font-semibold text-foreground">
-              Something went wrong
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              An unexpected error occurred. Try reloading the page.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={this.handleReset}>
-              Try again
-            </Button>
-            <Button type="button" onClick={() => window.location.reload()}>
-              Reload page
-            </Button>
+        <div className="flex min-h-dvh flex-col items-center justify-center p-6">
+          <div
+            role="alert"
+            className="glass flex w-full max-w-md flex-col items-center gap-4 rounded-2xl p-6 text-center"
+          >
+            <div className="space-y-2">
+              <h1 className="text-base font-semibold text-foreground">
+                Something went wrong
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                An unexpected error occurred. Try reloading the page.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="glass" onClick={this.handleReset}>
+                Try again
+              </Button>
+              <Button
+                type="button"
+                variant="glass"
+                onClick={() => window.location.reload()}
+              >
+                Reload page
+              </Button>
+            </div>
           </div>
         </div>
       );
