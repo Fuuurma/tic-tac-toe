@@ -71,11 +71,11 @@ const getRoomCodeError = (
   if (action === "join") {
     if (!roomId) return "Enter a room code to join.";
     if (!normalizeRoomId(roomId)) {
-      return "Room code must be 4–64 letters, digits, hyphens, or underscores.";
+      return "Room code must be 4-64 letters, digits, hyphens, or underscores.";
     }
   }
   if (action === "create" && roomId && !normalizeRoomId(roomId)) {
-    return "Custom room code must be 4–64 letters, digits, hyphens, or underscores.";
+    return "Custom room code must be 4-64 letters, digits, hyphens, or underscores.";
   }
   return null;
 };
@@ -344,7 +344,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                   value={onlineRoomId}
                   placeholder="Leave empty to generate one"
                   maxLength={64}
-                  hint="4–64 letters, numbers, hyphens, or underscores."
+                  hint="4-64 letters, numbers, hyphens, or underscores."
                   error={
                     onlineRoomId.trim()
                       ? getRoomCodeError("create", onlineRoomId.trim()) ?? undefined
