@@ -342,6 +342,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
       // either side while the clock can't drain (F225).
       if (pausedRef.current) return;
       if (state.role === "host") {
+        // F249: no move may commit while the socket is down — commitHostState
+        // writes locally and broadcastGameState's send() returns false
+        // silently, so a reconnect-window click would diverge the boards
+        // (same gate the timer effect and the guest's sent-check use).
+        if (state.status !== "connected") return;
         // hostSymbolRef is the single source of truth: it is assigned
         // synchronously in startAsHost and never cleared, so state.hostSymbol
         // can only ever lag it, never lead it (F161 — a `?? state.hostSymbol`
@@ -378,7 +383,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         setState((prev) => ({ ...prev, gameState: optimistic }));
       }
     },
-    [applyHostMove, state.guestSymbol, state.role],
+    [applyHostMove, state.guestSymbol, state.role, state.status],
   );
 
   const requestRematch = useCallback(() => {

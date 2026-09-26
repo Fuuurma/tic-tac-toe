@@ -105,6 +105,23 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
           preferredColor: deps.hostColor,
         });
       }
+      // F252: the guest's one-shot join fanned out to zero peers if the
+      // host socket was down (reconnect grace). When the host comes back
+      // the guest gets peer-reconnected — if the game is still WAITING the
+      // join was lost and the handshake never ran, so resend it.
+      if (
+        msg.type === "peer-reconnected" &&
+        role === "guest" &&
+        deps.stateRef.current.gameStatus === GameStatus.WAITING
+      ) {
+        const identity = getOrCreateGuestIdentity();
+        client.send({
+          type: "join",
+          displayName: deps.hostDisplayName,
+          guestId: identity.guestId,
+          preferredColor: deps.hostColor,
+        });
+      }
     } else if (isPeerMessage(msg)) {
       // isPeerMessage is a type predicate — msg is already PeerMessage.
       if (stateRef.current && roleRef.current) {

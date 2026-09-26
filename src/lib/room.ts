@@ -95,6 +95,7 @@ export class RoomClient {
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
   private welcomeRejecters: Array<(reason: Error) => void> = [];
   private pendingConnect: Promise<RoomSession> | null = null;
+  private preWelcomeError: Error | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -259,11 +260,25 @@ export class RoomClient {
       ws.addEventListener("message", (event: MessageEvent<string>) => {
         const parsed = parseEnvelope(event.data);
         if (!parsed) return;
+        // F253: the DO rejects joins with {type:"error",code,message} then
+        // closes the socket. Capture the reason so the close handler can
+        // reject connect() with the actionable message instead of the
+        // generic "socket closed before welcome".
+        if (
+          parsed.type === "error" &&
+          this.welcomeResolvers.length > 0 &&
+          typeof (parsed as { message?: unknown }).message === "string"
+        ) {
+          this.preWelcomeError = new Error(
+            (parsed as { message: string }).message,
+          );
+        }
         if (parsed.type === "welcome") {
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
           this.hadSession = true;
+          this.preWelcomeError = null;
           this.reconnectAttempt = 0;
           this.setStatus("connected");
           const session: RoomSession = { role: welcome.role, opponent: welcome.opponent };
@@ -292,7 +307,10 @@ export class RoomClient {
           this.setStatus("disconnected");
           return;
         }
-        settleWelcome(null, new Error("socket closed before welcome"));
+        settleWelcome(
+          null,
+          this.preWelcomeError ?? new Error("socket closed before welcome"),
+        );
         // F151: auto-reconnect exists to recover an ESTABLISHED session —
         // a socket that dies before `welcome` means the relay rejected or
         // is unreachable; retrying forever would overwrite the terminal
@@ -302,7 +320,10 @@ export class RoomClient {
       });
 
       ws.addEventListener("error", () => {
-        settleWelcome(null, new Error("socket error"));
+        settleWelcome(
+          null,
+          this.preWelcomeError ?? new Error("socket error"),
+        );
         // close event will follow; reconnect happens there
       });
 

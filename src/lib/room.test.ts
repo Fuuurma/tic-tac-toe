@@ -71,6 +71,28 @@ describe("RoomClient reconnect gating (F151)", () => {
     expect(FakeSocket.instances).toHaveLength(1);
   });
 
+  it("F253: a pre-welcome relay error frame becomes the rejection reason", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("message", {
+      data: JSON.stringify({
+        code: "room-full",
+        message: "Room is full",
+        type: "error",
+      }),
+    });
+    ws.close();
+
+    // The DO's actionable reason must reach the caller — not the generic
+    // "socket closed before welcome" that used to clobber it.
+    await expect(pending).rejects.toThrow("Room is full");
+    expect(statuses.at(-1)).toBe("disconnected");
+  });
+
   it("auto-reconnects when an established session drops", async () => {
     vi.stubGlobal("WebSocket", FakeSocket);
     vi.useFakeTimers();
