@@ -410,9 +410,9 @@ function RoomIdShare({
         Send this code to your opponent; you start when they join.
       </p>
       <span
-        aria-label={`Room code ${roomId}`}
         className="glass-cell max-w-full break-all rounded-lg px-3 py-2 font-mono text-sm font-bold tracking-wide text-foreground sm:text-base"
       >
+        <span className="sr-only">Room code </span>
         {roomId}
       </span>
       <div className="grid w-full gap-1.5 sm:flex sm:w-auto">
