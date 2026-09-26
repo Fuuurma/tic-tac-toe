@@ -12,8 +12,6 @@ const SYMBOL_SIZE = 8;
 const SYMBOL_STROKE = 1;
 const SYMBOL_COLOR = "rgba(148,163,184,0.15)";
 const REVEAL_RADIUS = 240;
-const SCRAMBLE_INTERVAL_MS = 70;
-const SCRAMBLE_DISTANCE = 8;
 
 const COLOR_HEX: Record<Color, [number, number, number]> = {
   [Color.BLUE]: [59, 130, 246],
@@ -185,9 +183,6 @@ export function BackgroundPattern() {
     let symbols: GridSymbol[] = [];
     let raf: number | null = null;
     let lastT = 0;
-    let lastScrambleAt = -Infinity;
-    let lastScrambleX = -9999;
-    let lastScrambleY = -9999;
     let touchRelease: number | null = null;
     const pointer = { x: -9999, y: -9999, active: false, energy: 0 };
 
@@ -291,31 +286,10 @@ export function BackgroundPattern() {
       raf = null;
     };
 
-    const scrambleNearbySymbols = (time: number) => {
-      const moved = Math.hypot(pointer.x - lastScrambleX, pointer.y - lastScrambleY);
-      if (time - lastScrambleAt < SCRAMBLE_INTERVAL_MS || moved < SCRAMBLE_DISTANCE) {
-        return;
-      }
-
-      lastScrambleAt = time;
-      lastScrambleX = pointer.x;
-      lastScrambleY = pointer.y;
-
-      for (const symbol of symbols) {
-        const distance = Math.hypot(pointer.x - symbol.x, pointer.y - symbol.y);
-        if (distance > REVEAL_RADIUS || Math.random() > 0.34) continue;
-
-        symbol.shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-        symbol.color = COLORS[Math.floor(Math.random() * COLORS.length)];
-        symbol.rotation = (Math.random() - 0.5) * 0.8;
-      }
-    };
-
     const updatePointer = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       pointer.active = true;
-      scrambleNearbySymbols(event.timeStamp);
       renderSymbols();
       start();
     };
