@@ -43,9 +43,9 @@ const formatTime = (ms: number | undefined): number => {
 };
 
 const AI_DIFFICULTY_LABEL: Record<AI_DifficultyType, string> = {
-  [AI_Difficulty.EASY]: "easy",
-  [AI_Difficulty.NORMAL]: "normal",
-  [AI_Difficulty.HARD]: "hard",
+  [AI_Difficulty.EASY]: "Easy",
+  [AI_Difficulty.NORMAL]: "Normal",
+  [AI_Difficulty.HARD]: "Hard",
 };
 
 const getTimerColor = (seconds: number): string => {
