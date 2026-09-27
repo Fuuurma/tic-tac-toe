@@ -291,8 +291,16 @@ export class RoomClient {
           return;
         }
         settleWelcome(null, new Error("socket closed before welcome"));
-        if (this.opts.autoReconnect) this.scheduleReconnect();
-        else this.setStatus("disconnected");
+        // Auto-reconnect only restores an established session — `role`
+        // is set on the first `welcome`, so `role === null` means the
+        // initial connect() never succeeded. Retrying then would flip
+        // the caller's terminal "error" status back to "reconnecting"
+        // and spam the dead endpoint forever (F151).
+        if (this.opts.autoReconnect && this.role !== null) {
+          this.scheduleReconnect();
+        } else {
+          this.setStatus("disconnected");
+        }
       });
 
       ws.addEventListener("error", () => {
@@ -307,6 +315,10 @@ export class RoomClient {
 
   private scheduleReconnect(): void {
     if (this.closedByUser || !this.opts.autoReconnect) return;
+    // Never auto-reconnect before a session was established (no
+    // `welcome` yet) — a failed initial connect() must settle as a
+    // terminal error, not retry the unreachable relay forever.
+    if (this.role === null) return;
     if (this.reconnectTimer) return;
     const base = Math.min(
       this.opts.maxBackoffMs,
