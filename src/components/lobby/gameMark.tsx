@@ -1,14 +1,24 @@
-import { SymbolShape } from "@/game/constants";
+import { COLOR_RGB, Color, SymbolShape } from "@/game/constants";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
-const MARKS: (SymbolShape | null)[] = [
-  SymbolShape.X, null, null,
-  null, SymbolShape.O, null,
-  null, null, SymbolShape.X,
+interface MarkTile {
+  shape: SymbolShape;
+  color: "player" | "opponent";
+}
+
+const MARKS: (MarkTile | null)[] = [
+  { shape: SymbolShape.X, color: "player" }, null, null,
+  null, { shape: SymbolShape.O, color: "opponent" }, null,
+  null, null, { shape: SymbolShape.X, color: "player" },
 ];
 
-export function GameMark() {
+interface GameMarkProps {
+  playerColor: Color;
+  opponentColor: Color;
+}
+
+export function GameMark({ playerColor, opponentColor }: GameMarkProps) {
   return (
     <div
       aria-hidden="true"
@@ -20,11 +30,19 @@ export function GameMark() {
           className={cn(
             "grid size-full min-h-0 min-w-0 place-items-center rounded-md transition-colors",
             mark &&
-              "bg-[rgb(var(--player-color)/0.15)] text-[rgb(var(--player-color))] shadow-[inset_0_0_0_1px_rgb(var(--player-color)/0.3)]",
+              "bg-[rgb(var(--mark-color)/0.15)] text-[rgb(var(--mark-color))] shadow-[inset_0_0_0_1px_rgb(var(--mark-color)/0.3)]",
             !mark && "bg-transparent",
           )}
+          style={
+            mark
+              ? ({
+                  "--mark-color":
+                    COLOR_RGB[mark.color === "player" ? playerColor : opponentColor],
+                } as React.CSSProperties)
+              : undefined
+          }
         >
-          {mark && <SymbolShapeRenderer shape={mark} strokeWidth={12} className="h-2.5 w-2.5" />}
+          {mark && <SymbolShapeRenderer shape={mark.shape} strokeWidth={12} className="h-2.5 w-2.5" />}
         </span>
       ))}
     </div>
