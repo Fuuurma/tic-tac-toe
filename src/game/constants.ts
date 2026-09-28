@@ -79,6 +79,12 @@ export const AI_Difficulty = {
 } as const;
 export type AI_Difficulty = (typeof AI_Difficulty)[keyof typeof AI_Difficulty];
 
+export const AI_DIFFICULTY_LABELS: Record<AI_Difficulty, string> = {
+  [AI_Difficulty.EASY]: "Easy",
+  [AI_Difficulty.NORMAL]: "Normal",
+  [AI_Difficulty.HARD]: "Hard",
+};
+
 export const GAME_RULES = {
   BOARD_SIZE: 9,
   MAX_MOVES_PER_PLAYER: 3,

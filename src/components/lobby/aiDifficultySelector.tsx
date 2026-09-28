@@ -1,4 +1,8 @@
-import { AI_Difficulty, type AI_Difficulty as AI_DifficultyType } from "@/game/constants";
+import {
+  AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
+  type AI_Difficulty as AI_DifficultyType,
+} from "@/game/constants";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
@@ -7,11 +11,7 @@ interface AI_DifficultySelectorProps {
   onDifficultyChange: (difficulty: AI_DifficultyType) => void;
 }
 
-const DIFFICULTIES: { value: AI_DifficultyType; label: string }[] = [
-  { value: AI_Difficulty.EASY, label: "Easy" },
-  { value: AI_Difficulty.NORMAL, label: "Normal" },
-  { value: AI_Difficulty.HARD, label: "Hard" },
-];
+const DIFFICULTIES: AI_DifficultyType[] = Object.values(AI_Difficulty);
 
 export function AI_DifficultySelector({
   selectedDifficulty,
@@ -24,7 +24,8 @@ export function AI_DifficultySelector({
         aria-label="AI difficulty"
         className="grid grid-cols-3 gap-2"
       >
-        {DIFFICULTIES.map(({ value, label }) => {
+        {DIFFICULTIES.map((value) => {
+          const label = AI_DIFFICULTY_LABELS[value];
           const active = selectedDifficulty === value;
           return (
             <button

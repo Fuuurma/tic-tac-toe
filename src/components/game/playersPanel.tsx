@@ -3,7 +3,7 @@ import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
   TURN_DURATION_MS,
-  AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
   type AI_Difficulty as AI_DifficultyType,
   GameMode,
   GameModes,
@@ -42,12 +42,6 @@ interface PlayersPanelProps {
 const formatTime = (ms: number | undefined): number => {
   if (ms === undefined) return 0;
   return Math.max(0, Math.ceil(ms / 1000));
-};
-
-const AI_DIFFICULTY_LABEL: Record<AI_DifficultyType, string> = {
-  [AI_Difficulty.EASY]: "Easy",
-  [AI_Difficulty.NORMAL]: "Normal",
-  [AI_Difficulty.HARD]: "Hard",
 };
 
 const getTimerColor = (seconds: number): string => {
@@ -382,7 +376,7 @@ export function PlayersPanel({
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
           aiDifficultyLabel={
             gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? AI_DIFFICULTY_LABEL[aiDifficulty]
+              ? AI_DIFFICULTY_LABELS[aiDifficulty]
               : undefined
           }
         />
@@ -394,7 +388,7 @@ export function PlayersPanel({
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
           aiDifficultyLabel={
             gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? AI_DIFFICULTY_LABEL[aiDifficulty]
+              ? AI_DIFFICULTY_LABELS[aiDifficulty]
               : undefined
           }
         />

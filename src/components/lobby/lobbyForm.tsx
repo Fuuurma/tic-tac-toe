@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
   AVAILABLE_COLORS,
   COLOR_RGB,
   Color,
@@ -240,12 +241,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
     [startGame],
   );
 
-  const aiDifficultyLabel =
-    aiDifficulty === AI_Difficulty.EASY
-      ? "Easy"
-      : aiDifficulty === AI_Difficulty.NORMAL
-        ? "Normal"
-        : "Hard";
+  const aiDifficultyLabel = AI_DIFFICULTY_LABELS[aiDifficulty];
 
   return (
     <form
