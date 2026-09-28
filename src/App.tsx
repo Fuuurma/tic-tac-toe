@@ -196,7 +196,7 @@ function LocalGameSurface({
       opponentSettings.opponentType,
     ],
   );
-  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
+  const { gameState, humanSymbol, message, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
   const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
   const [panelPaused, setPanelPaused] = useState(false);
@@ -250,7 +250,7 @@ function LocalGameSurface({
             ? opponentSettings.aiDifficulty
             : undefined
         }
-        message=""
+        message={message}
         onNewGame={handleReset}
         onExit={() => {
           exit();
