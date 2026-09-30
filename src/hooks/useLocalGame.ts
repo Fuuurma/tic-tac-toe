@@ -98,11 +98,20 @@ export function useLocalGame(input: LocalGameInput) {
         if (random === null) return;
         const updated = makeMove(prev, random);
         if (!updated) return;
-        setGameState((cur) => (cur === prev ? updated : cur));
+        setGameState((cur) =>
+          cur === prev
+            ? {
+                ...updated,
+                turnNotice: `${
+                  prev.players[prev.currentPlayer].username || "Player"
+                } ran out of time`,
+              }
+            : cur,
+        );
         return;
       }
       const next = { ...prev, turnTimeRemaining: remaining, turnDeadlineAt: deadline };
-      setGameState((cur) => (cur === prev ? next : cur));
+      setGameState((cur) => (cur === prev ? next : cur)); (hud: surface local timeout auto-moves — 'X ran out of time')
     }, 1000);
   }, [stopTimer]);
 
