@@ -43,6 +43,10 @@ export interface GameState {
   aiDifficulty?: AI_Difficulty;
   turnTimeRemaining?: number;
   turnDeadlineAt?: number;
+  // Set by the local timeout path when a turn expired and a random move
+  // was played for that player; surfaced in the HUD. Cleared by the next
+  // successful move (makeMove) and absent on fresh states.
+  turnNotice?: string;
 }
 
 export const freshGameState = (): GameState => ({
@@ -220,6 +224,7 @@ export const makeMove = (
     gameStatus: winner ? GameStatus.COMPLETED : GameStatus.ACTIVE,
     turnTimeRemaining: TURN_DURATION_MS,
     turnDeadlineAt: now + TURN_DURATION_MS,
+    turnNotice: undefined,
   };
 };
 

@@ -244,7 +244,7 @@ function LocalGameSurface({
             ? opponentSettings.aiDifficulty
             : undefined
         }
-        message=""
+        message={gameState.turnNotice ?? ""}
         onNewGame={handleReset}
         onExit={() => {
           exit();

@@ -89,7 +89,12 @@ export function useLocalGame(input: LocalGameInput) {
           if (random === null) return prev;
           const updated = makeMove(prev, random);
           if (updated) {
-            return updated;
+            return {
+              ...updated,
+              turnNotice: `${
+                prev.players[prev.currentPlayer].username || "Player"
+              } ran out of time`,
+            };
           }
           return prev;
         }
