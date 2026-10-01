@@ -211,7 +211,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             size="sm"
             variant="glass"
             onClick={() => peer.retryReconnect()}
-            className="h-7 px-3 text-xs"
+            className="px-3 text-xs"
           >
             Retry now
           </Button>
@@ -233,7 +233,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
                 onClick={() => {
                   void peer.startQuickMatch();
                 }}
-                className="h-8 px-3 text-xs"
+                className="px-3 text-xs"
               >
                 Try again
               </Button>
@@ -242,7 +242,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               size="sm"
               variant="glass"
               onClick={onExit}
-              className="h-8 px-3 text-xs"
+              className="px-3 text-xs"
             >
               Back to setup
             </Button>
@@ -262,7 +262,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             size="sm"
             variant="glass"
             onClick={onExit}
-            className="h-8 px-3 text-xs"
+            className="px-3 text-xs"
           >
             Back to setup
           </Button>
