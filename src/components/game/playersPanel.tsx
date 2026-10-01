@@ -10,6 +10,7 @@ import {
   GameStatus,
   PlayerSymbol,
   PlayerTypes,
+  COLOR_MARK_TEXT,
 } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
@@ -463,7 +464,8 @@ const PlayerCard = memo(function PlayerCard({
       <span
         aria-hidden="true"
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg text-white shadow-sm",
+          "flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm",
+          COLOR_MARK_TEXT[player.color],
           COLOR_BG_CLASSES[player.color],
         )}
       >

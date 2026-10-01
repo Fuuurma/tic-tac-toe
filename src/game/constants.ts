@@ -148,6 +148,19 @@ export const COLOR_BG_CLASSES: Record<Color, string> = {
   [Color.GRAY]: "bg-gray-500",
 };
 
+// Mark ink per chip background: white text fails contrast on the light
+// 500-weights (yellow/green/orange) — those take near-black ink (F298).
+export const COLOR_MARK_TEXT: Record<Color, string> = {
+  [Color.BLUE]: "text-white",
+  [Color.GREEN]: "text-neutral-950",
+  [Color.YELLOW]: "text-neutral-950",
+  [Color.ORANGE]: "text-neutral-950",
+  [Color.RED]: "text-white",
+  [Color.PINK]: "text-white",
+  [Color.PURPLE]: "text-white",
+  [Color.GRAY]: "text-white",
+};
+
 export const COLOR_RGB: Record<Color, string> = {
   [Color.BLUE]: "59 130 246",
   [Color.GREEN]: "34 197 94",

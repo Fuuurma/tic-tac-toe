@@ -8,6 +8,7 @@ import {
   SymbolShape,
   type AI_Difficulty as AI_DifficultyType,
   type PlayerType,
+  COLOR_MARK_TEXT,
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
 import { SymbolShapePicker } from "./symbolShapePicker";
@@ -430,7 +431,8 @@ export function PlayerSummaryCard({
       <span
         aria-hidden="true"
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
+          "flex size-11 shrink-0 items-center justify-center rounded-xl shadow-md",
+          COLOR_MARK_TEXT[settings.color],
           colorBg,
         )}
       >
@@ -499,6 +501,7 @@ export function OpponentSummaryCard({
       <span
         aria-hidden="true"
         className={cn(
+          COLOR_MARK_TEXT[opponentColor],
           "flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
           colorBg,
         )}
