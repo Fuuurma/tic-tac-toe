@@ -32,6 +32,9 @@ export interface RelayEventDeps {
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
+  /** Guest → host pull for an authoritative snapshot on reconnect
+   *  (uno-chess sync_request/state_snapshot contract, DST-04). */
+  requestSync: () => void;
   startTimer: () => void;
   stopTimer: () => void;
   clearRematchTimeout: () => void;
@@ -52,6 +55,7 @@ export function handleRelayEvent(
     setState,
     commitHostState,
     broadcastGameState,
+    requestSync,
     startTimer,
     stopTimer,
     clearRematchTimeout,
@@ -120,6 +124,13 @@ export function handleRelayEvent(
         status: opponent ? "connected" : "connecting",
         message: opponent ? "" : "Waiting for host…",
       }));
+      // Mid-game reconnect pull (uno-chess contract): if our local game
+      // is still active this welcome is a REconnect, not a first join —
+      // ask the host for an authoritative state_snapshot in case our
+      // re-sent `join` or the host's peer-reconnected push was dropped.
+      if (isGameActive(stateRef.current)) {
+        requestSync();
+      }
     }
     return;
   }

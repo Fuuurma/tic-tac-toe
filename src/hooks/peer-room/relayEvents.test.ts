@@ -43,6 +43,7 @@ function makeDeps(game: GameState, role: PeerRole) {
       roomState = { ...roomState, gameState: g };
     },
     broadcastGameState: (g) => void calls.broadcasts.push(g),
+    requestSync: vi.fn(),
     startTimer: vi.fn(),
     stopTimer: vi.fn(),
     clearRematchTimeout: vi.fn(),
@@ -96,6 +97,28 @@ describe("handleRelayEvent peer-reconnected", () => {
     handleRelayEvent(deps, { type: "peer-reconnected" });
     expect(calls.committed).toHaveLength(1);
     expect(calls.committed[0].turnDeadlineAt).toBe(committed.turnDeadlineAt);
+  });
+
+  it("guest welcome mid-game emits sync_request (reconnect pull)", () => {
+    const game = activeGame();
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "guest",
+      opponent: { guestId: "h", displayName: "Host" },
+    });
+
+    expect(deps.requestSync).toHaveBeenCalledOnce();
+  });
+
+  it("guest's first welcome (no live game) does not emit sync_request", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+
+    expect(deps.requestSync).not.toHaveBeenCalled();
   });
 
   it("peer-left expired clears the rematch deadline + pending flag", () => {

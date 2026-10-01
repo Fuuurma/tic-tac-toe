@@ -211,6 +211,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       setState,
       commitHostState,
       broadcastGameState,
+      requestSync: () => roomRef.current?.send({ type: "sync_request" }),
       startTimer,
       stopTimer,
       clearRematchTimeout,

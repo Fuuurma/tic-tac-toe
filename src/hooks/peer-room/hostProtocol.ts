@@ -111,6 +111,18 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       }
       return;
     }
+    if (message.type === "sync_request") {
+      // Reconnect pull (uno-chess contract, DST-04): the guest asks for
+      // an authoritative snapshot after reconnecting. The host answers
+      // with the current wire state — deadline stripped so the guest
+      // resynthesizes its own clock. Read-only: never mutates host
+      // state, safe against a stray or replayed request.
+      roomRef.current?.send({
+        type: "state_snapshot",
+        gameState: toWireGameState(stateRef.current),
+      });
+      return;
+    }
     if (message.type === "move") {
       const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
       const guestSymbol = oppositeSymbol(hostSymbol);
