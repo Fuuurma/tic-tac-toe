@@ -37,6 +37,7 @@ interface PlayersPanelProps {
   onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
   onCancelRematch?: () => void;
+  onRequestRematch?: () => void;
   onPauseChange?: (paused: boolean) => void;
 }
 
@@ -97,6 +98,7 @@ export function PlayersPanel({
   onAcceptRematch,
   onDeclineRematch,
   onCancelRematch,
+  onRequestRematch,
   onPauseChange,
 }: PlayersPanelProps) {
   // Stored flags + derived read: a fresh game (moveCount 0) must not
@@ -400,6 +402,7 @@ export function PlayersPanel({
             onAcceptRematch={onAcceptRematch}
             onDeclineRematch={onDeclineRematch}
             onCancelRematch={onCancelRematch}
+            onRequestRematch={onRequestRematch}
           />
         </div>
       )}
@@ -499,6 +502,7 @@ interface GameEndActionsProps {
   onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
   onCancelRematch?: () => void;
+  onRequestRematch?: () => void;
 }
 
 function GameEndActions({
@@ -507,6 +511,7 @@ function GameEndActions({
   onAcceptRematch,
   onDeclineRematch,
   onCancelRematch,
+  onRequestRematch,
 }: GameEndActionsProps) {
   return (
     <div className="flex flex-col gap-1.5 text-center">
@@ -523,7 +528,10 @@ function GameEndActions({
           {message}
         </div>
       )}
-      {(onAcceptRematch || onDeclineRematch || onCancelRematch) && (
+      {(onAcceptRematch ||
+        onDeclineRematch ||
+        onCancelRematch ||
+        onRequestRematch) && (
         <div className="mx-auto mt-1 flex flex-wrap items-center justify-center gap-1.5">
           {onCancelRematch && (
             <Button
@@ -543,6 +551,15 @@ function GameEndActions({
               onClick={onDeclineRematch}
             >
               Decline rematch
+            </Button>
+          )}
+          {onRequestRematch && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onRequestRematch}
+            >
+              Rematch
             </Button>
           )}
           {onAcceptRematch && (
