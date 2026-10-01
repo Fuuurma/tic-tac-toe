@@ -1,4 +1,5 @@
 import { AVAILABLE_SHAPES, SHAPE_LABELS, SymbolShape } from "@/game/constants";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
@@ -22,6 +23,7 @@ export function SymbolShapePicker({
         role="radiogroup"
         aria-label="Your shape"
         className="grid grid-cols-4 gap-2"
+        onKeyDown={handleRadioGroupKeyDown}
       >
         {AVAILABLE_SHAPES.map((shape) => {
           const isSelected = value === shape;
@@ -35,6 +37,7 @@ export function SymbolShapePicker({
               aria-label={label}
               aria-checked={isSelected}
               data-state={isSelected ? "active" : "inactive"}
+              tabIndex={isSelected ? 0 : -1}
               onClick={() => onChange(shape)}
               className={cn(
                 "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60",

@@ -18,6 +18,7 @@ import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, Play, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 
 export type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -334,13 +335,14 @@ function OpponentTab({
   return (
     <>
       {/* Type toggle: AI / Human — AI first to match the lobby game-mode order */}
-      <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2">
+      <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2" onKeyDown={handleRadioGroupKeyDown}>
         <button
           type="button"
           role="radio"
           aria-label="AI"
           aria-checked={isAI}
           data-state={isAI ? "active" : "inactive"}
+          tabIndex={isAI ? 0 : -1}
           onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
           className={cn(
             "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
@@ -358,6 +360,7 @@ function OpponentTab({
           aria-label="Human"
           aria-checked={!isAI}
           data-state={!isAI ? "active" : "inactive"}
+          tabIndex={!isAI ? 0 : -1}
           onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
           className={cn(
             "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",

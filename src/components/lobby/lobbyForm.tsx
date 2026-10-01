@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { normalizeRoomId } from "@/lib/roomId";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 
 export interface LobbyFormPayload {
   displayName: string;
@@ -309,6 +310,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                 role="radiogroup"
                 aria-label="Online match type"
                 className="grid grid-cols-3 gap-2"
+                onKeyDown={handleRadioGroupKeyDown}
               >
                 <OnlineOption
                   active={onlineAction === "quick"}
@@ -456,6 +458,7 @@ function OnlineOption({
       aria-checked={active}
       aria-label={label}
       data-state={active ? "active" : "inactive"}
+      tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={cn(
         "group flex min-h-[4.5rem] flex-col items-stretch justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
