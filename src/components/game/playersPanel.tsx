@@ -98,8 +98,14 @@ export function PlayersPanel({
   onCancelRematch,
   onPauseChange,
 }: PlayersPanelProps) {
-  const [showExit, setShowExit] = useState(false);
-  const [showNewGame, setShowNewGame] = useState(false);
+  // Stored flags + derived read: a fresh game (moveCount 0) must not
+  // re-open a confirm stored from the previous game. Resetting via effect
+  // trips react-hooks/set-state-in-effect; deriving keeps the reset exact.
+  const [showExitStored, setShowExit] = useState(false);
+  const [showNewGameStored, setShowNewGame] = useState(false);
+  const freshGame = gameState.moveCount === 0;
+  const showExit = showExitStored && !freshGame;
+  const showNewGame = showNewGameStored && !freshGame;
   const [copiedRoom, setCopiedRoom] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
@@ -137,15 +143,6 @@ export function PlayersPanel({
     (p) => p.type !== PlayerTypes.COMPUTER,
   );
   const humanColor = humanPlayer ? COLOR_RGB[humanPlayer.color] : "255 255 255";
-
-  // A confirm hidden by the game ending (`isOpen` gates on `isActive`) must
-  // not survive into the next game, where it would re-open unprompted.
-  useEffect(() => {
-    if (isGameOver) {
-      setShowExit(false);
-      setShowNewGame(false);
-    }
-  }, [isGameOver]);
 
   useLayoutEffect(() => {
     const panel = panelRef.current;
