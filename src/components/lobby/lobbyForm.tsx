@@ -44,7 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
 import { HelpDrawer } from "@/components/game/helpDrawer";
-import { normalizeRoomId } from "@/lib/roomId";
+import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 
 export interface LobbyFormPayload {
@@ -76,8 +76,11 @@ const getRoomCodeError = (
       return "Room code must be 4-64 letters, digits, hyphens, or underscores.";
     }
   }
-  if (action === "create" && roomId && !normalizeRoomId(roomId)) {
-    return "Custom room code must be 4-64 letters, digits, hyphens, or underscores.";
+  // Check the RAW value: normalizeRoomId zeroes invalid codes, so
+  // `roomId &&` swallowed every invalid non-empty code (e2e regression,
+  // needs-work 10-02 P1 follow-through).
+  if (action === "create" && roomId.trim() && !ROOM_ID_PATTERN.test(roomId.trim())) {
+    return "Custom room code must be 4–64 letters, digits, hyphens, or underscores.";
   }
   return null;
 };
