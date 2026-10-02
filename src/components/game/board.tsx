@@ -47,8 +47,12 @@ export function Board({
       const target = event.target;
       if (target instanceof HTMLElement) {
         const isInsideBoard = boardRef.current?.contains(target) ?? false;
+        // Suppress only where digits are ENTRY — text fields and dialogs.
+        // Plain buttons don't consume digit keys, so post-dialog focus
+        // restoration to a panel button must keep the shortcut working
+        // (the "without hijacking dialogs" smoke; needs-work 10-02 P1-2).
         const isFocusedControl = target.closest(
-          'button, input, select, textarea, [contenteditable="true"], [role="dialog"]',
+          'input, select, textarea, [contenteditable="true"], [role="dialog"]',
         );
         if (!isInsideBoard && isFocusedControl) return;
       }
