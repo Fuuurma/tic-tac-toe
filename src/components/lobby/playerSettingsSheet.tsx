@@ -168,20 +168,31 @@ export function SettingsSheet({
         className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-7 outline-none sm:rounded-2xl sm:border-b"
         style={{ "--player-color": COLOR_RGB[activeColor] } as React.CSSProperties}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
-          <h2 id={titleId} className="text-base font-semibold">
-            Settings
-          </h2>
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={onClose}
-            aria-label="Close"
-            className="size-11 p-0"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </Button>
+        {/* The grabber is a decorative sheet handle (DESIGN.md: pills are for
+            color dots and sheet grabbers), so it gets its own row above the
+            title rather than sharing the justify-between row. As a flex child
+            of that row it stole width and pushed "Settings" off-centre against
+            the close button, and as a bare div it was announced to AT as
+            nothing. Matches helpDrawer.tsx, which already does it this way. */}
+        <div className="flex shrink-0 flex-col gap-2">
+          <div
+            aria-hidden="true"
+            className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <h2 id={titleId} className="text-base font-semibold">
+              Settings
+            </h2>
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onClose}
+              aria-label="Close"
+              className="size-11 p-0"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
         </div>
 
         {/* Tab switcher */}
