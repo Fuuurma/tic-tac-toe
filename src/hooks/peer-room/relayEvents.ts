@@ -237,10 +237,14 @@ export function handleRelayEvent(
     const leaveReason = reason === "expired" ? "expired" : "closed";
     // F234: the session is terminal — sever the socket client-side so the
     // relay's later close can't trigger auto-reconnect (hadSession is true
-    // post-F151) and strand the survivor on a dead room. close() fires the
-    // status handler synchronously, so it must run BEFORE the terminal
-    // setState below or "You left" would clobber the peer-left message.
-    deps.roomRef.current?.close();
+    // post-F151) and strand the survivor on a dead room.
+    //
+    // needs-work 10-02 P1: close() fires the status handler SYNCHRONOUSLY
+    // with message "You left" — running it before the terminal setState
+    // made the disconnected-guard below early-return, so the survivor
+    // always saw "You left" instead of the peer-left message. Apply the
+    // terminal state FIRST; close()'s own "You left" then loses to the
+    // already-disconnected guard, exactly as F234 intended.
     setState((prev) => {
       if (prev.status === "disconnected") return prev;
       // Crown the surviving side's symbol — prefer the live ref, fall back
@@ -263,6 +267,7 @@ export function handleRelayEvent(
         rematchOutgoing: false,
       };
     });
+    deps.roomRef.current?.close();
     return;
   }
   if (event.type === "error") {

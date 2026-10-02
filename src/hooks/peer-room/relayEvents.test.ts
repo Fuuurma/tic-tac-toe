@@ -6,6 +6,7 @@ import {
 } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
+import { peerLeftUserMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
@@ -166,6 +167,23 @@ describe("handleRelayEvent symbol fallbacks", () => {
     expect(getRoom().status).toBe("disconnected");
     expect(getRoom().gameState.winner).toBeNull();
     expect(deps.stateRef.current.winner).toBeNull();
+  });
+
+  it("terminal peer-left message wins over close()'s synchronous 'You left' (needs-work 10-02 P1)", () => {
+    const game = activeGame();
+    const { deps, getRoom } = makeDeps(game, "host");
+    const close = vi.fn();
+    deps.roomRef.current = { close } as unknown as RoomClient;
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    // The relay's close() fires the status handler synchronously with
+    // "You left" — the terminal peer-left state must be applied FIRST so
+    // the survivor sees who left, not the leaver's own message.
+    expect(getRoom().message).toBe(
+      peerLeftUserMessage("host", "closed"),
+    );
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("F234: terminal peer-left severs the socket so the relay's close can't reconnect", () => {
