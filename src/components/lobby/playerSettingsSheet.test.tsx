@@ -27,7 +27,7 @@ describe("SettingsSheet header", () => {
         player={{
           displayName: "Ada",
           color: Color.BLUE,
-          playerShape: SymbolShape.CIRCLE,
+          playerShape: SymbolShape.STAR,
         }}
         opponent={{
           opponentName: "Grace",

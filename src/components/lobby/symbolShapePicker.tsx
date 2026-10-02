@@ -36,11 +36,12 @@ export function SymbolShapePicker({
               role="radio"
               aria-label={label}
               aria-checked={isSelected}
+              title={label}
               data-state={isSelected ? "active" : "inactive"}
               tabIndex={isSelected ? 0 : -1}
               onClick={() => onChange(shape)}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60",
+                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60",
                 isSelected
                   ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
                   : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
@@ -50,10 +51,13 @@ export function SymbolShapePicker({
                 shape={shape}
                 strokeWidth={8}
                 className={cn(
-                  "h-7 w-7",
+                  "h-6 w-6",
                   isSelected ? "text-[rgb(var(--player-color))]" : "text-current",
                 )}
               />
+              <span className="max-w-full truncate text-[11px] font-semibold leading-none">
+                {label}
+              </span>
             </button>
           );
         })}
