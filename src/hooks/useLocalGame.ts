@@ -147,7 +147,11 @@ export function useLocalGame(input: LocalGameInput) {
     const newSymbol = randomPlayerSymbol();
     setHumanSymbol(newSymbol);
     setGameState(buildInitialState(input, newSymbol));
-  }, [input, stopTimer]);
+    // The fresh game is ACTIVE again, so gameIsActive stays true and the
+    // active-game effect never re-runs to restart the interval stopped
+    // above — without this the reset game's turns never expire.
+    if (!pausedRef.current) startTimer();
+  }, [input, stopTimer, startTimer]);
 
   const exit = useCallback(() => {
     stopTimer();

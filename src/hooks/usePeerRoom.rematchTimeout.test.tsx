@@ -19,9 +19,9 @@ import { usePeerRoom } from "./usePeerRoom";
 // an unanswered request must expire — rematchCancel on the wire plus
 // "Rematch request expired" + rematchOutgoing=false locally — instead of
 // hanging on "Waiting for opponent to accept rematch" forever. Every
-// resolution path (guest accept, host cancel, unmount) must disarm the
-// timer so a late expiry can't send a stray rematchCancel after the
-// prompt already resolved.
+// resolution path (guest accept, guest decline, host cancel, terminal
+// peer-left, unmount) must disarm the timer so a late expiry can't send
+// a stray rematchCancel after the prompt already resolved.
 
 const harness = vi.hoisted(() => ({
   send: vi.fn(),
@@ -143,6 +143,39 @@ describe("usePeerRoom host rematch timeout", () => {
     // The accept reset starts a fresh ACTIVE game, so the turn clock is
     // legitimately ticking here — assert on the wire instead: advancing
     // well past the deadline must not send a late rematchCancel.
+    act(() => vi.advanceTimersByTime(REMATCH_TIMEOUT_MS * 2));
+    expect(rematchCancelCount()).toBe(0);
+  });
+
+  it("a guest rematchDecline disarms the timer — no late rematchCancel", () => {
+    const { result } = renderHostRoom();
+    act(() => result.current.requestRematch());
+    expect(result.current.state.rematchOutgoing).toBe(true);
+
+    act(() => harness.deps?.handleHostData({ type: "rematchDecline" }));
+    expect(result.current.state.rematchOutgoing).toBe(false);
+    expect(result.current.state.message).toBe("Rematch declined");
+    expect(vi.getTimerCount()).toBe(0);
+
+    act(() => vi.advanceTimersByTime(REMATCH_TIMEOUT_MS * 2));
+    expect(rematchCancelCount()).toBe(0);
+  });
+
+  it("a terminal peer-left disarms the timer — no late rematchCancel", () => {
+    const { result } = renderHostRoom();
+    act(() => result.current.requestRematch());
+    expect(result.current.state.rematchOutgoing).toBe(true);
+
+    // "closed" is a final departure, so the pending request is torn down
+    // with the room. (A "disconnect" peer-left is the transient 30s
+    // reconnect grace and intentionally keeps the request pending.)
+    act(() =>
+      harness.deps?.handleWsEvent({ type: "peer-left", reason: "closed" }),
+    );
+    expect(result.current.state.status).toBe("disconnected");
+    expect(result.current.state.rematchOutgoing).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+
     act(() => vi.advanceTimersByTime(REMATCH_TIMEOUT_MS * 2));
     expect(rematchCancelCount()).toBe(0);
   });
