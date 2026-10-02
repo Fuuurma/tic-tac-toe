@@ -1,0 +1,31 @@
+{
+  "observation": "2026-10-02 14:49 CEST",
+  "machine": "worker-primary",
+  "purpose": "Frozen read-only evidence for a retention-aware storage proposal, not a cleanup authorization.",
+  "databases": [
+    {
+      "path": "~/.local/share/devin/cli/sessions.db",
+      "page_size_bytes": 4096,
+      "page_count": 2488763,
+      "freelist_count": 5
+    },
+    {
+      "path": "~/.local/share/opencode/opencode.db",
+      "page_size_bytes": 4096,
+      "page_count": 2562976,
+      "freelist_count": 1569020
+    }
+  ],
+  "method": "SQLite mode=ro, PRAGMA query_only=ON, main.page_size, main.page_count, main.freelist_count; no session contents queried.",
+  "other_observations": {
+    "pnpm_store": "~/Library/pnpm/store/v10",
+    "docker": "docker system df failed: Cannot connect to the Docker daemon at unix:///Users/sergi/.docker/run/docker.sock. Is the docker daemon running?",
+    "ssh_to_design_primary": "Strict existing host-key verification failed; no remote commands executed.",
+    "tailscale": "Both Macs online; a direct ping to design-primary succeeded in 24 ms at 14:37 CEST."
+  },
+  "limits": [
+    "Free database pages are reusable internal space, not currently free filesystem space.",
+    "No VACUUM, deletion, pruning, backup, or service shutdown was performed.",
+    "Current app activity and reclaimability must be checked before an owner-approved maintenance operation."
+  ]
+}

@@ -140,3 +140,13 @@ pnpm check
 - `BOARD_SIZE = 9`
 - AI difficulties: EASY (weighted random with center/corner preference), NORMAL (depth-4 eviction-aware alpha-beta Minimax with randomized equal-score choices), HARD (depth-8 cycle-safe alpha-beta Minimax with stable best play)
 - Helpers in `constants.ts`: `oppositeSymbol(symbol)`, `randomPlayerSymbol()`, `oppositeColor(color)` — use these instead of inline ternaries
+
+### Engineering foundation
+
+Before implementation, debugging, architecture work, agent-instruction edits,
+or knowledge curation, invoke `hub-foundation` from `.devin/skills/`.
+If the harness cannot invoke it, read `.devin/skills/hub-foundation/SKILL.md`
+explicitly and follow only the references relevant to the approved task.
+The foundation supplements this repository's rules; it grants no additional
+permissions. `retro` is owner-invoked, and raw session history stays local.
+Provenance: `.devin/skills/mattpocock-source.json`.
