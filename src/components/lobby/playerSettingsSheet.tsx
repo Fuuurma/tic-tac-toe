@@ -18,7 +18,7 @@ import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, Play, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
-import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
+import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
 
 export type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -196,12 +196,18 @@ export function SettingsSheet({
         </div>
 
         {/* Tab switcher */}
-        <div role="tablist" aria-label="Settings tabs" className="flex shrink-0 gap-2">
+        <div
+          role="tablist"
+          aria-label="Settings tabs"
+          className="flex shrink-0 gap-2"
+          onKeyDown={handleTabListKeyDown}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={tab === "player"}
             aria-controls={playerPanelId}
+            tabIndex={tab === "player" ? 0 : -1}
             onClick={() => onTabChange("player")}
             className={cn(
               "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
@@ -219,6 +225,7 @@ export function SettingsSheet({
               role="tab"
               aria-selected={tab === "opponent"}
               aria-controls={opponentPanelId}
+              tabIndex={tab === "opponent" ? 0 : -1}
               onClick={() => onTabChange("opponent")}
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",

@@ -89,6 +89,25 @@ test("loads the playable shell", async ({ page }) => {
   await expect(page.getByRole("radio", { name: "vs Computer", exact: true })).toBeVisible();
 });
 
+test("settings tablist follows the Arrow/Home/End keyboard contract", async ({ page }) => {
+  await page.goto("/");
+  await openPlayerSettings(page);
+  const youTab = page.getByRole("tab", { name: "You" });
+  const aiTab = page.getByRole("tab", { name: "AI" });
+  await expect(youTab).toHaveAttribute("aria-selected", "true");
+  await youTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(aiTab).toHaveAttribute("aria-selected", "true");
+  await expect(aiTab).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(youTab).toHaveAttribute("aria-selected", "true");
+  await expect(youTab).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(aiTab).toHaveAttribute("aria-selected", "true");
+  await expect(aiTab).toBeFocused();
+  await closePlayerSettings(page);
+});
+
 test("remembers the display name after starting a game", async ({ page }) => {
   await page.goto("/");
   await openPlayerSettings(page);

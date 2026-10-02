@@ -416,7 +416,11 @@ function RoomIdShare({
 
   return (
     <div className="glass flex w-full flex-col items-center gap-2 p-3">
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-1.5 text-xs font-semibold text-foreground"
+      >
         <Wifi className="size-3.5 text-[rgb(var(--player-color))]" aria-hidden="true" />
         Room ready
       </div>
@@ -496,7 +500,11 @@ function OnlineConnectionState({
 }) {
   return (
     <div className="glass flex flex-col items-center gap-2 p-4">
-      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+      <span
+        role="status"
+        aria-live="polite"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
+      >
         <Loader2 className="size-4 animate-spin text-[rgb(var(--player-color))]" aria-hidden="true" />
         {message}
       </span>
