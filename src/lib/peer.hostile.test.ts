@@ -276,6 +276,37 @@ describe("isPeerMessage hostile game-state frames", () => {
     expect(isPeerMessage(frame)).toBe(false);
   });
 
+  it("rejects a winner with a null winningCombination on every state frame (F404)", () => {
+    // The F192 cross-check used to fire only when BOTH fields were set, so
+    // winner:X + winningCombination:null minted a phantom win — reachable
+    // through the state_snapshot branch added for reconnect sync.
+    const state = {
+      ...baselineState(),
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+      winningCombination: null,
+    };
+    expect(isPeerMessage({ type: "state_snapshot", gameState: state })).toBe(
+      false,
+    );
+    expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(false);
+    expect(
+      isPeerMessage({
+        type: "joined",
+        symbol: PlayerSymbol.O,
+        color: Color.RED,
+        gameState: state,
+      }),
+    ).toBe(false);
+    expect(
+      isPeerMessage({
+        type: "gameStart",
+        symbol: PlayerSymbol.O,
+        gameState: state,
+      }),
+    ).toBe(false);
+  });
+
   it("rejects gameState with lastMoveIndex out of range", () => {
     const frame = validMessage();
     (frame.gameState as unknown as { lastMoveIndex: unknown }).lastMoveIndex = 99;

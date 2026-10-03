@@ -83,6 +83,20 @@ describe("handleRelayEvent peer-reconnected", () => {
 
     expect(deps.stateRef.current).toBe(game);
     expect(deps.startTimer).not.toHaveBeenCalled();
+    expect(deps.requestSync).not.toHaveBeenCalled();
+  });
+
+  it("guest peer-reconnected mid-game also pulls a snapshot (dropped host push)", () => {
+    // peer-reconnected on the guest means the HOST came back — unlike a
+    // fresh welcome there is no join resend mid-game (F252 covers only
+    // WAITING), so the pull is the guest's catch-up if the host's
+    // welcome broadcast was dropped.
+    const game = activeGame();
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(deps.requestSync).toHaveBeenCalledOnce();
   });
 
   it("host resets the deadline once per move and commits", () => {

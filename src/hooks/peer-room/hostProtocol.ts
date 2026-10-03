@@ -5,7 +5,7 @@ import {
   oppositeSymbol,
   randomPlayerSymbol,
 } from "@/game/constants";
-import { createInitialGameState } from "@/game/logic";
+import { createInitialGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
@@ -130,6 +130,12 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // with the current wire state — deadline stripped so the guest
       // resynthesizes its own clock. Read-only: never mutates host
       // state, safe against a stray or replayed request.
+      // Gate on a live match (review 2026-10-03 P2): while WAITING a
+      // peer could pull full GameState (names/colors) before ever
+      // joining, and once COMPLETED there is nothing to resync — the
+      // join resync and terminal broadcasts already cover catch-up, so
+      // an unconditional reply only served snapshot spam.
+      if (!isGameActive(stateRef.current)) return;
       roomRef.current?.send({
         type: "state_snapshot",
         gameState: toWireGameState(stateRef.current),

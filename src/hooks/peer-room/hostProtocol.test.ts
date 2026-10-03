@@ -62,6 +62,27 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
     // Read-only contract: host state is untouched by the request.
     expect(deps.stateRef.current).toBe(game);
   });
+
+  it("does not reply while the room is still WAITING (pre-join pull)", () => {
+    const game: GameState = {
+      ...terminalGame(),
+      gameStatus: GameStatus.WAITING,
+      winner: null,
+    };
+    const { deps } = makeDeps(game);
+
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
+  });
+
+  it("does not reply once the game is COMPLETED — join resync covers catch-up", () => {
+    const { deps } = makeDeps(terminalGame());
+
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
+  });
 });
 
 describe("handleHostMessage rematch deadline", () => {

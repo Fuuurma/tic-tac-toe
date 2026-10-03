@@ -272,7 +272,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
       setState,
       commitHostState,
       broadcastGameState,
-      requestSync: () => roomRef.current?.send({ type: "sync_request" }),
+      // Return send()'s boolean — a dropped pull is silent otherwise.
+      // The join resync and the host's next gameUpdate still reconcile
+      // the guest, so no retry is wired here (review 2026-10-03 P3).
+      requestSync: () => roomRef.current?.send({ type: "sync_request" }) ?? false,
       startTimer,
       stopTimer,
       clearRematchTimeout,

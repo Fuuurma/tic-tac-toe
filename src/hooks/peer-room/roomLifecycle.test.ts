@@ -3,6 +3,7 @@ import { RoomClient } from "@/lib/room";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import { handleRelayEvent } from "./relayEvents";
 import type { PendingPlayerSettings } from "../usePeerRoom";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
@@ -159,6 +160,62 @@ describe("joinAsGuest rematch-flag reset", () => {
 
     captured.handler?.({ type: "peer-reconnected" });
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("guest welcome mid-game wires sync_request BEFORE the auto join resend (combined reconnect path)", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: {
+      handler?: (msg: { type: string; [k: string]: unknown }) => void;
+    } = {};
+    vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+      (h) => {
+        captured.handler = h;
+      },
+    );
+    const send = vi
+      .spyOn(RoomClient.prototype, "send")
+      .mockReturnValue(true);
+    // Wire the real relay-event path the composition root uses:
+    // welcome → handleRelayEvent → requestSync → roomRef.send. The
+    // message handler runs handleWsEvent BEFORE the auto-join send, so
+    // the pull lands on the wire first — pin that order (review
+    // 2026-10-03 P2).
+    deps.handleWsEvent = (event) =>
+      handleRelayEvent(
+        {
+          roomRef: deps.roomRef,
+          stateRef: deps.stateRef,
+          roleRef: deps.roleRef,
+          hostSymbolRef: deps.hostSymbolRef,
+          guestSymbolRef: deps.guestSymbolRef,
+          hostRematchPendingRef: deps.hostRematchPendingRef,
+          reconnectResetsRef: { current: { moveCount: -1 } },
+          pausedRef: { current: false },
+          setState: deps.setState,
+          commitHostState: vi.fn(),
+          broadcastGameState: vi.fn(),
+          requestSync: () =>
+            deps.roomRef.current?.send({ type: "sync_request" }) ?? false,
+          startTimer: vi.fn(),
+          stopTimer: vi.fn(),
+          clearRematchTimeout: vi.fn(),
+        },
+        event,
+      );
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    // Mid-game guest state — this welcome is a REconnect, not a join.
+    deps.stateRef.current = {
+      ...deps.stateRef.current,
+      gameStatus: GameStatus.ACTIVE,
+    };
+    send.mockClear();
+
+    captured.handler?.({ type: "welcome", role: "guest", opponent: { guestId: "h", displayName: "Host" } });
+
+    const types = send.mock.calls.map(
+      ([m]) => (m as { type: string }).type,
+    );
+    expect(types).toEqual(["sync_request", "join"]);
   });
 
   it("clears a stale pending-rematch flag on room entry", () => {

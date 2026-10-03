@@ -38,8 +38,11 @@ export interface RelayEventDeps {
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
   /** Guest → host pull for an authoritative snapshot on reconnect
-   *  (uno-chess sync_request/state_snapshot contract, DST-04). */
-  requestSync: () => void;
+   *  (uno-chess sync_request/state_snapshot contract, DST-04). Returns
+   *  send()'s boolean — a false means the socket was down and no pull
+   *  went out; the join resync / next host gameUpdate still reconcile
+   *  the guest, so callers need no retry of their own. */
+  requestSync: () => boolean;
   startTimer: () => void;
   stopTimer: () => void;
   clearRematchTimeout: () => void;
@@ -206,6 +209,12 @@ export function handleRelayEvent(
       // gameState commit in this slice writes ref + render together.
       setState((prev) => ({ ...prev, gameState: resynthesized }));
       startTimer();
+      // Pull the authoritative state too (review 2026-10-03 P2): this
+      // event means the HOST reconnected — its welcome broadcast may
+      // have dropped while our socket stayed up, leaving us on a stale
+      // board until the next move. The join resend only covers WAITING
+      // (F252), so mid-game needs the pull like the welcome branch.
+      requestSync();
     }
     return;
   }
