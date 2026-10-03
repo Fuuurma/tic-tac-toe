@@ -36,7 +36,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     stopTimer,
   } = deps;
   {
-    if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
+    if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate" || message.type === "state_snapshot") {
       // Anchor the deadline to THIS clock: the wire state carries only
       // `turnTimeRemaining` (toWireGameState strips the host's absolute
       // deadline), so `now + remaining` is skew-free. A deadline that does

@@ -40,6 +40,30 @@ function makeDeps(game: GameState) {
   return { deps, getRoom: () => roomState };
 }
 
+describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
+  it("replies state_snapshot with the wire state (deadline stripped)", () => {
+    const game = {
+      ...terminalGame(),
+      gameStatus: GameStatus.ACTIVE,
+      winner: null,
+      turnDeadlineAt: Date.now() + 5_000,
+      turnTimeRemaining: 5_000,
+    };
+    const { deps } = makeDeps(game);
+
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(1);
+    const frame = (deps.roomRef.current!.send as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0] as { type: string; gameState: GameState };
+    expect(frame.type).toBe("state_snapshot");
+    expect(frame.gameState.turnDeadlineAt).toBeUndefined();
+    expect(frame.gameState.turnTimeRemaining).toBeGreaterThanOrEqual(0);
+    // Read-only contract: host state is untouched by the request.
+    expect(deps.stateRef.current).toBe(game);
+  });
+});
+
 describe("handleHostMessage rematch deadline", () => {
   it("rematchAccept clears the pending flag + timeout", () => {
     const { deps } = makeDeps(terminalGame());

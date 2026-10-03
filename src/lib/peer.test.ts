@@ -71,6 +71,18 @@ describe("isPeerMessage", () => {
       isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH + 1) }),
     ).toBe(false);
   });
+
+  it("round-trips the sync_request/state_snapshot reconnect contract (DST-04)", () => {
+    expect(isPeerMessage({ type: "sync_request" })).toBe(true);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState: onlineState() }),
+    ).toBe(true);
+    // A snapshot is only as good as its payload — malformed states drop.
+    expect(isPeerMessage({ type: "state_snapshot" })).toBe(false);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState: { board: [] } }),
+    ).toBe(false);
+  });
 });
 
 describe("generateRoomId", () => {
