@@ -307,6 +307,25 @@ describe("isPeerMessage hostile game-state frames", () => {
     ).toBe(false);
   });
 
+  it("rejects a winningCombination with a null winner — the mirror F404 case", () => {
+    // makeMove always writes the pair together, so a claimed line with
+    // no winner is as impossible as a winner with no line. Build a state
+    // where the board DOES hold the line — only the missing winner is
+    // invalid, proving the mirror check fires rather than F192.
+    const state = {
+      ...baselineState(),
+      winner: null,
+      winningCombination: [...WINNING_COMBINATIONS[0]],
+    };
+    for (const i of WINNING_COMBINATIONS[0]) {
+      state.board[i] = PlayerSymbol.X;
+    }
+    expect(isPeerMessage({ type: "state_snapshot", gameState: state })).toBe(
+      false,
+    );
+    expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(false);
+  });
+
   it("rejects gameState with lastMoveIndex out of range", () => {
     const frame = validMessage();
     (frame.gameState as unknown as { lastMoveIndex: unknown }).lastMoveIndex = 99;

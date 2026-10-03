@@ -38,11 +38,12 @@ export interface RelayEventDeps {
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
   /** Guest → host pull for an authoritative snapshot on reconnect
-   *  (uno-chess sync_request/state_snapshot contract, DST-04). Returns
-   *  send()'s boolean — a false means the socket was down and no pull
-   *  went out; the join resync / next host gameUpdate still reconcile
-   *  the guest, so callers need no retry of their own. */
-  requestSync: () => boolean;
+   *  (uno-chess sync_request/state_snapshot contract, DST-04). A dropped
+   *  pull needs no retry — the join resync / next host gameUpdate still
+   *  reconcile the guest, so callers deliberately ignore send()'s
+   *  boolean (review 2026-10-03 repair: the unused return was interface
+   *  churn, reverted to void). */
+  requestSync: () => void;
   startTimer: () => void;
   stopTimer: () => void;
   clearRematchTimeout: () => void;
@@ -154,11 +155,15 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-reconnected") {
+    // Preserve rematchIncoming: a transient blip must not kill a live
+    // rematch prompt — the host's pending request survives a socket
+    // drop, and the terminal peer-left branch still clears the flag if
+    // the peer never returns (review 2026-10-03 repair P2: clearing it
+    // here defeated the terminal-snapshot preserve in guestProtocol).
     setState((prev) => ({
       ...prev,
       status: "connected",
       message: "",
-      rematchIncoming: false,
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -208,13 +213,16 @@ export function handleRelayEvent(
       // render while leaving the ref diverged (fleet F35). Every other
       // gameState commit in this slice writes ref + render together.
       setState((prev) => ({ ...prev, gameState: resynthesized }));
-      startTimer();
       // Pull the authoritative state too (review 2026-10-03 P2): this
       // event means the HOST reconnected — its welcome broadcast may
       // have dropped while our socket stayed up, leaving us on a stale
       // board until the next move. The join resend only covers WAITING
       // (F252), so mid-game needs the pull like the welcome branch.
+      // Issue the pull BEFORE restarting the clock so the authoritative
+      // snapshot is in flight while the stale-board countdown resumes
+      // (review 2026-10-03 repair P3).
       requestSync();
+      startTimer();
     }
     return;
   }
@@ -254,7 +262,9 @@ export function handleRelayEvent(
           ...prev,
           status: "reconnecting",
           message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
-          rematchIncoming: false,
+          // rematchIncoming survives the transient grace window — the
+          // terminal closed/expired branch below still clears it
+          // (review 2026-10-03 repair P2).
         };
       });
       if (transitioned) stopTimer();

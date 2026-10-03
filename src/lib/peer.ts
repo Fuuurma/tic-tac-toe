@@ -329,6 +329,12 @@ const isGameState = (value: unknown): value is GameState => {
   ) {
     return false;
   }
+  // Mirror of the F404 check (review 2026-10-03 repair P2): makeMove
+  // always writes winner + winningCombination together, so a claimed
+  // line with NO winner is as impossible as a winner with no line.
+  if (state.winner === null && state.winningCombination !== null) {
+    return false;
+  }
   if (state.lastMoveIndex !== null && !isBoundedCellIndex(state.lastMoveIndex)) {
     return false;
   }

@@ -4,7 +4,12 @@ import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState } from "../usePeerRoom";
-import { applyHostMove, handleHostMessage, type HostProtocolDeps } from "./hostProtocol";
+import {
+  applyHostMove,
+  handleHostMessage,
+  SYNC_REPLY_COOLDOWN_MS,
+  type HostProtocolDeps,
+} from "./hostProtocol";
 
 // Regression pins for the rematch deadline wiring — every path that
 // resolves a pending host rematch request must clear its timeout
@@ -25,6 +30,7 @@ function makeDeps(game: GameState) {
     roomRef: { current: { send: vi.fn() } as unknown as RoomClient },
     hostSymbolRef: { current: PlayerSymbol.X },
     hostRematchPendingRef: { current: true },
+    lastSyncReplyAtRef: { current: 0 },
     hostPendingSettingsRef: { current: null },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
@@ -76,12 +82,41 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
     expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
   });
 
-  it("does not reply once the game is COMPLETED — join resync covers catch-up", () => {
+  it("replies once the game is COMPLETED — the pull is the terminal catch-up", () => {
+    // A guest that missed the terminal broadcast (dropped join resync)
+    // has no other way to learn the game ended — refusing the pull
+    // would leave it on an ACTIVE board forever (review 2026-10-03
+    // repair P2).
     const { deps } = makeDeps(terminalGame());
 
     handleHostMessage(deps, { type: "sync_request" });
 
-    expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
+    expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(1);
+    const frame = (deps.roomRef.current!.send as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0] as { type: string; gameState: GameState };
+    expect(frame.type).toBe("state_snapshot");
+    expect(frame.gameState.gameStatus).toBe(GameStatus.COMPLETED);
+  });
+
+  it("throttles burst pulls — one snapshot per cooldown window", () => {
+    const game = {
+      ...terminalGame(),
+      gameStatus: GameStatus.ACTIVE,
+      winner: null,
+    };
+    const { deps } = makeDeps(game);
+
+    handleHostMessage(deps, { type: "sync_request" });
+    handleHostMessage(deps, { type: "sync_request" });
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(1);
+
+    // After the cooldown the next pull is answered again.
+    deps.lastSyncReplyAtRef.current -= SYNC_REPLY_COOLDOWN_MS;
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(2);
   });
 });
 

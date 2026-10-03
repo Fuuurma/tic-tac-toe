@@ -113,6 +113,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // is only honored while a host request is pending and the game is terminal.
   // Without this gate a hostile or buggy guest can reset the host mid-game.
   const hostRematchPendingRef = useRef(false);
+  // Throttle for sync_request replies (hostProtocol): the timestamp of
+  // the last state_snapshot send bounds burst pulls to one per window.
+  const lastSyncReplyAtRef = useRef(0);
   // Host-side rematch deadline (fleet 09-13): a pending request expires
   // after REMATCH_TIMEOUT_MS so the host never waits forever on a guest
   // who walked away mid-prompt. On expiry the host sends rematchCancel —
@@ -240,6 +243,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       roomRef,
       hostSymbolRef,
       hostRematchPendingRef,
+      lastSyncReplyAtRef,
       hostPendingSettingsRef,
       pendingGuestStateRef,
       setState,
@@ -272,10 +276,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
       setState,
       commitHostState,
       broadcastGameState,
-      // Return send()'s boolean — a dropped pull is silent otherwise.
-      // The join resync and the host's next gameUpdate still reconcile
-      // the guest, so no retry is wired here (review 2026-10-03 P3).
-      requestSync: () => roomRef.current?.send({ type: "sync_request" }) ?? false,
+      // A dropped pull (send → false while the socket is down) needs no
+      // retry — the join resync and the host's next gameUpdate still
+      // reconcile the guest, so the boolean is deliberately not read.
+      requestSync: () => {
+        roomRef.current?.send({ type: "sync_request" });
+      },
       startTimer,
       stopTimer,
       clearRematchTimeout,

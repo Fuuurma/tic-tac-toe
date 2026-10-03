@@ -189,6 +189,46 @@ describe("handleRelayEvent peer-reconnected", () => {
     expect(deps.requestSync).not.toHaveBeenCalled();
   });
 
+  it("peer-reconnected preserves a live rematch prompt (transient host blip)", () => {
+    // The host's pending rematch request survives a socket drop, so the
+    // guest's prompt must too — clearing it here made the guestProtocol
+    // terminal-snapshot preserve dead code in the real flow (review
+    // 2026-10-03 repair P2).
+    const game = activeGame({
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    });
+    const { deps, getRoom } = makeDeps(game, "guest", {
+      rematchIncoming: true,
+    });
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(getRoom().status).toBe("connected");
+    expect(getRoom().rematchIncoming).toBe(true);
+  });
+
+  it("peer-left disconnect preserves the prompt, terminal expired still clears it", () => {
+    const game = activeGame({
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    });
+    const { deps, getRoom } = makeDeps(game, "guest", {
+      status: "connected",
+      rematchIncoming: true,
+    });
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "disconnect" });
+
+    expect(getRoom().status).toBe("reconnecting");
+    expect(getRoom().rematchIncoming).toBe(true);
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "expired" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().rematchIncoming).toBe(false);
+  });
+
   it("peer-left expired clears the rematch deadline + pending flag", () => {
     const game = activeGame();
     const { deps } = makeDeps(game, "host");

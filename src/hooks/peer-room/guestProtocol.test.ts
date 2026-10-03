@@ -8,6 +8,7 @@ import {
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { PeerRoomState } from "../usePeerRoom";
+import { isPeerMessage } from "@/lib/peer";
 import { handleGuestMessage, type GuestProtocolDeps } from "./guestProtocol";
 
 // Coverage pins for the state_snapshot branch (DST-04 reconnect pull,
@@ -115,7 +116,27 @@ describe("handleGuestMessage state_snapshot", () => {
       gameStatus: GameStatus.COMPLETED,
       winner: PlayerSymbol.X,
       winningCombination: [0, 1, 2],
+      // The claimed line must actually hold the winner — an empty-board
+      // fixture is a payload isPeerMessage would reject, so the test
+      // would exercise a path no wire frame can reach (review
+      // 2026-10-03 repair P2).
+      board: [
+        PlayerSymbol.X,
+        PlayerSymbol.X,
+        PlayerSymbol.X,
+        PlayerSymbol.O,
+        PlayerSymbol.O,
+        null,
+        null,
+        null,
+        null,
+      ],
+      moves: { X: [0, 1, 2], O: [3, 4] },
+      moveCount: 5,
     });
+    // Pin the fixture to the wire contract: if validation ever rejects
+    // this state the test would silently stop covering a reachable path.
+    expect(isPeerMessage({ type: "state_snapshot", gameState: wire })).toBe(true);
 
     handleGuestMessage(deps, { type: "state_snapshot", gameState: wire });
 

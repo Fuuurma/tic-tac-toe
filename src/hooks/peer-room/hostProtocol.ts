@@ -5,7 +5,7 @@ import {
   oppositeSymbol,
   randomPlayerSymbol,
 } from "@/game/constants";
-import { createInitialGameState, isGameActive } from "@/game/logic";
+import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
@@ -22,11 +22,23 @@ import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
  * when the guest leaves. Messages the host receives arrive via
  * `handleHostData` (routed by role in buildRoomClient).
  */
+
+/** Minimum interval between state_snapshot replies to sync_request. A
+ *  genuine reconnect produces at most one pull per relay event, so
+ *  replies faster than this are a peer farming full GameState dumps —
+ *  answer the first, drop the rest of the burst (review 2026-10-03
+ *  repair P2). Cooldown rather than once-per-reconnect so a flapping
+ *  socket stays bounded too. */
+export const SYNC_REPLY_COOLDOWN_MS = 1_000;
+
 export interface HostProtocolDeps {
   stateRef: { current: GameState };
   roomRef: { current: RoomClient | null };
   hostSymbolRef: { current: PlayerSymbol | null };
   hostRematchPendingRef: { current: boolean };
+  /** Timestamp of the last state_snapshot reply — throttles
+   *  sync_request spam (see SYNC_REPLY_COOLDOWN_MS). */
+  lastSyncReplyAtRef: { current: number };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
@@ -70,6 +82,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     roomRef,
     hostSymbolRef,
     hostRematchPendingRef,
+    lastSyncReplyAtRef,
     hostPendingSettingsRef,
     setState,
     stopTimer,
@@ -130,12 +143,18 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // with the current wire state — deadline stripped so the guest
       // resynthesizes its own clock. Read-only: never mutates host
       // state, safe against a stray or replayed request.
-      // Gate on a live match (review 2026-10-03 P2): while WAITING a
-      // peer could pull full GameState (names/colors) before ever
-      // joining, and once COMPLETED there is nothing to resync — the
-      // join resync and terminal broadcasts already cover catch-up, so
-      // an unconditional reply only served snapshot spam.
-      if (!isGameActive(stateRef.current)) return;
+      // Gate: while WAITING a peer could pull full GameState
+      // (names/colors) before ever joining, so the room must be live.
+      // COMPLETED still answers (review 2026-10-03 repair P2): a guest
+      // that missed the terminal broadcast would otherwise sit on an
+      // ACTIVE board forever — the pull is its only catch-up once the
+      // join resync window has passed.
+      if (stateRef.current.gameStatus === GameStatus.WAITING) return;
+      // Throttle (review 2026-10-03 repair P2): without a bound any peer
+      // can spam full-state pulls and the host answers every one.
+      const now = Date.now();
+      if (now - lastSyncReplyAtRef.current < SYNC_REPLY_COOLDOWN_MS) return;
+      lastSyncReplyAtRef.current = now;
       roomRef.current?.send({
         type: "state_snapshot",
         gameState: toWireGameState(stateRef.current),
