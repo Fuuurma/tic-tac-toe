@@ -3,6 +3,7 @@ import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import {
   applyAuthorizedMove,
+  applyForfeitIfActive,
   applyHostGuestJoin,
   generateRoomId,
   isPeerMessage,
@@ -68,6 +69,18 @@ describe("isPeerMessage", () => {
   it("rejects oversized error messages", () => {
     expect(
       isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH + 1) }),
+    ).toBe(false);
+  });
+
+  it("round-trips the sync_request/state_snapshot reconnect contract (DST-04)", () => {
+    expect(isPeerMessage({ type: "sync_request" })).toBe(true);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState: onlineState() }),
+    ).toBe(true);
+    // A snapshot is only as good as its payload — malformed states drop.
+    expect(isPeerMessage({ type: "state_snapshot" })).toBe(false);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState: { board: [] } }),
     ).toBe(false);
   });
 });
@@ -192,5 +205,34 @@ describe("peerLeftUserMessage", () => {
     );
     expect(peerLeftUserMessage("guest", "closed")).toBe("Host left the room");
     expect(peerLeftUserMessage("guest", "expired")).toBe("Host did not reconnect in time");
+  });
+});
+
+describe("applyForfeitIfActive", () => {
+  it("crowns the survivor only while the match is ACTIVE", () => {
+    const ended = applyForfeitIfActive(onlineState(), PlayerSymbol.O);
+    expect(ended.winner).toBe(PlayerSymbol.O);
+    expect(ended.gameStatus).toBe(GameStatus.COMPLETED);
+  });
+
+  it("does not mint a winner while the room is still WAITING (F146)", () => {
+    const waiting = { ...onlineState(), gameStatus: GameStatus.WAITING };
+    const ended = applyForfeitIfActive(waiting, PlayerSymbol.X);
+    expect(ended).toBe(waiting);
+    expect(ended.winner).toBeNull();
+  });
+
+  it("keeps an already-recorded winner", () => {
+    const finished = {
+      ...onlineState(),
+      winner: PlayerSymbol.O,
+      gameStatus: GameStatus.COMPLETED,
+    };
+    expect(applyForfeitIfActive(finished, PlayerSymbol.X)).toBe(finished);
+  });
+
+  it("crowns nobody when the survivor symbol is unknown", () => {
+    const active = onlineState();
+    expect(applyForfeitIfActive(active, null)).toBe(active);
   });
 });

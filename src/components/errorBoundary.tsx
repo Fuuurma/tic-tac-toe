@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { reportError } from "@/lib/errorReporting";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -21,6 +23,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("Unhandled error:", error, info.componentStack);
+    reportError(error, { componentStack: info.componentStack });
   }
 
   private handleReset = (): void => {
@@ -30,28 +33,31 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background p-6 text-center">
-          <div className="space-y-2">
-            <h1 className="text-xl font-semibold text-foreground">Something went wrong</h1>
-            <p className="text-sm text-muted-foreground">
-              An unexpected error occurred. Try reloading the page.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={this.handleReset}
-              className="rounded-lg border border-border bg-muted px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
-            >
-              Try again
-            </button>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Reload page
-            </button>
+        <div className="flex min-h-dvh flex-col items-center justify-center p-6">
+          <div
+            role="alert"
+            className="glass flex w-full max-w-md flex-col items-center gap-4 rounded-2xl p-6 text-center"
+          >
+            <div className="space-y-2">
+              <h1 className="text-base font-semibold text-foreground">
+                Something went wrong
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                An unexpected error occurred. Try reloading the page.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="glass" onClick={this.handleReset}>
+                Try again
+              </Button>
+              <Button
+                type="button"
+                variant="glass"
+                onClick={() => window.location.reload()}
+              >
+                Reload page
+              </Button>
+            </div>
           </div>
         </div>
       );

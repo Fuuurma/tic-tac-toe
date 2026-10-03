@@ -4,7 +4,7 @@ import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState } from "../usePeerRoom";
-import { handleHostMessage, type HostProtocolDeps } from "./hostProtocol";
+import { applyHostMove, handleHostMessage, type HostProtocolDeps } from "./hostProtocol";
 
 // Regression pins for the rematch deadline wiring — every path that
 // resolves a pending host rematch request must clear its timeout
@@ -40,6 +40,30 @@ function makeDeps(game: GameState) {
   return { deps, getRoom: () => roomState };
 }
 
+describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
+  it("replies state_snapshot with the wire state (deadline stripped)", () => {
+    const game = {
+      ...terminalGame(),
+      gameStatus: GameStatus.ACTIVE,
+      winner: null,
+      turnDeadlineAt: Date.now() + 5_000,
+      turnTimeRemaining: 5_000,
+    };
+    const { deps } = makeDeps(game);
+
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(1);
+    const frame = (deps.roomRef.current!.send as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0] as { type: string; gameState: GameState };
+    expect(frame.type).toBe("state_snapshot");
+    expect(frame.gameState.turnDeadlineAt).toBeUndefined();
+    expect(frame.gameState.turnTimeRemaining).toBeGreaterThanOrEqual(0);
+    // Read-only contract: host state is untouched by the request.
+    expect(deps.stateRef.current).toBe(game);
+  });
+});
+
 describe("handleHostMessage rematch deadline", () => {
   it("rematchAccept clears the pending flag + timeout", () => {
     const { deps } = makeDeps(terminalGame());
@@ -59,6 +83,17 @@ describe("handleHostMessage rematch deadline", () => {
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 
+  it("F254: a stray rematchDecline with no pending request writes nothing", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.hostRematchPendingRef.current = false;
+    const before = getRoom().message;
+
+    handleHostMessage(deps, { type: "rematchDecline" });
+
+    expect(getRoom().message).toBe(before);
+    expect(deps.clearRematchTimeout).not.toHaveBeenCalled();
+  });
+
   it("leave clears the pending flag + timeout", () => {
     const { deps } = makeDeps(terminalGame());
 
@@ -66,5 +101,88 @@ describe("handleHostMessage rematch deadline", () => {
 
     expect(deps.hostRematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
+  });
+
+  it("leave during WAITING does not crown a phantom host win (F146)", () => {
+    const waiting: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.WAITING,
+    };
+    const { deps, getRoom } = makeDeps(waiting);
+
+    handleHostMessage(deps, { type: "leave" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().gameState.winner).toBeNull();
+    expect(getRoom().gameState.gameStatus).toBe(GameStatus.WAITING);
+  });
+});
+
+describe("handleHostMessage invalid guest move", () => {
+  it("replies 'Invalid move' so the guest rolls back its optimistic move", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.X, // host's turn — a guest move is illegal
+    };
+    const { deps } = makeDeps(game);
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Invalid move",
+    });
+  });
+
+  it("does not send a wire error for the host's own rejected move", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O, // guest's turn — host move is illegal
+    };
+    const { deps } = makeDeps(game);
+
+    applyHostMove(deps, 0, PlayerSymbol.X);
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleHostMessage unassigned host symbol", () => {
+  it("rejects a guest move with an error so the guest rolls back (F159)", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O,
+    };
+    const { deps } = makeDeps(game);
+    deps.hostSymbolRef.current = null;
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Invalid move",
+    });
+  });
+
+  it("answers a guest join with 'Room not ready' instead of a silent drop", () => {
+    const { deps } = makeDeps(freshGameState());
+    deps.hostSymbolRef.current = null;
+
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
+      type: "error",
+      message: "Room not ready",
+    });
   });
 });

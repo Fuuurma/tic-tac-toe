@@ -1,4 +1,9 @@
-import { AI_Difficulty, type AI_Difficulty as AI_DifficultyType } from "@/game/constants";
+import {
+  AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
+  type AI_Difficulty as AI_DifficultyType,
+} from "@/game/constants";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
@@ -7,11 +12,7 @@ interface AI_DifficultySelectorProps {
   onDifficultyChange: (difficulty: AI_DifficultyType) => void;
 }
 
-const DIFFICULTIES: { value: AI_DifficultyType; label: string }[] = [
-  { value: AI_Difficulty.EASY, label: "Easy" },
-  { value: AI_Difficulty.NORMAL, label: "Normal" },
-  { value: AI_Difficulty.HARD, label: "Hard" },
-];
+const DIFFICULTIES: AI_DifficultyType[] = Object.values(AI_Difficulty);
 
 export function AI_DifficultySelector({
   selectedDifficulty,
@@ -23,8 +24,10 @@ export function AI_DifficultySelector({
         role="radiogroup"
         aria-label="AI difficulty"
         className="grid grid-cols-3 gap-2"
+        onKeyDown={handleRadioGroupKeyDown}
       >
-        {DIFFICULTIES.map(({ value, label }) => {
+        {DIFFICULTIES.map((value) => {
+          const label = AI_DIFFICULTY_LABELS[value];
           const active = selectedDifficulty === value;
           return (
             <button
@@ -34,6 +37,7 @@ export function AI_DifficultySelector({
               aria-label={label}
               aria-checked={active}
               data-state={active ? "active" : "inactive"}
+              tabIndex={active ? 0 : -1}
               onClick={() => onDifficultyChange(value)}
               className={cn(
                 "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",

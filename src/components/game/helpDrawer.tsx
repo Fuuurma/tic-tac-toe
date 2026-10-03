@@ -44,6 +44,10 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
   const hasPreviousFocusRef = useRef(false);
   const dialogId = useId();
   const titleId = `${dialogId}-title`;
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -62,7 +66,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && panelRef.current) {
@@ -87,7 +91,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -98,7 +102,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
       aria-modal="true"
       aria-labelledby={titleId}
       className={cn(
-        "z-50 flex justify-center bg-black/50",
+        "z-50 flex justify-center bg-overlay-scrim",
         inline
           ? "absolute inset-0 items-stretch p-0"
           : "fixed inset-0 items-end p-0 sm:items-center",
@@ -128,7 +132,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
               type="button"
               onClick={onClose}
               aria-label="Close help"
-              className="glass-interactive flex size-8 items-center justify-center rounded-lg text-muted-foreground"
+              className="glass-interactive flex size-11 items-center justify-center rounded-lg text-muted-foreground"
             >
               <X className="size-4" aria-hidden="true" />
             </button>

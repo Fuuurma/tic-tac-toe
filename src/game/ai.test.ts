@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AI_Difficulty, GameModes, Color, PlayerSymbol } from "@/game/constants";
-import { getAIMove } from "@/game/ai";
+import {
+  AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
+  GameModes,
+  Color,
+  PlayerSymbol,
+} from "@/game/constants";
+import { evaluateNonTerminal, getAIMove } from "@/game/ai";
 import {
   createInitialGameState,
   freshGameState,
@@ -27,6 +33,12 @@ afterEach(() => {
 describe("getAIMove", () => {
   it("exposes exactly three algorithm-backed difficulty levels", () => {
     expect(Object.values(AI_Difficulty)).toEqual(["EASY", "NORMAL", "HARD"]);
+  });
+
+  it("exposes one canonical label per difficulty level", () => {
+    expect(
+      Object.values(AI_Difficulty).map((d) => AI_DIFFICULTY_LABELS[d]),
+    ).toEqual(["Easy", "Normal", "Hard"]);
   });
 
   it("returns a move on an empty board within the valid empty cells (EASY)", () => {
@@ -146,4 +158,21 @@ describe("getAIMove", () => {
   });
 });
 
-
+describe("evaluateNonTerminal", () => {
+  it("prices an immediate threat higher when its owner moves next (F148 pin)", () => {
+    // X: [0,1] — cell 2 completes the top row. Same board, flip the mover:
+    // the mover-advantage term must separate the two evaluations.
+    let state = onlineState();
+    state = makeMove(state, 0)!; // X
+    state = makeMove(state, 4)!; // O
+    state = makeMove(state, 1)!; // X
+    state = makeMove(state, 5)!; // O — X to move
+    expect(state.currentPlayer).toBe(PlayerSymbol.X);
+    const moving = evaluateNonTerminal(state, PlayerSymbol.X);
+    const waiting = evaluateNonTerminal(
+      { ...state, currentPlayer: PlayerSymbol.O },
+      PlayerSymbol.X,
+    );
+    expect(moving).toBeGreaterThan(waiting);
+  });
+});

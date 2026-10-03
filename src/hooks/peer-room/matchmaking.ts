@@ -71,9 +71,25 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   if (hasStartedRef.current) return;
   hasStartedRef.current = true;
   stopTimer();
-  setStatus({ status: "creating", message: "Finding match…" });
+  setStatus({ status: "creating", message: "Finding match…", queuePosition: null });
   const identity = getOrCreateGuestIdentity();
   const sessionId = crypto.randomUUID();
+
+  // Cancel-on-disconnect: if the tab closes mid-queue, a keepalive
+  // leave drops the ticket on the Worker now instead of leaking it
+  // until the service-side sweep. `pagehide` (not `beforeunload`) is
+  // the reliable teardown event; guarded for non-DOM test envs.
+  const cancelTicketOnUnload = () => {
+    const ticket = matchmakingTicketRef.current;
+    if (ticket) {
+      leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
+        console.error("Matchmaking leave failed on unload:", (err as Error).message);
+      });
+    }
+  };
+  const canListen = typeof window !== "undefined";
+  if (canListen) window.addEventListener("pagehide", cancelTicketOnUnload);
+
   try {
     const response: MatchmakingResponse = await findMatch({
       game: GAME_ID,
@@ -84,6 +100,9 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
 
     if (response.status === "waiting") {
       matchmakingTicketRef.current = response.ticket;
+      // FIFO queue position, when the Worker reports it — the searching
+      // UI shows "position N" instead of a bare spinner.
+      setStatus({ queuePosition: response.position ?? null });
       const wsUrl = buildRoomWsUrl(response.roomId);
       startAsHost(response.roomId, wsUrl);
 
@@ -104,6 +123,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
             matched = true;
             break;
           }
+          setStatus({ queuePosition: pollResponse.position ?? null });
         } catch (err) {
           // A transient network error must not abort the whole
           // quick-match attempt (fleet 2026-09-06): count consecutive
@@ -166,6 +186,12 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     // a nil ref, so the user-cancel path still single-fires via leave().
     abandonTicket(deps, "after error");
     hasStartedRef.current = false;
-    setStatus({ status: "error", message: `Matchmaking failed: ${(err as Error).message}` });
+    setStatus({
+      status: "error",
+      message: `Matchmaking failed: ${(err as Error).message}`,
+      queuePosition: null,
+    });
+  } finally {
+    if (canListen) window.removeEventListener("pagehide", cancelTicketOnUnload);
   }
 }

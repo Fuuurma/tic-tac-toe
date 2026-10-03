@@ -7,7 +7,7 @@ import {
 } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
+import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
@@ -41,10 +41,15 @@ export function applyHostMove(deps: HostProtocolDeps, index: number, actor: Play
     const current = stateRef.current;
     const next = applyAuthorizedMove(current, index, actor);
     if (!next) {
-      // Only send an error rollback for guest moves. The host's own
-      // moves are validated locally and never need a wire error.
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
-      if (actor !== hostSymbol) {
+      // Only the guest's failed moves get a wire error — it drives the
+      // guest's optimistic-move rollback (F159). The host's own moves are
+      // validated locally and never need one. No null special-case: every
+      // caller already rejects an unassigned hostSymbol before dispatching
+      // here, and a real actor symbol never equals a null ref anyway, so
+      // the error would still go out and the guest would roll back rather
+      // than diverge (F160 — the old `hostSymbol === null` early-return
+      // was unreachable dead code).
+      if (actor !== hostSymbolRef.current) {
         roomRef.current?.send({ type: "error", message: "Invalid move" });
       }
       return;
@@ -72,7 +77,15 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
   } = deps;
   {
     if (message.type === "join") {
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      // hostSymbolRef is assigned synchronously in startAsHost; a null
+      // here means the room was never initialized — tell the guest the
+      // room isn't ready instead of dropping the join silently (F159:
+      // a silent drop leaves the guest waiting on `joined` forever).
+      const hostSymbol = hostSymbolRef.current;
+      if (hostSymbol === null) {
+        roomRef.current?.send({ type: "error", message: "Room not ready" });
+        return;
+      }
       const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
         displayName: message.displayName,
         preferredColor: message.preferredColor,
@@ -111,8 +124,27 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       }
       return;
     }
+    if (message.type === "sync_request") {
+      // Reconnect pull (uno-chess contract, DST-04): the guest asks for
+      // an authoritative snapshot after reconnecting. The host answers
+      // with the current wire state — deadline stripped so the guest
+      // resynthesizes its own clock. Read-only: never mutates host
+      // state, safe against a stray or replayed request.
+      roomRef.current?.send({
+        type: "state_snapshot",
+        gameState: toWireGameState(stateRef.current),
+      });
+      return;
+    }
     if (message.type === "move") {
-      const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      const hostSymbol = hostSymbolRef.current;
+      // A null ref means the room was never initialized — send "Invalid
+      // move" so the guest rolls back its optimistic move instead of
+      // diverging on a silent drop (F159).
+      if (hostSymbol === null) {
+        roomRef.current?.send({ type: "error", message: "Invalid move" });
+        return;
+      }
       const guestSymbol = oppositeSymbol(hostSymbol);
       applyHostMove(deps, message.index, guestSymbol);
       return;
@@ -138,8 +170,14 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // Read BOTH player configs from the OLD state BEFORE overwriting
       // hostSymbolRef — when symbols swap, indexing by the NEW symbol
       // would give each side the other player's name/color/shape
-      // (fleet critic 2026-09-06 P1).
-      const oldHostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
+      // (fleet critic 2026-09-06 P1). A null ref means the room was never
+      // initialized — tell the guest instead of leaving it thinking the
+      // rematch went through (F159).
+      const oldHostSymbol = hostSymbolRef.current;
+      if (oldHostSymbol === null) {
+        roomRef.current?.send({ type: "error", message: "Room not ready" });
+        return;
+      }
       const hostPlayer = state.players[oldHostSymbol];
       const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
       hostSymbolRef.current = newHostSymbol;
@@ -167,6 +205,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         guestSymbol: newGuestSymbol,
         gameState: reset,
         message: "",
+        rematchOutgoing: false,
       }));
       // gameStart alone carries the reset + the swapped guest symbol —
       // a gameUpdate alongside it duplicated the same state on the wire
@@ -176,9 +215,12 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       return;
     }
     if (message.type === "rematchDecline") {
+      // F254: mirror rematchAccept's pending gate — a stray decline with no
+      // outstanding request must not stamp "Rematch declined" over live UI.
+      if (!hostRematchPendingRef.current) return;
       hostRematchPendingRef.current = false;
       clearRematchTimeout();
-      setState((prev) => ({ ...prev, message: "Rematch declined" }));
+      setState((prev) => ({ ...prev, message: "Rematch declined", rematchOutgoing: false }));
       return;
     }
     if (message.type === "leave") {
@@ -192,20 +234,14 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // nobody rather than guess X/O when neither is known yet.
       setState((prev) => {
         const hostSymbol = hostSymbolRef.current ?? prev.hostSymbol;
-        const ended: GameState =
-          state.winner || hostSymbol === null
-            ? state
-            : {
-                ...state,
-                winner: hostSymbol,
-                gameStatus: GameStatus.COMPLETED,
-              };
+        const ended = applyForfeitIfActive(state, hostSymbol);
         stateRef.current = ended;
         return {
           ...prev,
           status: "disconnected" as const,
           gameState: ended,
           message: "Opponent left",
+          rematchOutgoing: false,
         };
       });
       return;

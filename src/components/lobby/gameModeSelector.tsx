@@ -1,4 +1,5 @@
 import { GameModes, type GameMode } from "@/game/constants";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { Bot, Check, Users, Wifi } from "lucide-react";
 
@@ -38,6 +39,7 @@ export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelecto
         role="radiogroup"
         aria-label="Game mode"
         className="grid grid-cols-3 gap-2"
+        onKeyDown={handleRadioGroupKeyDown}
       >
       {MODES.map(({ value, label, shortLabel, description, Icon }) => {
         const active = selectedMode === value;
@@ -49,6 +51,7 @@ export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelecto
             aria-label={label}
             aria-checked={active}
             data-state={active ? "active" : "inactive"}
+            tabIndex={active ? 0 : -1}
             onClick={() => onModeChange(value)}
             className={cn(
               "group flex min-h-[4.5rem] flex-col items-stretch justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",

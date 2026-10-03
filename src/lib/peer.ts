@@ -16,7 +16,7 @@ import {
   type GameStatus as _GameStatusType,
   type PlayerType as _PlayerTypeType,
 } from "@/game/constants";
-import { isValidMove, makeMove, type GameState } from "@/game/logic";
+import { isGameActive, isValidMove, makeMove, type GameState } from "@/game/logic";
 import { sanitizeDisplayName } from "@/lib/identity";
 
 export type PeerMessage =
@@ -30,6 +30,8 @@ export type PeerMessage =
   | { type: "rematchDecline" }
   | { type: "rematchCancel" }
   | { type: "leave" }
+  | { type: "sync_request" }
+  | { type: "state_snapshot"; gameState: GameState }
   | { type: "error"; message: string };
 
 /** Hard upper bound on inbound wire-message scalar string fields. */
@@ -75,6 +77,20 @@ export const peerLeftUserMessage = (
       : "Opponent did not reconnect in time";
   }
   return role === "guest" ? "Host left the room" : "Opponent left the room";
+};
+
+/**
+ * Crown `survivor` only when a match was actually in progress.
+ * A peer that drops during WAITING (joined then left, or never sat down)
+ * must not mint a COMPLETED game — that writes a phantom win into local
+ * stats (F146). Already-terminal games keep their recorded winner.
+ */
+export const applyForfeitIfActive = (
+  state: GameState,
+  survivor: PlayerSymbol | null,
+): GameState => {
+  if (survivor === null || !isGameActive(state)) return state;
+  return { ...state, winner: survivor, gameStatus: GameStatus.COMPLETED };
 };
 
 export type HostGuestJoinResult = {
@@ -299,6 +315,16 @@ const isGameState = (value: unknown): value is GameState => {
   if (state.winningCombination !== null && !isWinningCombination(state.winningCombination)) {
     return false;
   }
+  // F192: a claimed win must actually exist on the board — cross-check
+  // that every cell of the winning line holds the winner's symbol, not
+  // just that the two fields are individually well-formed.
+  if (
+    state.winner !== null &&
+    state.winningCombination !== null &&
+    !state.winningCombination.every((i) => (state.board as unknown[])[i] === state.winner)
+  ) {
+    return false;
+  }
   if (state.lastMoveIndex !== null && !isBoundedCellIndex(state.lastMoveIndex)) {
     return false;
   }
@@ -428,7 +454,10 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
     case "rematchDecline":
     case "rematchCancel":
     case "leave":
+    case "sync_request":
       return true;
+    case "state_snapshot":
+      return isGameState(message.gameState);
     case "error":
       return (
         typeof message.message === "string" &&

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
   AVAILABLE_COLORS,
   COLOR_RGB,
   Color,
@@ -43,7 +44,8 @@ import {
 import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
 import { HelpDrawer } from "@/components/game/helpDrawer";
-import { normalizeRoomId } from "@/lib/roomId";
+import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 
 export interface LobbyFormPayload {
   displayName: string;
@@ -71,10 +73,13 @@ const getRoomCodeError = (
   if (action === "join") {
     if (!roomId) return "Enter a room code to join.";
     if (!normalizeRoomId(roomId)) {
-      return "Room code must be 4–64 letters, digits, hyphens, or underscores.";
+      return "Room code must be 4-64 letters, digits, hyphens, or underscores.";
     }
   }
-  if (action === "create" && roomId && !normalizeRoomId(roomId)) {
+  // Check the RAW value: normalizeRoomId zeroes invalid codes, so
+  // `roomId &&` swallowed every invalid non-empty code (e2e regression,
+  // needs-work 10-02 P1 follow-through).
+  if (action === "create" && roomId.trim() && !ROOM_ID_PATTERN.test(roomId.trim())) {
     return "Custom room code must be 4–64 letters, digits, hyphens, or underscores.";
   }
   return null;
@@ -83,6 +88,9 @@ const getRoomCodeError = (
 const validate = (payload: LobbyFormPayload): string | null => {
   if (sanitizeDisplayName(payload.displayName) !== payload.displayName) {
     return "Enter a valid name (2-20 characters, no control characters).";
+  }
+  if (payload.gameMode === GameModes.VS_FRIEND && sanitizeDisplayName(payload.opponentName) !== payload.opponentName) {
+    return "Enter a valid opponent name (2-20 characters, no control characters).";
   }
   if (!AVAILABLE_COLORS.includes(payload.color)) {
     return "Pick a color.";
@@ -237,12 +245,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
     [startGame],
   );
 
-  const aiDifficultyLabel =
-    aiDifficulty === AI_Difficulty.EASY
-      ? "Easy"
-      : aiDifficulty === AI_Difficulty.NORMAL
-        ? "Normal"
-        : "Hard";
+  const aiDifficultyLabel = AI_DIFFICULTY_LABELS[aiDifficulty];
 
   return (
     <form
@@ -252,17 +255,20 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
     >
       <Card variant="glass" className="gap-0 overflow-hidden py-0">
         <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
-          <GameMark />
+          <GameMark playerColor={color} opponentColor={opponentColor} />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-xl font-extrabold leading-none tracking-tight sm:text-2xl">
               Tic Tac Toe Disappear
             </h1>
+            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+              Three in a row wins, only your latest three marks stay on the board.
+            </p>
           </div>
           <button
             type="button"
             onClick={() => setHelpOpen(true)}
             aria-label="How to play"
-            className="glass-interactive flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+            className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
           >
             <CircleHelp className="size-4.5" aria-hidden="true" />
           </button>
@@ -307,6 +313,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                 role="radiogroup"
                 aria-label="Online match type"
                 className="grid grid-cols-3 gap-2"
+                onKeyDown={handleRadioGroupKeyDown}
               >
                 <OnlineOption
                   active={onlineAction === "quick"}
@@ -338,7 +345,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                   value={onlineRoomId}
                   placeholder="Leave empty to generate one"
                   maxLength={64}
-                  hint="4–64 letters, numbers, hyphens, or underscores."
+                  hint="4-64 letters, numbers, hyphens, or underscores."
                   error={
                     onlineRoomId.trim()
                       ? getRoomCodeError("create", onlineRoomId.trim()) ?? undefined
@@ -454,6 +461,7 @@ function OnlineOption({
       aria-checked={active}
       aria-label={label}
       data-state={active ? "active" : "inactive"}
+      tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={cn(
         "group flex min-h-[4.5rem] flex-col items-stretch justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",

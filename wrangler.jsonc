@@ -6,5 +6,8 @@
     "ip": "127.0.0.1",
     "port": 4410
   },
-  "pages_build_output_dir": "dist"
+  "pages_build_output_dir": "dist",
+  "observability": {
+    "enabled": true
+  }
 }
