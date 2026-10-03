@@ -90,12 +90,14 @@ describe('hostProtocol.handleHostMessage — rematch identity', () => {
     },
     hostSymbolRef: { current: currentHostSymbol },
     hostRematchPendingRef: { current: true },
+    guestRematchPendingRef: { current: false },
     hostPendingSettingsRef: { current: null },
     setState: () => {},
     commitHostState: () => {},
     broadcastGameState: () => {},
     stopTimer: () => {},
     clearRematchTimeout: () => {},
+    armRematchTimeout: () => {},
   });
 
   it('keeps each player their own identity when symbols swap on rematch', () => {
@@ -183,5 +185,72 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
 
     expect(guestSymbolRef.current).toBe('O');
     expect(lastState.guestSymbol).toBe('O');
+  });
+});
+
+describe('guestProtocol.handleGuestMessage — outgoing rematch ask', () => {
+  const guestDeps = (
+    prev: Record<string, unknown>,
+    seen: Array<Record<string, unknown>>,
+  ) => ({
+    stateRef: { current: gameState({}) },
+    guestSymbolRef: { current: 'O' as never },
+    pendingGuestStateRef: { current: null },
+    setState: (fn: (p: never) => never) => {
+      seen.push(fn(prev as never) as unknown as Record<string, unknown>);
+    },
+    stopTimer: () => {},
+    clearRematchTimeout: () => {},
+  });
+
+  it('rematchCancel clears an outstanding guest ask', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const deps = guestDeps(
+      { rematchIncoming: false, rematchOutgoing: true, message: 'Waiting for host to accept rematch' },
+      seen,
+    );
+
+    handleGuestMessage(deps as never, { type: 'rematchCancel' });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].rematchOutgoing).toBe(false);
+    expect(seen[0].message).toBe('Rematch request withdrawn');
+  });
+
+  it('rematchCancel with nothing outstanding leaves state untouched', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const deps = guestDeps({ rematchIncoming: false, rematchOutgoing: false, message: '' }, seen);
+
+    handleGuestMessage(deps as never, { type: 'rematchCancel' });
+
+    // Handler returns prev unchanged.
+    expect(seen).toHaveLength(1);
+    expect(seen[0].rematchIncoming).toBe(false);
+    expect(seen[0].rematchOutgoing).toBe(false);
+  });
+
+  it('a host request supersedes the guest ask', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const deps = guestDeps({ rematchIncoming: false, rematchOutgoing: true, message: 'Waiting for host to accept rematch' }, seen);
+
+    handleGuestMessage(deps as never, { type: 'rematchRequested', requesterSymbol: 'X' as never });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].rematchIncoming).toBe(true);
+    expect(seen[0].rematchOutgoing).toBe(false);
+  });
+
+  it('gameStart clears the guest ask', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const deps = guestDeps({ rematchIncoming: false, rematchOutgoing: true, guestSymbol: 'O' }, seen);
+
+    handleGuestMessage(deps as never, {
+      type: 'gameStart',
+      symbol: 'O' as never,
+      gameState: gameState({}),
+    });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].rematchOutgoing).toBe(false);
   });
 });

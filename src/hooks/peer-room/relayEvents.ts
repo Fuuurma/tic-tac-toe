@@ -25,6 +25,7 @@ export interface RelayEventDeps {
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
   hostRematchPendingRef: { current: boolean };
+  guestRematchPendingRef: { current: boolean };
   /** Last move the reconnect grace reset the timer for (fleet 09-07
    *  finding 2: one full reset per move — repeated reconnects within
    *  the same turn keep the remaining time). */
@@ -48,6 +49,7 @@ export function handleRelayEvent(
     hostSymbolRef,
     guestSymbolRef,
     hostRematchPendingRef,
+    guestRematchPendingRef,
   reconnectResetsRef,
     setState,
     commitHostState,
@@ -129,6 +131,7 @@ export function handleRelayEvent(
       status: "connected",
       message: "",
       rematchIncoming: false,
+      rematchOutgoing: false,
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -217,6 +220,7 @@ export function handleRelayEvent(
           status: "reconnecting",
           message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
           rematchIncoming: false,
+          rematchOutgoing: false,
         };
       });
       if (transitioned) stopTimer();
@@ -225,6 +229,7 @@ export function handleRelayEvent(
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
     stopTimer();
     hostRematchPendingRef.current = false;
+    guestRematchPendingRef.current = false;
     clearRematchTimeout();
     const current = stateRef.current;
     const leaveReason = reason === "expired" ? "expired" : "closed";
@@ -250,6 +255,7 @@ export function handleRelayEvent(
         gameState,
         message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", leaveReason),
         rematchIncoming: false,
+        rematchOutgoing: false,
       };
     });
     return;

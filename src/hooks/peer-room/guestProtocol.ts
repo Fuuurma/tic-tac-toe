@@ -78,6 +78,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           guestSymbol: localSymbol,
           message: "",
           rematchIncoming: false,
+          rematchOutgoing: false,
         };
       });
       return;
@@ -88,17 +89,20 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
         ...prev,
         message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
         rematchIncoming: true,
+        // A host request supersedes the guest's own ask: the accept
+        // flow takes over from here.
+        rematchOutgoing: false,
       }));
       return;
     }
     if (message.type === "rematchCancel") {
-      // Host withdrew a pending rematch request before the guest responded.
-      // Clear the prompt so the guest UI no longer offers accept/decline.
-      // Gate on the explicit rematchIncoming flag — never on the
-      // user-facing message copy.
+      // Host withdrew a pending rematch round — either its own request
+      // before the guest responded, or an unanswered guest ask that the
+      // host cancelled/let expire. Clear whichever side is outstanding.
+      // Gate on the explicit flags — never on the user-facing copy.
       setState((prev) =>
-        prev.rematchIncoming
-          ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false }
+        prev.rematchIncoming || prev.rematchOutgoing
+          ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false, rematchOutgoing: false }
           : prev,
       );
       return;
@@ -128,6 +132,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           gameState,
           message: "Host left the game",
           rematchIncoming: false,
+          rematchOutgoing: false,
         };
       });
       return;

@@ -16,7 +16,7 @@ import {
   leaveRoom,
   startAsHost as startAsHostImpl,
 } from "./peer-room/roomLifecycle";
-import { applyHostMove as applyHostMoveMsg, handleHostMessage } from "./peer-room/hostProtocol";
+import { applyHostMove as applyHostMoveMsg, handleHostMessage, startHostRematch } from "./peer-room/hostProtocol";
 import { handleGuestMessage } from "./peer-room/guestProtocol";
 
 /**
@@ -54,6 +54,13 @@ export interface PeerRoomState {
    * matching user-facing message copy with a regex.
    */
   rematchIncoming: boolean;
+  /**
+   * True after the guest asked for a rematch (Play Again with no host
+   * request outstanding) while waiting for the host to answer. Cleared
+   * by gameStart / rematchCancel / decline / disconnect — same rule as
+   * rematchIncoming: an explicit flag, never message-copy matching.
+   */
+  rematchOutgoing: boolean;
   gameState: GameState;
 }
 
@@ -75,6 +82,7 @@ const initialState: PeerRoomState = {
   guestSymbol: null,
   message: "",
   rematchIncoming: false,
+  rematchOutgoing: false,
   gameState: freshGameState(),
 };
 
@@ -96,9 +104,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const matchmakingTicketRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
   // Host remembers when it has issued a rematch request. A guest `rematchAccept`
-  // is only honored while a host request is pending and the game is terminal.
-  // Without this gate a hostile or buggy guest can reset the host mid-game.
+  // starts a game while a host request is pending and the game is terminal;
+  // without a pending request the same message is recorded as a guest ask
+  // (guestRematchPendingRef) instead of being dropped. The terminal-game
+  // gate always applies — a hostile or buggy guest can never reset the
+  // host mid-game either way.
   const hostRematchPendingRef = useRef(false);
+  // Host remembers a guest-initiated rematch ask. The host answers it with
+  // its own Play Again click (which starts the game immediately instead of
+  // issuing a redundant request); the ask expires on the rematch deadline.
+  const guestRematchPendingRef = useRef(false);
   // Host-side rematch deadline (fleet 09-13): a pending request expires
   // after REMATCH_TIMEOUT_MS so the host never waits forever on a guest
   // who walked away mid-prompt. On expiry the host sends rematchCancel —
@@ -162,11 +177,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, []);
   const expireRematch = useCallback(() => {
     rematchTimeoutRef.current = null;
-    if (!hostRematchPendingRef.current) return;
+    if (!hostRematchPendingRef.current && !guestRematchPendingRef.current) return;
     hostRematchPendingRef.current = false;
+    guestRematchPendingRef.current = false;
     roomRef.current?.send({ type: "rematchCancel" });
     setState((prev) => ({ ...prev, message: "Rematch request expired" }));
   }, []);
+  const armRematchTimeout = useCallback(() => {
+    clearRematchTimeout();
+    rematchTimeoutRef.current = window.setTimeout(expireRematch, REMATCH_TIMEOUT_MS);
+  }, [clearRematchTimeout, expireRematch]);
 
   const hostDeps = useCallback(
     () => ({
@@ -174,6 +194,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       roomRef,
       hostSymbolRef,
       hostRematchPendingRef,
+      guestRematchPendingRef,
       hostPendingSettingsRef,
       pendingGuestStateRef,
       setState,
@@ -181,8 +202,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
       broadcastGameState,
       stopTimer,
       clearRematchTimeout,
+      armRematchTimeout,
     }),
-    [broadcastGameState, commitHostState, stopTimer, clearRematchTimeout],
+    [broadcastGameState, commitHostState, stopTimer, clearRematchTimeout, armRematchTimeout],
   );
   const applyHostMove = useCallback(
     (index: number, actor: PlayerSymbol) => applyHostMoveMsg(hostDeps(), index, actor),
@@ -200,6 +222,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostSymbolRef,
       guestSymbolRef,
       hostRematchPendingRef,
+      guestRematchPendingRef,
       reconnectResetsRef,
       setState,
       commitHostState,
@@ -310,8 +333,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   const requestRematch = useCallback(() => {
     if (state.role === "guest") {
-      // A guest "rematch" only counts when it follows a host rematch request
-      // while the previous game is terminal. Host gating must mirror this.
+      // Guest Play Again on a terminal game sends rematchAccept. With a
+      // host request outstanding that's an accept; without one the host
+      // records it as a guest ask and prompts the host (host gating in
+      // handleHostMessage must mirror this). Either way the click is
+      // visible: accepting keeps the incoming prompt until gameStart,
+      // asking shows an explicit wait message.
       if (
         state.status !== "connected" ||
         state.gameState.winner === null ||
@@ -320,6 +347,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
         return;
       }
       roomRef.current?.send({ type: "rematchAccept" });
+      if (!state.rematchIncoming) {
+        setState((prev) => ({
+          ...prev,
+          message: "Waiting for host to accept rematch",
+          rematchOutgoing: true,
+        }));
+      }
     } else if (state.role === "host") {
       // Host can only request a rematch when the previous game is over and
       // the guest is still connected. Without the status check the host can
@@ -331,23 +365,29 @@ export function usePeerRoom(options: PeerRoomOptions) {
       ) {
         return;
       }
+      // Answering a guest ask starts the game immediately — the guest
+      // already agreed, so issuing a request they'd have to accept
+      // again would be a redundant round-trip.
+      if (guestRematchPendingRef.current) {
+        startHostRematch(hostDeps());
+        return;
+      }
       hostRematchPendingRef.current = true;
       // Use the host's current symbol so the guest UI names the right player.
       const hostSymbol = hostSymbolRef.current ?? PlayerSymbol.X;
       roomRef.current?.send({ type: "rematchRequested", requesterSymbol: hostSymbol });
-      clearRematchTimeout();
-      rematchTimeoutRef.current = window.setTimeout(expireRematch, REMATCH_TIMEOUT_MS);
+      armRematchTimeout();
       setState((prev) => ({
         ...prev,
         message: "Waiting for opponent to accept rematch",
       }));
     }
-  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, clearRematchTimeout, expireRematch]);
+  }, [state.role, state.gameState.winner, state.gameState.gameStatus, state.status, state.rematchIncoming, hostDeps, armRematchTimeout]);
 
   const declineRematch = useCallback(() => {
     if (state.role === "guest") {
       roomRef.current?.send({ type: "rematchDecline" });
-      setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+      setState((prev) => ({ ...prev, message: "", rematchIncoming: false, rematchOutgoing: false }));
     }
   }, [state.role]);
 
@@ -355,8 +395,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
     // Only the host issues rematch requests, so only the host can withdraw
     // one. If no request is pending there is nothing to cancel — bail out
     // without touching the wire or local state so a stray tap is a no-op.
-    if (state.role !== "host" || !hostRematchPendingRef.current) return;
+    // Cancelling also drops a guest ask: the host is declining the
+    // rematch round, and the rematchCancel tells the guest either way.
+    if (state.role !== "host" || (!hostRematchPendingRef.current && !guestRematchPendingRef.current)) return;
     hostRematchPendingRef.current = false;
+    guestRematchPendingRef.current = false;
     clearRematchTimeout();
     roomRef.current?.send({ type: "rematchCancel" });
     setState((prev) => ({ ...prev, message: "" }));
@@ -368,8 +411,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
     hostRematchPendingRef.current = false;
+    guestRematchPendingRef.current = false;
     clearRematchTimeout();
-    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false }));
+    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {

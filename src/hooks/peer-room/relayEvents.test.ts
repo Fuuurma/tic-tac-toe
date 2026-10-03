@@ -33,6 +33,7 @@ function makeDeps(game: GameState, role: PeerRole) {
     hostSymbolRef: { current: PlayerSymbol.X },
     guestSymbolRef: { current: PlayerSymbol.O },
     hostRematchPendingRef: { current: false },
+    guestRematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
