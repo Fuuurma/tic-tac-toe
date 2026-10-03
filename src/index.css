@@ -97,6 +97,8 @@
   --color-accent-foreground: oklch(0.18 0.02 220);
   --color-border: oklch(0.9 0.01 220);
   --color-input: oklch(0.9 0.01 220);
+  /* F247: one scrim for every modal overlay — was bg-black/40 vs /50. */
+  --color-overlay-scrim: oklch(0 0 0 / 0.5);
   --color-ring: oklch(0.55 0.16 205);
   --color-primary: oklch(0.55 0.16 205);
   --color-primary-foreground: oklch(0.98 0 0);
@@ -313,7 +315,7 @@ body,
   100% { box-shadow: 0 0 0 0 oklch(0.76 0.16 160 / 0); }
 }
 .animate-win-glow {
-  animation: win-glow 0.6s ease-out;
+  animation: win-glow 0.2s ease-out;
 }
 .animate-wiggle {
   animation: wiggle 1.4s ease-in-out infinite;

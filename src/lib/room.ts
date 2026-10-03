@@ -89,11 +89,13 @@ export class RoomClient {
   private role: RoomRole | null = null;
   private opponent: { guestId: string; displayName: string } | null = null;
   private closedByUser = false;
+  private hadSession = false;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
   private welcomeRejecters: Array<(reason: Error) => void> = [];
   private pendingConnect: Promise<RoomSession> | null = null;
+  private preWelcomeError: Error | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -222,7 +224,7 @@ export class RoomClient {
         ws = new WebSocket(url.toString());
       } catch (err) {
         reject(err instanceof Error ? err : new Error("websocket construction failed"));
-        if (this.opts.autoReconnect) this.scheduleReconnect();
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
         return;
       }
       this.ws = ws;
@@ -258,10 +260,25 @@ export class RoomClient {
       ws.addEventListener("message", (event: MessageEvent<string>) => {
         const parsed = parseEnvelope(event.data);
         if (!parsed) return;
+        // F253: the DO rejects joins with {type:"error",code,message} then
+        // closes the socket. Capture the reason so the close handler can
+        // reject connect() with the actionable message instead of the
+        // generic "socket closed before welcome".
+        if (
+          parsed.type === "error" &&
+          this.welcomeResolvers.length > 0 &&
+          typeof (parsed as { message?: unknown }).message === "string"
+        ) {
+          this.preWelcomeError = new Error(
+            (parsed as { message: string }).message,
+          );
+        }
         if (parsed.type === "welcome") {
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
+          this.hadSession = true;
+          this.preWelcomeError = null;
           this.reconnectAttempt = 0;
           this.setStatus("connected");
           const session: RoomSession = { role: welcome.role, opponent: welcome.opponent };
@@ -290,21 +307,23 @@ export class RoomClient {
           this.setStatus("disconnected");
           return;
         }
-        settleWelcome(null, new Error("socket closed before welcome"));
-        // Auto-reconnect only restores an established session — `role`
-        // is set on the first `welcome`, so `role === null` means the
-        // initial connect() never succeeded. Retrying then would flip
-        // the caller's terminal "error" status back to "reconnecting"
-        // and spam the dead endpoint forever (F151).
-        if (this.opts.autoReconnect && this.role !== null) {
-          this.scheduleReconnect();
-        } else {
-          this.setStatus("disconnected");
-        }
+        settleWelcome(
+          null,
+          this.preWelcomeError ?? new Error("socket closed before welcome"),
+        );
+        // F151: auto-reconnect exists to recover an ESTABLISHED session —
+        // a socket that dies before `welcome` means the relay rejected or
+        // is unreachable; retrying forever would overwrite the terminal
+        // error status the caller just set. Only retry post-session drops.
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
+        else this.setStatus("disconnected");
       });
 
       ws.addEventListener("error", () => {
-        settleWelcome(null, new Error("socket error"));
+        settleWelcome(
+          null,
+          this.preWelcomeError ?? new Error("socket error"),
+        );
         // close event will follow; reconnect happens there
       });
 

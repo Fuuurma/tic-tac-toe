@@ -1,7 +1,7 @@
 import { GameStatus, TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import type { PeerMessage } from "@/lib/peer";
+import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
 import type { PeerRoomState } from "../usePeerRoom";
 
 /**
@@ -84,6 +84,10 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     }
     if (message.type === "rematchRequested") {
       const state = stateRef.current;
+      // F191: mirror the host-side accept gate — a rematch prompt is only
+      // meaningful on a terminal game. A mid-game request from a hostile
+      // or buggy host must not pop the prompt over live play.
+      if (state.winner === null || state.gameStatus !== GameStatus.COMPLETED) return;
       setState((prev) => ({
         ...prev,
         message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
@@ -113,14 +117,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
         // to the state-recorded symbol, and crown nobody rather than
         // guess X/O when neither is known yet.
         const guestSymbol = guestSymbolRef.current ?? prev.guestSymbol;
-        const gameState =
-          current.winner || guestSymbol === null
-            ? current
-            : {
-                ...current,
-                winner: guestSymbol,
-                gameStatus: GameStatus.COMPLETED,
-              };
+        const gameState = applyForfeitIfActive(current, guestSymbol);
         stateRef.current = gameState;
         return {
           ...prev,

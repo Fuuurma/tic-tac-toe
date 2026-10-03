@@ -8,6 +8,7 @@ import {
   SymbolShape,
   type AI_Difficulty as AI_DifficultyType,
   type PlayerType,
+  COLOR_MARK_TEXT,
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
 import { SymbolShapePicker } from "./symbolShapePicker";
@@ -17,6 +18,7 @@ import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, Play, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
+import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
 
 export type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -46,6 +48,12 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const hasPreviousFocusRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  // Latest-ref assignment belongs in the commit phase, not render
+  // (react-doctor no-ref-current-in-render).
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   const sheetId = useId();
   const titleId = `${sheetId}-title`;
 
@@ -67,7 +75,7 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === "Tab" && panel) {
@@ -92,7 +100,7 @@ function useSheetFocus(isOpen: boolean, onClose: () => void) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return { containerRef, panelRef, titleId, sheetId };
 }
@@ -149,7 +157,7 @@ export function SettingsSheet({
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-overlay-scrim p-0 sm:items-center"
       onClick={(e) => {
         if (e.target === containerRef.current) onClose();
       }}
@@ -160,29 +168,46 @@ export function SettingsSheet({
         className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-7 outline-none sm:rounded-2xl sm:border-b"
         style={{ "--player-color": COLOR_RGB[activeColor] } as React.CSSProperties}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
-          <h2 id={titleId} className="text-base font-semibold">
-            Settings
-          </h2>
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={onClose}
-            aria-label="Close"
-            className="size-8 p-0"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </Button>
+        {/* The grabber is a decorative sheet handle (DESIGN.md: pills are for
+            color dots and sheet grabbers), so it gets its own row above the
+            title rather than sharing the justify-between row. As a flex child
+            of that row it stole width and pushed "Settings" off-centre against
+            the close button, and as a bare div it was announced to AT as
+            nothing. Matches helpDrawer.tsx, which already does it this way. */}
+        <div className="flex shrink-0 flex-col gap-2">
+          <div
+            aria-hidden="true"
+            className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <h2 id={titleId} className="text-base font-semibold">
+              Settings
+            </h2>
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onClose}
+              aria-label="Close"
+              className="size-11 p-0"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
         </div>
 
         {/* Tab switcher */}
-        <div role="tablist" aria-label="Settings tabs" className="flex shrink-0 gap-2">
+        <div
+          role="tablist"
+          aria-label="Settings tabs"
+          className="flex shrink-0 gap-2"
+          onKeyDown={handleTabListKeyDown}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={tab === "player"}
             aria-controls={playerPanelId}
+            tabIndex={tab === "player" ? 0 : -1}
             onClick={() => onTabChange("player")}
             className={cn(
               "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
@@ -200,6 +225,7 @@ export function SettingsSheet({
               role="tab"
               aria-selected={tab === "opponent"}
               aria-controls={opponentPanelId}
+              tabIndex={tab === "opponent" ? 0 : -1}
               onClick={() => onTabChange("opponent")}
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
@@ -327,13 +353,14 @@ function OpponentTab({
   return (
     <>
       {/* Type toggle: AI / Human — AI first to match the lobby game-mode order */}
-      <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2">
+      <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2" onKeyDown={handleRadioGroupKeyDown}>
         <button
           type="button"
           role="radio"
           aria-label="AI"
           aria-checked={isAI}
           data-state={isAI ? "active" : "inactive"}
+          tabIndex={isAI ? 0 : -1}
           onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
           className={cn(
             "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
@@ -351,6 +378,7 @@ function OpponentTab({
           aria-label="Human"
           aria-checked={!isAI}
           data-state={!isAI ? "active" : "inactive"}
+          tabIndex={!isAI ? 0 : -1}
           onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
           className={cn(
             "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
@@ -424,7 +452,8 @@ export function PlayerSummaryCard({
       <span
         aria-hidden="true"
         className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
+          "flex size-11 shrink-0 items-center justify-center rounded-xl shadow-md",
+          COLOR_MARK_TEXT[settings.color],
           colorBg,
         )}
       >
@@ -493,6 +522,7 @@ export function OpponentSummaryCard({
       <span
         aria-hidden="true"
         className={cn(
+          COLOR_MARK_TEXT[opponentColor],
           "flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
           colorBg,
         )}
@@ -505,7 +535,7 @@ export function OpponentSummaryCard({
           {displayName}
           {isAI && aiDifficultyLabel && (
             <span className="text-xs font-medium text-muted-foreground">
-              ({aiDifficultyLabel.toLowerCase()})
+              ({aiDifficultyLabel})
             </span>
           )}
         </span>

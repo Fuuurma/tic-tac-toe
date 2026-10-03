@@ -18,7 +18,9 @@ import {
   type PlayerSettings,
 } from "@/components/lobby/playerSettingsSheet";
 import { HelpDrawer } from "@/components/game/helpDrawer";
-import { Check, Copy, Link2, Loader2, Share2, Wifi } from "lucide-react";
+import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
+import { Loader2, Share2, Wifi } from "lucide-react";
+import { MorphIcon } from "morphicons/react";
 
 export interface OnlineGameSurfaceProps {
   config: {
@@ -105,8 +107,23 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   const message = onlineMessage(peer.state.status, peer.state.message);
 
+  // Online rematch is terminal-only: requestRematch no-ops mid-game for both
+  // roles, so don't offer "Start a new game" until the game is over.
+  const isOnlineGameOver =
+    peer.state.gameState.winner !== null ||
+    peer.state.gameState.gameStatus !== GameStatus.ACTIVE;
+  const canRequestRematch = peer.state.status === "connected" && isOnlineGameOver;
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [panelPaused, setPanelPaused] = useState(false);
+  // Mid-game overlays pause the turn clock like local play does: without
+  // this the host's 10s timer keeps running (and can force a random move)
+  // while the Settings sheet, Help drawer, or exit/rematch confirm is open.
+  const setPeerPaused = peer.setPaused;
+  useEffect(() => {
+    setPeerPaused(settingsOpen || helpOpen || panelPaused);
+  }, [settingsOpen, helpOpen, panelPaused, setPeerPaused]);
   // Seed from the live host player data; the next rematch picks the values
   // up via `peer.updatePendingSettings`. We refresh the buffered values each
   // time the user opens the sheet so they always edit the latest identity.
@@ -194,7 +211,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             size="sm"
             variant="glass"
             onClick={() => peer.retryReconnect()}
-            className="h-7 px-3 text-xs"
+            className="px-3 text-xs"
           >
             Retry now
           </Button>
@@ -216,7 +233,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
                 onClick={() => {
                   void peer.startQuickMatch();
                 }}
-                className="h-8 px-3 text-xs"
+                className="px-3 text-xs"
               >
                 Try again
               </Button>
@@ -225,7 +242,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               size="sm"
               variant="glass"
               onClick={onExit}
-              className="h-8 px-3 text-xs"
+              className="px-3 text-xs"
             >
               Back to setup
             </Button>
@@ -245,7 +262,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             size="sm"
             variant="glass"
             onClick={onExit}
-            className="h-8 px-3 text-xs"
+            className="px-3 text-xs"
           >
             Back to setup
           </Button>
@@ -260,12 +277,30 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             message={message}
             gameMode={GameModes.ONLINE}
             roomCode={peer.state.roomId || undefined}
-            onNewGame={peer.state.status === "connected" ? () => peer.requestRematch() : undefined}
+            onNewGame={canRequestRematch ? () => peer.requestRematch() : undefined}
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
+            onPauseChange={setPanelPaused}
+            onAcceptRematch={
+              peer.state.role === "guest" && peer.state.rematchIncoming
+                ? () => peer.requestRematch()
+                : undefined
+            }
             onDeclineRematch={
               peer.state.role === "guest" && peer.state.rematchIncoming
                 ? () => peer.declineRematch()
+                : undefined
+            }
+            onCancelRematch={
+              peer.state.role === "host" && peer.state.rematchOutgoing
+                ? () => peer.cancelRematch()
+                : undefined
+            }
+            onRequestRematch={
+              peer.state.role === "host" &&
+              canRequestRematch &&
+              !peer.state.rematchOutgoing
+                ? () => peer.requestRematch()
                 : undefined
             }
             onExit={() => {
@@ -290,6 +325,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             previewColor={previewColor}
             previewShape={previewPlayer ? peer.state.gameState.players[previewPlayer].shape : undefined}
             disabled={
+              peer.paused ||
               peer.state.status !== "connected" ||
               localSymbol === null ||
               peer.state.gameState.currentPlayer !== localSymbol ||
@@ -380,7 +416,11 @@ function RoomIdShare({
 
   return (
     <div className="glass flex w-full flex-col items-center gap-2 p-3">
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center gap-1.5 text-xs font-semibold text-foreground"
+      >
         <Wifi className="size-3.5 text-[rgb(var(--player-color))]" aria-hidden="true" />
         Room ready
       </div>
@@ -388,9 +428,9 @@ function RoomIdShare({
         Send this code to your opponent; you start when they join.
       </p>
       <span
-        aria-label={`Room code ${roomId}`}
         className="glass-cell max-w-full break-all rounded-lg px-3 py-2 font-mono text-sm font-bold tracking-wide text-foreground sm:text-base"
       >
+        <span className="sr-only">Room code </span>
         {roomId}
       </span>
       <div className="grid w-full gap-1.5 sm:flex sm:w-auto">
@@ -400,11 +440,11 @@ function RoomIdShare({
           onClick={() => onCopy("code", roomId)}
           className="w-full sm:w-auto"
         >
-          {copied === "code" ? (
-            <Check className="size-3.5 text-emerald-500" aria-hidden="true" />
-          ) : (
-            <Copy className="size-3.5" aria-hidden="true" />
-          )}
+          <MorphIcon
+            icon={copied === "code" ? CheckIcon : CopyIcon}
+            className={`size-3.5 ${copied === "code" ? "text-emerald-500" : ""}`}
+            aria-hidden="true"
+          />
           Copy code
         </Button>
         <Button
@@ -413,11 +453,11 @@ function RoomIdShare({
           onClick={() => onCopy("link", shareUrl)}
           className="w-full sm:w-auto"
         >
-          {copied === "link" ? (
-            <Check className="size-3.5 text-emerald-500" aria-hidden="true" />
-          ) : (
-            <Link2 className="size-3.5" aria-hidden="true" />
-          )}
+          <MorphIcon
+            icon={copied === "link" ? CheckIcon : LinkIcon}
+            className={`size-3.5 ${copied === "link" ? "text-emerald-500" : ""}`}
+            aria-hidden="true"
+          />
           Copy invite link
         </Button>
         {canShare && (
@@ -460,7 +500,11 @@ function OnlineConnectionState({
 }) {
   return (
     <div className="glass flex flex-col items-center gap-2 p-4">
-      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+      <span
+        role="status"
+        aria-live="polite"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground"
+      >
         <Loader2 className="size-4 animate-spin text-[rgb(var(--player-color))]" aria-hidden="true" />
         {message}
       </span>

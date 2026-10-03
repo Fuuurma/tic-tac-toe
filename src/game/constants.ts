@@ -59,7 +59,18 @@ export const Color = {
   GRAY: "gray",
 } as const;
 export type Color = (typeof Color)[keyof typeof Color];
-export const AVAILABLE_COLORS: Color[] = Object.values(Color);
+// Canonical defaults (X blue, O red) lead; purple is an extended pick, not a
+// default, so it sits last and never in the primary 4-up row beside blue/red.
+export const AVAILABLE_COLORS: Color[] = [
+  Color.BLUE,
+  Color.RED,
+  Color.GREEN,
+  Color.YELLOW,
+  Color.ORANGE,
+  Color.PINK,
+  Color.GRAY,
+  Color.PURPLE,
+];
 
 export const AI_Difficulty = {
   EASY: "EASY",
@@ -67,6 +78,12 @@ export const AI_Difficulty = {
   HARD: "HARD",
 } as const;
 export type AI_Difficulty = (typeof AI_Difficulty)[keyof typeof AI_Difficulty];
+
+export const AI_DIFFICULTY_LABELS: Record<AI_Difficulty, string> = {
+  [AI_Difficulty.EASY]: "Easy",
+  [AI_Difficulty.NORMAL]: "Normal",
+  [AI_Difficulty.HARD]: "Hard",
+};
 
 export const GAME_RULES = {
   BOARD_SIZE: 9,
@@ -129,6 +146,19 @@ export const COLOR_BG_CLASSES: Record<Color, string> = {
   [Color.PINK]: "bg-pink-500",
   [Color.PURPLE]: "bg-purple-500",
   [Color.GRAY]: "bg-gray-500",
+};
+
+// Mark ink per chip background: white text fails contrast on the light
+// 500-weights (yellow/green/orange) — those take near-black ink (F298).
+export const COLOR_MARK_TEXT: Record<Color, string> = {
+  [Color.BLUE]: "text-white",
+  [Color.GREEN]: "text-neutral-950",
+  [Color.YELLOW]: "text-neutral-950",
+  [Color.ORANGE]: "text-neutral-950",
+  [Color.RED]: "text-white",
+  [Color.PINK]: "text-white",
+  [Color.PURPLE]: "text-white",
+  [Color.GRAY]: "text-white",
 };
 
 export const COLOR_RGB: Record<Color, string> = {

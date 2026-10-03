@@ -47,8 +47,12 @@ export function Board({
       const target = event.target;
       if (target instanceof HTMLElement) {
         const isInsideBoard = boardRef.current?.contains(target) ?? false;
+        // Suppress only where digits are ENTRY — text fields and dialogs.
+        // Plain buttons don't consume digit keys, so post-dialog focus
+        // restoration to a panel button must keep the shortcut working
+        // (the "without hijacking dialogs" smoke; needs-work 10-02 P1-2).
         const isFocusedControl = target.closest(
-          'button, input, select, textarea, [contenteditable="true"], [role="dialog"]',
+          'input, select, textarea, [contenteditable="true"], [role="dialog"]',
         );
         if (!isInsideBoard && isFocusedControl) return;
       }
@@ -68,7 +72,7 @@ export function Board({
     <div className="flex w-full max-w-md flex-col gap-1.5">
       <div
         ref={boardRef}
-        className="relative mx-auto aspect-square w-full rounded-2xl border border-white/12 bg-black/50 p-2.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_18px_40px_rgb(0_0_0/0.4)] sm:p-3.5"
+        className="relative mx-auto aspect-square w-full rounded-2xl border border-white/12 bg-black/50 p-2.5 sm:p-3.5"
       >
         <div
           role="grid"
@@ -86,7 +90,7 @@ export function Board({
               {[0, 1, 2].map((col) => {
                 const index = row * 3 + col;
                 const value = board[index];
-                const isNext = value !== null && nextToRemove[value] === index;
+                const isNext = value !== null && winningCombination === null && nextToRemove[value] === index;
                 const isWinning = winningCombination?.includes(index) ?? false;
                 return (
                   <BoardCell
