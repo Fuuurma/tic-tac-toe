@@ -446,9 +446,11 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
     hostPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
   ).toHaveCount(0);
 
-  const hostWaiting = hostPage.getByLabel(/^Room code /);
+  // F260 removed the span's bogus aria-label (ignored by AT on a role-less
+  // element); the code is plain text with an sr-only "Room code" prefix.
+  const hostWaiting = hostPage.getByText(/^Room code \S/);
   await expect(hostWaiting).toBeVisible();
-  const roomId = ((await hostWaiting.textContent()) ?? "").trim();
+  const roomId = ((await hostWaiting.textContent()) ?? "").replace(/^Room code\s+/, "").trim();
   expect(roomId.length).toBeGreaterThanOrEqual(4);
 
   // Guest joins via the invite link. The board is also gated on the
@@ -466,17 +468,14 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // The connecting state appears briefly until the relay completes the
   // hello/join handshake. Don't assert it strictly because on a fast
   // local Worker it can resolve before Playwright observes it; the
-  // stricter contract is the boards becoming visible below.
-  await expect
-    .poll(
-      () =>
-        guestPage
-          .locator("body")
-          .innerText()
-          .then((t) => t.includes("Joining room") || t.includes("Tic Tac Toe game board")),
-      { timeout: 5_000 },
-    )
-    .toBe(true);
+  // stricter contract is the boards becoming visible below. (The old
+  // innerText poll could never see the board — an aria-label is not
+  // rendered text — so it raced "Joining room" and lost on fast Workers.)
+  await expect(
+    guestPage
+      .getByRole("grid", { name: "Tic Tac Toe game board" })
+      .or(guestPage.getByText("Joining room")),
+  ).toBeVisible({ timeout: 30_000 });
 
   // Boards only appear once both sides transition past the waiting room
   // into the connected state, and both sides see the other's display name.
@@ -518,6 +517,12 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // Both clients see the host win regardless of the randomized symbol.
   await expect(hostPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
   await expect(guestPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
+
+  // The guest has no host-independent rematch path: its requestRematch sends
+  // a bare rematchAccept the host drops without a pending request, so the
+  // icon-only control must not render for guests before the host requests.
+  await expect(guestPage.getByRole("button", { name: "Play again" })).toHaveCount(0);
+  await expect(hostPage.getByRole("button", { name: "Play again" })).toHaveCount(1);
 
   // Rematch: host requests, guest accepts. Both use the labeled terminal
   // CTAs — the icon-only "Play again" button is not the primary path.

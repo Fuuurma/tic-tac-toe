@@ -263,6 +263,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     () => ({
       roomRef,
       stateRef,
+      pausedRef,
       roleRef,
       hostSymbolRef,
       guestSymbolRef,

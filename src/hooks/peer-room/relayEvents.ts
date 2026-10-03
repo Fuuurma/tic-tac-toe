@@ -22,6 +22,11 @@ import type { PeerRoomState } from "../usePeerRoom";
 export interface RelayEventDeps {
   roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
+  /** Live pause flag (F288): reconnect paths must not restart the turn
+   *  timer or rebuild the frozen deadline behind an open overlay. The
+   *  timer effect restarts on unpause by itself, so gating here strands
+   *  nothing. */
+  pausedRef: { current: boolean };
   roleRef: { current: PeerRole };
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
@@ -45,6 +50,7 @@ export function handleRelayEvent(
 ) {
   const {
     stateRef,
+    pausedRef,
     roleRef,
     hostSymbolRef,
     guestSymbolRef,
@@ -90,21 +96,28 @@ export function handleRelayEvent(
         // (fleet needs-work 2026-09-07 P1 / 09-08 P2).
         const current = stateRef.current;
         if (isGameActive(current)) {
-          const fullResetAllowed =
-            reconnectResetsRef.current.moveCount !== current.moveCount;
-          reconnectResetsRef.current.moveCount = current.moveCount;
-          const reconciled = fullResetAllowed
-            ? {
-                ...current,
-                turnTimeRemaining: TURN_DURATION_MS,
-                turnDeadlineAt: Date.now() + TURN_DURATION_MS,
-              }
-            : current;
-          commitHostState(reconciled);
+          if (pausedRef.current) {
+            // F288: an overlay froze the clock — sync the guest to the
+            // frozen truth without rebuilding the deadline or restarting
+            // the timer. Unpause restarts via the timer effect.
+            commitHostState(current);
+          } else {
+            const fullResetAllowed =
+              reconnectResetsRef.current.moveCount !== current.moveCount;
+            reconnectResetsRef.current.moveCount = current.moveCount;
+            const reconciled = fullResetAllowed
+              ? {
+                  ...current,
+                  turnTimeRemaining: TURN_DURATION_MS,
+                  turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+                }
+              : current;
+            commitHostState(reconciled);
+          }
         } else {
           broadcastGameState(current);
         }
-        startTimer();
+        if (!pausedRef.current) startTimer();
       } else {
         setState((prev) => ({
           ...prev,
@@ -145,23 +158,29 @@ export function handleRelayEvent(
       // very next tick can fire a forced random move.
       const current = stateRef.current;
       if (isGameActive(current)) {
-        // Bound the reconnect grace (fleet 09-07 finding 2): a full
-        // reset is allowed once per move — repeated disconnect/
-        // reconnect cycles within the same turn keep the remaining
-        // time, so a guest can't stall the timeout indefinitely. The
-        // broadcast still catches the rejoining guest up either way.
-        const fullResetAllowed =
-          reconnectResetsRef.current.moveCount !== current.moveCount;
-        reconnectResetsRef.current.moveCount = current.moveCount;
-        const reconciled = fullResetAllowed
-          ? {
-              ...current,
-              turnTimeRemaining: TURN_DURATION_MS,
-              turnDeadlineAt: Date.now() + TURN_DURATION_MS,
-            }
-          : current;
-        commitHostState(reconciled);
-        startTimer();
+        if (pausedRef.current) {
+          // F288: same freeze as the welcome path — sync without
+          // touching the frozen deadline; the timer stays stopped.
+          commitHostState(current);
+        } else {
+          // Bound the reconnect grace (fleet 09-07 finding 2): a full
+          // reset is allowed once per move — repeated disconnect/
+          // reconnect cycles within the same turn keep the remaining
+          // time, so a guest can't stall the timeout indefinitely. The
+          // broadcast still catches the rejoining guest up either way.
+          const fullResetAllowed =
+            reconnectResetsRef.current.moveCount !== current.moveCount;
+          reconnectResetsRef.current.moveCount = current.moveCount;
+          const reconciled = fullResetAllowed
+            ? {
+                ...current,
+                turnTimeRemaining: TURN_DURATION_MS,
+                turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+              }
+            : current;
+          commitHostState(reconciled);
+        }
+        if (!pausedRef.current) startTimer();
       } else {
         broadcastGameState(current);
       }
@@ -183,7 +202,10 @@ export function handleRelayEvent(
       // render while leaving the ref diverged (fleet F35). Every other
       // gameState commit in this slice writes ref + render together.
       setState((prev) => ({ ...prev, gameState: resynthesized }));
-      startTimer();
+      // F288 (guest half): keep the resync — without it the guest ticks
+      // against a stale pre-outage deadline on unpause — but don't
+      // restart the interval behind an open overlay.
+      if (!pausedRef.current) startTimer();
     }
     return;
   }

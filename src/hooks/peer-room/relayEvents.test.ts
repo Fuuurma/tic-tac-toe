@@ -36,6 +36,7 @@ function makeDeps(
   const deps: RelayEventDeps = {
     roomRef: { current: null },
     stateRef: { current: game },
+    pausedRef: { current: false },
     roleRef: { current: role },
     hostSymbolRef: { current: PlayerSymbol.X },
     guestSymbolRef: { current: PlayerSymbol.O },
@@ -103,6 +104,38 @@ describe("handleRelayEvent peer-reconnected", () => {
     handleRelayEvent(deps, { type: "peer-reconnected" });
     expect(calls.committed).toHaveLength(1);
     expect(calls.committed[0].turnDeadlineAt).toBe(committed.turnDeadlineAt);
+    // Unpaused reconnects still restart the interval on both passes.
+    expect(deps.startTimer).toHaveBeenCalledTimes(2);
+  });
+
+  it("host peer-reconnected while paused keeps the frozen deadline and timer stopped (F288)", () => {
+    const game = activeGame();
+    const { deps, calls, getRoom } = makeDeps(game, "host");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    // Syncs the frozen truth (same ref, stale deadline untouched)…
+    expect(calls.committed).toHaveLength(1);
+    expect(calls.committed[0]).toBe(game);
+    expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
+    // …connection state still advances…
+    expect(getRoom().status).toBe("connected");
+    // …but the interval is not restarted behind the overlay.
+    expect(deps.startTimer).not.toHaveBeenCalled();
+  });
+
+  it("guest peer-reconnected while paused resyncs the deadline but keeps the timer stopped (F288)", () => {
+    const game = activeGame();
+    const { deps } = makeDeps(game, "guest");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    // The resync is kept — without it the guest would tick against a
+    // stale pre-outage deadline on unpause — but the interval waits.
+    expect(deps.stateRef.current.turnDeadlineAt).not.toBe(game.turnDeadlineAt);
+    expect(deps.startTimer).not.toHaveBeenCalled();
   });
 
   it("peer-left expired clears the rematch deadline + pending flag", () => {
@@ -133,6 +166,41 @@ describe("handleRelayEvent symbol fallbacks", () => {
     });
 
     expect(getRoom().guestSymbol).toBe(PlayerSymbol.X);
+  });
+
+  it("host welcome-with-opponent while paused syncs without rebuilding or restarting (F288)", () => {
+    const game = activeGame();
+    const { deps, calls, getRoom } = makeDeps(game, "host");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(calls.committed).toHaveLength(1);
+    expect(calls.committed[0]).toBe(game);
+    expect(getRoom().status).toBe("connected");
+    expect(deps.startTimer).not.toHaveBeenCalled();
+  });
+
+  it("host welcome-with-opponent unpaused rebuilds the deadline and restarts", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    const before = Date.now();
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(calls.committed).toHaveLength(1);
+    expect(calls.committed[0].turnDeadlineAt).toBeGreaterThanOrEqual(
+      before + TURN_DURATION_MS,
+    );
+    expect(deps.startTimer).toHaveBeenCalledOnce();
   });
 
   it("host welcome keeps the recorded guestSymbol when no host symbol was ever assigned", () => {
