@@ -522,8 +522,8 @@ export function OpponentSummaryCard({
       <span
         aria-hidden="true"
         className={cn(
+          "flex size-11 shrink-0 items-center justify-center rounded-xl shadow-md",
           COLOR_MARK_TEXT[opponentColor],
-          "flex size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
           colorBg,
         )}
       >

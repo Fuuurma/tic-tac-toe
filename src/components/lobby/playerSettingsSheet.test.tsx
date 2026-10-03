@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { SettingsSheet } from "./playerSettingsSheet";
+import { OpponentSummaryCard, SettingsSheet } from "./playerSettingsSheet";
 import {
   AI_Difficulty,
   Color,
@@ -79,5 +79,42 @@ describe("SettingsSheet header", () => {
     const title = screen.getByRole("heading", { name: "Settings" });
 
     expect(close.parentElement).toBe(title.parentElement);
+  });
+});
+
+// F343: the opponent glyph chip carried a trailing text-white after the
+// COLOR_MARK_TEXT lookup, so light chips (green/yellow/orange) rendered
+// white-on-light. The lookup is now the only text-color source, matching
+// the player card.
+describe("OpponentSummaryCard glyph contrast", () => {
+  afterEach(cleanup);
+
+  const renderCard = (opponentColor: Color) =>
+    render(
+      <OpponentSummaryCard
+        opponentName="Grace"
+        opponentColor={opponentColor}
+        opponentShape={SymbolShape.SQUARE}
+        opponentType={PlayerTypes.HUMAN}
+        onEdit={vi.fn()}
+      />,
+    );
+
+  const glyphChip = (container: HTMLElement) =>
+    container.querySelector('span[aria-hidden="true"]');
+
+  it("uses dark glyph text on a light chip", () => {
+    const { container } = renderCard(Color.YELLOW);
+    const chip = glyphChip(container);
+
+    expect(chip?.className).toContain("text-neutral-950");
+    expect(chip?.className).not.toContain("text-white");
+  });
+
+  it("keeps white glyph text on a dark chip", () => {
+    const { container } = renderCard(Color.RED);
+    const chip = glyphChip(container);
+
+    expect(chip?.className).toContain("text-white");
   });
 });
