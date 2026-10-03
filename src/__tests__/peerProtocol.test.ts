@@ -217,12 +217,18 @@ describe('guestProtocol.handleGuestMessage — rematch prompt gate (F191)', () =
       players: withPlayers,
       winner: 'X' as never,
     } as never);
-    const patches: Array<(prev: never) => { rematchIncoming?: boolean }> = [];
+    const patches: Array<(prev: never) => { rematchIncoming?: boolean; message?: string }> = [];
     handleGuestMessage(makeGuestDeps(state, patches) as never, {
       type: 'rematchRequested',
       requesterSymbol: 'X' as never,
     });
     expect(patches).toHaveLength(1);
-    expect(patches[0]({} as never).rematchIncoming).toBe(true);
+    const patch = patches[0]({} as never);
+    expect(patch.rematchIncoming).toBe(true);
+    // F299: the prompt must name the visible control. "Play again" exists only
+    // as a local-dialog label and an icon aria-label; the guest prompt offers
+    // "Accept rematch" / "Decline rematch".
+    expect(patch.message).toContain('Accept rematch');
+    expect(patch.message).not.toContain('Play Again');
   });
 });

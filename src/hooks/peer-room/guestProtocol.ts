@@ -90,7 +90,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       if (state.winner === null || state.gameStatus !== GameStatus.COMPLETED) return;
       setState((prev) => ({
         ...prev,
-        message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,
+        message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Accept rematch to play again.`,
         rematchIncoming: true,
       }));
       return;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   AI_Difficulty,
+  COLOR_RGB,
   Color,
   GameModes,
   PlayerSymbol,
@@ -165,6 +166,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         <RoomIdShare
           roomId={peer.state.roomId}
           origin={typeof window !== "undefined" ? window.location.origin : ""}
+          color={config.color}
           onCancel={() => {
             peer.leave();
             onExit();
@@ -173,6 +175,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       )}
       {peer.state.status === "creating" && (
         <OnlineConnectionState
+          color={config.color}
           message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
           detail={
             config.onlineAction === "quick" && peer.state.queuePosition != null
@@ -187,6 +190,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       )}
       {peer.state.status === "connecting" && (
         <OnlineConnectionState
+          color={config.color}
           message="Joining room…"
           onCancel={() => {
             peer.leave();
@@ -376,13 +380,15 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
   return fallback;
 }
 
-function RoomIdShare({
+export function RoomIdShare({
   roomId,
   origin,
+  color,
   onCancel,
 }: {
   roomId: string;
   origin: string;
+  color: Color;
   onCancel: () => void;
 }) {
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
@@ -415,7 +421,10 @@ function RoomIdShare({
   };
 
   return (
-    <div className="glass flex w-full flex-col items-center gap-2 p-3">
+    <div
+      className="glass flex w-full flex-col items-center gap-2 p-3"
+      style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
+    >
       <div
         role="status"
         aria-live="polite"
@@ -489,17 +498,22 @@ function RoomIdShare({
   );
 }
 
-function OnlineConnectionState({
+export function OnlineConnectionState({
   message,
   detail,
+  color,
   onCancel,
 }: {
   message: string;
   detail?: string;
+  color: Color;
   onCancel: () => void;
 }) {
   return (
-    <div className="glass flex flex-col items-center gap-2 p-4">
+    <div
+      className="glass flex flex-col items-center gap-2 p-4"
+      style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
+    >
       <span
         role="status"
         aria-live="polite"

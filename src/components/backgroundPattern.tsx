@@ -319,9 +319,12 @@ export function BackgroundPattern() {
     };
 
     resize();
+    // The canvas must track viewport size for everyone — a reduced-motion
+    // user who rotates/resizes otherwise keeps a canvas stuck at its initial
+    // size. Only the pointer-driven animation is gated on the preference.
+    window.addEventListener("resize", resize);
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!prefersReducedMotion) {
-      window.addEventListener("resize", resize);
       window.addEventListener("pointermove", updatePointer, { passive: true });
       window.addEventListener("pointerdown", updatePointer, { passive: true });
       window.addEventListener("pointerup", onPointerUp, { passive: true });
@@ -333,8 +336,8 @@ export function BackgroundPattern() {
     return () => {
       stop();
       if (touchRelease !== null) window.clearTimeout(touchRelease);
+      window.removeEventListener("resize", resize);
       if (!prefersReducedMotion) {
-        window.removeEventListener("resize", resize);
         window.removeEventListener("pointermove", updatePointer);
         window.removeEventListener("pointerdown", updatePointer);
         window.removeEventListener("pointerup", onPointerUp);
