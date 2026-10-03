@@ -268,6 +268,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       guestSymbolRef,
       hostRematchPendingRef,
       reconnectResetsRef,
+      pausedRef,
       setState,
       commitHostState,
       broadcastGameState,

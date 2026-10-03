@@ -30,6 +30,10 @@ export interface RelayEventDeps {
    *  finding 2: one full reset per move — repeated reconnects within
    *  the same turn keep the remaining time). */
   reconnectResetsRef: { current: { moveCount: number } };
+  /** True while the host's mid-game overlay (Settings/Help) is open and
+   *  the turn clock is frozen (fleet 09-22 / F288): a socket blip must
+   *  not rebuild the deadline or restart the interval. */
+  pausedRef: { current: boolean };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
@@ -49,7 +53,8 @@ export function handleRelayEvent(
     hostSymbolRef,
     guestSymbolRef,
     hostRematchPendingRef,
-  reconnectResetsRef,
+    reconnectResetsRef,
+    pausedRef,
     setState,
     commitHostState,
     broadcastGameState,
@@ -89,7 +94,11 @@ export function handleRelayEvent(
         // first post-reconnect tick can't instantly force a move
         // (fleet needs-work 2026-09-07 P1 / 09-08 P2).
         const current = stateRef.current;
-        if (isGameActive(current)) {
+        // F288: while the host is paused (Settings/Help overlay) a guest
+        // socket blip must not rebuild the frozen deadline — fall through
+        // to the broadcast so the rejoining guest catches up on the
+        // frozen state, and leave the interval stopped.
+        if (isGameActive(current) && !pausedRef.current) {
           const fullResetAllowed =
             reconnectResetsRef.current.moveCount !== current.moveCount;
           reconnectResetsRef.current.moveCount = current.moveCount;
@@ -104,7 +113,7 @@ export function handleRelayEvent(
         } else {
           broadcastGameState(current);
         }
-        startTimer();
+        if (!pausedRef.current) startTimer();
       } else {
         setState((prev) => ({
           ...prev,
@@ -144,7 +153,9 @@ export function handleRelayEvent(
       // state so the rejoining guest catches up. Without this reset the
       // very next tick can fire a forced random move.
       const current = stateRef.current;
-      if (isGameActive(current)) {
+      // F288: same pause gate as the welcome branch — paused host still
+      // broadcasts the frozen state but never resets or restarts the clock.
+      if (isGameActive(current) && !pausedRef.current) {
         // Bound the reconnect grace (fleet 09-07 finding 2): a full
         // reset is allowed once per move — repeated disconnect/
         // reconnect cycles within the same turn keep the remaining
