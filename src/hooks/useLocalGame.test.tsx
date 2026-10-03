@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+  vi,
+} from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import {
   AI_Difficulty,
@@ -24,8 +33,17 @@ import { useLocalGame, type LocalGameInput } from "./useLocalGame";
 // snapshot, the first decrement wins the guard, and the expiry tick —
 // the very thing under test — is silently dropped.
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
-  true;
+beforeAll(() => {
+  // act() needs the flag, but setting it at module load leaks it to every
+  // test file sharing the worker's globalThis — scope it to this suite.
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
+    true;
+});
+
+afterAll(() => {
+  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+    .IS_REACT_ACT_ENVIRONMENT;
+});
 
 function makeInput(overrides: Partial<LocalGameInput> = {}): LocalGameInput {
   return {
@@ -58,7 +76,12 @@ function stepSeconds(count: number) {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  // Pin the faked API set: the turn clock ticks via setInterval, the AI
+  // commit via setTimeout, and deadline math via Date.now — a default-set
+  // change must not silently un-fake one of them.
+  vi.useFakeTimers({
+    toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+  });
   // Math.random() = 0: human starts as X, AI jitter is 0, and forced
   // random moves land on the first free cell.
   vi.spyOn(Math, "random").mockReturnValue(0);
