@@ -41,6 +41,7 @@ function makeDeps(
     guestSymbolRef: { current: PlayerSymbol.O },
     hostRematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
+    pausedRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
     },
@@ -103,6 +104,52 @@ describe("handleRelayEvent peer-reconnected", () => {
     handleRelayEvent(deps, { type: "peer-reconnected" });
     expect(calls.committed).toHaveLength(1);
     expect(calls.committed[0].turnDeadlineAt).toBe(committed.turnDeadlineAt);
+  });
+
+  it("F288: host peer-reconnected while paused broadcasts frozen state, no reset or timer", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(calls.committed).toHaveLength(0);
+    expect(deps.startTimer).not.toHaveBeenCalled();
+    expect(deps.stateRef.current.turnTimeRemaining).toBe(12_000);
+    expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
+    expect(calls.broadcasts).toHaveLength(1);
+    expect(calls.broadcasts[0]).toBe(game);
+  });
+
+  it("host peer-reconnected while unpaused still resets (negative pin)", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = false;
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(calls.committed).toHaveLength(1);
+    expect(deps.startTimer).toHaveBeenCalledOnce();
+    expect(calls.committed[0].turnTimeRemaining).toBe(TURN_DURATION_MS);
+  });
+
+  it("F288: host welcome-with-opponent while paused broadcasts frozen state, no reset or timer", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(calls.committed).toHaveLength(0);
+    expect(deps.startTimer).not.toHaveBeenCalled();
+    expect(deps.stateRef.current.turnTimeRemaining).toBe(12_000);
+    expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
+    expect(calls.broadcasts).toHaveLength(1);
+    expect(calls.broadcasts[0]).toBe(game);
   });
 
   it("peer-left expired clears the rematch deadline + pending flag", () => {
