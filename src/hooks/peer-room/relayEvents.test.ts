@@ -99,6 +99,26 @@ describe("handleRelayEvent peer-reconnected", () => {
     expect(deps.requestSync).toHaveBeenCalledOnce();
   });
 
+  it("guest pulls on peer-reconnected when local is COMPLETED (missed rematch gameStart)", () => {
+    // Review 2026-10-03 repair P2: a guest that thinks the game ended
+    // but missed the host's rematch gameStart has no other catch-up —
+    // gating the pull on local ACTIVE left it diverged exactly when the
+    // COMPLETED-snapshot reply path exists to fix it.
+    const game = activeGame({
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    });
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(deps.requestSync).toHaveBeenCalledOnce();
+    // No deadline work on a terminal state — nothing resynthesized, no
+    // clock restarted.
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.startTimer).not.toHaveBeenCalled();
+  });
+
   it("host resets the deadline once per move and commits", () => {
     const game = activeGame();
     const { deps, calls } = makeDeps(game, "host");
@@ -187,6 +207,24 @@ describe("handleRelayEvent peer-reconnected", () => {
     handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
 
     expect(deps.requestSync).not.toHaveBeenCalled();
+  });
+
+  it("guest welcome while locally COMPLETED still pulls (missed rematch gameStart)", () => {
+    // Same divergence as the peer-reconnected path: local terminal state
+    // + host already rematched = the welcome pull is the only catch-up.
+    const game = activeGame({
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    });
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "guest",
+      opponent: { guestId: "h", displayName: "Host" },
+    });
+
+    expect(deps.requestSync).toHaveBeenCalledOnce();
   });
 
   it("peer-reconnected preserves a live rematch prompt (transient host blip)", () => {

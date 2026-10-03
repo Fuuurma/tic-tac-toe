@@ -16,7 +16,12 @@ import {
   leaveRoom,
   startAsHost as startAsHostImpl,
 } from "./peer-room/roomLifecycle";
-import { applyHostMove as applyHostMoveMsg, handleHostMessage } from "./peer-room/hostProtocol";
+import {
+  applyHostMove as applyHostMoveMsg,
+  disarmSyncReplyThrottle,
+  handleHostMessage,
+  SYNC_REPLY_COOLDOWN_MS,
+} from "./peer-room/hostProtocol";
 import { handleGuestMessage } from "./peer-room/guestProtocol";
 
 /**
@@ -115,7 +120,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const hostRematchPendingRef = useRef(false);
   // Throttle for sync_request replies (hostProtocol): the timestamp of
   // the last state_snapshot send bounds burst pulls to one per window.
-  const lastSyncReplyAtRef = useRef(0);
+  // Seeded one full window in the past so the first pull is answered.
+  const lastSyncReplyAtRef = useRef(-SYNC_REPLY_COOLDOWN_MS);
+  // True once a peer join was processed in this room — sync_request is
+  // gated on this so a never-joined peer cannot pull state snapshots.
+  const guestJoinedRef = useRef(false);
   // Host-side rematch deadline (fleet 09-13): a pending request expires
   // after REMATCH_TIMEOUT_MS so the host never waits forever on a guest
   // who walked away mid-prompt. On expiry the host sends rematchCancel —
@@ -244,6 +253,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostSymbolRef,
       hostRematchPendingRef,
       lastSyncReplyAtRef,
+      guestJoinedRef,
       hostPendingSettingsRef,
       pendingGuestStateRef,
       setState,
@@ -325,6 +335,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
       handleGuestData,
       stopTimer,
       hostRematchPendingRef,
+      lastSyncReplyAtRef,
+      guestJoinedRef,
       hostPendingSettingsRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
@@ -474,6 +486,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
     hostRematchPendingRef.current = false;
+    // Room-scoped sync state dies with the room — a fresh room must not
+    // inherit the joined flag or a still-running reply cooldown.
+    guestJoinedRef.current = false;
+    disarmSyncReplyThrottle(lastSyncReplyAtRef);
     // F241: pending identity edits are room-scoped — never let them leak
     // into the next room's rematch.
     hostPendingSettingsRef.current = null;

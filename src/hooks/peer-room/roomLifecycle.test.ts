@@ -2,8 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { RoomClient } from "@/lib/room";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
-import { leaveRoom, joinAsGuest, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
+import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
 import type { PendingPlayerSettings } from "../usePeerRoom";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
@@ -100,6 +101,8 @@ describe("joinAsGuest rematch-flag reset", () => {
       handleGuestData: vi.fn(),
       stopTimer: vi.fn(),
       hostRematchPendingRef,
+      lastSyncReplyAtRef: { current: 0 },
+      guestJoinedRef: { current: false },
       hostPendingSettingsRef,
     };
     return { deps, guestSymbolRef };
@@ -216,6 +219,35 @@ describe("joinAsGuest rematch-flag reset", () => {
       ([m]) => (m as { type: string }).type,
     );
     expect(types).toEqual(["sync_request", "join"]);
+  });
+
+  it("clears the sync-pull gate + throttle on room entry (review 2026-10-03 repair P2)", () => {
+    // A new room must not inherit the previous room's joined flag (a
+    // never-joined peer would be served snapshots) or its reply
+    // cooldown (the first legitimate pull would be dropped).
+    const { deps } = lifecycleDeps({ current: false });
+    deps.guestJoinedRef.current = true;
+    deps.lastSyncReplyAtRef.current = performance.now();
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.guestJoinedRef.current).toBe(false);
+    expect(performance.now() - deps.lastSyncReplyAtRef.current).toBeGreaterThanOrEqual(
+      SYNC_REPLY_COOLDOWN_MS,
+    );
+  });
+
+  it("startAsHost clears the sync-pull gate + throttle for the new room", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    deps.guestJoinedRef.current = true;
+    deps.lastSyncReplyAtRef.current = performance.now();
+
+    startAsHost(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.guestJoinedRef.current).toBe(false);
+    expect(performance.now() - deps.lastSyncReplyAtRef.current).toBeGreaterThanOrEqual(
+      SYNC_REPLY_COOLDOWN_MS,
+    );
   });
 
   it("clears a stale pending-rematch flag on room entry", () => {

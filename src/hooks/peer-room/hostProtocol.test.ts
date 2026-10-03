@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
@@ -15,6 +15,12 @@ import {
 // resolves a pending host rematch request must clear its timeout
 // (fleet 09-13 finding: host waited forever on a silent guest).
 
+// The throttle tests fake timers; never let the fake clock leak into
+// the wall-clock assertions elsewhere in the file.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 function terminalGame(): GameState {
   return {
     ...freshGameState(),
@@ -30,7 +36,11 @@ function makeDeps(game: GameState) {
     roomRef: { current: { send: vi.fn() } as unknown as RoomClient },
     hostSymbolRef: { current: PlayerSymbol.X },
     hostRematchPendingRef: { current: true },
-    lastSyncReplyAtRef: { current: 0 },
+    // One full window in the past — the same "disarmed" value
+    // disarmSyncReplyThrottle writes, so pulls are answered immediately.
+    lastSyncReplyAtRef: { current: -SYNC_REPLY_COOLDOWN_MS },
+    // Most tests exercise the post-join surface — the flag flips on join.
+    guestJoinedRef: { current: true },
     hostPendingSettingsRef: { current: null },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
@@ -76,10 +86,55 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
       winner: null,
     };
     const { deps } = makeDeps(game);
+    deps.guestJoinedRef.current = false; // real WAITING rooms are pre-join
 
     handleHostMessage(deps, { type: "sync_request" });
 
     expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
+  });
+
+  it("refuses a never-joined peer even when the game is ACTIVE or COMPLETED", () => {
+    // Review 2026-10-03 repair P2: gating on status alone let any peer
+    // pull full GameState (names/colors) with one sync_request — the
+    // same pre-join leak the WAITING check covered, one status later.
+    for (const gameStatus of [GameStatus.ACTIVE, GameStatus.COMPLETED]) {
+      const game: GameState = {
+        ...terminalGame(),
+        gameStatus,
+        winner: gameStatus === GameStatus.COMPLETED ? PlayerSymbol.X : null,
+      };
+      const { deps } = makeDeps(game);
+      deps.guestJoinedRef.current = false;
+
+      handleHostMessage(deps, { type: "sync_request" });
+
+      expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
+      expect(deps.lastSyncReplyAtRef.current).toBe(-SYNC_REPLY_COOLDOWN_MS);
+    }
+  });
+
+  it("a real join unlocks pulls — flag flips on the join path", () => {
+    const game: GameState = {
+      ...terminalGame(),
+      gameStatus: GameStatus.WAITING,
+      winner: null,
+    };
+    const { deps } = makeDeps(game);
+    deps.guestJoinedRef.current = false;
+
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+    expect(deps.guestJoinedRef.current).toBe(true);
+
+    (deps.roomRef.current!.send as ReturnType<typeof vi.fn>).mockClear();
+    handleHostMessage(deps, { type: "sync_request" });
+
+    const frame = (deps.roomRef.current!.send as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0] as { type: string };
+    expect(frame.type).toBe("state_snapshot");
   });
 
   it("replies once the game is COMPLETED — the pull is the terminal catch-up", () => {
@@ -99,6 +154,11 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
   });
 
   it("throttles burst pulls — one snapshot per cooldown window", () => {
+    // Fake timers drive the same clock the code reads (performance.now
+    // is monotonic and vitest fakes it) — advancing time proves the
+    // branch instead of rewinding the ref the code never reads
+    // (review 2026-10-03 repair P2).
+    vi.useFakeTimers();
     const game = {
       ...terminalGame(),
       gameStatus: GameStatus.ACTIVE,
@@ -113,10 +173,91 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
     expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(1);
 
     // After the cooldown the next pull is answered again.
-    deps.lastSyncReplyAtRef.current -= SYNC_REPLY_COOLDOWN_MS;
+    vi.advanceTimersByTime(SYNC_REPLY_COOLDOWN_MS);
     handleHostMessage(deps, { type: "sync_request" });
 
     expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("refused pulls leave the throttle clock untouched", () => {
+    // A pull dropped by the join/status gates must not consume the
+    // window — otherwise a refused attempt would delay the peer's next
+    // legitimate pull (review 2026-10-03 repair P2).
+    vi.useFakeTimers();
+    const game: GameState = {
+      ...terminalGame(),
+      gameStatus: GameStatus.WAITING,
+      winner: null,
+    };
+    const { deps } = makeDeps(game);
+    const before = deps.lastSyncReplyAtRef.current;
+
+    handleHostMessage(deps, { type: "sync_request" });
+
+    expect(deps.roomRef.current!.send).not.toHaveBeenCalled();
+    expect(deps.lastSyncReplyAtRef.current).toBe(before);
+  });
+
+  it("a processed join disarms the throttle — catch-up pull answered inside the old window", () => {
+    // Cross-game starvation pin (review 2026-10-03 repair P2): a reply
+    // sent <1s ago must not starve the reconnecting guest's first pull —
+    // the join processing resets the window.
+    vi.useFakeTimers();
+    const game = {
+      ...terminalGame(),
+      gameStatus: GameStatus.ACTIVE,
+      winner: null,
+    };
+    const { deps } = makeDeps(game);
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+
+    handleHostMessage(deps, { type: "sync_request" });
+    expect(
+      send.mock.calls.filter(
+        ([f]) => (f as { type: string }).type === "state_snapshot",
+      ),
+    ).toHaveLength(1);
+
+    // Mid-game join lands as a resync — the same tick, well inside the
+    // 1s cooldown that just consumed a reply.
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+    handleHostMessage(deps, { type: "sync_request" });
+
+    const snapshots = send.mock.calls.filter(
+      ([f]) => (f as { type: string }).type === "state_snapshot",
+    );
+    expect(snapshots).toHaveLength(2);
+  });
+
+  it("a rematch reset disarms the throttle — post-rematch pull answered without waiting 1s", () => {
+    // The reviewer's scenario: the terminal snapshot reply lands <1s
+    // before the guest's catch-up pull on the rematched game. Without a
+    // reset on rematchAccept the second pull is silently dropped.
+    vi.useFakeTimers();
+    const { deps } = makeDeps(terminalGame());
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+
+    handleHostMessage(deps, { type: "sync_request" });
+    expect(
+      send.mock.calls.filter(
+        ([f]) => (f as { type: string }).type === "state_snapshot",
+      ),
+    ).toHaveLength(1);
+
+    handleHostMessage(deps, { type: "rematchAccept" });
+    expect(deps.stateRef.current.gameStatus).toBe(GameStatus.ACTIVE);
+
+    // Same tick — inside the cooldown the old code would still enforce.
+    handleHostMessage(deps, { type: "sync_request" });
+
+    const snapshots = send.mock.calls.filter(
+      ([f]) => (f as { type: string }).type === "state_snapshot",
+    );
+    expect(snapshots).toHaveLength(2);
   });
 });
 
