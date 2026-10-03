@@ -25,6 +25,8 @@ interface WelcomeMessage {
   type: "welcome";
   role: RoomRole;
   opponent: { guestId: string; displayName: string } | null;
+  /** Private slot-reclaim credential (MM-01). Absent on pre-fix relays. */
+  reconnectToken?: string;
 }
 
 interface PeerJoinedMessage {
@@ -76,6 +78,34 @@ interface RoomSession {
 
 const DEFAULT_MAX_BACKOFF_MS = 15_000;
 
+const RECONNECT_TOKEN_KEY_PREFIX = "tictactoe:room-token:";
+
+/** localStorage key for the room's reclaim credential, or null when the URL carries no room id. */
+function tokenKey(wsUrl: string): string | null {
+  const match = /\/room\/([A-Za-z0-9_-]{4,64})/.exec(wsUrl);
+  return match ? RECONNECT_TOKEN_KEY_PREFIX + match[1] : null;
+}
+
+function loadToken(key: string | null): string | null {
+  if (!key) return null;
+  try {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function saveToken(key: string | null, token: string): void {
+  if (!key) return;
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(key, token);
+  } catch {
+    // Private mode etc: memory retention still covers in-session reconnects.
+  }
+}
+
 export class RoomClient {
   private readonly opts: Required<Omit<RoomClientOptions, "protocol" | "role">> & {
     protocol: string;
@@ -96,6 +126,7 @@ export class RoomClient {
   private welcomeRejecters: Array<(reason: Error) => void> = [];
   private pendingConnect: Promise<RoomSession> | null = null;
   private preWelcomeError: Error | null = null;
+  private reconnectToken: string | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -112,6 +143,9 @@ export class RoomClient {
       maxBackoffMs: opts.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
       autoReconnect: opts.autoReconnect ?? true,
     };
+    // Retained credential from a previous session in this room (MM-01):
+    // lets a refresh reclaim the same slot within the server grace window.
+    this.reconnectToken = loadToken(tokenKey(opts.wsUrl));
   }
 
   setMessageHandler(handler: (msg: RoomEnvelope) => void): void {
@@ -250,6 +284,7 @@ export class RoomClient {
           guestId: this.opts.guestId,
           displayName: this.opts.displayName,
           role: this.role ?? this.opts.role ?? undefined,
+          reconnectToken: this.reconnectToken ?? undefined,
         });
         if (!sent) {
           settleWelcome(null, new Error("hello send failed"));
@@ -277,6 +312,10 @@ export class RoomClient {
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
+          if (typeof welcome.reconnectToken === "string" && welcome.reconnectToken) {
+            this.reconnectToken = welcome.reconnectToken;
+            saveToken(tokenKey(this.opts.wsUrl), welcome.reconnectToken);
+          }
           this.hadSession = true;
           this.preWelcomeError = null;
           this.reconnectAttempt = 0;
