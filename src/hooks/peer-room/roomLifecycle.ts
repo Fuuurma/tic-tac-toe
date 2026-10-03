@@ -137,9 +137,23 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     if (status === "connected" && roleRef.current === null) {
       // initial room connect: status will be set in welcome handler
     } else if (status === "reconnecting") {
-      setState((prev) => ({ ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." }));
+      // needs-work 10-03 P2: guard the transient writes so transport-side
+      // copies can't overwrite the relay's peer-specific grace message
+      // ("Host disconnected. Reconnecting…" / peer-left reason lines).
+      setState((prev) => {
+        if (prev.status === "reconnecting" && !detail) return prev;
+        return { ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." };
+      });
     } else if (status === "disconnected") {
-      setState((prev) => ({ ...prev, status: "disconnected", message: detail ?? "Disconnected" }));
+      setState((prev) => {
+        // Terminal relay messages (peer-left reason lines) win over the
+        // transport's generic "You left"/"Disconnected" — the relay frame
+        // is the authoritative reason (needs-work 10-03 P1).
+        if (prev.status === "disconnected" && prev.message && prev.message !== "You left") {
+          return prev;
+        }
+        return { ...prev, status: "disconnected", message: detail ?? "Disconnected" };
+      });
     } else if (status === "error") {
       setState((prev) => ({ ...prev, status: "error", message: detail ?? "Connection error" }));
     }
