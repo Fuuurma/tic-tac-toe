@@ -124,6 +124,18 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       }
       return;
     }
+    if (message.type === "sync_request") {
+      // Reconnect pull (uno-chess contract, DST-04): the guest asks for
+      // an authoritative snapshot after reconnecting. The host answers
+      // with the current wire state — deadline stripped so the guest
+      // resynthesizes its own clock. Read-only: never mutates host
+      // state, safe against a stray or replayed request.
+      roomRef.current?.send({
+        type: "state_snapshot",
+        gameState: toWireGameState(stateRef.current),
+      });
+      return;
+    }
     if (message.type === "move") {
       const hostSymbol = hostSymbolRef.current;
       // A null ref means the room was never initialized — send "Invalid
@@ -193,6 +205,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         guestSymbol: newGuestSymbol,
         gameState: reset,
         message: "",
+        rematchOutgoing: false,
       }));
       // gameStart alone carries the reset + the swapped guest symbol —
       // a gameUpdate alongside it duplicated the same state on the wire
@@ -202,9 +215,12 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       return;
     }
     if (message.type === "rematchDecline") {
+      // F254: mirror rematchAccept's pending gate — a stray decline with no
+      // outstanding request must not stamp "Rematch declined" over live UI.
+      if (!hostRematchPendingRef.current) return;
       hostRematchPendingRef.current = false;
       clearRematchTimeout();
-      setState((prev) => ({ ...prev, message: "Rematch declined" }));
+      setState((prev) => ({ ...prev, message: "Rematch declined", rematchOutgoing: false }));
       return;
     }
     if (message.type === "leave") {
@@ -225,6 +241,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           status: "disconnected" as const,
           gameState: ended,
           message: "Opponent left",
+          rematchOutgoing: false,
         };
       });
       return;

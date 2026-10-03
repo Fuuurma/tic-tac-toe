@@ -22,7 +22,7 @@ import {
 } from "@/lib/matchmaking";
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { RoomClient } from "@/lib/room";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
 
 /**
  * Room lifecycle controller, extracted from usePeerRoom (god-hook
@@ -46,6 +46,7 @@ export interface RoomLifecycleDeps {
   handleGuestData: (message: PeerMessage) => void;
   stopTimer: () => void;
   hostRematchPendingRef: { current: boolean };
+  hostPendingSettingsRef: { current: PendingPlayerSettings | null };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -104,6 +105,23 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
           preferredColor: deps.hostColor,
         });
       }
+      // F252: the guest's one-shot join fanned out to zero peers if the
+      // host socket was down (reconnect grace). When the host comes back
+      // the guest gets peer-reconnected — if the game is still WAITING the
+      // join was lost and the handshake never ran, so resend it.
+      if (
+        msg.type === "peer-reconnected" &&
+        role === "guest" &&
+        deps.stateRef.current.gameStatus === GameStatus.WAITING
+      ) {
+        const identity = getOrCreateGuestIdentity();
+        client.send({
+          type: "join",
+          displayName: deps.hostDisplayName,
+          guestId: identity.guestId,
+          preferredColor: deps.hostColor,
+        });
+      }
     } else if (isPeerMessage(msg)) {
       // isPeerMessage is a type predicate — msg is already PeerMessage.
       if (stateRef.current && roleRef.current) {
@@ -119,9 +137,23 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     if (status === "connected" && roleRef.current === null) {
       // initial room connect: status will be set in welcome handler
     } else if (status === "reconnecting") {
-      setState((prev) => ({ ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." }));
+      // needs-work 10-03 P2: guard the transient writes so transport-side
+      // copies can't overwrite the relay's peer-specific grace message
+      // ("Host disconnected. Reconnecting…" / peer-left reason lines).
+      setState((prev) => {
+        if (prev.status === "reconnecting" && !detail) return prev;
+        return { ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." };
+      });
     } else if (status === "disconnected") {
-      setState((prev) => ({ ...prev, status: "disconnected", message: detail ?? "Disconnected" }));
+      setState((prev) => {
+        // Terminal relay messages (peer-left reason lines) win over the
+        // transport's generic "You left"/"Disconnected" — the relay frame
+        // is the authoritative reason (needs-work 10-03 P1).
+        if (prev.status === "disconnected" && prev.message && prev.message !== "You left") {
+          return prev;
+        }
+        return { ...prev, status: "disconnected", message: detail ?? "Disconnected" };
+      });
     } else if (status === "error") {
       setState((prev) => ({ ...prev, status: "error", message: detail ?? "Connection error" }));
     }
@@ -148,6 +180,9 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // swap is honored against a game that never asked for one
   // (needs-work 2026-09-10 P2).
   deps.hostRematchPendingRef.current = false;
+  // F241: pending identity edits are room-scoped — a leftover from the
+  // previous room would apply silently on the next room's rematch accept.
+  deps.hostPendingSettingsRef.current = null;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -177,6 +212,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     guestSymbol,
     gameState: waitingGame,
     message: "",
+    rematchOutgoing: false,
   });
   roleRef.current = "host";
 
@@ -192,6 +228,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   stopTimer();
   closeExistingRoom(roomRef);
   deps.hostRematchPendingRef.current = false;
+  deps.hostPendingSettingsRef.current = null;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });
@@ -201,7 +238,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   // any symbol carried over from a previous room so a peer leaving before
   // `joined` arrives crowns nobody instead of a stale recorded symbol.
   deps.guestSymbolRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, message: "Connecting..." });
+  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, message: "Connecting...", rematchOutgoing: false });
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);

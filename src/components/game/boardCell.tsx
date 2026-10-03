@@ -76,8 +76,11 @@ export const BoardCell = memo(function BoardCell({
       aria-label={buildAriaLabel(index, value, isNextToRemove)}
       aria-keyshortcuts={String(index + 1)}
       aria-disabled={isDisabled || value !== null}
-      disabled={isDisabled || value !== null}
-      onClick={() => onClick(index)}
+      disabled={isDisabled}
+      onClick={() => {
+        if (isDisabled || value !== null) return;
+        onClick(index);
+      }}
       onMouseEnter={() => onHover?.(index)}
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(index)}
@@ -86,7 +89,7 @@ export const BoardCell = memo(function BoardCell({
         "relative flex aspect-square items-center justify-center rounded-xl transition-all duration-200",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
         !isWinningCell && !isNextToRemove && !value && "glass-cell",
-        !isDisabled && !value && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98]",
+        !isDisabled && !value && "cursor-pointer",
         !isDisabled && !value && "hover:border-[rgb(var(--player-color)/0.5)] hover:bg-[rgb(var(--player-color)/0.1)]",
         !isDisabled && value && "hover:shadow-sm",
         isDisabled && !value && "cursor-not-allowed opacity-50",

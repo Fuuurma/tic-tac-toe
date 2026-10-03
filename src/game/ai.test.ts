@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AI_Difficulty, GameModes, Color, PlayerSymbol } from "@/game/constants";
+import {
+  AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
+  GameModes,
+  Color,
+  PlayerSymbol,
+} from "@/game/constants";
 import { evaluateNonTerminal, getAIMove } from "@/game/ai";
 import {
   createInitialGameState,
@@ -27,6 +33,12 @@ afterEach(() => {
 describe("getAIMove", () => {
   it("exposes exactly three algorithm-backed difficulty levels", () => {
     expect(Object.values(AI_Difficulty)).toEqual(["EASY", "NORMAL", "HARD"]);
+  });
+
+  it("exposes one canonical label per difficulty level", () => {
+    expect(
+      Object.values(AI_Difficulty).map((d) => AI_DIFFICULTY_LABELS[d]),
+    ).toEqual(["Easy", "Normal", "Hard"]);
   });
 
   it("returns a move on an empty board within the valid empty cells (EASY)", () => {

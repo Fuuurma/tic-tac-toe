@@ -107,6 +107,17 @@ describe("isValidMove", () => {
     expect(isValidMove(state, 4, PlayerSymbol.O)).toBe(false);
   });
 
+  it("rejects non-integer indices — a float must not write an out-of-band cell (F218)", () => {
+    const state = activeState();
+    // X is currentPlayer in an active fresh game.
+    expect(isValidMove(state, 1.5, PlayerSymbol.X)).toBe(false);
+    expect(isValidMove(state, 0.5, PlayerSymbol.X)).toBe(false);
+    expect(isValidMove(state, Number.NaN, PlayerSymbol.X)).toBe(false);
+    // makeMove must not smuggle the float into history or the board.
+    const moved = makeMove(state, 1.5);
+    expect(moved).toBeNull();
+  });
+
   it("rejects moves by the wrong player", () => {
     const state = activeState();
     expect(isValidMove(state, 0, PlayerSymbol.O)).toBe(false);

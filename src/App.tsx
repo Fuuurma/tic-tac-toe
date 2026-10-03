@@ -98,9 +98,15 @@ export default function App() {
               fallback={
                 <div
                   role="status"
-                  className="glass flex items-center justify-center px-4 py-3 text-sm text-muted-foreground"
+                  aria-live="polite"
+                  aria-busy="true"
+                  className="glass flex min-h-[480px] w-full max-w-md flex-col items-center justify-center gap-3 px-4 py-3 text-sm text-muted-foreground"
                 >
-                  Loading game…
+                  <span
+                    aria-hidden="true"
+                    className="block aspect-square w-full motion-safe:animate-pulse rounded-2xl bg-current opacity-20"
+                  />
+                  <span>Loading game…</span>
                 </div>
               }
             >
@@ -190,7 +196,7 @@ function LocalGameSurface({
       opponentSettings.opponentType,
     ],
   );
-  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused } = useLocalGame(input);
+  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
   const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
   const [panelPaused, setPanelPaused] = useState(false);
@@ -231,7 +237,7 @@ function LocalGameSurface({
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
   const isBoardDisabled =
-    isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
+    paused || isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
 
   return (
     <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
@@ -244,7 +250,7 @@ function LocalGameSurface({
             ? opponentSettings.aiDifficulty
             : undefined
         }
-        message=""
+        message={gameState.turnNotice ?? ""}
         onNewGame={handleReset}
         onExit={() => {
           exit();

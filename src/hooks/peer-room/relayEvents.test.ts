@@ -6,6 +6,8 @@ import {
 } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
+import { peerLeftUserMessage } from "@/lib/peer";
+import type { RoomClient } from "@/lib/room";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
@@ -32,12 +34,14 @@ function makeDeps(
   let roomState = { gameState: game, ...roomInit } as PeerRoomState;
   const calls = { committed: [] as GameState[], broadcasts: [] as GameState[] };
   const deps: RelayEventDeps = {
+    roomRef: { current: null },
     stateRef: { current: game },
     roleRef: { current: role },
     hostSymbolRef: { current: PlayerSymbol.X },
     guestSymbolRef: { current: PlayerSymbol.O },
     hostRematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
+    pausedRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
     },
@@ -47,6 +51,7 @@ function makeDeps(
       roomState = { ...roomState, gameState: g };
     },
     broadcastGameState: (g) => void calls.broadcasts.push(g),
+    requestSync: vi.fn(),
     startTimer: vi.fn(),
     stopTimer: vi.fn(),
     clearRematchTimeout: vi.fn(),
@@ -100,6 +105,74 @@ describe("handleRelayEvent peer-reconnected", () => {
     handleRelayEvent(deps, { type: "peer-reconnected" });
     expect(calls.committed).toHaveLength(1);
     expect(calls.committed[0].turnDeadlineAt).toBe(committed.turnDeadlineAt);
+  });
+
+  it("F288: host peer-reconnected while paused broadcasts frozen state, no reset or timer", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(calls.committed).toHaveLength(0);
+    expect(deps.startTimer).not.toHaveBeenCalled();
+    expect(deps.stateRef.current.turnTimeRemaining).toBe(12_000);
+    expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
+    expect(calls.broadcasts).toHaveLength(1);
+    expect(calls.broadcasts[0]).toBe(game);
+  });
+
+  it("host peer-reconnected while unpaused still resets (negative pin)", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = false;
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(calls.committed).toHaveLength(1);
+    expect(deps.startTimer).toHaveBeenCalledOnce();
+    expect(calls.committed[0].turnTimeRemaining).toBe(TURN_DURATION_MS);
+  });
+
+  it("F288: host welcome-with-opponent while paused broadcasts frozen state, no reset or timer", () => {
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = true;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(calls.committed).toHaveLength(0);
+    expect(deps.startTimer).not.toHaveBeenCalled();
+    expect(deps.stateRef.current.turnTimeRemaining).toBe(12_000);
+    expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
+    expect(calls.broadcasts).toHaveLength(1);
+    expect(calls.broadcasts[0]).toBe(game);
+  });
+
+  it("guest welcome mid-game emits sync_request (reconnect pull)", () => {
+    const game = activeGame();
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "guest",
+      opponent: { guestId: "h", displayName: "Host" },
+    });
+
+    expect(deps.requestSync).toHaveBeenCalledOnce();
+  });
+
+  it("guest's first welcome (no live game) does not emit sync_request", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+
+    expect(deps.requestSync).not.toHaveBeenCalled();
   });
 
   it("peer-left expired clears the rematch deadline + pending flag", () => {
@@ -164,6 +237,34 @@ describe("handleRelayEvent symbol fallbacks", () => {
     expect(getRoom().status).toBe("disconnected");
     expect(getRoom().gameState.winner).toBeNull();
     expect(deps.stateRef.current.winner).toBeNull();
+  });
+
+  it("terminal peer-left message wins over close()'s synchronous 'You left' (needs-work 10-02 P1)", () => {
+    const game = activeGame();
+    const { deps, getRoom } = makeDeps(game, "host");
+    const close = vi.fn();
+    deps.roomRef.current = { close } as unknown as RoomClient;
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    // The relay's close() fires the status handler synchronously with
+    // "You left" — the terminal peer-left state must be applied FIRST so
+    // the survivor sees who left, not the leaver's own message.
+    expect(getRoom().message).toBe(
+      peerLeftUserMessage("host", "closed"),
+    );
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("F234: terminal peer-left severs the socket so the relay's close can't reconnect", () => {
+    const game = activeGame();
+    const { deps } = makeDeps(game, "host");
+    const close = vi.fn();
+    deps.roomRef.current = { close } as unknown as RoomClient;
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("peer-left during WAITING does not crown a phantom winner (F146)", () => {

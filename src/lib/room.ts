@@ -100,6 +100,7 @@ export class RoomClient {
   private pendingConnect: Promise<RoomSession> | null = null;
   /** True once the relay has welcomed this client at least once. */
   private sessionEstablished = false;
+  private preWelcomeError: Error | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -264,10 +265,24 @@ export class RoomClient {
       ws.addEventListener("message", (event: MessageEvent<string>) => {
         const parsed = parseEnvelope(event.data);
         if (!parsed) return;
+        // F253: the DO rejects joins with {type:"error",code,message} then
+        // closes the socket. Capture the reason so the close handler can
+        // reject connect() with the actionable message instead of the
+        // generic "socket closed before welcome".
+        if (
+          parsed.type === "error" &&
+          this.welcomeResolvers.length > 0 &&
+          typeof (parsed as { message?: unknown }).message === "string"
+        ) {
+          this.preWelcomeError = new Error(
+            (parsed as { message: string }).message,
+          );
+        }
         if (parsed.type === "welcome") {
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
+          this.preWelcomeError = null;
           this.reconnectAttempt = 0;
           this.sessionEstablished = true;
           this.setStatus("connected");
@@ -297,14 +312,23 @@ export class RoomClient {
           this.setStatus("disconnected");
           return;
         }
-        settleWelcome(null, new Error("socket closed before welcome"));
+        settleWelcome(
+          null,
+          this.preWelcomeError ?? new Error("socket closed before welcome"),
+        );
+        // F151: auto-reconnect exists to recover an ESTABLISHED session —
+        // a socket that dies before `welcome` means the relay rejected or
+        // is unreachable; retrying forever would overwrite the terminal
+        // error status the caller just set. Only retry post-session drops.
         if (this.canAutoReconnect()) this.scheduleReconnect();
-        else if (!this.sessionEstablished) this.setStatus("error", "Could not connect");
         else this.setStatus("disconnected");
       });
 
       ws.addEventListener("error", () => {
-        settleWelcome(null, new Error("socket error"));
+        settleWelcome(
+          null,
+          this.preWelcomeError ?? new Error("socket error"),
+        );
         // close event will follow; reconnect happens there
       });
 

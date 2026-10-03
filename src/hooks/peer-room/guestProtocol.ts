@@ -1,4 +1,4 @@
-import { TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
+import { GameStatus, TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
@@ -36,7 +36,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     stopTimer,
   } = deps;
   {
-    if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate") {
+    if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate" || message.type === "state_snapshot") {
       // Anchor the deadline to THIS clock: the wire state carries only
       // `turnTimeRemaining` (toWireGameState strips the host's absolute
       // deadline), so `now + remaining` is skew-free. A deadline that does
@@ -84,6 +84,10 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     }
     if (message.type === "rematchRequested") {
       const state = stateRef.current;
+      // F191: mirror the host-side accept gate — a rematch prompt is only
+      // meaningful on a terminal game. A mid-game request from a hostile
+      // or buggy host must not pop the prompt over live play.
+      if (state.winner === null || state.gameStatus !== GameStatus.COMPLETED) return;
       setState((prev) => ({
         ...prev,
         message: `${state.players[message.requesterSymbol].username} wants a rematch. Click Play Again to accept.`,

@@ -30,6 +30,8 @@ export type PeerMessage =
   | { type: "rematchDecline" }
   | { type: "rematchCancel" }
   | { type: "leave" }
+  | { type: "sync_request" }
+  | { type: "state_snapshot"; gameState: GameState }
   | { type: "error"; message: string };
 
 /** Hard upper bound on inbound wire-message scalar string fields. */
@@ -313,6 +315,16 @@ const isGameState = (value: unknown): value is GameState => {
   if (state.winningCombination !== null && !isWinningCombination(state.winningCombination)) {
     return false;
   }
+  // F192: a claimed win must actually exist on the board — cross-check
+  // that every cell of the winning line holds the winner's symbol, not
+  // just that the two fields are individually well-formed.
+  if (
+    state.winner !== null &&
+    state.winningCombination !== null &&
+    !state.winningCombination.every((i) => (state.board as unknown[])[i] === state.winner)
+  ) {
+    return false;
+  }
   if (state.lastMoveIndex !== null && !isBoundedCellIndex(state.lastMoveIndex)) {
     return false;
   }
@@ -442,7 +454,10 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
     case "rematchDecline":
     case "rematchCancel":
     case "leave":
+    case "sync_request":
       return true;
+    case "state_snapshot":
+      return isGameState(message.gameState);
     case "error":
       return (
         typeof message.message === "string" &&

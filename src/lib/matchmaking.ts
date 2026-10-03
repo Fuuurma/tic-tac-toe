@@ -21,7 +21,18 @@ type Match = {
 };
 
 export type MatchmakingResponse =
-  | { status: "waiting"; ticket: string; roomId: string }
+  | {
+      status: "waiting";
+      ticket: string;
+      roomId: string;
+      /**
+       * 1-based position in the Worker's FIFO matchmaking queue, reported
+       * when the service runs the explicit-queue protocol. Absent on older
+       * Worker versions — the searching UI treats `undefined` as "position
+       * unknown" rather than zero.
+       */
+      position?: number;
+    }
   | { status: "matched"; match: Match };
 
 function isParticipant(value: unknown): value is Match["host"] {
@@ -46,9 +57,15 @@ export function parseMatchmakingResponse(data: unknown): MatchmakingResponse {
   if (
     d.status === "waiting" &&
     typeof d.ticket === "string" &&
-    typeof d.roomId === "string"
+    typeof d.roomId === "string" &&
+    (d.position === undefined ||
+      (typeof d.position === "number" &&
+        Number.isInteger(d.position) &&
+        d.position > 0))
   ) {
-    return { status: "waiting", ticket: d.ticket, roomId: d.roomId };
+    return d.position === undefined
+      ? { status: "waiting", ticket: d.ticket, roomId: d.roomId }
+      : { status: "waiting", ticket: d.ticket, roomId: d.roomId, position: d.position };
   }
   if (d.status === "matched" && typeof d.match === "object" && d.match !== null) {
     const m = d.match as Record<string, unknown>;
@@ -148,12 +165,17 @@ export async function leaveMatch(
   game: string,
   ticket: string,
   baseUrl: string = MATCHMAKING_BASE_URL,
+  options?: { keepalive?: boolean },
 ): Promise<void> {
   const response = await fetch(`${baseUrl}/api/matchmaking/${game}/leave`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticket }),
     signal: AbortSignal.timeout(LEAVE_TIMEOUT_MS),
+    // `keepalive` lets the request outlive the page — required for the
+    // pagehide cancel-on-disconnect path, where an ordinary fetch is
+    // killed with the tab before it reaches the Worker.
+    keepalive: options?.keepalive === true,
   });
   if (!response.ok) {
     throw new Error(`Matchmaking leave failed: ${response.status} ${await response.text()}`);

@@ -19,10 +19,10 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: "h-10 px-4 text-sm",
-  sm: "h-9 px-3 text-xs",
+  default: "h-11 px-4 text-sm",
+  sm: "h-11 px-3 text-xs",
   lg: "h-12 px-6 text-base",
-  icon: "size-10",
+  icon: "size-11",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

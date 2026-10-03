@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import type { RoomClient } from "@/lib/room";
-import { Color, GameModes, PlayerSymbol } from "@/game/constants";
+import { RoomClient } from "@/lib/room";
+import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
-import { leaveRoom, joinAsGuest, type RoomLifecycleDeps } from "./roomLifecycle";
+import { leaveRoom, joinAsGuest, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import type { PendingPlayerSettings } from "../usePeerRoom";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
 // closing the socket. A frame sent after close is silently dropped, so the
@@ -70,7 +71,10 @@ describe("joinAsGuest rematch-flag reset", () => {
   // needs-work 2026-09-10 P2: hostRematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
   // would be honored against a game that never asked for one.
-  function lifecycleDeps(hostRematchPendingRef: { current: boolean }) {
+  function lifecycleDeps(
+    hostRematchPendingRef: { current: boolean },
+    hostPendingSettingsRef = { current: null as PendingPlayerSettings | null },
+  ) {
     const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
     const deps: RoomLifecycleDeps = {
       roomRef: { current: null },
@@ -95,9 +99,67 @@ describe("joinAsGuest rematch-flag reset", () => {
       handleGuestData: vi.fn(),
       stopTimer: vi.fn(),
       hostRematchPendingRef,
+      hostPendingSettingsRef,
     };
     return { deps, guestSymbolRef };
   }
+
+  it("F241: clears stale pending identity settings on room entry", () => {
+    const hostRematchPendingRef = { current: false };
+    const hostPendingSettingsRef = {
+      current: { displayName: "OldHost" } as PendingPlayerSettings,
+    };
+    joinAsGuest(
+      lifecycleDeps(hostRematchPendingRef, hostPendingSettingsRef).deps,
+      "ROOM42",
+      "ws://127.0.0.1:1",
+    );
+    expect(hostPendingSettingsRef.current).toBeNull();
+  });
+
+  it("F252: guest resends join when the host reconnects and the game is still WAITING", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: { handler?: (msg: { type: string }) => void } = {};
+    vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+      (h) => {
+        captured.handler = h;
+      },
+    );
+    const send = vi
+      .spyOn(RoomClient.prototype, "send")
+      .mockReturnValue(true);
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    // The F252 window: guest joined while the host was down — join fanned
+    // out to zero peers, so the game never left WAITING.
+    deps.stateRef.current = {
+      ...deps.stateRef.current,
+      gameStatus: GameStatus.WAITING,
+    };
+    send.mockClear();
+
+    captured.handler?.({ type: "peer-reconnected" });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "join" }),
+    );
+  });
+
+  it("F252: an ACTIVE game does not resend join on peer-reconnected", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: { handler?: (msg: { type: string }) => void } = {};
+    vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+      (h) => {
+        captured.handler = h;
+      },
+    );
+    const send = vi
+      .spyOn(RoomClient.prototype, "send")
+      .mockReturnValue(true);
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    send.mockClear();
+
+    captured.handler?.({ type: "peer-reconnected" });
+    expect(send).not.toHaveBeenCalled();
+  });
 
   it("clears a stale pending-rematch flag on room entry", () => {
     const hostRematchPendingRef = { current: true };

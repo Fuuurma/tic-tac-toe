@@ -43,6 +43,10 @@ export interface GameState {
   aiDifficulty?: AI_Difficulty;
   turnTimeRemaining?: number;
   turnDeadlineAt?: number;
+  // Set by the local timeout path when a turn expired and a random move
+  // was played for that player; surfaced in the HUD. Cleared by the next
+  // successful move (makeMove) and absent on fresh states.
+  turnNotice?: string;
 }
 
 export const freshGameState = (): GameState => ({
@@ -142,6 +146,11 @@ export const getValidMoves = (board: Board): number[] => {
 export const isValidMove = (state: GameState, index: number, symbol: PlayerSymbol): boolean => {
   if (state.gameStatus !== GameStatus.ACTIVE || state.winner !== null) return false;
   if (state.currentPlayer !== symbol) return false;
+  // F218: reject non-integer indices — board[1.5] reads undefined, so a
+  // float passed the range and occupancy guards and madeMove wrote an
+  // out-of-band property invisible to checkWinner. Same guard as
+  // applyAuthorizedMove (peer.ts).
+  if (!Number.isInteger(index)) return false;
   if (index < 0 || index >= GAME_RULES.BOARD_SIZE) return false;
   if (state.board[index] !== null) return false;
   return true;
@@ -220,6 +229,7 @@ export const makeMove = (
     gameStatus: winner ? GameStatus.COMPLETED : GameStatus.ACTIVE,
     turnTimeRemaining: TURN_DURATION_MS,
     turnDeadlineAt: now + TURN_DURATION_MS,
+    turnNotice: undefined,
   };
 };
 

@@ -3,13 +3,14 @@ import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
   TURN_DURATION_MS,
-  AI_Difficulty,
+  AI_DIFFICULTY_LABELS,
   type AI_Difficulty as AI_DifficultyType,
   GameMode,
   GameModes,
   GameStatus,
   PlayerSymbol,
   PlayerTypes,
+  COLOR_MARK_TEXT,
 } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
@@ -17,7 +18,9 @@ import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
-import { CircleHelp, Copy, Check, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
+import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
+import { CircleHelp, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
+import { MorphIcon } from "morphicons/react";
 import { ThinkingOrb } from "thinking-orbs";
 
 interface PlayersPanelProps {
@@ -31,7 +34,10 @@ interface PlayersPanelProps {
   onExit: () => void;
   onHelp?: () => void;
   onEditSettings?: () => void;
+  onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
+  onCancelRematch?: () => void;
+  onRequestRematch?: () => void;
   onPauseChange?: (paused: boolean) => void;
 }
 
@@ -40,15 +46,8 @@ const formatTime = (ms: number | undefined): number => {
   return Math.max(0, Math.ceil(ms / 1000));
 };
 
-const AI_DIFFICULTY_LABEL: Record<AI_DifficultyType, string> = {
-  [AI_Difficulty.EASY]: "easy",
-  [AI_Difficulty.NORMAL]: "medium",
-  [AI_Difficulty.HARD]: "hard",
-};
-
 const getTimerColor = (seconds: number): string => {
   if (seconds <= 3) return "text-red-500";
-  if (seconds <= 6) return "text-amber-500";
   return "text-emerald-500";
 };
 
@@ -96,11 +95,20 @@ export function PlayersPanel({
   onExit,
   onHelp,
   onEditSettings,
+  onAcceptRematch,
   onDeclineRematch,
+  onCancelRematch,
+  onRequestRematch,
   onPauseChange,
 }: PlayersPanelProps) {
-  const [showExit, setShowExit] = useState(false);
-  const [showNewGame, setShowNewGame] = useState(false);
+  // Stored flags + derived read: a fresh game (moveCount 0) must not
+  // re-open a confirm stored from the previous game. Resetting via effect
+  // trips react-hooks/set-state-in-effect; deriving keeps the reset exact.
+  const [showExitStored, setShowExit] = useState(false);
+  const [showNewGameStored, setShowNewGame] = useState(false);
+  const freshGame = gameState.moveCount === 0;
+  const showExit = showExitStored && !freshGame;
+  const showNewGame = showNewGameStored && !freshGame;
   const [copiedRoom, setCopiedRoom] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
@@ -125,15 +133,6 @@ export function PlayersPanel({
     gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
-  const progress = isActive
-    ? Math.max(
-        0,
-        Math.min(
-          100,
-          ((gameState.turnTimeRemaining ?? 0) / TURN_DURATION_MS) * 100,
-        ),
-      )
-    : 0;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? "Leave game" : "Exit game";
 
@@ -196,7 +195,7 @@ export function PlayersPanel({
         <>
           <div
             aria-hidden="true"
-            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-[30px] !border-0"
+            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-2xl !border-0"
             style={{
               WebkitMaskImage:
                 "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
@@ -215,7 +214,10 @@ export function PlayersPanel({
               aria-hidden="true"
               viewBox={`0 0 ${panelSize.width} ${panelSize.height + 12}`}
               preserveAspectRatio="none"
-              className="pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible text-emerald-500"
+              className={cn(
+                "pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible",
+                getTimerColor(seconds),
+              )}
             >
               <path
                 d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
@@ -233,7 +235,6 @@ export function PlayersPanel({
                 stroke="currentColor"
                 strokeWidth="3"
                 strokeDasharray="100 100"
-                strokeDashoffset={100 - progress}
                 strokeLinecap="butt"
                 vectorEffect="non-scaling-stroke"
                 className="animate-countdown-border"
@@ -272,17 +273,17 @@ export function PlayersPanel({
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="glass-cell inline-flex max-w-40 min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                title={`Room code: ${roomCode} — click to copy`}
+                className="glass-cell inline-flex max-w-40 min-h-6 min-w-0 items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                title={`Room code: ${roomCode}, click to copy`}
                 aria-label={`Room code ${roomCode}, click to copy`}
               >
                 <span className="sr-only">Room code </span>
                 <span className="truncate">{roomCode}</span>
-                {copiedRoom ? (
-                  <Check className="size-3 shrink-0 text-emerald-500" aria-hidden="true" />
-                ) : (
-                  <Copy className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                )}
+                <MorphIcon
+                  icon={copiedRoom ? CheckIcon : CopyIcon}
+                  className={`size-3 shrink-0 ${copiedRoom ? "text-emerald-500" : "text-muted-foreground"}`}
+                  aria-hidden="true"
+                />
               </button>
             )}
             {stats && stats.totalGames > 0 && (
@@ -291,9 +292,9 @@ export function PlayersPanel({
                 aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses`}
                 className="font-medium normal-case tracking-normal text-muted-foreground"
               >
-                <span className="text-emerald-600 dark:text-emerald-400">{stats.wins}W</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{stats.wins} wins</span>
                 <span className="mx-0.5 text-muted-foreground/50">·</span>
-                <span className="text-red-500">{stats.losses}L</span>
+                <span className="text-red-500">{stats.losses} losses</span>
                 {stats.currentWinStreak > 1 && (
                   <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
                     · <Flame className="size-3" aria-hidden="true" />
@@ -308,7 +309,9 @@ export function PlayersPanel({
               role="status"
               className={cn(
                 "mt-1 truncate text-xs sm:text-sm",
-                message && !message.endsWith("'s turn.")
+                // An explicit status message is alert-worthy; the default
+                // turn label is not. Key off message presence, not copy.
+                message
                   ? "font-medium text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground",
               )}
@@ -324,7 +327,7 @@ export function PlayersPanel({
               size="sm"
               onClick={onHelp}
               aria-label="How to play"
-              className="size-9 p-0 text-muted-foreground sm:size-10"
+              className="size-11 p-0 text-muted-foreground"
             >
               <CircleHelp className="size-4" aria-hidden="true" />
             </Button>
@@ -334,8 +337,8 @@ export function PlayersPanel({
               variant="glass"
               size="sm"
               onClick={onEditSettings}
-              aria-label="Edit player and opponent settings"
-              className="size-9 p-0 text-muted-foreground sm:size-10"
+              aria-label="Edit player settings"
+              className="size-11 p-0 text-muted-foreground"
             >
               <Pencil className="size-4" aria-hidden="true" />
             </Button>
@@ -346,7 +349,7 @@ export function PlayersPanel({
               size="sm"
               onClick={handleNewGameClick}
               aria-label={isGameOver ? "Play again" : "Start a new game"}
-              className="size-9 p-0 text-muted-foreground sm:size-10"
+              className="size-11 p-0 text-muted-foreground"
             >
               <RotateCcw className="size-4" aria-hidden="true" />
             </Button>
@@ -356,7 +359,7 @@ export function PlayersPanel({
             size="sm"
             onClick={handleExitClick}
             aria-label={exitLabel}
-            className="size-9 p-0 text-white hover:bg-red-500/90 hover:text-black sm:size-10"
+            className="size-11 p-0 text-muted-foreground hover:text-red-500"
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
             <LogOut className="size-4" aria-hidden="true" />
@@ -373,7 +376,7 @@ export function PlayersPanel({
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
           aiDifficultyLabel={
             gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? AI_DIFFICULTY_LABEL[aiDifficulty]
+              ? AI_DIFFICULTY_LABELS[aiDifficulty]
               : undefined
           }
         />
@@ -385,7 +388,7 @@ export function PlayersPanel({
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
           aiDifficultyLabel={
             gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? AI_DIFFICULTY_LABEL[aiDifficulty]
+              ? AI_DIFFICULTY_LABELS[aiDifficulty]
               : undefined
           }
         />
@@ -396,7 +399,10 @@ export function PlayersPanel({
           <GameEndActions
             headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
             message={message}
+            onAcceptRematch={onAcceptRematch}
             onDeclineRematch={onDeclineRematch}
+            onCancelRematch={onCancelRematch}
+            onRequestRematch={onRequestRematch}
           />
         </div>
       )}
@@ -461,7 +467,8 @@ const PlayerCard = memo(function PlayerCard({
       <span
         aria-hidden="true"
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg text-white shadow-sm",
+          "flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm",
+          COLOR_MARK_TEXT[player.color],
           COLOR_BG_CLASSES[player.color],
         )}
       >
@@ -492,13 +499,19 @@ const PlayerCard = memo(function PlayerCard({
 interface GameEndActionsProps {
   headline: string | null;
   message: string | null;
+  onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
+  onCancelRematch?: () => void;
+  onRequestRematch?: () => void;
 }
 
 function GameEndActions({
   headline,
   message,
+  onAcceptRematch,
   onDeclineRematch,
+  onCancelRematch,
+  onRequestRematch,
 }: GameEndActionsProps) {
   return (
     <div className="flex flex-col gap-1.5 text-center">
@@ -515,16 +528,50 @@ function GameEndActions({
           {message}
         </div>
       )}
-      {onDeclineRematch && (
-        <Button
-          type="button"
-          variant="glass"
-          size="sm"
-          onClick={onDeclineRematch}
-          className="mx-auto mt-1"
-        >
-          Decline rematch
-        </Button>
+      {(onAcceptRematch ||
+        onDeclineRematch ||
+        onCancelRematch ||
+        onRequestRematch) && (
+        <div className="mx-auto mt-1 flex flex-wrap items-center justify-center gap-1.5">
+          {onCancelRematch && (
+            <Button
+              type="button"
+              variant="glass"
+              size="sm"
+              onClick={onCancelRematch}
+            >
+              Cancel rematch
+            </Button>
+          )}
+          {onDeclineRematch && (
+            <Button
+              type="button"
+              variant="glass"
+              size="sm"
+              onClick={onDeclineRematch}
+            >
+              Decline rematch
+            </Button>
+          )}
+          {onRequestRematch && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onRequestRematch}
+            >
+              Rematch
+            </Button>
+          )}
+          {onAcceptRematch && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onAcceptRematch}
+            >
+              Accept rematch
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
