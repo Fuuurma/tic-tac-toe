@@ -153,7 +153,7 @@ describe("RoomClient reconnect credential (MM-01)", () => {
     stubStorage();
     const client = makeRoomClient();
 
-    void client.connect();
+    const pending = client.connect();
     const ws = FakeSocket.instances[0];
     const sent = captureSent(ws);
     ws.emit("open");
@@ -162,6 +162,7 @@ describe("RoomClient reconnect credential (MM-01)", () => {
     expect(hello.type).toBe("hello");
     expect("reconnectToken" in hello).toBe(false);
     client.close();
+    await expect(pending).rejects.toThrow("closed");
   });
 
   it("retains the welcome credential and sends it on reconnect", async () => {
@@ -202,12 +203,13 @@ describe("RoomClient reconnect credential (MM-01)", () => {
     store.set("tictactoe:room-token:ABCDEF1234567890", "tok-persisted");
 
     const client = makeRoomClient();
-    void client.connect();
+    const pending = client.connect();
     const ws = FakeSocket.instances[0];
     const sent = captureSent(ws);
     ws.emit("open");
     const hello = JSON.parse(sent[0]) as Record<string, unknown>;
     expect(hello.reconnectToken).toBe("tok-persisted");
     client.close();
+    await expect(pending).rejects.toThrow("closed");
   });
 });
