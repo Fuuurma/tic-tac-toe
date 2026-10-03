@@ -334,6 +334,10 @@ export class RoomClient {
 
   private scheduleReconnect(): void {
     if (this.closedByUser || !this.opts.autoReconnect) return;
+    // Never auto-reconnect before a session was established (no
+    // `welcome` yet) — a failed initial connect() must settle as a
+    // terminal error, not retry the unreachable relay forever.
+    if (this.role === null) return;
     if (this.reconnectTimer) return;
     const base = Math.min(
       this.opts.maxBackoffMs,
