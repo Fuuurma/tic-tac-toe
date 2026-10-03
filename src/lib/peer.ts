@@ -30,6 +30,8 @@ export type PeerMessage =
   | { type: "rematchDecline" }
   | { type: "rematchCancel" }
   | { type: "leave" }
+  | { type: "sync_request" }
+  | { type: "state_snapshot"; gameState: GameState }
   | { type: "error"; message: string };
 
 /** Hard upper bound on inbound wire-message scalar string fields. */
@@ -452,7 +454,10 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
     case "rematchDecline":
     case "rematchCancel":
     case "leave":
+    case "sync_request":
       return true;
+    case "state_snapshot":
+      return isGameState(message.gameState);
     case "error":
       return (
         typeof message.message === "string" &&
