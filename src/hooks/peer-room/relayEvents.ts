@@ -65,7 +65,6 @@ export function handleRelayEvent(
     pausedRef,
     setState,
     commitHostState,
-    broadcastGameState,
     requestSync,
     startTimer,
     stopTimer,
@@ -104,10 +103,16 @@ export function handleRelayEvent(
         // (fleet needs-work 2026-09-07 P1 / 09-08 P2).
         const current = stateRef.current;
         // F288: while the host is paused (Settings/Help overlay) a guest
-        // socket blip must not rebuild the frozen deadline — fall through
-        // to the broadcast so the rejoining guest catches up on the
-        // frozen state, and leave the interval stopped.
-        if (isGameActive(current) && !pausedRef.current) {
+        // socket blip must not rebuild the frozen deadline or restart the
+        // interval — the else-branch commits the unchanged state so the
+        // rejoining guest catches up, and leaves the clock stopped. The
+        // wire payload is NOT the frozen remaining: toWireGameState
+        // recomputes turnTimeRemaining off the stale pre-pause deadline
+        // (≈0 — the same value connected guests drain to while the host
+        // is paused). The frozen truth stays on stateRef and is
+        // re-broadcast when the unpause rebuilds the deadline.
+        const clockLive = isGameActive(current) && !pausedRef.current;
+        if (clockLive) {
           const fullResetAllowed =
             reconnectResetsRef.current.moveCount !== current.moveCount;
           reconnectResetsRef.current.moveCount = current.moveCount;
@@ -120,16 +125,16 @@ export function handleRelayEvent(
             : current;
           commitHostState(reconciled);
         } else {
-          broadcastGameState(current);
+          commitHostState(current);
         }
         // F456: the timer must be gated on the game still being live, not just
-        // on the pause flag. A terminal game takes the broadcast branch above —
-        // a rejoining guest still needs that catch-up — but has no clock to
-        // run. The peer-reconnected twin further down already nests its
-        // `startTimer()` inside this same `isGameActive` check; this one did
-        // not, so an unpaused host reconnecting on a game-over screen spawned
-        // a stray interval.
-        if (isGameActive(current) && !pausedRef.current) startTimer();
+        // on the pause flag. A terminal game takes the commit else-branch
+        // above — a rejoining guest still needs that catch-up — but has no
+        // clock to run. The peer-reconnected twin further down already nests
+        // its `startTimer()` inside this same `isGameActive` check; this one
+        // shares the extracted `clockLive` gate so the two checks cannot
+        // drift apart again.
+        if (clockLive) startTimer();
       } else {
         setState((prev) => ({
           ...prev,
@@ -183,8 +188,11 @@ export function handleRelayEvent(
       // state so the rejoining guest catches up. Without this reset the
       // very next tick can fire a forced random move.
       const current = stateRef.current;
-      // F288: same pause gate as the welcome branch — paused host still
-      // broadcasts the frozen state but never resets or restarts the clock.
+      // F288: same pause gate as the welcome branch — a paused host commits
+      // the unchanged state so the rejoining guest catches up (the wire
+      // payload still recomputes remaining off the stale deadline to ≈0,
+      // which is what connected guests already see during a pause) but
+      // never resets or restarts the clock.
       if (isGameActive(current) && !pausedRef.current) {
         // Bound the reconnect grace (fleet 09-07 finding 2): a full
         // reset is allowed once per move — repeated disconnect/
@@ -204,7 +212,7 @@ export function handleRelayEvent(
         commitHostState(reconciled);
         startTimer();
       } else {
-        broadcastGameState(current);
+        commitHostState(current);
       }
     } else if (roleRef.current === "guest") {
       const current = stateRef.current;
@@ -234,7 +242,12 @@ export function handleRelayEvent(
         // snapshot is in flight while the stale-board countdown resumes
         // (review 2026-10-03 repair P3).
         requestSync();
-        startTimer();
+        // F444: a paused guest (its own Settings/Help overlay open) must
+        // not restart the tick either — the interval drains the frozen
+        // remaining behind the overlay, the same pause bypass F288 closed
+        // on the host. The pull above still lands the authoritative
+        // snapshot; the timer effect restarts the clock on unpause.
+        if (!pausedRef.current) startTimer();
       } else if (current.gameStatus === GameStatus.COMPLETED) {
         // Local says terminal but the host may have rematched while we
         // were deaf — the pull is the only catch-up now that COMPLETED
