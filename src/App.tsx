@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
 import {
   Color,
@@ -94,22 +95,7 @@ export default function App() {
         )}
         {view === "game" && config && (
           <ErrorBoundary>
-            <Suspense
-              fallback={
-                <div
-                  role="status"
-                  aria-live="polite"
-                  aria-busy="true"
-                  className="glass flex min-h-[480px] w-full max-w-md flex-col items-center justify-center gap-3 px-4 py-3 text-sm text-muted-foreground"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="block aspect-square w-full motion-safe:animate-pulse rounded-2xl bg-current opacity-20"
-                  />
-                  <span>Loading game…</span>
-                </div>
-              }
-            >
+            <Suspense fallback={<GameSurfaceFallback />}>
               <GameView
                 key={`${config.gameMode}:${config.displayName}:${config.opponentName}:${config.onlineRoomId}`}
                 config={config}
@@ -303,6 +289,70 @@ function LocalGameSurface({
         onOpponentChange={setOpponentSettings}
         onClose={() => setSettingsOpen(false)}
       />
+    </div>
+  );
+}
+
+// Skeleton of the game surface (players panel + board well) shown while the
+// lazy online chunk loads. Mirrors the real layout so the swap doesn't shift,
+// and uses the app's loading vocabulary — glass-cell placeholders with the
+// pulse-slow token plus the Loader2 spinner used on every other busy surface.
+function GameSurfaceFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3"
+    >
+      {/* Players panel skeleton */}
+      <div
+        aria-hidden="true"
+        className="glass w-full rounded-2xl px-4 py-4 sm:px-5 sm:py-5"
+      >
+        <div className="mb-3 flex items-center justify-between gap-2 sm:mb-3.5">
+          <div className="flex flex-col gap-1.5">
+            <div className="h-3 w-16 rounded-md bg-muted-foreground/15 animate-pulse-slow" />
+            <div className="h-3.5 w-28 rounded-md bg-muted-foreground/15 animate-pulse-slow" />
+          </div>
+          <div className="flex gap-1.5">
+            <div className="size-9 rounded-lg bg-muted-foreground/15 animate-pulse-slow sm:size-10" />
+            <div className="size-9 rounded-lg bg-muted-foreground/15 animate-pulse-slow sm:size-10" />
+            <div className="size-9 rounded-lg bg-muted-foreground/15 animate-pulse-slow sm:size-10" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="glass-cell h-[52px] rounded-xl animate-pulse-slow sm:h-14" />
+          <div className="glass-cell h-[52px] rounded-xl animate-pulse-slow sm:h-14" />
+        </div>
+      </div>
+      {/* Board well skeleton — same shell as Board so dimensions match */}
+      <div
+        aria-hidden="true"
+        className="relative mx-auto aspect-square w-full rounded-2xl border border-white/12 bg-black/50 p-2.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_18px_40px_rgb(0_0_0/0.4)] sm:p-3.5"
+      >
+        <div className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2">
+          {[0, 1, 2].map((row) => (
+            <div key={row} className="grid grid-cols-3 gap-1.5 sm:gap-2">
+              {[0, 1, 2].map((col) => (
+                <div
+                  key={col}
+                  className="glass-cell rounded-xl animate-pulse-slow"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="absolute inset-0 grid place-items-center">
+          <span className="glass inline-flex items-center gap-1.5 px-4 py-3 text-sm text-muted-foreground">
+            <Loader2
+              className="size-4 animate-spin text-[rgb(var(--player-color))]"
+              aria-hidden="true"
+            />
+            Loading game…
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
