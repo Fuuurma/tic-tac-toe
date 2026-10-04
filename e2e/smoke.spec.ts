@@ -418,9 +418,9 @@ test("play again after a local win resets the board", async ({ page }) => {
   await page.getByRole("button", { name: "Play again" }).click();
 
   await expect(page.getByText(/(Alice|Bob) wins!/)).toBeHidden();
-  await expect(page.getByRole("gridcell", { name: /occupied/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /occupied/ })).toHaveCount(0);
   await expect(
-    page.getByRole("gridcell", { name: "Row 1 column 1, empty" }),
+    page.getByRole("button", { name: "Row 1 column 1, empty" }),
   ).toBeVisible();
 });
 
