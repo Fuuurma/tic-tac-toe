@@ -18,6 +18,15 @@ export interface LocalTurnTimerDeps {
   /** Interval handle, owned by the hook as a useRef. */
   tickRef: { current: number | null };
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
+  /**
+   * Status-line setter. Already supplied by every caller — `useLocalGame`
+   * passes its own `setMessage` into `startLocalTurnTimer` — and required by
+   * `commitLocalMove`, so it belongs on the contract rather than being
+   * reached for through a widened `Pick`. It was missing here, which is why
+   * `tsc -b` failed on a clean tree: the call sites were correct and the type
+   * was behind them.
+   */
+  setMessage: React.Dispatch<React.SetStateAction<string>>;
 }
 
 /** Stops the turn-clock interval (no-op when not running). */
@@ -35,7 +44,7 @@ export function stopLocalTurnTimer(deps: Pick<LocalTurnTimerDeps, "tickRef">) {
  * snapshot means another commit already ran and owns the status line.
  */
 export function commitLocalMove(
-  deps: Pick<LocalTurnTimerDeps, "setGameState">,
+  deps: Pick<LocalTurnTimerDeps, "setGameState" | "setMessage">,
   prev: GameState,
   next: GameState,
 ) {

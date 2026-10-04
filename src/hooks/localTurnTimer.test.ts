@@ -68,7 +68,7 @@ afterEach(() => {
 
 describe("startLocalTurnTimer forced move", () => {
   it("sets 'ran out of time' on a forced move and the next commit clears it", () => {
-    const { deps, getGame, getMessage } = makeDeps(activeGame());
+    const { deps, getGame } = makeDeps(activeGame());
 
     startLocalTurnTimer(deps);
     vi.advanceTimersByTime(1000);
@@ -100,7 +100,7 @@ describe("startLocalTurnTimer forced move", () => {
   });
 
   it("a game-ending forced move keeps the notice and the winner", () => {
-    const { deps, getGame, getMessage } = makeDeps(
+    const { deps, getGame } = makeDeps(
       activeGame({
         // X at 1+2, O at 3+4; the forced move lands on index 0 (the
         // first free cell) and completes the top row.

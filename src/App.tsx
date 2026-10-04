@@ -196,7 +196,10 @@ function LocalGameSurface({
       opponentSettings.opponentType,
     ],
   );
-  const { gameState, humanSymbol, message, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
+  // `message` is deliberately not destructured: the local game's status line
+  // renders from `gameState.turnNotice` (see the StatusLine below), and the
+  // hook's own `message` is written but never read anywhere in the app.
+  const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
   const { stats, recordWin, recordLoss } = useGameStats();
   const recordedGameId = useRef<number>(-1);
   const [panelPaused, setPanelPaused] = useState(false);
