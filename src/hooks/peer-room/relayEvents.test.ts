@@ -168,6 +168,55 @@ describe("handleRelayEvent peer-reconnected", () => {
     expect(calls.committed[0].turnTimeRemaining).toBe(TURN_DURATION_MS);
   });
 
+  it("F456: host welcome-with-opponent on a terminal game broadcasts but starts no timer", () => {
+    // The gate at the top of this branch is `isGameActive(current) &&
+    // !pausedRef.current`, so a terminal game takes the broadcast else-branch.
+    // The `startTimer()` that followed sat *outside* that gate and only checked
+    // the pause flag — so an unpaused host reconnecting on a game-over screen
+    // spawned a live interval for a game that has already finished. The peer
+    // -reconnected twin a few lines down nests its `startTimer()` inside the
+    // same `isGameActive` check; this one did not.
+    const game = activeGame({
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    });
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = false;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    // A terminal state has no live clock — the same invariant the guest branch
+    // already states in a comment.
+    expect(deps.startTimer).not.toHaveBeenCalled();
+
+    // The broadcast must still happen. A plausible wrong fix is to gate the
+    // else-branch too — "only broadcast live games" — which satisfies the
+    // assertion above while silently dropping the catch-up a rejoining guest
+    // depends on. Verified: that variant turns this assertion red.
+    expect(calls.broadcasts).toHaveLength(1);
+    expect(calls.broadcasts[0]).toBe(game);
+  });
+
+  it("host welcome-with-opponent on an active unpaused game still starts the timer (negative pin)", () => {
+    // The fix must not become "never start the timer here".
+    const game = activeGame();
+    const { deps, calls } = makeDeps(game, "host");
+    deps.pausedRef.current = false;
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "host",
+      opponent: { guestId: "g1", displayName: "Guest" },
+    });
+
+    expect(deps.startTimer).toHaveBeenCalledOnce();
+    expect(calls.committed).toHaveLength(1);
+  });
+
   it("F288: host welcome-with-opponent while paused broadcasts frozen state, no reset or timer", () => {
     const game = activeGame();
     const { deps, calls } = makeDeps(game, "host");

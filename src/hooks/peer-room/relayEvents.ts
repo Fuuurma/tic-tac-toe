@@ -122,7 +122,14 @@ export function handleRelayEvent(
         } else {
           broadcastGameState(current);
         }
-        if (!pausedRef.current) startTimer();
+        // F456: the timer must be gated on the game still being live, not just
+        // on the pause flag. A terminal game takes the broadcast branch above —
+        // a rejoining guest still needs that catch-up — but has no clock to
+        // run. The peer-reconnected twin further down already nests its
+        // `startTimer()` inside this same `isGameActive` check; this one did
+        // not, so an unpaused host reconnecting on a game-over screen spawned
+        // a stray interval.
+        if (isGameActive(current) && !pausedRef.current) startTimer();
       } else {
         setState((prev) => ({
           ...prev,
