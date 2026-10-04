@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { handleGuestMessage } from '../hooks/peer-room/guestProtocol';
 import { handleHostMessage } from '../hooks/peer-room/hostProtocol';
 import type { GameState } from '../game/logic';
@@ -103,20 +103,26 @@ describe('hostProtocol.handleHostMessage — rematch identity', () => {
   it('keeps each player their own identity when symbols swap on rematch', () => {
     // Host was X, guest was O. New host symbol = O (a swap).
     const state = completed('Alice', 'Bob');
-    const sent: Array<{ type: string; gameState: GameState }> = [];
+    const sent: Array<{ type: string; symbol?: string; gameState: GameState }> = [];
     const deps = makeDeps(state, 'X', sent);
 
-    handleHostMessage(deps as never, { type: 'rematchAccept' });
+    // F478: force the swap so indexing identities by the new symbol fails.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.75);
+    try {
+      handleHostMessage(deps as never, { type: 'rematchAccept' });
 
-    const reset = sent.find((m) => m.type === 'gameStart')?.gameState;
-    expect(reset).toBeTruthy();
-    // Identity invariant (symbol-agnostic — randomPlayerSymbol decides
-    // swap or not): the OLD host (Alice) sits at the NEW host symbol
-    // and the old guest (Bob) takes the other seat.
-    const newHostSymbol: 'X' | 'O' = deps.hostSymbolRef.current;
-    expect(reset?.players[newHostSymbol].username).toBe('Alice');
-    const otherSymbol: 'X' | 'O' = newHostSymbol === 'X' ? 'O' : 'X';
-    expect(reset?.players[otherSymbol].username).toBe('Bob');
+      const start = sent.find((m) => m.type === 'gameStart');
+      expect(deps.hostSymbolRef.current).toBe('O');
+      expect(start?.symbol).toBe('X');
+      expect(start?.gameState.players.O).toMatchObject({
+        username: 'Alice', color: 'blue', shape: 'heart',
+      });
+      expect(start?.gameState.players.X).toMatchObject({
+        username: 'Bob', color: 'red', shape: 'star',
+      });
+    } finally {
+      random.mockRestore();
+    }
   });
 });
 
