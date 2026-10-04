@@ -347,7 +347,7 @@ test("supports 1-9 keyboard shortcuts without hijacking dialogs", async ({ page 
   await expect(page.getByRole("button", { name: /Row 1 column 2/ }).locator("svg")).toBeVisible();
 });
 
-test("highlights winning cells without drawing a win line", async ({ page }) => {
+test("highlights the three winning cells", async ({ page }) => {
   await fillLobby(page, {
     name: "Alice",
     color: "blue",

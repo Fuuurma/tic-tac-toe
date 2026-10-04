@@ -41,7 +41,7 @@ describe("getAIMove", () => {
     ).toEqual(["Easy", "Normal", "Hard"]);
   });
 
-  it("returns a move on an empty board within the valid empty cells (EASY)", () => {
+  it("EASY chooses a legal reply after X takes center", () => {
     const state = makeMove(onlineState(), 4)!;
     const move = getAIMove(state, AI_Difficulty.EASY, PlayerSymbol.O);
     expect(move).not.toBeNull();

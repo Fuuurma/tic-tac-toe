@@ -143,7 +143,7 @@ describe("checkWinner", () => {
     expect(combination).toEqual([0, 1, 2]);
   });
 
-  it("detects a column win for O", () => {
+  it("detects a middle-row win for O", () => {
     let s = activeState();
     s = makeMove(s, 0)!;
     s = makeMove(s, 3)!;
