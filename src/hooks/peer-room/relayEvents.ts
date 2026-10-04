@@ -1,4 +1,5 @@
 import {
+  GameStatus,
   TURN_DURATION_MS,
   PlayerSymbol,
   oppositeSymbol,
@@ -38,7 +39,11 @@ export interface RelayEventDeps {
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
   /** Guest → host pull for an authoritative snapshot on reconnect
-   *  (uno-chess sync_request/state_snapshot contract, DST-04). */
+   *  (uno-chess sync_request/state_snapshot contract, DST-04). A dropped
+   *  pull needs no retry — the join resync / next host gameUpdate still
+   *  reconcile the guest, so callers deliberately ignore send()'s
+   *  boolean (review 2026-10-03 repair: the unused return was interface
+   *  churn, reverted to void). */
   requestSync: () => void;
   startTimer: () => void;
   stopTimer: () => void;
@@ -140,22 +145,29 @@ export function handleRelayEvent(
         status: opponent ? "connected" : "connecting",
         message: opponent ? "" : "Waiting for host…",
       }));
-      // Mid-game reconnect pull (uno-chess contract): if our local game
-      // is still active this welcome is a REconnect, not a first join —
-      // ask the host for an authoritative state_snapshot in case our
-      // re-sent `join` or the host's peer-reconnected push was dropped.
-      if (isGameActive(stateRef.current)) {
+      // Reconnect pull (uno-chess contract): a local game past WAITING
+      // means this welcome is a REconnect, not a first join — ask the
+      // host for an authoritative state_snapshot in case our re-sent
+      // `join` or the host's peer-reconnected push was dropped.
+      // COMPLETED counts too (review 2026-10-03 repair P2): a guest that
+      // thinks the game ended but missed the rematch `gameStart` has no
+      // other catch-up, and that is exactly when divergence is worst.
+      if (stateRef.current.gameStatus !== GameStatus.WAITING) {
         requestSync();
       }
     }
     return;
   }
   if (event.type === "peer-reconnected") {
+    // Preserve rematchIncoming: a transient blip must not kill a live
+    // rematch prompt — the host's pending request survives a socket
+    // drop, and the terminal peer-left branch still clears the flag if
+    // the peer never returns (review 2026-10-03 repair P2: clearing it
+    // here defeated the terminal-snapshot preserve in guestProtocol).
     setState((prev) => ({
       ...prev,
       status: "connected",
       message: "",
-      rematchIncoming: false,
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -187,25 +199,42 @@ export function handleRelayEvent(
       } else {
         broadcastGameState(current);
       }
-    } else if (roleRef.current === "guest" && isGameActive(stateRef.current)) {
-      // Resynthesize a fresh turnDeadlineAt from the remaining time —
-      // the old deadline is stale after a disconnect. Without this the
-      // guest timer ticks against a past deadline, briefly showing 0
-      // and potentially firing the local "ran out of time" branch
-      // before the host's gameUpdate arrives (fleet 09-07 P1).
+    } else if (roleRef.current === "guest") {
       const current = stateRef.current;
-      const remaining = current.turnTimeRemaining ?? TURN_DURATION_MS;
-      const resynthesized = {
-        ...current,
-        turnDeadlineAt: Date.now() + remaining,
-      };
-      stateRef.current = resynthesized;
-      // Commit unconditionally: the ref above is already resynthesized,
-      // so gating this setState on reference equality would skip the
-      // render while leaving the ref diverged (fleet F35). Every other
-      // gameState commit in this slice writes ref + render together.
-      setState((prev) => ({ ...prev, gameState: resynthesized }));
-      startTimer();
+      if (isGameActive(current)) {
+        // Resynthesize a fresh turnDeadlineAt from the remaining time —
+        // the old deadline is stale after a disconnect. Without this the
+        // guest timer ticks against a past deadline, briefly showing 0
+        // and potentially firing the local "ran out of time" branch
+        // before the host's gameUpdate arrives (fleet 09-07 P1).
+        const remaining = current.turnTimeRemaining ?? TURN_DURATION_MS;
+        const resynthesized = {
+          ...current,
+          turnDeadlineAt: Date.now() + remaining,
+        };
+        stateRef.current = resynthesized;
+        // Commit unconditionally: the ref above is already resynthesized,
+        // so gating this setState on reference equality would skip the
+        // render while leaving the ref diverged (fleet F35). Every other
+        // gameState commit in this slice writes ref + render together.
+        setState((prev) => ({ ...prev, gameState: resynthesized }));
+        // Pull the authoritative state too (review 2026-10-03 P2): this
+        // event means the HOST reconnected — its welcome broadcast may
+        // have dropped while our socket stayed up, leaving us on a stale
+        // board until the next move. The join resend only covers WAITING
+        // (F252), so mid-game needs the pull like the welcome branch.
+        // Issue the pull BEFORE restarting the clock so the authoritative
+        // snapshot is in flight while the stale-board countdown resumes
+        // (review 2026-10-03 repair P3).
+        requestSync();
+        startTimer();
+      } else if (current.gameStatus === GameStatus.COMPLETED) {
+        // Local says terminal but the host may have rematched while we
+        // were deaf — the pull is the only catch-up now that COMPLETED
+        // snapshots are served (review 2026-10-03 repair P2). No
+        // deadline work: a terminal state has no live clock.
+        requestSync();
+      }
     }
     return;
   }
@@ -245,7 +274,9 @@ export function handleRelayEvent(
           ...prev,
           status: "reconnecting",
           message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
-          rematchIncoming: false,
+          // rematchIncoming survives the transient grace window — the
+          // terminal closed/expired branch below still clears it
+          // (review 2026-10-03 repair P2).
         };
       });
       if (transitioned) stopTimer();

@@ -22,11 +22,37 @@ import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
  * when the guest leaves. Messages the host receives arrive via
  * `handleHostData` (routed by role in buildRoomClient).
  */
+
+/** Minimum interval between state_snapshot replies to sync_request. A
+ *  genuine reconnect produces at most one pull per relay event, so
+ *  replies faster than this are a peer farming full GameState dumps —
+ *  answer the first, drop the rest of the burst (review 2026-10-03
+ *  repair P2). Cooldown rather than once-per-reconnect so a flapping
+ *  socket stays bounded too. */
+export const SYNC_REPLY_COOLDOWN_MS = 1_000;
+
+/** Disarm the sync-reply throttle — the next pull is treated as one full
+ *  window after the last reply. A new game (room entry, join, rematch)
+ *  must not inherit the previous game's cooldown or a legitimate
+ *  catch-up pull inside that window is silently dropped (review
+ *  2026-10-03 repair P2). */
+export const disarmSyncReplyThrottle = (ref: { current: number }) => {
+  ref.current = performance.now() - SYNC_REPLY_COOLDOWN_MS;
+};
+
 export interface HostProtocolDeps {
   stateRef: { current: GameState };
   roomRef: { current: RoomClient | null };
   hostSymbolRef: { current: PlayerSymbol | null };
   hostRematchPendingRef: { current: boolean };
+  /** Timestamp (performance.now) of the last state_snapshot reply —
+   *  throttles sync_request spam (see SYNC_REPLY_COOLDOWN_MS). */
+  lastSyncReplyAtRef: { current: number };
+  /** True once a peer `join` has been processed in this room. The
+   *  sync_request gate keys off this — not game status — so a
+   *  never-joined peer cannot pull full GameState (review 2026-10-03
+   *  repair P2). */
+  guestJoinedRef: { current: boolean };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
@@ -70,6 +96,8 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     roomRef,
     hostSymbolRef,
     hostRematchPendingRef,
+    lastSyncReplyAtRef,
+    guestJoinedRef,
     hostPendingSettingsRef,
     setState,
     stopTimer,
@@ -91,6 +119,12 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         preferredColor: message.preferredColor,
       });
       stateRef.current = result.gameState;
+      // A real join unlocks sync pulls and starts a fresh throttle
+      // window — a (re)joining guest's catch-up pull must not inherit a
+      // cooldown still running from before the disconnect (review
+      // 2026-10-03 repair P2).
+      guestJoinedRef.current = true;
+      disarmSyncReplyThrottle(lastSyncReplyAtRef);
       // Send the WIRE payload (deadline stripped, fresh remaining) — the
       // host state keeps its own deadline for turn expiry (fleet 09-08
       // devin report: this send site had shipped the stale state).
@@ -130,6 +164,21 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // with the current wire state — deadline stripped so the guest
       // resynthesizes its own clock. Read-only: never mutates host
       // state, safe against a stray or replayed request.
+      // Gate on a join actually having landed — not on status alone
+      // (review 2026-10-03 repair P2): status only blocks WAITING, so a
+      // peer that never sent `join` could pull full GameState
+      // (names/colors) while the game sat ACTIVE or COMPLETED — the same
+      // pre-join leak, one status later. The WAITING check stays as
+      // defense-in-depth (a real join always leaves WAITING).
+      if (!guestJoinedRef.current) return;
+      if (stateRef.current.gameStatus === GameStatus.WAITING) return;
+      // Throttle (review 2026-10-03 repair P2): without a bound any peer
+      // can spam full-state pulls and the host answers every one.
+      // performance.now() is monotonic — wall-clock jumps can't lock the
+      // window out or farm it (review 2026-10-03 repair P3).
+      const now = performance.now();
+      if (now - lastSyncReplyAtRef.current < SYNC_REPLY_COOLDOWN_MS) return;
+      lastSyncReplyAtRef.current = now;
       roomRef.current?.send({
         type: "state_snapshot",
         gameState: toWireGameState(stateRef.current),
@@ -199,6 +248,10 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         humanSymbol: newHostSymbol,
       });
       stateRef.current = reset;
+      // New game = new sync window: a guest catch-up pull arriving right
+      // after the rematch gameStart must be answered, not throttled by
+      // the previous game's last reply (review 2026-10-03 repair P2).
+      disarmSyncReplyThrottle(lastSyncReplyAtRef);
       setState((prev) => ({
         ...prev,
         hostSymbol: newHostSymbol,

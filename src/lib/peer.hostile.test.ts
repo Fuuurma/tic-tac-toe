@@ -276,6 +276,56 @@ describe("isPeerMessage hostile game-state frames", () => {
     expect(isPeerMessage(frame)).toBe(false);
   });
 
+  it("rejects a winner with a null winningCombination on every state frame (F404)", () => {
+    // The F192 cross-check used to fire only when BOTH fields were set, so
+    // winner:X + winningCombination:null minted a phantom win — reachable
+    // through the state_snapshot branch added for reconnect sync.
+    const state = {
+      ...baselineState(),
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+      winningCombination: null,
+    };
+    expect(isPeerMessage({ type: "state_snapshot", gameState: state })).toBe(
+      false,
+    );
+    expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(false);
+    expect(
+      isPeerMessage({
+        type: "joined",
+        symbol: PlayerSymbol.O,
+        color: Color.RED,
+        gameState: state,
+      }),
+    ).toBe(false);
+    expect(
+      isPeerMessage({
+        type: "gameStart",
+        symbol: PlayerSymbol.O,
+        gameState: state,
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects a winningCombination with a null winner — the mirror F404 case", () => {
+    // makeMove always writes the pair together, so a claimed line with
+    // no winner is as impossible as a winner with no line. Build a state
+    // where the board DOES hold the line — only the missing winner is
+    // invalid, proving the mirror check fires rather than F192.
+    const state = {
+      ...baselineState(),
+      winner: null,
+      winningCombination: [...WINNING_COMBINATIONS[0]],
+    };
+    for (const i of WINNING_COMBINATIONS[0]) {
+      state.board[i] = PlayerSymbol.X;
+    }
+    expect(isPeerMessage({ type: "state_snapshot", gameState: state })).toBe(
+      false,
+    );
+    expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(false);
+  });
+
   it("rejects gameState with lastMoveIndex out of range", () => {
     const frame = validMessage();
     (frame.gameState as unknown as { lastMoveIndex: unknown }).lastMoveIndex = 99;
