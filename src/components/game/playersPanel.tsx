@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -113,10 +113,6 @@ export function PlayersPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
 
-  useEffect(() => {
-    onPauseChange?.(showExit || showNewGame);
-  }, [showExit, showNewGame, onPauseChange]);
-
   const copyRoomCode = async () => {
     if (!roomCode) return;
     try {
@@ -173,6 +169,7 @@ export function PlayersPanel({
       return;
     }
     setShowNewGame(true);
+    onPauseChange?.(true);
   };
 
   const handleExitClick = () => {
@@ -181,6 +178,7 @@ export function PlayersPanel({
       return;
     }
     setShowExit(true);
+    onPauseChange?.(true);
   };
 
   return (
@@ -416,9 +414,13 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowExit(false);
+          onPauseChange?.(false);
           onExit();
         }}
-        onCancel={() => setShowExit(false)}
+        onCancel={() => {
+          setShowExit(false);
+          onPauseChange?.(false);
+        }}
       />
       <Confirm
         isOpen={showNewGame && isActive}
@@ -428,9 +430,13 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowNewGame(false);
+          onPauseChange?.(false);
           onNewGame?.();
         }}
-        onCancel={() => setShowNewGame(false)}
+        onCancel={() => {
+          setShowNewGame(false);
+          onPauseChange?.(false);
+        }}
       />
     </div>
   );

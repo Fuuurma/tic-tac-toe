@@ -72,7 +72,6 @@ export const BoardCell = memo(function BoardCell({
   return (
     <button
       type="button"
-      role="gridcell"
       aria-label={buildAriaLabel(index, value, isNextToRemove)}
       aria-keyshortcuts={String(index + 1)}
       aria-disabled={isDisabled || value !== null}

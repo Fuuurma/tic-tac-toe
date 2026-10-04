@@ -260,8 +260,8 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             <h1 className="font-display text-xl font-extrabold leading-none tracking-tight sm:text-2xl">
               Tic Tac Toe Disappear
             </h1>
-            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-              Three marks each. A fourth move removes your oldest.
+            <p className="mt-1.5 text-xs leading-snug text-foreground/80">
+              Three in a row wins, only your latest three marks stay on the board.
             </p>
           </div>
           <button

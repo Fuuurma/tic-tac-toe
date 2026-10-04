@@ -19,9 +19,13 @@ import {
   isGameActive,
   isValidMove,
   makeMove,
-  makeRandomMove,
 } from "@/game/logic";
 import { getAIMove } from "@/game/ai";
+import {
+  commitLocalMove,
+  startLocalTurnTimer,
+  stopLocalTurnTimer,
+} from "./localTurnTimer";
 
 export interface LocalGameInput {
   gameMode: typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND;
@@ -55,65 +59,33 @@ export function useLocalGame(input: LocalGameInput) {
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
+  const [message, setMessage] = useState("");
   const [paused, setPausedState] = useState(false);
   const pausedRef = useRef(false);
   const tickRef = useRef<number | null>(null);
   const aiTimeoutRef = useRef<number | null>(null);
-  // Latest snapshot for the interval tick: the forced-move computation
-  // must run outside the state updater (purity — see the comment in the
-  // tick below), so the tick reads this ref instead of taking `prev`
-  // inside setGameState. Synced in the post-render effect near the
-  // bottom of the hook.
+  // Latest committed snapshot, read by the interval tick, cell clicks,
+  // and the AI timeout: every move computes outside the state updater
+  // (purity — StrictMode double-invokes updaters) off this ref, then
+  // commits through commitLocalMove's `cur === prev` guard so a stale
+  // decision can't clobber a newer commit. Synced in the post-render
+  // effect near the bottom of the hook.
   const gameStateRef = useRef(gameState);
   const gameIsActive = isGameActive(gameState);
   const currentPlayerType = gameState.players[gameState.currentPlayer].type;
 
   const stopTimer = useCallback(() => {
-    if (tickRef.current !== null) {
-      window.clearInterval(tickRef.current);
-      tickRef.current = null;
-    }
+    stopLocalTurnTimer({ tickRef });
   }, []);
 
   const startTimer = useCallback(() => {
-    stopTimer();
-    tickRef.current = window.setInterval(() => {
-      // Updaters must stay pure (StrictMode double-invokes them), so the
-      // impure work — Date.now() and the random forced move — runs here
-      // off the latest snapshot, matching peer-room turnTimer. The
-      // updater then only applies the precomputed result when the state
-      // is still the snapshot we decided from; a concurrent commit
-      // (click, AI move) makes the next tick recompute fresh.
-      const prev = gameStateRef.current;
-      if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return;
-      // Use the absolute deadline so the timer stays correct even when
-      // the browser throttles setInterval in background tabs. Falls back
-      // to decrementing turnTimeRemaining when no deadline is set.
-      const deadline =
-        prev.turnDeadlineAt ??
-        Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS);
-      const remaining = Math.max(0, deadline - Date.now());
-      if (remaining <= 0) {
-        const random = makeRandomMove(prev.board);
-        if (random === null) return;
-        const updated = makeMove(prev, random);
-        if (!updated) return;
-        setGameState((cur) =>
-          cur === prev
-            ? {
-                ...updated,
-                turnNotice: `${
-                  prev.players[prev.currentPlayer].username || "Player"
-                } ran out of time`,
-              }
-            : cur,
-        );
-        return;
-      }
-      const next = { ...prev, turnTimeRemaining: remaining, turnDeadlineAt: deadline };
-      setGameState((cur) => (cur === prev ? next : cur));
-    }, 1000);
-  }, [stopTimer]);
+    startLocalTurnTimer({
+      stateRef: gameStateRef,
+      tickRef,
+      setGameState,
+      setMessage,
+    });
+  }, []);
 
   const handleCellClick = useCallback(
     (index: number) => {
@@ -140,6 +112,7 @@ export function useLocalGame(input: LocalGameInput) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
+    setMessage("");
     // Generate the new symbol once and update both the symbol state and
     // the game state together. Without this, humanSymbol would stay stale
     // after a reset and recordWin/recordLoss would attribute the result to
@@ -159,6 +132,7 @@ export function useLocalGame(input: LocalGameInput) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
+    setMessage("");
     setGameState(freshGameState());
   }, [stopTimer]);
 
@@ -216,20 +190,19 @@ export function useLocalGame(input: LocalGameInput) {
       }
       const scheduledSymbol = gameState.currentPlayer;
       aiTimeoutRef.current = window.setTimeout(() => {
-        setGameState((prev) => {
-          if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return prev;
-          // The turn may have flipped (e.g. timer forced move) after this
-          // timeout was scheduled: only move when it is still the
-          // scheduled AI side to play, otherwise the AI would commit a
-          // move for the wrong side.
-          if (prev.currentPlayer !== scheduledSymbol) return prev;
-          if (prev.players[prev.currentPlayer].type !== PlayerTypes.COMPUTER) return prev;
-          const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.NORMAL, scheduledSymbol);
-          if (move === null) return prev;
-          const next = makeMove(prev, move);
-          if (!next) return prev;
-          return next;
-        });
+        const prev = gameStateRef.current;
+        if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return;
+        // The turn may have flipped (e.g. timer forced move) after this
+        // timeout was scheduled: only move when it is still the
+        // scheduled AI side to play, otherwise the AI would commit a
+        // move for the wrong side.
+        if (prev.currentPlayer !== scheduledSymbol) return;
+        if (prev.players[prev.currentPlayer].type !== PlayerTypes.COMPUTER) return;
+        const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.NORMAL, scheduledSymbol);
+        if (move === null) return;
+        const next = makeMove(prev, move);
+        if (!next) return;
+        commitLocalMove({ setGameState, setMessage }, prev, next);
       }, AI_MOVE_DELAY_MS + Math.random() * AI_MOVE_DELAY_JITTER_MS);
     }
     return () => {
@@ -258,5 +231,5 @@ export function useLocalGame(input: LocalGameInput) {
     [stopTimer],
   );
 
-  return { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused };
+  return { gameState, humanSymbol, message, handleCellClick, handleReset, exit, setPaused, paused };
 }

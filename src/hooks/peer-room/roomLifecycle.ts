@@ -22,6 +22,7 @@ import {
 } from "@/lib/matchmaking";
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { RoomClient } from "@/lib/room";
+import { disarmSyncReplyThrottle } from "./hostProtocol";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
 
 /**
@@ -46,6 +47,13 @@ export interface RoomLifecycleDeps {
   handleGuestData: (message: PeerMessage) => void;
   stopTimer: () => void;
   hostRematchPendingRef: { current: boolean };
+  /** Sync-reply throttle clock (hostProtocol) — disarmed on room entry
+   *  so the first pull of a new room is never dropped by the previous
+   *  room's cooldown (review 2026-10-03 repair P2). */
+  lastSyncReplyAtRef: { current: number };
+  /** Join gate for sync_request — cleared on room entry so a stale
+   *  "guest joined" can never leak into the next room. */
+  guestJoinedRef: { current: boolean };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
 }
 
@@ -183,6 +191,11 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // F241: pending identity edits are room-scoped — a leftover from the
   // previous room would apply silently on the next room's rematch accept.
   deps.hostPendingSettingsRef.current = null;
+  // Sync state is room-scoped too (review 2026-10-03 repair P2): the
+  // joined gate must re-arm (no peer has joined THIS room yet) and the
+  // reply throttle must not carry a cooldown over from the last room.
+  deps.guestJoinedRef.current = false;
+  disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -229,6 +242,8 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   closeExistingRoom(roomRef);
   deps.hostRematchPendingRef.current = false;
   deps.hostPendingSettingsRef.current = null;
+  deps.guestJoinedRef.current = false;
+  disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });

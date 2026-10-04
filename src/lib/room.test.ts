@@ -1,6 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RoomClient } from "./room";
-
 
 /**
  * F151: a socket that dies before `welcome` means the relay rejected or
@@ -50,79 +49,6 @@ function makeClient(statuses: string[]): RoomClient {
   client.setStatusHandler((status) => statuses.push(status));
   return client;
 }
-type Listener = (event?: { data?: string }) => void;
-
-class FakeWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-  static instances: FakeWebSocket[] = [];
-  static throwOnConstruct = false;
-
-  readonly url: string;
-  readyState = FakeWebSocket.CONNECTING;
-  readonly sent: string[] = [];
-  private readonly listeners = new Map<string, Listener[]>();
-
-  constructor(url: string) {
-    if (FakeWebSocket.throwOnConstruct) {
-      FakeWebSocket.throwOnConstruct = false;
-      throw new Error("websocket construction failed");
-    }
-    this.url = url;
-    FakeWebSocket.instances.push(this);
-  }
-
-  addEventListener(type: string, listener: Listener): void {
-    const existing = this.listeners.get(type) ?? [];
-    existing.push(listener);
-    this.listeners.set(type, existing);
-  }
-
-  send(payload: string): void {
-    this.sent.push(payload);
-  }
-
-  close(): void {
-    this.readyState = FakeWebSocket.CLOSED;
-    this.emit("close");
-  }
-
-  open(): void {
-    this.readyState = FakeWebSocket.OPEN;
-    this.emit("open");
-  }
-
-  welcome(role: "host" | "guest" = "host"): void {
-    this.emit("message", {
-      data: JSON.stringify({ type: "welcome", role, opponent: null }),
-    });
-  }
-
-  private emit(type: string, event?: { data?: string }): void {
-    for (const listener of this.listeners.get(type) ?? []) {
-      listener(event);
-    }
-  }
-}
-
-function lastSocket(): FakeWebSocket {
-  const ws = FakeWebSocket.instances.at(-1);
-  if (!ws) throw new Error("no FakeWebSocket constructed");
-  return ws;
-}
-
-function makeSimpleClient(): RoomClient {
-  return new RoomClient({
-    wsUrl: "ws://example.test/room/abc",
-    game: "tictactoe",
-    guestId: "guest-1",
-    displayName: "Ada",
-  });
-}
-
-
 
 describe("RoomClient reconnect gating (F151)", () => {
   afterEach(() => {
@@ -187,41 +113,103 @@ describe("RoomClient reconnect gating (F151)", () => {
   });
 });
 
-
-describe("RoomClient construction-failure and reconnectNow policy (F151)", () => {
-  beforeEach(() => {
-    FakeWebSocket.instances = [];
-    FakeWebSocket.throwOnConstruct = false;
-    vi.stubGlobal("WebSocket", FakeWebSocket);
-    vi.useFakeTimers();
-  });
-
+describe("RoomClient reconnect credential (MM-01)", () => {
   afterEach(() => {
-    vi.useRealTimers();
     vi.unstubAllGlobals();
+    FakeSocket.instances = [];
+    vi.useRealTimers();
   });
 
-  it("does not schedule reconnect when WebSocket construction fails before welcome", async () => {
-    FakeWebSocket.throwOnConstruct = true;
-    const client = makeSimpleClient();
-    const pending = client.connect();
-    await expect(pending).rejects.toThrow(/websocket construction failed/);
+  function stubStorage() {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+    return store;
+  }
 
-    await vi.advanceTimersByTimeAsync(30_000);
-    expect(FakeWebSocket.instances).toHaveLength(0);
+  function captureSent(ws: FakeSocket): string[] {
+    const sent: string[] = [];
+    (ws as unknown as { send(data: string): void }).send = (data: string) => {
+      sent.push(data);
+    };
+    return sent;
+  }
+
+  function makeRoomClient() {
+    return new RoomClient({
+      displayName: "Tester",
+      game: "tictactoe",
+      guestId: "guest:1",
+      role: "guest",
+      wsUrl: "ws://relay.test/room/ABCDEF1234567890?game=tictactoe",
+    });
+  }
+
+  it("omits reconnectToken from hello when none is retained", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    stubStorage();
+    const client = makeRoomClient();
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    const sent = captureSent(ws);
+    ws.emit("open");
+    expect(sent).toHaveLength(1);
+    const hello = JSON.parse(sent[0]) as Record<string, unknown>;
+    expect(hello.type).toBe("hello");
+    expect("reconnectToken" in hello).toBe(false);
+    client.close();
+    await expect(pending).rejects.toThrow("closed");
   });
 
-  it("reconnectNow after a failed initial connect tries once and still does not loop", async () => {
-    const client = makeSimpleClient();
+  it("retains the welcome credential and sends it on reconnect", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const store = stubStorage();
+    const client = makeRoomClient();
+
     const pending = client.connect();
-    lastSocket().close();
-    await expect(pending).rejects.toThrow();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({
+        opponent: null,
+        reconnectToken: "tok-abc-123",
+        role: "guest",
+        type: "welcome",
+      }),
+    });
+    await expect(pending).resolves.toMatchObject({ role: "guest" });
+    expect(store.get("tictactoe:room-token:ABCDEF1234567890")).toBe("tok-abc-123");
 
-    client.reconnectNow();
-    expect(FakeWebSocket.instances).toHaveLength(2);
+    ws.close();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(FakeSocket.instances).toHaveLength(2);
+    const ws2 = FakeSocket.instances[1];
+    const sent2 = captureSent(ws2);
+    ws2.emit("open");
+    expect(sent2).toHaveLength(1);
+    const hello2 = JSON.parse(sent2[0]) as Record<string, unknown>;
+    expect(hello2.reconnectToken).toBe("tok-abc-123");
+    client.close();
+  });
 
-    lastSocket().close();
-    await vi.advanceTimersByTimeAsync(30_000);
-    expect(FakeWebSocket.instances).toHaveLength(2);
+  it("a fresh client instance reclaims with the persisted credential", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const store = stubStorage();
+    store.set("tictactoe:room-token:ABCDEF1234567890", "tok-persisted");
+
+    const client = makeRoomClient();
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    const sent = captureSent(ws);
+    ws.emit("open");
+    const hello = JSON.parse(sent[0]) as Record<string, unknown>;
+    expect(hello.reconnectToken).toBe("tok-persisted");
+    client.close();
+    await expect(pending).rejects.toThrow("closed");
   });
 });

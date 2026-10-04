@@ -317,12 +317,22 @@ const isGameState = (value: unknown): value is GameState => {
   }
   // F192: a claimed win must actually exist on the board — cross-check
   // that every cell of the winning line holds the winner's symbol, not
-  // just that the two fields are individually well-formed.
+  // just that the two fields are individually well-formed. F404: the
+  // check must also fire when the combination is missing — a frame
+  // carrying `winner` with a null combination minted a phantom win
+  // through state_snapshot/gameUpdate. makeMove always sets both
+  // fields together, so a lone winner is never legitimate.
   if (
     state.winner !== null &&
-    state.winningCombination !== null &&
-    !state.winningCombination.every((i) => (state.board as unknown[])[i] === state.winner)
+    (state.winningCombination === null ||
+      !state.winningCombination.every((i) => (state.board as unknown[])[i] === state.winner))
   ) {
+    return false;
+  }
+  // Mirror of the F404 check (review 2026-10-03 repair P2): makeMove
+  // always writes winner + winningCombination together, so a claimed
+  // line with NO winner is as impossible as a winner with no line.
+  if (state.winner === null && state.winningCombination !== null) {
     return false;
   }
   if (state.lastMoveIndex !== null && !isBoundedCellIndex(state.lastMoveIndex)) {

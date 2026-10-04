@@ -8,14 +8,10 @@
  * Lifecycle:
  *  - `connect()` opens a WebSocket and resolves once the server sends
  *    `welcome` (after the client sends `hello`).
- *  - After a `welcome` has been received once, a later disconnect
- *    auto-reconnects with exponential backoff (capped at 15s), re-sends
- *    `hello`, and re-resolves with a fresh `welcome`. The DO reassigns
- *    the same role because the same `guestId` reconnects.
- *  - A socket that closes *before* the first `welcome` is a failed
- *    initial connect, not a drop: the promise rejects and the client
- *    does not retry. Mid-session reconnect must not run when no session
- *    was ever established (F151).
+ *  - On disconnect, the client auto-reconnects with exponential backoff
+ *    (capped at 15s), re-sends `hello`, and re-resolves with a fresh
+ *    `welcome`. The DO reassigns the same role because the same
+ *    `guestId` reconnects.
  *  - `close()` shuts down permanently (no reconnect).
  *
  * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
@@ -29,6 +25,8 @@ interface WelcomeMessage {
   type: "welcome";
   role: RoomRole;
   opponent: { guestId: string; displayName: string } | null;
+  /** Private slot-reclaim credential (MM-01). Absent on pre-fix relays. */
+  reconnectToken?: string;
 }
 
 interface PeerJoinedMessage {
@@ -80,6 +78,34 @@ interface RoomSession {
 
 const DEFAULT_MAX_BACKOFF_MS = 15_000;
 
+const RECONNECT_TOKEN_KEY_PREFIX = "tictactoe:room-token:";
+
+/** localStorage key for the room's reclaim credential, or null when the URL carries no room id. */
+function tokenKey(wsUrl: string): string | null {
+  const match = /\/room\/([A-Za-z0-9_-]{4,64})/.exec(wsUrl);
+  return match ? RECONNECT_TOKEN_KEY_PREFIX + match[1] : null;
+}
+
+function loadToken(key: string | null): string | null {
+  if (!key) return null;
+  try {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function saveToken(key: string | null, token: string): void {
+  if (!key) return;
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(key, token);
+  } catch {
+    // Private mode etc: memory retention still covers in-session reconnects.
+  }
+}
+
 export class RoomClient {
   private readonly opts: Required<Omit<RoomClientOptions, "protocol" | "role">> & {
     protocol: string;
@@ -93,14 +119,14 @@ export class RoomClient {
   private role: RoomRole | null = null;
   private opponent: { guestId: string; displayName: string } | null = null;
   private closedByUser = false;
+  private hadSession = false;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
   private welcomeRejecters: Array<(reason: Error) => void> = [];
   private pendingConnect: Promise<RoomSession> | null = null;
-  /** True once the relay has welcomed this client at least once. */
-  private sessionEstablished = false;
   private preWelcomeError: Error | null = null;
+  private reconnectToken: string | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -117,6 +143,9 @@ export class RoomClient {
       maxBackoffMs: opts.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
       autoReconnect: opts.autoReconnect ?? true,
     };
+    // Retained credential from a previous session in this room (MM-01):
+    // lets a refresh reclaim the same slot within the server grace window.
+    this.reconnectToken = loadToken(tokenKey(opts.wsUrl));
   }
 
   setMessageHandler(handler: (msg: RoomEnvelope) => void): void {
@@ -215,7 +244,7 @@ export class RoomClient {
     }
     this.setStatus("reconnecting", "Reconnecting now…");
     this.openSocket().catch(() => {
-      if (this.canAutoReconnect()) this.scheduleReconnect();
+      if (this.opts.autoReconnect) this.scheduleReconnect();
     });
   }
 
@@ -229,7 +258,7 @@ export class RoomClient {
         ws = new WebSocket(url.toString());
       } catch (err) {
         reject(err instanceof Error ? err : new Error("websocket construction failed"));
-        if (this.canAutoReconnect()) this.scheduleReconnect();
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
         return;
       }
       this.ws = ws;
@@ -255,6 +284,7 @@ export class RoomClient {
           guestId: this.opts.guestId,
           displayName: this.opts.displayName,
           role: this.role ?? this.opts.role ?? undefined,
+          reconnectToken: this.reconnectToken ?? undefined,
         });
         if (!sent) {
           settleWelcome(null, new Error("hello send failed"));
@@ -282,9 +312,13 @@ export class RoomClient {
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
+          if (typeof welcome.reconnectToken === "string" && welcome.reconnectToken) {
+            this.reconnectToken = welcome.reconnectToken;
+            saveToken(tokenKey(this.opts.wsUrl), welcome.reconnectToken);
+          }
+          this.hadSession = true;
           this.preWelcomeError = null;
           this.reconnectAttempt = 0;
-          this.sessionEstablished = true;
           this.setStatus("connected");
           const session: RoomSession = { role: welcome.role, opponent: welcome.opponent };
           // Resolve any pending `connect()` call.
@@ -320,7 +354,7 @@ export class RoomClient {
         // a socket that dies before `welcome` means the relay rejected or
         // is unreachable; retrying forever would overwrite the terminal
         // error status the caller just set. Only retry post-session drops.
-        if (this.canAutoReconnect()) this.scheduleReconnect();
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
         else this.setStatus("disconnected");
       });
 
@@ -337,12 +371,12 @@ export class RoomClient {
     });
   }
 
-  private canAutoReconnect(): boolean {
-    return this.opts.autoReconnect && this.sessionEstablished && !this.closedByUser;
-  }
-
   private scheduleReconnect(): void {
-    if (!this.canAutoReconnect()) return;
+    if (this.closedByUser || !this.opts.autoReconnect) return;
+    // Never auto-reconnect before a session was established (no
+    // `welcome` yet) — a failed initial connect() must settle as a
+    // terminal error, not retry the unreachable relay forever.
+    if (this.role === null) return;
     if (this.reconnectTimer) return;
     const base = Math.min(
       this.opts.maxBackoffMs,

@@ -77,7 +77,10 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           gameState,
           guestSymbol: localSymbol,
           message: "",
-          rematchIncoming: false,
+          // A terminal frame (state_snapshot/joined resync on a finished
+          // game) does not supersede a live rematch prompt — only a new
+          // ACTIVE game does (review 2026-10-03 P3).
+          rematchIncoming: isGameActive(gameState) ? false : prev.rematchIncoming,
         };
       });
       return;

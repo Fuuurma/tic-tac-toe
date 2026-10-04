@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { RoomClient } from "@/lib/room";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
-import { leaveRoom, joinAsGuest, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import { handleRelayEvent } from "./relayEvents";
+import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
 import type { PendingPlayerSettings } from "../usePeerRoom";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
@@ -99,6 +101,8 @@ describe("joinAsGuest rematch-flag reset", () => {
       handleGuestData: vi.fn(),
       stopTimer: vi.fn(),
       hostRematchPendingRef,
+      lastSyncReplyAtRef: { current: 0 },
+      guestJoinedRef: { current: false },
       hostPendingSettingsRef,
     };
     return { deps, guestSymbolRef };
@@ -159,6 +163,91 @@ describe("joinAsGuest rematch-flag reset", () => {
 
     captured.handler?.({ type: "peer-reconnected" });
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("guest welcome mid-game wires sync_request BEFORE the auto join resend (combined reconnect path)", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: {
+      handler?: (msg: { type: string; [k: string]: unknown }) => void;
+    } = {};
+    vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+      (h) => {
+        captured.handler = h;
+      },
+    );
+    const send = vi
+      .spyOn(RoomClient.prototype, "send")
+      .mockReturnValue(true);
+    // Wire the real relay-event path the composition root uses:
+    // welcome → handleRelayEvent → requestSync → roomRef.send. The
+    // message handler runs handleWsEvent BEFORE the auto-join send, so
+    // the pull lands on the wire first — pin that order (review
+    // 2026-10-03 P2).
+    deps.handleWsEvent = (event) =>
+      handleRelayEvent(
+        {
+          roomRef: deps.roomRef,
+          stateRef: deps.stateRef,
+          roleRef: deps.roleRef,
+          hostSymbolRef: deps.hostSymbolRef,
+          guestSymbolRef: deps.guestSymbolRef,
+          hostRematchPendingRef: deps.hostRematchPendingRef,
+          reconnectResetsRef: { current: { moveCount: -1 } },
+          pausedRef: { current: false },
+          setState: deps.setState,
+          commitHostState: vi.fn(),
+          broadcastGameState: vi.fn(),
+          requestSync: () =>
+            deps.roomRef.current?.send({ type: "sync_request" }) ?? false,
+          startTimer: vi.fn(),
+          stopTimer: vi.fn(),
+          clearRematchTimeout: vi.fn(),
+        },
+        event,
+      );
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    // Mid-game guest state — this welcome is a REconnect, not a join.
+    deps.stateRef.current = {
+      ...deps.stateRef.current,
+      gameStatus: GameStatus.ACTIVE,
+    };
+    send.mockClear();
+
+    captured.handler?.({ type: "welcome", role: "guest", opponent: { guestId: "h", displayName: "Host" } });
+
+    const types = send.mock.calls.map(
+      ([m]) => (m as { type: string }).type,
+    );
+    expect(types).toEqual(["sync_request", "join"]);
+  });
+
+  it("clears the sync-pull gate + throttle on room entry (review 2026-10-03 repair P2)", () => {
+    // A new room must not inherit the previous room's joined flag (a
+    // never-joined peer would be served snapshots) or its reply
+    // cooldown (the first legitimate pull would be dropped).
+    const { deps } = lifecycleDeps({ current: false });
+    deps.guestJoinedRef.current = true;
+    deps.lastSyncReplyAtRef.current = performance.now();
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.guestJoinedRef.current).toBe(false);
+    expect(performance.now() - deps.lastSyncReplyAtRef.current).toBeGreaterThanOrEqual(
+      SYNC_REPLY_COOLDOWN_MS,
+    );
+  });
+
+  it("startAsHost clears the sync-pull gate + throttle for the new room", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    deps.guestJoinedRef.current = true;
+    deps.lastSyncReplyAtRef.current = performance.now();
+
+    startAsHost(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.guestJoinedRef.current).toBe(false);
+    expect(performance.now() - deps.lastSyncReplyAtRef.current).toBeGreaterThanOrEqual(
+      SYNC_REPLY_COOLDOWN_MS,
+    );
   });
 
   it("clears a stale pending-rematch flag on room entry", () => {

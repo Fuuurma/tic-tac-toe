@@ -54,7 +54,7 @@ async function clickCell(
   row: 1 | 2 | 3,
   col: 1 | 2 | 3,
 ) {
-  await page.getByRole("gridcell", { name: `Row ${row} column ${col}` }).click();
+  await page.getByRole("button", { name: `Row ${row} column ${col}` }).click();
 }
 
 async function playOnlineCell(
@@ -64,8 +64,8 @@ async function playOnlineCell(
   col: 1 | 2 | 3,
 ) {
   const cellName = `Row ${row} column ${col}, empty`;
-  const hostCell = hostPage.getByRole("gridcell", { name: cellName });
-  const guestCell = guestPage.getByRole("gridcell", { name: cellName });
+  const hostCell = hostPage.getByRole("button", { name: cellName });
+  const guestCell = guestPage.getByRole("button", { name: cellName });
 
   await expect
     .poll(
@@ -123,7 +123,7 @@ test("remembers the display name after starting a game", async ({ page }) => {
 test("starts a vs Computer game with a random first player", async ({ page }) => {
   await fillLobby(page, { name: "Alice", color: "blue", mode: "vs Computer" });
   await page.getByRole("button", { name: "Start Game" }).click();
-  await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
 
   // The player panel should show Alice's name on one of the player cards.
   await expect(page.getByRole("group", { name: /Alice/ })).toBeVisible();
@@ -133,16 +133,16 @@ test("starts a vs Computer game with a random first player", async ({ page }) =>
     .poll(
       () =>
         page
-          .locator('button[role="gridcell"]:not(:disabled)')
+          .locator('button:not(:disabled)')
           .evaluateAll((cells) =>
             cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
           ),
       { timeout: 5_000 },
     )
     .toBeGreaterThan(0);
-  const emptyCell = page.locator('button[role="gridcell"][aria-label$=", empty"]').first();
+  const emptyCell = page.locator('button[aria-label$=", empty"]').first();
   await emptyCell.click();
-  await expect(page.locator('button[role="gridcell"][aria-label*="occupied by"]').first()).toBeVisible({ timeout: 2_000 });
+  await expect(page.locator('button[aria-label*="occupied by"]').first()).toBeVisible({ timeout: 2_000 });
 });
 
 test("sets up a private room with a custom code or a friend code", async ({ page }) => {
@@ -177,7 +177,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await page.getByRole("radio", { name: "Normal", exact: true }).click();
   await closeOpponentSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
-  await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
   await expect(page.getByRole("button", { name: "How to play" })).toBeVisible();
 
   // Wait for the human's turn — who starts is now random, so the AI
@@ -186,7 +186,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .poll(
       () =>
         page
-          .locator('button[role="gridcell"]:not(:disabled)')
+          .locator('button:not(:disabled)')
           .evaluateAll((cells) =>
             cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
           ),
@@ -195,10 +195,10 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .toBeGreaterThan(0);
 
   // Human plays the first available empty cell, then the AI should play somewhere.
-  const emptyCell = page.locator('button[role="gridcell"][aria-label$=", empty"]').first();
+  const emptyCell = page.locator('button[aria-label$=", empty"]').first();
   await emptyCell.click();
   // The clicked cell should now have an SVG (piece was placed).
-  const occupiedCell = page.locator('button[role="gridcell"][aria-label*="occupied by"]').first();
+  const occupiedCell = page.locator('button[aria-label*="occupied by"]').first();
   await expect(occupiedCell.locator("svg")).toBeVisible();
 
   // The AI has an intentional thinking delay (~700ms) so the player can
@@ -207,7 +207,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .poll(
       () =>
         page
-          .locator('button[role="gridcell"]:not(:disabled)')
+          .locator('button:not(:disabled)')
           .evaluateAll((cells) =>
             cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
           ),
@@ -218,12 +218,12 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   // The AI responds after its short thinking delay; exactly one
   // O cell should appear and the panel should not say it's the
   // human's turn anymore.
-  const oCell = page.getByRole("gridcell", { name: /, occupied by O/ });
+  const oCell = page.getByRole("button", { name: /, occupied by O/ });
   await expect(oCell).toBeVisible({ timeout: 5_000 });
 
   // Both the human and AI pieces should be visible with distinct colors.
   // Who is X vs O is random, so just verify both X and O cells have colored SVGs.
-  const xCell = page.getByRole("gridcell", { name: /, occupied by X/ }).first();
+  const xCell = page.getByRole("button", { name: /, occupied by X/ }).first();
   await expect(xCell).toBeVisible();
   await expect(oCell.first().locator("svg")).toHaveClass(/text-(red|blue)-500/);
   await expect(xCell.locator("svg")).toHaveClass(/text-(red|blue)-500/);
@@ -237,20 +237,20 @@ test("starts a vs Friend game and the turn alternates", async ({ page }) => {
     opponentName: "Bob",
   });
   await page.getByRole("button", { name: "Start Game" }).click();
-  await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
 
   // First player plays top-left; the panel should now show the other player's turn.
   await clickCell(page, 1, 1);
-  await expect(page.getByRole("gridcell", { name: /Row 1 column 1/ }).locator("svg")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Row 1 column 1/ }).locator("svg")).toBeVisible();
   await expect(page.getByText(/Bob.*turn|Alice.*turn/).first()).toBeVisible();
 
   // Second player plays top-right; the panel should show the first player's turn again.
   await clickCell(page, 1, 3);
-  await expect(page.getByRole("gridcell", { name: /Row 1 column 3/ }).locator("svg")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Row 1 column 3/ }).locator("svg")).toBeVisible();
 
   // Both pieces should have distinct colors (blue vs red by default).
-  const cell1Color = await page.getByRole("gridcell", { name: /Row 1 column 1/ }).locator("svg").getAttribute("class");
-  const cell3Color = await page.getByRole("gridcell", { name: /Row 1 column 3/ }).locator("svg").getAttribute("class");
+  const cell1Color = await page.getByRole("button", { name: /Row 1 column 1/ }).locator("svg").getAttribute("class");
+  const cell3Color = await page.getByRole("button", { name: /Row 1 column 3/ }).locator("svg").getAttribute("class");
   expect(cell1Color).toMatch(/text-(red|blue)-500/);
   expect(cell3Color).toMatch(/text-(red|blue)-500/);
   // The two cells should have different colors.
@@ -310,8 +310,8 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
   await clickCell(page, 1, 1); // first player
   await clickCell(page, 1, 2); // second player
   // The two pieces should have the configured distinct colors (green vs red).
-  const cell1Color = await page.getByRole("gridcell", { name: /Row 1 column 1/ }).locator("svg").getAttribute("class");
-  const cell2Color = await page.getByRole("gridcell", { name: /Row 1 column 2/ }).locator("svg").getAttribute("class");
+  const cell1Color = await page.getByRole("button", { name: /Row 1 column 1/ }).locator("svg").getAttribute("class");
+  const cell2Color = await page.getByRole("button", { name: /Row 1 column 2/ }).locator("svg").getAttribute("class");
   expect(cell1Color).toMatch(/text-(green|red)-500/);
   expect(cell2Color).toMatch(/text-(green|red)-500/);
   expect(cell1Color).not.toEqual(cell2Color);
@@ -326,26 +326,25 @@ test("supports 1-9 keyboard shortcuts without hijacking dialogs", async ({ page 
   });
   await page.getByRole("button", { name: "Start Game" }).click();
 
-  const cells = page.getByRole("gridcell");
+  const cells = page.getByRole("group", { name: "Tic Tac Toe game board" }).getByRole("button");
   await expect(cells).toHaveCount(9);
   for (let index = 0; index < 9; index += 1) {
     await expect(cells.nth(index)).toHaveAttribute("aria-keyshortcuts", String(index + 1));
   }
 
   await page.keyboard.press("1");
-  await expect(page.getByRole("gridcell", { name: /Row 1 column 1/ }).locator("svg")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Row 1 column 1/ }).locator("svg")).toBeVisible();
 
   const newGameButton = page.getByRole("button", { name: "Start a new game" });
   await newGameButton.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("2");
-  await expect(page.getByRole("gridcell", { name: "Row 1 column 2, empty" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Row 1 column 2, empty" })).toBeVisible();
 
   await page.keyboard.press("Escape");
   await expect(newGameButton).toBeFocused();
-  const secondCell = page.getByRole("gridcell", { name: "Row 1 column 2, empty" });
-  await secondCell.press("2");
-  await expect(page.getByRole("gridcell", { name: /Row 1 column 2/ }).locator("svg")).toBeVisible();
+  await page.keyboard.press("2");
+  await expect(page.getByRole("button", { name: /Row 1 column 2/ }).locator("svg")).toBeVisible();
 });
 
 test("highlights winning cells without drawing a win line", async ({ page }) => {
@@ -364,7 +363,7 @@ test("highlights winning cells without drawing a win line", async ({ page }) => 
   await clickCell(page, 1, 3); // X wins
 
   await expect(page.getByText(/(Alice|Bob) wins!/, { exact: true })).toBeVisible();
-  await expect(page.locator('button[role="gridcell"][class~="bg-emerald-500/20"]')).toHaveCount(3);
+  await expect(page.locator('button[class~="bg-emerald-500/20"]')).toHaveCount(3);
 });
 
 test("marks the oldest X piece as 'next to be removed' after the 3rd move", async ({ page }) => {
@@ -375,7 +374,7 @@ test("marks the oldest X piece as 'next to be removed' after the 3rd move", asyn
     opponentName: "Bob",
   });
   await page.getByRole("button", { name: "Start Game" }).click();
-  await expect(page.getByRole("grid", { name: "Tic Tac Toe game board" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
 
   // In vs Friend mode turns alternate. Build X pieces without creating a
   // winning line so the 3-piece cap can flag the oldest X.
@@ -386,16 +385,43 @@ test("marks the oldest X piece as 'next to be removed' after the 3rd move", asyn
   await clickCell(page, 3, 1); // X
   await clickCell(page, 2, 3); // O
   await expect(
-    page.getByRole("gridcell", { name: /Row 1 column 1/ }),
+    page.getByRole("button", { name: /Row 1 column 1/ }),
   ).toHaveAttribute("aria-label", /next to be removed/);
 
   // The other two X pieces are not flagged.
   await expect(
-    page.getByRole("gridcell", { name: /Row 2 column 2/ }),
+    page.getByRole("button", { name: /Row 2 column 2/ }),
   ).not.toHaveAttribute("aria-label", /next to be removed/);
   await expect(
-    page.getByRole("gridcell", { name: /Row 3 column 1/ }),
+    page.getByRole("button", { name: /Row 3 column 1/ }),
   ).not.toHaveAttribute("aria-label", /next to be removed/);
+});
+
+test("play again after a local win resets the board", async ({ page }) => {
+  await fillLobby(page, {
+    name: "Alice",
+    color: "blue",
+    mode: "vs Friend",
+    opponentName: "Bob",
+  });
+  await page.getByRole("button", { name: "Start Game" }).click();
+
+  await clickCell(page, 1, 1); // X
+  await clickCell(page, 2, 1); // O
+  await clickCell(page, 1, 2); // X
+  await clickCell(page, 2, 2); // O
+  await clickCell(page, 1, 3); // X wins
+
+  await expect(page.getByText(/(Alice|Bob) wins!/, { exact: true })).toBeVisible();
+
+  // Post-win reset is immediate (the confirm dialog is mid-game only).
+  await page.getByRole("button", { name: "Play again" }).click();
+
+  await expect(page.getByText(/(Alice|Bob) wins!/)).toBeHidden();
+  await expect(page.getByRole("button", { name: /occupied/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Row 1 column 1, empty" }),
+  ).toBeVisible();
 });
 
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
@@ -443,12 +469,14 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // the guest joins and the relay completes the hello/join handshake.
   await expect(hostPage.getByText("Room ready")).toBeVisible({ timeout: 30_000 });
   await expect(
-    hostPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
+    hostPage.getByRole("group", { name: "Tic Tac Toe game board" }),
   ).toHaveCount(0);
 
-  const hostWaiting = hostPage.getByLabel(/^Room code /);
+  const hostWaiting = hostPage.getByText(/^Room code \S+/);
   await expect(hostWaiting).toBeVisible();
-  const roomId = ((await hostWaiting.textContent()) ?? "").trim();
+  const roomId = ((await hostWaiting.textContent()) ?? "")
+    .replace(/^Room code\s+/, "")
+    .trim();
   expect(roomId.length).toBeGreaterThanOrEqual(4);
 
   // Guest joins via the invite link. The board is also gated on the
@@ -467,24 +495,19 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // hello/join handshake. Don't assert it strictly because on a fast
   // local Worker it can resolve before Playwright observes it; the
   // stricter contract is the boards becoming visible below.
-  await expect
-    .poll(
-      () =>
-        guestPage
-          .locator("body")
-          .innerText()
-          .then((t) => t.includes("Joining room") || t.includes("Tic Tac Toe game board")),
-      { timeout: 5_000 },
-    )
-    .toBe(true);
+  await expect(
+    guestPage
+      .getByText(/Joining room/)
+      .or(guestPage.getByRole("group", { name: "Tic Tac Toe game board" })),
+  ).toBeVisible({ timeout: 5_000 });
 
   // Boards only appear once both sides transition past the waiting room
   // into the connected state, and both sides see the other's display name.
   await expect(
-    hostPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
+    hostPage.getByRole("group", { name: "Tic Tac Toe game board" }),
   ).toBeVisible({ timeout: 90_000 });
   await expect(
-    guestPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
+    guestPage.getByRole("group", { name: "Tic Tac Toe game board" }),
   ).toBeVisible({ timeout: 90_000 });
   await expect(hostPage.getByRole("group", { name: /^Guest,/ })).toBeVisible();
   await expect(guestPage.getByRole("group", { name: /^Host,/ })).toBeVisible();
@@ -493,7 +516,7 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // owns the turn. Select fillers around the winning top-row moves so the
   // host wins whether it receives X (first) or O (second).
   const hostStarts = await hostPage
-    .getByRole("gridcell", { name: "Row 1 column 1, empty" })
+    .getByRole("button", { name: "Row 1 column 1, empty" })
     .isEnabled();
   const winningSequence: Array<[1 | 2 | 3, 1 | 2 | 3]> = hostStarts
     ? [
@@ -574,7 +597,7 @@ test("quick-match places both clients into a shared room", async ({ browser }) =
   // The second client ends up as the guest. It goes through the joining
   // state until the relay completes, then sees the host board.
   await expect(
-    secondPage.getByRole("grid", { name: "Tic Tac Toe game board" }),
+    secondPage.getByRole("group", { name: "Tic Tac Toe game board" }),
   ).toBeVisible({ timeout: 90_000 });
   await expect(secondPage.getByRole("group", { name: /^Alice,/i })).toBeVisible();
 

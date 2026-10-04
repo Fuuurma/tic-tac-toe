@@ -1,4 +1,5 @@
 import {
+  GameStatus,
   TURN_DURATION_MS,
   PlayerSymbol,
   oppositeSymbol,
@@ -38,7 +39,11 @@ export interface RelayEventDeps {
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
   /** Guest → host pull for an authoritative snapshot on reconnect
-   *  (uno-chess sync_request/state_snapshot contract, DST-04). */
+   *  (uno-chess sync_request/state_snapshot contract, DST-04). A dropped
+   *  pull needs no retry — the join resync / next host gameUpdate still
+   *  reconcile the guest, so callers deliberately ignore send()'s
+   *  boolean (review 2026-10-03 repair: the unused return was interface
+   *  churn, reverted to void). */
   requestSync: () => void;
   startTimer: () => void;
   stopTimer: () => void;
@@ -60,7 +65,6 @@ export function handleRelayEvent(
     pausedRef,
     setState,
     commitHostState,
-    broadcastGameState,
     requestSync,
     startTimer,
     stopTimer,
@@ -99,10 +103,16 @@ export function handleRelayEvent(
         // (fleet needs-work 2026-09-07 P1 / 09-08 P2).
         const current = stateRef.current;
         // F288: while the host is paused (Settings/Help overlay) a guest
-        // socket blip must not rebuild the frozen deadline — fall through
-        // to the broadcast so the rejoining guest catches up on the
-        // frozen state, and leave the interval stopped.
-        if (isGameActive(current) && !pausedRef.current) {
+        // socket blip must not rebuild the frozen deadline or restart the
+        // interval — the else-branch commits the unchanged state so the
+        // rejoining guest catches up, and leaves the clock stopped. The
+        // wire payload is NOT the frozen remaining: toWireGameState
+        // recomputes turnTimeRemaining off the stale pre-pause deadline
+        // (≈0 — the same value connected guests drain to while the host
+        // is paused). The frozen truth stays on stateRef and is
+        // re-broadcast when the unpause rebuilds the deadline.
+        const clockLive = isGameActive(current) && !pausedRef.current;
+        if (clockLive) {
           const fullResetAllowed =
             reconnectResetsRef.current.moveCount !== current.moveCount;
           reconnectResetsRef.current.moveCount = current.moveCount;
@@ -115,9 +125,16 @@ export function handleRelayEvent(
             : current;
           commitHostState(reconciled);
         } else {
-          broadcastGameState(current);
+          commitHostState(current);
         }
-        if (!pausedRef.current) startTimer();
+        // F456: the timer must be gated on the game still being live, not just
+        // on the pause flag. A terminal game takes the commit else-branch
+        // above — a rejoining guest still needs that catch-up — but has no
+        // clock to run. The peer-reconnected twin further down already nests
+        // its `startTimer()` inside this same `isGameActive` check; this one
+        // shares the extracted `clockLive` gate so the two checks cannot
+        // drift apart again.
+        if (clockLive) startTimer();
       } else {
         setState((prev) => ({
           ...prev,
@@ -140,22 +157,29 @@ export function handleRelayEvent(
         status: opponent ? "connected" : "connecting",
         message: opponent ? "" : "Waiting for host…",
       }));
-      // Mid-game reconnect pull (uno-chess contract): if our local game
-      // is still active this welcome is a REconnect, not a first join —
-      // ask the host for an authoritative state_snapshot in case our
-      // re-sent `join` or the host's peer-reconnected push was dropped.
-      if (isGameActive(stateRef.current)) {
+      // Reconnect pull (uno-chess contract): a local game past WAITING
+      // means this welcome is a REconnect, not a first join — ask the
+      // host for an authoritative state_snapshot in case our re-sent
+      // `join` or the host's peer-reconnected push was dropped.
+      // COMPLETED counts too (review 2026-10-03 repair P2): a guest that
+      // thinks the game ended but missed the rematch `gameStart` has no
+      // other catch-up, and that is exactly when divergence is worst.
+      if (stateRef.current.gameStatus !== GameStatus.WAITING) {
         requestSync();
       }
     }
     return;
   }
   if (event.type === "peer-reconnected") {
+    // Preserve rematchIncoming: a transient blip must not kill a live
+    // rematch prompt — the host's pending request survives a socket
+    // drop, and the terminal peer-left branch still clears the flag if
+    // the peer never returns (review 2026-10-03 repair P2: clearing it
+    // here defeated the terminal-snapshot preserve in guestProtocol).
     setState((prev) => ({
       ...prev,
       status: "connected",
       message: "",
-      rematchIncoming: false,
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -164,8 +188,11 @@ export function handleRelayEvent(
       // state so the rejoining guest catches up. Without this reset the
       // very next tick can fire a forced random move.
       const current = stateRef.current;
-      // F288: same pause gate as the welcome branch — paused host still
-      // broadcasts the frozen state but never resets or restarts the clock.
+      // F288: same pause gate as the welcome branch — a paused host commits
+      // the unchanged state so the rejoining guest catches up (the wire
+      // payload still recomputes remaining off the stale deadline to ≈0,
+      // which is what connected guests already see during a pause) but
+      // never resets or restarts the clock.
       if (isGameActive(current) && !pausedRef.current) {
         // Bound the reconnect grace (fleet 09-07 finding 2): a full
         // reset is allowed once per move — repeated disconnect/
@@ -185,27 +212,49 @@ export function handleRelayEvent(
         commitHostState(reconciled);
         startTimer();
       } else {
-        broadcastGameState(current);
+        commitHostState(current);
       }
-    } else if (roleRef.current === "guest" && isGameActive(stateRef.current)) {
-      // Resynthesize a fresh turnDeadlineAt from the remaining time —
-      // the old deadline is stale after a disconnect. Without this the
-      // guest timer ticks against a past deadline, briefly showing 0
-      // and potentially firing the local "ran out of time" branch
-      // before the host's gameUpdate arrives (fleet 09-07 P1).
+    } else if (roleRef.current === "guest") {
       const current = stateRef.current;
-      const remaining = current.turnTimeRemaining ?? TURN_DURATION_MS;
-      const resynthesized = {
-        ...current,
-        turnDeadlineAt: Date.now() + remaining,
-      };
-      stateRef.current = resynthesized;
-      // Commit unconditionally: the ref above is already resynthesized,
-      // so gating this setState on reference equality would skip the
-      // render while leaving the ref diverged (fleet F35). Every other
-      // gameState commit in this slice writes ref + render together.
-      setState((prev) => ({ ...prev, gameState: resynthesized }));
-      startTimer();
+      if (isGameActive(current)) {
+        // Resynthesize a fresh turnDeadlineAt from the remaining time —
+        // the old deadline is stale after a disconnect. Without this the
+        // guest timer ticks against a past deadline, briefly showing 0
+        // and potentially firing the local "ran out of time" branch
+        // before the host's gameUpdate arrives (fleet 09-07 P1).
+        const remaining = current.turnTimeRemaining ?? TURN_DURATION_MS;
+        const resynthesized = {
+          ...current,
+          turnDeadlineAt: Date.now() + remaining,
+        };
+        stateRef.current = resynthesized;
+        // Commit unconditionally: the ref above is already resynthesized,
+        // so gating this setState on reference equality would skip the
+        // render while leaving the ref diverged (fleet F35). Every other
+        // gameState commit in this slice writes ref + render together.
+        setState((prev) => ({ ...prev, gameState: resynthesized }));
+        // Pull the authoritative state too (review 2026-10-03 P2): this
+        // event means the HOST reconnected — its welcome broadcast may
+        // have dropped while our socket stayed up, leaving us on a stale
+        // board until the next move. The join resend only covers WAITING
+        // (F252), so mid-game needs the pull like the welcome branch.
+        // Issue the pull BEFORE restarting the clock so the authoritative
+        // snapshot is in flight while the stale-board countdown resumes
+        // (review 2026-10-03 repair P3).
+        requestSync();
+        // F444: a paused guest (its own Settings/Help overlay open) must
+        // not restart the tick either — the interval drains the frozen
+        // remaining behind the overlay, the same pause bypass F288 closed
+        // on the host. The pull above still lands the authoritative
+        // snapshot; the timer effect restarts the clock on unpause.
+        if (!pausedRef.current) startTimer();
+      } else if (current.gameStatus === GameStatus.COMPLETED) {
+        // Local says terminal but the host may have rematched while we
+        // were deaf — the pull is the only catch-up now that COMPLETED
+        // snapshots are served (review 2026-10-03 repair P2). No
+        // deadline work: a terminal state has no live clock.
+        requestSync();
+      }
     }
     return;
   }
@@ -245,7 +294,9 @@ export function handleRelayEvent(
           ...prev,
           status: "reconnecting",
           message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
-          rematchIncoming: false,
+          // rematchIncoming survives the transient grace window — the
+          // terminal closed/expired branch below still clears it
+          // (review 2026-10-03 repair P2).
         };
       });
       if (transitioned) stopTimer();
@@ -258,8 +309,8 @@ export function handleRelayEvent(
     const current = stateRef.current;
     const leaveReason = reason === "expired" ? "expired" : "closed";
     // F234: the session is terminal — sever the socket client-side so the
-    // relay's later close can't trigger auto-reconnect (sessionEstablished
-    // is true post-F151) and strand the survivor on a dead room.
+    // relay's later close can't trigger auto-reconnect (hadSession is true
+    // post-F151) and strand the survivor on a dead room.
     //
     // needs-work 10-02 P1: close() fires the status handler SYNCHRONOUSLY
     // with message "You left" — running it before the terminal setState

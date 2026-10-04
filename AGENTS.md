@@ -92,7 +92,6 @@ pnpm check
   - `src/hooks/` — React hooks (usePeerRoom, useLocalGame, useGameStats)
   - `src/components/` — UI (board, lobby, panels, selectors, confirm dialog)
   - `src/lib/` — utilities (identity helper, WebSocket protocol, cn())
-  - `src/types.ts` — (currently in logic.ts and constants.ts)
 - `e2e/` — Playwright smoke tests
 - `public/` — static assets and `_headers` (CF Pages)
 - `wrangler.jsonc` — Cloudflare Pages config
