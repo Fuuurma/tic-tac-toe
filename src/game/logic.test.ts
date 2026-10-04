@@ -324,9 +324,8 @@ describe("3-piece removal and winning line interaction", () => {
   });
 
   it("does not detect a win that depends on the removed piece", () => {
-    // X has pieces at [0, 4, 7] (oldest → newest).
-    // X places at 2, removing 0. Would-be row [0, 1, 2] is broken by removal.
-    // O has pieces at [3, 5, 6] — no winner.
+    // F477: checking the winner before eviction would invent a top-row win.
+    // X has [0, 1, 4] (oldest → newest); O has [3, 5, 7].
     let s = createInitialGameState({
       gameMode: GameModes.VS_FRIEND,
       playerXName: "A",
@@ -336,18 +335,28 @@ describe("3-piece removal and winning line interaction", () => {
     });
     s = makeMove(s, 0)!; // X
     s = makeMove(s, 3)!; // O
-    s = makeMove(s, 4)!; // X
+    s = makeMove(s, 1)!; // X
     s = makeMove(s, 5)!; // O
-    s = makeMove(s, 7)!; // X
-    s = makeMove(s, 6)!; // O
+    s = makeMove(s, 4)!; // X
+    s = makeMove(s, 7)!; // O
     expect(s.winner).toBeNull();
-    expect(s.moves[PlayerSymbol.X]).toEqual([0, 4, 7]);
+    expect(s.moves[PlayerSymbol.X]).toEqual([0, 1, 4]);
 
-    // X places at 2 — oldest (0) is removed. Would-be row [0,1,2] is broken.
-    // Remaining X: [4, 7, 2]. No winning combination.
+    // With the oldest piece retained, the new move completes only [0, 1, 2].
+    const beforeEviction = s.board.slice();
+    beforeEviction[2] = PlayerSymbol.X;
+    expect(checkWinner(beforeEviction)).toEqual({
+      winner: PlayerSymbol.X,
+      combination: [0, 1, 2],
+    });
+
+    // The real move evicts 0, leaving [1, 4, 2] with no winning line.
     s = makeMove(s, 2)!;
     expect(s.board[0]).toBeNull();
     expect(s.board[2]).toBe(PlayerSymbol.X);
     expect(s.winner).toBeNull();
+    expect(s.winningCombination).toBeNull();
+    expect(s.moves[PlayerSymbol.X]).toEqual([1, 4, 2]);
+    expect(s.gameStatus).toBe(GameStatus.ACTIVE);
   });
 });
