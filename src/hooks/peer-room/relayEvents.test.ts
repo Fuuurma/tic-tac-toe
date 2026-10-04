@@ -49,6 +49,8 @@ function makeDeps(
       calls.committed.push(g);
       deps.stateRef.current = g; // mirrors the real hook — commit updates the ref
       roomState = { ...roomState, gameState: g };
+      // ...and broadcasts: the real commitHostState ends in a wire send.
+      deps.broadcastGameState(g);
     },
     broadcastGameState: (g) => void calls.broadcasts.push(g),
     requestSync: vi.fn(),
@@ -119,6 +121,27 @@ describe("handleRelayEvent peer-reconnected", () => {
     expect(deps.startTimer).not.toHaveBeenCalled();
   });
 
+  it("F444: guest peer-reconnected while paused still resyncs + pulls, but the clock stays stopped", () => {
+    // A guest with its own Settings/Help overlay open has the local
+    // interval stopped and the display frozen — an ungated startTimer()
+    // here drained the frozen remaining behind the overlay, the guest
+    // side of the F288 pause bypass.
+    const game = activeGame();
+    const { deps } = makeDeps(game, "guest");
+    deps.pausedRef.current = true;
+    const before = Date.now();
+
+    handleRelayEvent(deps, { type: "peer-reconnected" });
+
+    expect(deps.startTimer).not.toHaveBeenCalled();
+    // The catch-up work still happens — the resynthesis and the pull are
+    // what reconcile the guest once its overlay closes.
+    expect(deps.requestSync).toHaveBeenCalledOnce();
+    expect(deps.stateRef.current.turnDeadlineAt).toBeGreaterThanOrEqual(
+      before + 12_000,
+    );
+  });
+
   it("host resets the deadline once per move and commits", () => {
     const game = activeGame();
     const { deps, calls } = makeDeps(game, "host");
@@ -141,14 +164,19 @@ describe("handleRelayEvent peer-reconnected", () => {
     expect(calls.committed[0].turnDeadlineAt).toBe(committed.turnDeadlineAt);
   });
 
-  it("F288: host peer-reconnected while paused broadcasts frozen state, no reset or timer", () => {
+  it("F288: host peer-reconnected while paused commits the frozen state unchanged, no reset or timer", () => {
     const game = activeGame();
     const { deps, calls } = makeDeps(game, "host");
     deps.pausedRef.current = true;
 
     handleRelayEvent(deps, { type: "peer-reconnected" });
 
-    expect(calls.committed).toHaveLength(0);
+    // The paused path commits the unchanged state — the rejoining guest
+    // still gets its catch-up — but nothing is rebuilt and no clock runs.
+    // A regression that rebuilds the deadline lands a fresh object with
+    // turnTimeRemaining === TURN_DURATION_MS here, so this stays red.
+    expect(calls.committed).toHaveLength(1);
+    expect(calls.committed[0]).toBe(game);
     expect(deps.startTimer).not.toHaveBeenCalled();
     expect(deps.stateRef.current.turnTimeRemaining).toBe(12_000);
     expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
@@ -193,10 +221,13 @@ describe("handleRelayEvent peer-reconnected", () => {
     // already states in a comment.
     expect(deps.startTimer).not.toHaveBeenCalled();
 
-    // The broadcast must still happen. A plausible wrong fix is to gate the
-    // else-branch too — "only broadcast live games" — which satisfies the
-    // assertion above while silently dropping the catch-up a rejoining guest
-    // depends on. Verified: that variant turns this assertion red.
+    // The catch-up must still happen — the unchanged state is committed,
+    // which broadcasts on the wire. A plausible wrong fix is to gate the
+    // else-branch too — "only send live games" — which satisfies the
+    // assertion above while silently dropping the catch-up a rejoining
+    // guest depends on. Verified: that variant turns this assertion red.
+    expect(calls.committed).toHaveLength(1);
+    expect(calls.committed[0]).toBe(game);
     expect(calls.broadcasts).toHaveLength(1);
     expect(calls.broadcasts[0]).toBe(game);
   });
@@ -217,7 +248,7 @@ describe("handleRelayEvent peer-reconnected", () => {
     expect(calls.committed).toHaveLength(1);
   });
 
-  it("F288: host welcome-with-opponent while paused broadcasts frozen state, no reset or timer", () => {
+  it("F288: host welcome-with-opponent while paused commits the frozen state unchanged, no reset or timer", () => {
     const game = activeGame();
     const { deps, calls } = makeDeps(game, "host");
     deps.pausedRef.current = true;
@@ -228,7 +259,8 @@ describe("handleRelayEvent peer-reconnected", () => {
       opponent: { guestId: "g1", displayName: "Guest" },
     });
 
-    expect(calls.committed).toHaveLength(0);
+    expect(calls.committed).toHaveLength(1);
+    expect(calls.committed[0]).toBe(game);
     expect(deps.startTimer).not.toHaveBeenCalled();
     expect(deps.stateRef.current.turnTimeRemaining).toBe(12_000);
     expect(deps.stateRef.current.turnDeadlineAt).toBe(game.turnDeadlineAt);
