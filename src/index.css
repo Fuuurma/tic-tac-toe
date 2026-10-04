@@ -92,7 +92,12 @@
   --color-card: oklch(1 0 0);
   --color-card-foreground: oklch(0.18 0.02 220);
   --color-muted: oklch(0.94 0.008 220);
-  --color-muted-foreground: oklch(0.5 0.02 220);
+  /* F454: must hold 4.5:1 over the glass card's worst composited case —
+     a pointer-revealed vivid symbol under the 35%-alpha white glass
+     (measured 2.44:1 at oklch(0.5)). 0.34 is the lightest value that
+     clears AA over that surface; on plain light backgrounds it reads
+     ~8:1. Dark appearance untouched (6:1+ there). */
+  --color-muted-foreground: oklch(0.34 0.02 220);
   --color-accent: oklch(0.94 0.008 220);
   --color-accent-foreground: oklch(0.18 0.02 220);
   --color-border: oklch(0.9 0.01 220);
