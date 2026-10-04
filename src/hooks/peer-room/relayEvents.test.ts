@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  Color,
   GameStatus,
   PlayerSymbol,
   TURN_DURATION_MS,
@@ -7,10 +8,10 @@ import {
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { peerLeftUserMessage } from "@/lib/peer";
-import type { RoomClient } from "@/lib/room";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
+import { buildRoomClient } from "./roomLifecycle";
 
 // Regression pins for the peer-reconnected state machine — the fleet's
 // most-fixed surface (host deadline reset, guest resync, lobby stranding).
@@ -414,30 +415,40 @@ describe("handleRelayEvent symbol fallbacks", () => {
 
   it("terminal peer-left message wins over close()'s synchronous 'You left' (needs-work 10-02 P1)", () => {
     const game = activeGame();
-    const { deps, getRoom } = makeDeps(game, "host");
-    const close = vi.fn();
-    deps.roomRef.current = { close } as unknown as RoomClient;
+    const { deps, getRoom } = makeDeps(game, "host", { status: "connected" });
+    const setState = vi.spyOn(deps, "setState");
+    // F479: use the real lifecycle status handler and RoomClient.close().
+    // No connect() is needed: close synchronously emits "You left" even
+    // without a socket. An inert close mock missed the ordering regression.
+    const client = buildRoomClient({
+      ...deps,
+      hostDisplayName: "Host",
+      hostColor: Color.BLUE,
+      update: vi.fn(),
+      handleWsEvent: (event) => handleRelayEvent(deps, event),
+      handleHostData: vi.fn(),
+      handleGuestData: vi.fn(),
+      lastSyncReplyAtRef: { current: 0 },
+      guestJoinedRef: { current: true },
+      hostPendingSettingsRef: { current: null },
+    }, "ws://relay.test/room", "host");
+    const close = vi.spyOn(client, "close");
 
-    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+    try {
+      handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
 
-    // The relay's close() fires the status handler synchronously with
-    // "You left" — the terminal peer-left state must be applied FIRST so
-    // the survivor sees who left, not the leaver's own message.
-    expect(getRoom().message).toBe(
-      peerLeftUserMessage("host", "closed"),
-    );
-    expect(close).toHaveBeenCalledOnce();
-  });
-
-  it("F234: terminal peer-left severs the socket so the relay's close can't reconnect", () => {
-    const game = activeGame();
-    const { deps } = makeDeps(game, "host");
-    const close = vi.fn();
-    deps.roomRef.current = { close } as unknown as RoomClient;
-
-    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
-
-    expect(close).toHaveBeenCalledOnce();
+      expect(getRoom().status).toBe("disconnected");
+      expect(getRoom().message).toBe(peerLeftUserMessage("host", "closed"));
+      expect(getRoom().gameState.winner).toBe(PlayerSymbol.X);
+      // The second state update is the real synchronous close callback.
+      expect(setState).toHaveBeenCalledTimes(2);
+      // F234: preserve the socket-close assertion while consolidating its
+      // former duplicate close-only test into this regression.
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      setState.mockRestore();
+      close.mockRestore();
+    }
   });
 
   it("peer-left during WAITING does not crown a phantom winner (F146)", () => {
