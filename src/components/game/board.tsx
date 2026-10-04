@@ -75,7 +75,7 @@ export function Board({
         className="relative mx-auto aspect-square w-full rounded-2xl border border-white/12 bg-black/50 p-2.5 sm:p-3.5"
       >
         <div
-          role="grid"
+          role="group"
           aria-label="Tic Tac Toe game board"
           aria-keyshortcuts="1 2 3 4 5 6 7 8 9"
           className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2"
@@ -86,7 +86,7 @@ export function Board({
           }
         >
           {[0, 1, 2].map((row) => (
-            <div key={row} role="row" className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            <div key={row} className="grid grid-cols-3 gap-1.5 sm:gap-2">
               {[0, 1, 2].map((col) => {
                 const index = row * 3 + col;
                 const value = board[index];

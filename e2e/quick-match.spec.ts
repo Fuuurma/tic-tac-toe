@@ -42,9 +42,9 @@ test("quick match pairs two players", async ({ browser }) => {
   await expect(guestPage.getByRole("group", { name: /^Host,/ })).toBeVisible({ timeout: 90_000 });
 
   // Host plays top-left
-  await hostPage.getByRole("gridcell", { name: "Row 1 column 1" }).click();
+  await hostPage.getByRole("button", { name: "Row 1 column 1" }).click();
   await expect(
-    guestPage.getByRole("gridcell", { name: "Row 1 column 1" }),
+    guestPage.getByRole("button", { name: "Row 1 column 1" }),
   ).toHaveAttribute("aria-label", /occupied by X/);
 
   await host.close();

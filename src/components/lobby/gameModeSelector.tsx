@@ -12,6 +12,7 @@ const MODES: {
   value: GameMode;
   label: string;
   shortLabel: string;
+  compactLabel?: string;
   description: string;
   Icon: typeof Bot;
 }[] = [
@@ -19,6 +20,7 @@ const MODES: {
     value: GameModes.VS_COMPUTER,
     label: "vs Computer",
     shortLabel: "Computer",
+    compactLabel: "AI",
     description: "Practice with AI",
     Icon: Bot,
   },
@@ -41,7 +43,7 @@ export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelecto
         className="grid grid-cols-3 gap-2"
         onKeyDown={handleRadioGroupKeyDown}
       >
-      {MODES.map(({ value, label, shortLabel, description, Icon }) => {
+      {MODES.map(({ value, label, shortLabel, compactLabel, description, Icon }) => {
         const active = selectedMode === value;
         return (
           <button
@@ -63,11 +65,20 @@ export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelecto
             <span className="flex items-center justify-between gap-1">
               <span className="flex min-w-0 items-center gap-1.5">
                 <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="truncate text-xs font-semibold">{shortLabel}</span>
+                <span className="text-xs font-semibold">
+                  {compactLabel ? (
+                    <>
+                      <span className="sm:hidden">{compactLabel}</span>
+                      <span className="hidden sm:inline">{shortLabel}</span>
+                    </>
+                  ) : (
+                    shortLabel
+                  )}
+                </span>
               </span>
               {active && <Check className="size-3.5 shrink-0 text-[rgb(var(--player-color))]" aria-hidden="true" />}
             </span>
-            <span className="text-[11px] leading-tight text-muted-foreground">
+            <span className="text-[11px] leading-tight text-foreground/80">
               {description}
             </span>
           </button>

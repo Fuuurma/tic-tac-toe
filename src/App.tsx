@@ -261,7 +261,10 @@ function LocalGameSurface({
           setSettingsTab("player");
           setSettingsOpen(true);
         }}
-        onPauseChange={setPanelPaused}
+        onPauseChange={(panelPause) => {
+          setPanelPaused(panelPause);
+          setPaused(settingsOpen || helpOpen || panelPause);
+        }}
       />
       <Board
         board={gameState.board}
