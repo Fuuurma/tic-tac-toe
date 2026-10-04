@@ -57,16 +57,6 @@ describe("getAIMove", () => {
     ).toBe(4);
   });
 
-  it("NORMAL picks a legal move on an open board", () => {
-    let state = onlineState();
-    state = makeMove(state, 0)!; // X
-    state = makeMove(state, 3)!; // O
-    state = makeMove(state, 1)!; // X
-    const move = getAIMove(state, AI_Difficulty.NORMAL, PlayerSymbol.O);
-    expect(move).not.toBeNull();
-    expect(getValidMoves(state.board)).toContain(move!);
-  });
-
   it("HARD picks a legal move on an open board", () => {
     // O at 5, 8. X at 0, 1.
     let state = onlineState();

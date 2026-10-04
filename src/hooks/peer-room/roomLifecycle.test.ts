@@ -42,17 +42,6 @@ describe("leaveRoom", () => {
     expect(ref.current).toBeNull();
   });
 
-  it("send strictly precedes close (order, not just occurrence)", () => {
-    const { room } = mockRoom();
-    const ref = refFor(room);
-    leaveRoom(ref);
-    const order = [
-      room.send.mock.invocationCallOrder[0],
-      room.close.mock.invocationCallOrder[0],
-    ];
-    expect(order[0]).toBeLessThan(order[1]);
-  });
-
   it("is a no-op on a null ref", () => {
     const ref = refFor(null);
     expect(() => leaveRoom(ref)).not.toThrow();

@@ -98,9 +98,6 @@ describe("PlayersPanel terminal rematch CTA", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Rematch" }),
-    ).toBeNull();
-    expect(
       screen.queryByRole("button", { name: /rematch/i }),
     ).toBeNull();
   });

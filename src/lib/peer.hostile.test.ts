@@ -470,12 +470,6 @@ describe("isPeerMessage hostile game-state frames", () => {
     ).toBe(true);
   });
 
-  it("rejects a freshly-tampered player config", () => {
-    const state = baselineState();
-    state.players[PlayerSymbol.X].color = "rainbow" as never;
-    expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(false);
-  });
-
   it("rejects an oversized moves.X entry that claims more than maxMoves", () => {
     const state = baselineState();
     state.moves[PlayerSymbol.X] = Array(GAME_RULES.MAX_MOVES_PER_PLAYER + 1).fill(

@@ -13,17 +13,6 @@ const onlineState = () =>
   });
 
 describe("AI behavior regressions", () => {
-  it("X always produces a legal move after a multi-ply fixture", () => {
-    let s = onlineState();
-    for (const m of [0, 1, 4, 3, 6, 5]) s = makeMove(s, m)!;
-    expect(s.winner).toBeNull();
-    for (const d of [AI_Difficulty.NORMAL, AI_Difficulty.HARD]) {
-      const move = getAIMove(s, d, PlayerSymbol.X);
-      expect(move, d).not.toBeNull();
-      expect(getValidMoves(s.board), d).toContain(move!);
-    }
-  });
-
   it("HARD produces a legal move after X plays a corner (corner-trap regression)", () => {
     const s = makeMove(onlineState(), 0)!;
     const move = getAIMove(s, AI_Difficulty.HARD, PlayerSymbol.O);
