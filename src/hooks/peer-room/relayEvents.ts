@@ -283,23 +283,37 @@ export function handleRelayEvent(
       // relay's transient disconnect event arrives. Without this guard
       // the disconnect flips it back to "reconnecting" for the 30s
       // grace, hiding the forfeit result (fleet audit 2026-09-06 P2-1).
-      // stopTimer runs OUTSIDE the updater: updaters must stay pure
-      // (StrictMode double-invokes them), so the transition is detected
-      // inside and the side effect fires once below (fleet 2026-09-10).
-      let transitioned = false;
-      setState((prev) => {
-        if (prev.status === "disconnected") return prev;
-        transitioned = true;
-        return {
-          ...prev,
-          status: "reconnecting",
-          message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", "disconnect"),
-          // rematchIncoming survives the transient grace window — the
-          // terminal closed/expired branch below still clears it
-          // (review 2026-10-03 repair P2).
-        };
-      });
-      if (transitioned) stopTimer();
+      // The guard lives INSIDE the updater because that is the only place
+      // the current status is readable — `stateRef` mirrors the GameState,
+      // not the connection status, and there is no status ref in these deps.
+      //
+      // The previous version also set a `transitioned` flag inside that
+      // updater and read it on the next line to decide whether to stop the
+      // timer. React does not run an updater synchronously (it runs during
+      // the following render), so the flag was still false when read and
+      // stopTimer() never fired. The turn interval was then only disarmed by
+      // the status effect on the NEXT commit, leaving a window in which a
+      // tick could fire with stateRef still "connected" — and a tick at the
+      // deadline plays a host move that RoomClient.send silently drops while
+      // the socket is down, which is permanent board divergence.
+      //
+      // So: no flag, no decision to make. stopTurnTimer only clears an
+      // interval, so calling it unconditionally is a no-op in the forfeit
+      // case (the terminal branch below already stopped it) and correct in
+      // every other one. The updater stays pure — StrictMode double-invokes
+      // it, and this branch must not double-apply.
+      const message = peerLeftUserMessage(
+        roleRef.current === "guest" ? "guest" : "host",
+        "disconnect",
+      );
+      // rematchIncoming survives the transient grace window — the terminal
+      // closed/expired branch below still clears it (review 2026-10-03 P2).
+      setState((prev) =>
+        prev.status === "disconnected"
+          ? prev
+          : { ...prev, status: "reconnecting", message },
+      );
+      stopTimer();
       return;
     }
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
