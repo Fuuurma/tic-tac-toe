@@ -398,6 +398,33 @@ test("marks the oldest X piece as 'next to be removed' after the 3rd move", asyn
   ).not.toHaveAttribute("aria-label", /next to be removed/);
 });
 
+test("play again after a local win resets the board", async ({ page }) => {
+  await fillLobby(page, {
+    name: "Alice",
+    color: "blue",
+    mode: "vs Friend",
+    opponentName: "Bob",
+  });
+  await page.getByRole("button", { name: "Start Game" }).click();
+
+  await clickCell(page, 1, 1); // X
+  await clickCell(page, 2, 1); // O
+  await clickCell(page, 1, 2); // X
+  await clickCell(page, 2, 2); // O
+  await clickCell(page, 1, 3); // X wins
+
+  await expect(page.getByText(/(Alice|Bob) wins!/, { exact: true })).toBeVisible();
+
+  // Post-win reset is immediate (the confirm dialog is mid-game only).
+  await page.getByRole("button", { name: "Play again" }).click();
+
+  await expect(page.getByText(/(Alice|Bob) wins!/)).toBeHidden();
+  await expect(page.getByRole("gridcell", { name: /occupied/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("gridcell", { name: "Row 1 column 1, empty" }),
+  ).toBeVisible();
+});
+
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
