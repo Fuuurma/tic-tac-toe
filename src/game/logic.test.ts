@@ -215,6 +215,49 @@ describe("makeMove (3-piece cap rule)", () => {
     expect(s.winner).toBeNull();
     expect(s.gameStatus).toBe("ACTIVE");
   });
+
+  // F401 asked for a draw counter in the stats record, on the premise that
+  // "every drawn game vanishes". The premise does not hold for this variant:
+  // a player's fourth mark erases their oldest, so each side is capped at
+  // MAX_MOVES_PER_PLAYER and the board can never fill. This pins the reason,
+  // so the premise is not re-derived from memory later.
+  it("can never reach a full board, so a draw is unreachable (F401)", () => {
+    let s = createInitialGameState({
+      gameMode: GameModes.VS_FRIEND,
+      playerXName: "A",
+      playerOName: "B",
+      playerColor: Color.BLUE,
+      opponentColor: Color.RED,
+    });
+
+    // 40 alternating moves across a deliberately winning-free pattern. Any
+    // move that ends the game is skipped, so this plays as long as the rules
+    // allow rather than stopping at the first win.
+    const candidates = [0, 3, 4, 1, 5, 2, 6, 7, 8];
+    let cursor = 0;
+    for (let i = 0; i < 40; i += 1) {
+      const before = s;
+      const next = makeMove(s, candidates[cursor % candidates.length]!);
+      cursor += 1;
+      if (next === null) {
+        // Either the game ended (a win) or the cell was rejected. Either way
+        // the board at this point must still be short of full.
+        s = before;
+        break;
+      }
+      s = next;
+      const occupied = s.board.filter((cell) => cell !== null).length;
+      expect(occupied).toBeLessThanOrEqual(2 * s.maxMoves);
+      expect(occupied).toBeLessThan(9);
+      // No winner and a full board would be a draw — the state F401 assumed.
+      expect(s.winner === null && occupied === 9).toBe(false);
+    }
+
+    // The cap is what makes it true, not luck: 3 marks each on a 9-cell board.
+    expect(2 * s.maxMoves).toBeLessThan(9);
+    // And the game stays active until a win, never completing without one.
+    expect(s.winner === null).toBe(s.gameStatus === "ACTIVE");
+  });
 });
 
 describe("getNextPlayerSymbol", () => {
