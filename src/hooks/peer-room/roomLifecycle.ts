@@ -55,6 +55,11 @@ export interface RoomLifecycleDeps {
    *  "guest joined" can never leak into the next room. */
   guestJoinedRef: { current: boolean };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
+  /** Once-per-move reconnect full-deadline-reset budget (relayEvents) —
+   *  cleared on room entry like the other room-scoped refs: its
+   *  moveCount key restarts each game, so a consumed budget must not
+   *  leak into the next room/round (F362). */
+  reconnectResetsRef: { current: { moveCount: number } };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -196,6 +201,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // reply throttle must not carry a cooldown over from the last room.
   deps.guestJoinedRef.current = false;
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
+  deps.reconnectResetsRef.current.moveCount = -1;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -244,6 +250,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   deps.hostPendingSettingsRef.current = null;
   deps.guestJoinedRef.current = false;
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
+  deps.reconnectResetsRef.current.moveCount = -1;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });

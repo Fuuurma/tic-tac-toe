@@ -92,6 +92,7 @@ describe('hostProtocol.handleHostMessage — rematch identity', () => {
     hostRematchPendingRef: { current: true },
     lastSyncReplyAtRef: { current: 0 },
     guestJoinedRef: { current: true },
+    reconnectResetsRef: { current: { moveCount: -1 } },
     hostPendingSettingsRef: { current: null },
     setState: () => {},
     commitHostState: () => {},

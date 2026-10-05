@@ -53,6 +53,10 @@ export interface HostProtocolDeps {
    *  never-joined peer cannot pull full GameState (review 2026-10-03
    *  repair P2). */
   guestJoinedRef: { current: boolean };
+  /** Once-per-move reconnect full-deadline-reset budget, consumed by
+   *  relayEvents on welcome/peer-reconnected. Keyed on moveCount, which
+   *  restarts each round — must be re-armed when a new game begins. */
+  reconnectResetsRef: { current: { moveCount: number } };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
@@ -98,6 +102,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     hostRematchPendingRef,
     lastSyncReplyAtRef,
     guestJoinedRef,
+    reconnectResetsRef,
     hostPendingSettingsRef,
     setState,
     stopTimer,
@@ -252,6 +257,11 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // after the rematch gameStart must be answered, not throttled by
       // the previous game's last reply (review 2026-10-03 repair P2).
       disarmSyncReplyThrottle(lastSyncReplyAtRef);
+      // New game = fresh reconnect-reset budget too (F362): the once-per-
+      // move full-deadline reset is keyed on moveCount, which just
+      // restarted at 0 — the old game's consumed budget would deny the
+      // reset at the same moveCount in this round.
+      reconnectResetsRef.current.moveCount = -1;
       setState((prev) => ({
         ...prev,
         hostSymbol: newHostSymbol,

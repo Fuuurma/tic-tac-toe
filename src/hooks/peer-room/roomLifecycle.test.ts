@@ -93,6 +93,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       lastSyncReplyAtRef: { current: 0 },
       guestJoinedRef: { current: false },
       hostPendingSettingsRef,
+      reconnectResetsRef: { current: { moveCount: -1 } },
     };
     return { deps, guestSymbolRef };
   }
@@ -237,6 +238,21 @@ describe("joinAsGuest rematch-flag reset", () => {
     expect(performance.now() - deps.lastSyncReplyAtRef.current).toBeGreaterThanOrEqual(
       SYNC_REPLY_COOLDOWN_MS,
     );
+  });
+
+  it("F362: room entry re-arms the reconnect-reset budget alongside the other room-scoped refs", () => {
+    // Same leak class as guestJoinedRef/lastSyncReplyAtRef: the budget is
+    // keyed on moveCount which restarts each game — a budget consumed in
+    // the old room's last round must not carry into the new room.
+    const { deps } = lifecycleDeps({ current: false });
+    deps.reconnectResetsRef.current.moveCount = 5;
+
+    startAsHost(deps, "ROOM42", "ws://127.0.0.1:1");
+    expect(deps.reconnectResetsRef.current.moveCount).toBe(-1);
+
+    deps.reconnectResetsRef.current.moveCount = 7;
+    joinAsGuest(deps, "ROOM43", "ws://127.0.0.1:1");
+    expect(deps.reconnectResetsRef.current.moveCount).toBe(-1);
   });
 
   it("clears a stale pending-rematch flag on room entry", () => {

@@ -254,6 +254,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostRematchPendingRef,
       lastSyncReplyAtRef,
       guestJoinedRef,
+      reconnectResetsRef,
       hostPendingSettingsRef,
       pendingGuestStateRef,
       setState,
@@ -338,6 +339,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       lastSyncReplyAtRef,
       guestJoinedRef,
       hostPendingSettingsRef,
+      reconnectResetsRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );

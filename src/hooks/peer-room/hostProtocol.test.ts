@@ -36,6 +36,9 @@ function makeDeps(game: GameState) {
     roomRef: { current: { send: vi.fn() } as unknown as RoomClient },
     hostSymbolRef: { current: PlayerSymbol.X },
     hostRematchPendingRef: { current: true },
+    // Fresh once-per-move reconnect-reset budget (relayEvents consumes
+    // it; rematch must re-arm it for the new round).
+    reconnectResetsRef: { current: { moveCount: -1 } },
     // One full window in the past — the same "disarmed" value
     // disarmSyncReplyThrottle writes, so pulls are answered immediately.
     lastSyncReplyAtRef: { current: -SYNC_REPLY_COOLDOWN_MS },
@@ -269,6 +272,19 @@ describe("handleHostMessage rematch deadline", () => {
 
     expect(deps.hostRematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
+  });
+
+  it("F362: rematchAccept re-arms the reconnect-reset budget for the new round", () => {
+    // The once-per-move full-deadline reset on reconnect is keyed on
+    // moveCount, which restarts at 0 every round. A budget consumed in
+    // round one must not survive into round two, or a reconnect at the
+    // same moveCount gets no reset and the next tick can force a move.
+    const { deps } = makeDeps(terminalGame());
+    deps.reconnectResetsRef.current.moveCount = 5; // consumed in round one
+
+    handleHostMessage(deps, { type: "rematchAccept" });
+
+    expect(deps.reconnectResetsRef.current.moveCount).toBe(-1);
   });
 
   it("rematchDecline clears the pending flag + timeout", () => {
