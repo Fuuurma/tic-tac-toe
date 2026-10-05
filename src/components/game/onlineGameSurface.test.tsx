@@ -136,3 +136,54 @@ describe("OnlineGameSurface terminal rematch affordances", () => {
     ).toBeNull();
   });
 });
+
+describe("OnlineGameSurface result recording (F474)", () => {
+  // F474: the result dedupe keyed on moveCount, which is host-controlled —
+  // a host resending the same terminal frame with a different accepted
+  // moveCount inflated the guest's local tally. The latch must hold one
+  // result per terminal episode and re-arm only on a genuinely live frame.
+  const liveGame = (): GameState => ({
+    ...freshGameState(),
+    gameMode: GameModes.ONLINE,
+    gameStatus: GameStatus.ACTIVE,
+  });
+
+  it("repeated terminal frames with different accepted moveCounts record one result", () => {
+    mocks.recordLoss.mockClear();
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const { rerender } = render(
+      <OnlineGameSurface config={config} onExit={vi.fn()} />,
+    );
+    expect(mocks.recordLoss).toHaveBeenCalledTimes(1);
+
+    for (const moveCount of [6, 3, 9]) {
+      peer.state = {
+        ...peer.state,
+        gameState: { ...peer.state.gameState, moveCount },
+      };
+      rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    }
+    expect(mocks.recordLoss).toHaveBeenCalledTimes(1);
+  });
+
+  it("a reconnect replay of the terminal result adds nothing, then a new round counts once", () => {
+    mocks.recordLoss.mockClear();
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const { rerender } = render(
+      <OnlineGameSurface config={config} onExit={vi.fn()} />,
+    );
+    // Identical frame replayed (state_snapshot resync) — still one result.
+    peer.state = { ...peer.state, gameState: { ...peer.state.gameState } };
+    rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    expect(mocks.recordLoss).toHaveBeenCalledTimes(1);
+
+    // Rematch lands a fresh ACTIVE round, then a new terminal — counts again.
+    peer.state = { ...peer.state, gameState: liveGame() };
+    rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    peer.state = { ...peer.state, gameState: terminalOnlineGame() };
+    rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    expect(mocks.recordLoss).toHaveBeenCalledTimes(2);
+  });
+});

@@ -75,21 +75,34 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // wins/losses were silently dropped — useGameStats was only wired in
   // LocalGameSurface).
   const { recordWin, recordLoss } = useGameStats();
-  const recordedMoveCount = useRef<number>(-1);
+  // F474: one result per terminal episode. The old dedupe keyed on
+  // moveCount, which is host-controlled — a host resending the same
+  // terminal frame with a different accepted moveCount inflated the
+  // guest's tally. Re-arm only on a genuinely live frame (gameStart /
+  // rematch / WAITING), so reconnect and resync replays of the same
+  // terminal state cannot recount.
+  const resultRecorded = useRef(false);
   useEffect(() => {
-    if (peer.state.gameState.gameStatus === GameStatus.ACTIVE && peer.state.gameState.moveCount === 0) {
-      recordedMoveCount.current = -1;
+    const terminal =
+      peer.state.gameState.winner !== null ||
+      peer.state.gameState.gameStatus === GameStatus.COMPLETED;
+    if (!terminal) {
+      resultRecorded.current = false;
+      return;
     }
-    if (peer.state.gameState.winner !== null && localSymbol !== null) {
-      if (peer.state.gameState.moveCount === recordedMoveCount.current) return;
-      recordedMoveCount.current = peer.state.gameState.moveCount;
-      if (peer.state.gameState.winner === localSymbol) recordWin();
-      else recordLoss();
+    if (
+      resultRecorded.current ||
+      localSymbol === null ||
+      peer.state.gameState.winner === null
+    ) {
+      return;
     }
+    resultRecorded.current = true;
+    if (peer.state.gameState.winner === localSymbol) recordWin();
+    else recordLoss();
   }, [
     peer.state.gameState.winner,
     peer.state.gameState.gameStatus,
-    peer.state.gameState.moveCount,
     localSymbol,
     recordWin,
     recordLoss,
