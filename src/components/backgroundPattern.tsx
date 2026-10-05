@@ -319,9 +319,12 @@ export function BackgroundPattern() {
     };
 
     resize();
+    // F312: reduced motion gates the pointer-driven animation, never the
+    // geometry — a reduced-motion user who rotates or resizes still needs
+    // the canvas reflowed.
+    window.addEventListener("resize", resize);
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!prefersReducedMotion) {
-      window.addEventListener("resize", resize);
       window.addEventListener("pointermove", updatePointer, { passive: true });
       window.addEventListener("pointerdown", updatePointer, { passive: true });
       window.addEventListener("pointerup", onPointerUp, { passive: true });
@@ -333,8 +336,8 @@ export function BackgroundPattern() {
     return () => {
       stop();
       if (touchRelease !== null) window.clearTimeout(touchRelease);
+      window.removeEventListener("resize", resize);
       if (!prefersReducedMotion) {
-        window.removeEventListener("resize", resize);
         window.removeEventListener("pointermove", updatePointer);
         window.removeEventListener("pointerdown", updatePointer);
         window.removeEventListener("pointerup", onPointerUp);
