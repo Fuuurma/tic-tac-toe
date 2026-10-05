@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { GameModes, type GameMode } from "@/game/constants";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const MODES: {
 ];
 
 export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelectorProps) {
+  const groupId = useId();
   return (
     <div className="flex flex-col gap-1.5">
       <div
@@ -51,6 +53,7 @@ export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelecto
             type="button"
             role="radio"
             aria-label={label}
+            aria-describedby={`${groupId}-${value}-desc`}
             aria-checked={active}
             data-state={active ? "active" : "inactive"}
             tabIndex={active ? 0 : -1}
@@ -78,7 +81,7 @@ export function GameModeSelector({ selectedMode, onModeChange }: GameModeSelecto
               </span>
               {active && <Check className="size-3.5 shrink-0 text-[rgb(var(--player-color))]" aria-hidden="true" />}
             </span>
-            <span className="text-[11px] leading-tight text-foreground/80">
+            <span id={`${groupId}-${value}-desc`} className="text-[11px] leading-tight text-foreground/80">
               {description}
             </span>
           </button>
