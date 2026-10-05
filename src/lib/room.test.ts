@@ -245,6 +245,66 @@ describe("RoomClient handshake deadline (F460)", () => {
   });
 });
 
+/**
+ * F37: reconnectNow() used to call openSocket() directly, bypassing the
+ * pendingConnect dedup that guards connect() — a retry pressed while an
+ * attempt was still CONNECTING spawned a parallel WebSocket, and the two
+ * attempts raced `this.ws`. The fix funnels every socket-entry path
+ * through the same dedup, so an in-flight attempt already IS "reconnect
+ * now".
+ */
+describe("RoomClient in-flight reconnect dedup (F37)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    FakeSocket.instances = [];
+    vi.useRealTimers();
+  });
+
+  it("reconnectNow during a CONNECTING connect() does not open a second socket", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    client.reconnectNow();
+    client.reconnectNow();
+    expect(FakeSocket.instances).toHaveLength(1);
+
+    // Dedup must not wedge the attempt — it still completes normally.
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "guest", type: "welcome" }),
+    });
+    await expect(pending).resolves.toMatchObject({ role: "guest" });
+    client.close();
+  });
+
+  it("a reconnectNow mash while a retry attempt is CONNECTING opens one socket", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "guest", type: "welcome" }),
+    });
+    await expect(pending).resolves.toMatchObject({ role: "guest" });
+
+    // Established session drops; the manual retry opens attempt #2 and it
+    // stays CONNECTING — a second press must not spawn #3.
+    ws.close();
+    client.reconnectNow();
+    expect(FakeSocket.instances).toHaveLength(2);
+    client.reconnectNow();
+    expect(FakeSocket.instances).toHaveLength(2);
+    client.close();
+  });
+});
+
 describe("RoomClient reconnect credential (MM-01)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

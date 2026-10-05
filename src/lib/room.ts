@@ -201,12 +201,22 @@ export class RoomClient {
     // WebSocket. Without this, multiple calls each push resolvers and a
     // single `welcome` resolves all of them — masking connection failures
     // from the duplicate socket (P2 race fix).
-    if (this.pendingConnect) {
-      return this.pendingConnect;
+    return this.kickConnect();
+  }
+
+  /**
+   * F37: every path that wants a socket attempt funnels through
+   * pendingConnect — connect(), reconnectNow(), and the scheduled retry.
+   * An in-flight attempt already IS "connect now", so a second caller
+   * reuses it instead of spawning a parallel WebSocket that races
+   * `this.ws` through CONNECTING and `welcome`.
+   */
+  private kickConnect(): Promise<RoomSession> {
+    if (!this.pendingConnect) {
+      this.pendingConnect = this.openSocket().finally(() => {
+        this.pendingConnect = null;
+      });
     }
-    this.pendingConnect = this.openSocket().finally(() => {
-      this.pendingConnect = null;
-    });
     return this.pendingConnect;
   }
 
@@ -271,7 +281,7 @@ export class RoomClient {
       this.reconnectTimer = null;
     }
     this.setStatus("reconnecting", "Reconnecting now…");
-    this.openSocket().catch(() => {
+    this.kickConnect().catch(() => {
       if (this.opts.autoReconnect) this.scheduleReconnect();
     });
   }
@@ -515,7 +525,7 @@ export class RoomClient {
     this.setStatus("reconnecting", `Reconnecting in ${Math.round(delay / 100) / 10}s`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      this.openSocket().catch(() => {
+      this.kickConnect().catch(() => {
         // ignored: reconnect lifecycle handles errors via close + retry
       });
     }, delay);
