@@ -19,6 +19,7 @@ import {
   applyAuthorizedMove,
   isPeerMessage,
   PEER_MAX_BOARD_INDEX,
+  PEER_MAX_MOVE_COUNT,
   PEER_MAX_NAME_LENGTH,
   PEER_MAX_TURN_DEADLINE,
   PEER_MAX_ERROR_LENGTH,
@@ -428,6 +429,44 @@ describe("isPeerMessage hostile game-state frames", () => {
     const frame = validMessage();
     frame.gameState.moveCount = 1.5;
     expect(isPeerMessage(frame)).toBe(false);
+  });
+
+  // F347: moveCount was the only wire scalar with no upper bound — every
+  // sibling (maxMoves, moves arrays, timer fields) is capped. The ceiling
+  // is an absurdity bound, far past any game a live room could reach.
+  it("rejects gameState with moveCount above the wire ceiling (F347)", () => {
+    const frame = validMessage();
+    frame.gameState.moveCount = PEER_MAX_MOVE_COUNT + 1;
+    expect(isPeerMessage(frame)).toBe(false);
+    frame.gameState.moveCount = PEER_MAX_MOVE_COUNT;
+    expect(isPeerMessage(frame)).toBe(true);
+  });
+
+  // F347: turnNotice is the one wire-reachable GameState string field that
+  // had no bound at all — a hostile gameUpdate could store an arbitrarily
+  // long string into guest state on every frame. It is UX copy like the
+  // error-message field, so it shares that bound.
+  it("rejects gameState with an oversized or malformed turnNotice (F347)", () => {
+    const frame = validMessage();
+    (
+      frame.gameState as unknown as { turnNotice: unknown }
+    ).turnNotice = "x".repeat(PEER_MAX_ERROR_LENGTH + 1);
+    expect(isPeerMessage(frame)).toBe(false);
+
+    (frame.gameState as unknown as { turnNotice: unknown }).turnNotice = 42;
+    expect(isPeerMessage(frame)).toBe(false);
+
+    // A lone surrogate passes the length bound but renders as U+FFFD.
+    (frame.gameState as unknown as { turnNotice: unknown }).turnNotice =
+      "Ada ran out of time\uD83E";
+    expect(isPeerMessage(frame)).toBe(false);
+
+    // The real producer's payload and the cleared (absent) form both pass.
+    (frame.gameState as unknown as { turnNotice: unknown }).turnNotice =
+      "Ada ran out of time";
+    expect(isPeerMessage(frame)).toBe(true);
+    delete (frame.gameState as unknown as { turnNotice?: unknown }).turnNotice;
+    expect(isPeerMessage(frame)).toBe(true);
   });
 
   it("rejects gameState where moves.X contains out-of-range indices", () => {

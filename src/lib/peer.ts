@@ -46,6 +46,15 @@ export const PEER_MAX_TURN_MS = TURN_DURATION_MS;
 export const PEER_MAX_TURN_DEADLINE = Number.MAX_SAFE_INTEGER;
 /** Error strings on the wire are UX copy, not an unbounded dump. */
 export const PEER_MAX_ERROR_LENGTH = 200;
+/**
+ * F347: absurdity bound on moveCount — every sibling scalar (maxMoves, the
+ * moves arrays, the timer fields) is capped and this one was not. A turn
+ * can burn at most TURN_DURATION_MS under the host's timer and the wire
+ * deadline window is itself capped at 24h (~8,640 moves at full burn), so
+ * five digits is past any game a live room could reach. Selfplay already
+ * treats 120 plies as "effectively endless".
+ */
+export const PEER_MAX_MOVE_COUNT = 10_000;
 
 const fallbackRoomId = (): string =>
   `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.padEnd(32, "0").slice(0, 32);
@@ -395,7 +404,8 @@ const isGameState = (value: unknown): value is GameState => {
   if (
     typeof state.moveCount !== "number" ||
     !Number.isInteger(state.moveCount) ||
-    state.moveCount < 0
+    state.moveCount < 0 ||
+    state.moveCount > PEER_MAX_MOVE_COUNT
   ) {
     return false;
   }
@@ -440,6 +450,21 @@ const isGameState = (value: unknown): value is GameState => {
           PEER_MAX_TURN_DEADLINE,
           Date.now() + PEER_CLOCK_SKEW_TOLERANCE_MS + 24 * 60 * 60 * 1000,
         ))
+  ) {
+    return false;
+  }
+
+  // F347: turnNotice was the one wire-reachable GameState string field with
+  // no bound — a hostile gameUpdate could store an arbitrarily long string
+  // into guest state on every frame. It is UX copy like the error-message
+  // field, so it shares that bound and the same well-formedness rule as
+  // display names (F469): a lone surrogate renders as U+FFFD.
+  if (
+    state.turnNotice !== undefined &&
+    !(typeof state.turnNotice === "string" &&
+      state.turnNotice.length > 0 &&
+      state.turnNotice.length <= PEER_MAX_ERROR_LENGTH &&
+      isWellFormedUtf16(state.turnNotice))
   ) {
     return false;
   }
