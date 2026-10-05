@@ -69,6 +69,8 @@ interface RoomClientOptions {
   protocol?: string;
   maxBackoffMs?: number;
   autoReconnect?: boolean;
+  /** F460: bound on socket-open + `welcome` before the attempt is abandoned. */
+  handshakeTimeoutMs?: number;
 }
 
 interface RoomSession {
@@ -77,6 +79,14 @@ interface RoomSession {
 }
 
 const DEFAULT_MAX_BACKOFF_MS = 15_000;
+
+/**
+ * F460: a socket that stays CONNECTING, or opens and never receives
+ * `welcome`, used to leave `connect()` pending forever. Ten seconds is far
+ * beyond a healthy relay's welcome and short enough that a user sees an
+ * actionable error instead of an indefinite spinner.
+ */
+export const DEFAULT_HANDSHAKE_TIMEOUT_MS = 10_000;
 
 const RECONNECT_TOKEN_KEY_PREFIX = "tictactoe:room-token:";
 
@@ -122,6 +132,14 @@ export class RoomClient {
   private hadSession = false;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** F460: the live handshake deadline, so `close()` can retire it. */
+  private handshakeTimer: ReturnType<typeof setTimeout> | null = null;
+  /** F460: the socket the live deadline belongs to, so a superseded attempt
+   *  cannot clear a current attempt's timer. */
+  private handshakeSocket: WebSocket | null = null;
+  /** F460: monotonic attempt id; only the newest attempt may act. */
+  private attemptSeq = 0;
+  private activeAttempt: number | null = null;
   private welcomeResolvers: Array<(value: RoomSession) => void> = [];
   private welcomeRejecters: Array<(reason: Error) => void> = [];
   private pendingConnect: Promise<RoomSession> | null = null;
@@ -142,6 +160,7 @@ export class RoomClient {
       protocol: opts.protocol ?? "tictactoe:v1",
       maxBackoffMs: opts.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
       autoReconnect: opts.autoReconnect ?? true,
+      handshakeTimeoutMs: opts.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
     };
     // Retained credential from a previous session in this room (MM-01):
     // lets a refresh reclaim the same slot within the server grace window.
@@ -218,6 +237,15 @@ export class RoomClient {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    // F460: a user-initiated close settles connect() below, so the deadline
+    // must be retired or it would fire afterwards and re-settle the client
+    // with a spurious timeout.
+    if (this.handshakeTimer) {
+      clearTimeout(this.handshakeTimer);
+      this.handshakeTimer = null;
+    }
+    this.handshakeSocket = null;
+    this.activeAttempt = null;
     if (this.ws) {
       try {
         this.ws.close(1000, "client closing");
@@ -263,6 +291,27 @@ export class RoomClient {
       }
       this.ws = ws;
 
+      // F460: this attempt's settlement is latched so the deadline, `close`,
+      // `error` and a late `welcome` can race without double-settling. Only
+      // the first path through runs; the rest return. `welcomed` tracks the
+      // separate, later phase — a `close` after a successful `welcome` is an
+      // ESTABLISHED-session drop, which F151 still owns.
+      let settled = false;
+      let welcomed = false;
+
+      // F460: a superseded attempt (a retry that started before this socket
+      // finished) must not act. Without this guard its orphaned deadline
+      // would later settle the *current* attempt's promise, and its `close`
+      // would retire a live socket's timer.
+      const attempt = ++this.attemptSeq;
+      const isCurrent = () => this.activeAttempt === attempt;
+      const supersede = () => {
+        if (this.activeAttempt === attempt) this.activeAttempt = null;
+        if (this.handshakeSocket === ws) this.handshakeSocket = null;
+      };
+      this.activeAttempt = attempt;
+      this.handshakeSocket = ws;
+
       const settleWelcome = (session: RoomSession | null, error: Error | null) => {
         const resolvers = this.welcomeResolvers;
         const rejecters = this.welcomeRejecters;
@@ -276,7 +325,52 @@ export class RoomClient {
         }
       };
 
+      const retireHandshakeTimer = () => {
+        if (this.handshakeTimer) {
+          clearTimeout(this.handshakeTimer);
+          this.handshakeTimer = null;
+        }
+        if (this.handshakeSocket === ws) this.handshakeSocket = null;
+      };
+
+      // F460: a socket that never opens, or opens and never receives
+      // `welcome`, must still settle. Without this bound `connect()` stays
+      // pending forever: the user sees an indefinite spinner, and on an
+      // ESTABLISHED session the reconnect loop never advances.
+      this.handshakeTimer = setTimeout(() => {
+        if (this.handshakeTimer) this.handshakeTimer = null;
+        if (!isCurrent() || settled) return;
+        settled = true;
+        supersede();
+        if (this.ws === ws) this.ws = null;
+        settleWelcome(
+          null,
+          new Error(
+            `socket handshake timed out after ${this.opts.handshakeTimeoutMs}ms`,
+          ),
+        );
+        try {
+          ws.close(4000, "handshake timeout");
+        } catch {
+          /* ignore */
+        }
+        // F151 is preserved: only an ESTABLISHED session retries. A timed-out
+        // initial connect stays a terminal, actionable error.
+        if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
+        else this.setStatus("disconnected", "Connection timed out");
+      }, this.opts.handshakeTimeoutMs);
+
       ws.addEventListener("open", () => {
+        // F460: a superseded socket must not send `hello` — `sendRaw` would
+        // write to the newer socket, giving the relay two handshakes.
+        if (!isCurrent()) {
+          try {
+            ws.close(1000, "superseded");
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         // Once a new socket is open, every pending `connect()` call awaits a
         // fresh `welcome` from the server.
         const sent = this.sendRaw({
@@ -287,6 +381,9 @@ export class RoomClient {
           reconnectToken: this.reconnectToken ?? undefined,
         });
         if (!sent) {
+          settled = true;
+          retireHandshakeTimer();
+          supersede();
           settleWelcome(null, new Error("hello send failed"));
           ws.close();
         }
@@ -309,6 +406,13 @@ export class RoomClient {
           );
         }
         if (parsed.type === "welcome") {
+          // F460: a `welcome` that arrives after the deadline gave up on this
+          // attempt must be ignored. Adopting it would report "connected" for
+          // a socket we already closed and rejected on.
+          if (!isCurrent() || settled) return;
+          settled = true;
+          welcomed = true;
+          retireHandshakeTimer();
           const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
@@ -346,10 +450,25 @@ export class RoomClient {
           this.setStatus("disconnected");
           return;
         }
-        settleWelcome(
-          null,
-          this.preWelcomeError ?? new Error("socket closed before welcome"),
-        );
+        // F460: a superseded attempt's `close` must not touch the live one.
+        if (!isCurrent()) return;
+        // F460: when the deadline or `error` already settled this attempt,
+        // this `close` is a duplicate — re-settling would emit a second
+        // terminal status and re-arm a retry for an attempt that is over.
+        // A `close` after a successful `welcome` is NOT that case: it is an
+        // ESTABLISHED-session drop, so F151 below must still run.
+        if (settled && !welcomed) return;
+        settled = true;
+        retireHandshakeTimer();
+        supersede();
+        if (!welcomed) {
+          settleWelcome(
+            null,
+            this.preWelcomeError ?? new Error("socket closed before welcome"),
+          );
+        } else {
+          this.preWelcomeError = null;
+        }
         // F151: auto-reconnect exists to recover an ESTABLISHED session —
         // a socket that dies before `welcome` means the relay rejected or
         // is unreachable; retrying forever would overwrite the terminal
@@ -359,10 +478,16 @@ export class RoomClient {
       });
 
       ws.addEventListener("error", () => {
-        settleWelcome(
-          null,
-          this.preWelcomeError ?? new Error("socket error"),
-        );
+        if (!isCurrent() || (settled && !welcomed)) return;
+        settled = true;
+        retireHandshakeTimer();
+        supersede();
+        if (!welcomed) {
+          settleWelcome(
+            null,
+            this.preWelcomeError ?? new Error("socket error"),
+          );
+        }
         // close event will follow; reconnect happens there
       });
 

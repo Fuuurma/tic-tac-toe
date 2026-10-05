@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RoomClient } from "./room";
+import { DEFAULT_HANDSHAKE_TIMEOUT_MS, RoomClient } from "./room";
 
 /**
  * F151: a socket that dies before `welcome` means the relay rejected or
@@ -10,6 +10,7 @@ import { RoomClient } from "./room";
 
 class FakeSocket {
   static readonly OPEN = 1;
+  static readonly CLOSED = 3;
   static instances: FakeSocket[] = [];
   readyState = 0;
   readonly url: string;
@@ -28,7 +29,7 @@ class FakeSocket {
 
   send(): void {}
   close(): void {
-    this.readyState = 3;
+    this.readyState = FakeSocket.CLOSED;
     this.emit("close");
   }
 
@@ -37,6 +38,9 @@ class FakeSocket {
     for (const fn of this.handlers.get(type) ?? []) fn(event ?? {});
   }
 }
+
+/** The client's default handshake bound; tests assert against the real value. */
+const HANDSHAKE_TIMEOUT_MS = DEFAULT_HANDSHAKE_TIMEOUT_MS;
 
 function makeClient(statuses: string[]): RoomClient {
   const client = new RoomClient({
@@ -109,6 +113,134 @@ describe("RoomClient reconnect gating (F151)", () => {
 
     ws.close();
     expect(statuses).toContain("reconnecting");
+    client.close();
+  });
+});
+
+/**
+ * F460: before this, a socket that stayed CONNECTING — or opened and never
+ * received `welcome` — left `connect()` pending forever. F151 correctly
+ * refuses to retry a failed *initial* session, but it supplied no finite
+ * handshake bound, so the caller had no terminal error to show and an
+ * established-session reconnect could never progress.
+ */
+describe("RoomClient handshake deadline (F460)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    FakeSocket.instances = [];
+    vi.useRealTimers();
+  });
+
+  it("settles and closes the socket when it never opens", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    // Attach the rejection handler BEFORE the clock runs: the deadline
+    // rejects synchronously inside the timer, and a handler attached only
+    // after `await` would be a microtask too late (unhandled rejection).
+    const settled = expect(pending).rejects.toThrow(/timed out/i);
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS + 1);
+    await settled;
+
+    // The stale, never-opened socket is closed, not left dangling.
+    expect(FakeSocket.instances[0].readyState).toBe(FakeSocket.CLOSED);
+    expect(statuses).not.toContain("reconnecting");
+    expect(statuses.at(-1)).toBe("disconnected");
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+
+  it("settles and closes the socket when it opens without a welcome", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const settled = expect(pending).rejects.toThrow(/timed out/i);
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS + 1);
+    await settled;
+
+    expect(ws.readyState).toBe(FakeSocket.CLOSED);
+    expect(client.isConnected()).toBe(false);
+    expect(statuses.at(-1)).toBe("disconnected");
+  });
+
+  it("settles a close racing the deadline exactly once", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const settled = expect(pending).rejects.toThrow();
+    const ws = FakeSocket.instances[0];
+    // The relay's `close` lands in the same tick the deadline would fire.
+    setTimeout(() => ws.close(), HANDSHAKE_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS + 1);
+    await settled;
+
+    // One terminal status, not one per racing path.
+    expect(statuses.filter((s) => s === "disconnected")).toHaveLength(1);
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+
+  it("ignores a welcome that arrives after the deadline settled", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+    const messages: unknown[] = [];
+    client.setMessageHandler((msg) => messages.push(msg));
+
+    const pending = client.connect();
+    const settled = expect(pending).rejects.toThrow(/timed out/i);
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS + 1);
+    await settled;
+
+    // A late `welcome` must not resurrect a socket we already gave up on:
+    // the UI would show "connected" with no live connection.
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "guest", type: "welcome" }),
+    });
+    expect(messages).toHaveLength(0);
+    expect(statuses).not.toContain("connected");
+    expect(client.getRole()).toBeNull();
+    expect(client.isConnected()).toBe(false);
+  });
+
+  it("resumes bounded retry after a timed-out reconnect of an established session", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "guest", type: "welcome" }),
+    });
+    await expect(pending).resolves.toMatchObject({ role: "guest" });
+
+    // Established session drops and the retry never completes its handshake.
+    ws.close();
+    await vi.advanceTimersByTimeAsync(2_000);
+    const retry = FakeSocket.instances[1];
+    retry.emit("open");
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS + 1);
+
+    // The timed-out reconnect must not strand the loop: the next attempt is
+    // scheduled instead of the client sitting silent forever.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(FakeSocket.instances.length).toBeGreaterThan(2);
+    expect(statuses.filter((s) => s === "reconnecting").length).toBeGreaterThan(1);
     client.close();
   });
 });
