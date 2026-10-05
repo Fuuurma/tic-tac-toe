@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { RoomClient } from "@/lib/room";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
-import { createInitialGameState } from "@/game/logic";
+import { createInitialGameState, type GameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
@@ -94,6 +94,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       guestJoinedRef: { current: false },
       hostPendingSettingsRef,
       reconnectResetsRef: { current: { moveCount: -1 } },
+      pendingGuestStateRef: { current: null as GameState | null },
     };
     return { deps, guestSymbolRef };
   }
@@ -265,5 +266,35 @@ describe("joinAsGuest rematch-flag reset", () => {
     const { deps, guestSymbolRef } = lifecycleDeps({ current: false });
     joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
     expect(guestSymbolRef.current).toBeNull();
+  });
+
+  it("F275: resets the carried-over game state on room entry so a dead room's status cannot gate the new room", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    deps.stateRef.current = {
+      ...deps.stateRef.current,
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    };
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.stateRef.current.gameStatus).toBe(GameStatus.WAITING);
+    expect(deps.stateRef.current.winner).toBeNull();
+    expect(deps.update).toHaveBeenCalledWith(
+      expect.objectContaining({ gameState: deps.stateRef.current }),
+    );
+  });
+
+  it("F275: drops the carried-over optimistic snapshot on room entry — it could resurrect the same stale state via a stray Invalid move", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    deps.pendingGuestStateRef.current = {
+      ...deps.stateRef.current,
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    };
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.pendingGuestStateRef.current).toBeNull();
   });
 });

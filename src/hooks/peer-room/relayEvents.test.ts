@@ -431,6 +431,7 @@ describe("handleRelayEvent symbol fallbacks", () => {
       lastSyncReplyAtRef: { current: 0 },
       guestJoinedRef: { current: true },
       hostPendingSettingsRef: { current: null },
+      pendingGuestStateRef: { current: null },
     }, "ws://relay.test/room", "host");
     const close = vi.spyOn(client, "close");
 

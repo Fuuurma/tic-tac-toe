@@ -9,7 +9,7 @@ import {
   oppositeSymbol,
   randomPlayerSymbol,
 } from "@/game/constants";
-import { createInitialGameState } from "@/game/logic";
+import { createInitialGameState, freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import {
   chooseGuestColor,
@@ -60,6 +60,10 @@ export interface RoomLifecycleDeps {
    *  moveCount key restarts each game, so a consumed budget must not
    *  leak into the next room/round (F362). */
   reconnectResetsRef: { current: { moveCount: number } };
+  /** Guest optimistic-move rollback snapshot (guestProtocol) — room-scoped:
+   *  a snapshot from a previous room can only resurrect that room's state,
+   *  so it is cleared on entry with the rest of the carried-over state. */
+  pendingGuestStateRef: { current: GameState | null };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -202,6 +206,9 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   deps.guestJoinedRef.current = false;
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
   deps.reconnectResetsRef.current.moveCount = -1;
+  // Room-scoped like the rest: a snapshot taken in a previous room is
+  // never a valid rollback target in this one (F275).
+  deps.pendingGuestStateRef.current = null;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -260,7 +267,19 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   // any symbol carried over from a previous room so a peer leaving before
   // `joined` arrives crowns nobody instead of a stale recorded symbol.
   deps.guestSymbolRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, message: "Connecting...", rematchOutgoing: false });
+  // F275: the carried-over GameState belongs to the previous room — every
+  // gameStatus gate in this stack reads stateRef (the F252 join resend, the
+  // welcome sync pull, the rematchRequested terminal gate), so a stale
+  // COMPLETED/ACTIVE reports "game in progress" for a room that has not
+  // started and suppresses the resend that unstrands the guest. Seed a
+  // fresh WAITING placeholder; the host's `joined`/`gameStart` replaces it
+  // wholesale. The optimistic rollback snapshot is room-scoped too — a
+  // stray "Invalid move" before that first frame would resurrect the old
+  // state.
+  const waitingState: GameState = { ...freshGameState(), gameMode: GameModes.ONLINE };
+  deps.stateRef.current = waitingState;
+  deps.pendingGuestStateRef.current = null;
+  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false });
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);

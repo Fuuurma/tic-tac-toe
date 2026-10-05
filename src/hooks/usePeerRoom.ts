@@ -340,6 +340,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       guestJoinedRef,
       hostPendingSettingsRef,
       reconnectResetsRef,
+      pendingGuestStateRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );
