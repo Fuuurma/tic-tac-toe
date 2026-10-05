@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Color, PlayerSymbol, SymbolShape } from "@/game/constants";
+import { Color, PlayerSymbol, SHAPE_LABELS, SymbolShape } from "@/game/constants";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 
@@ -72,7 +72,7 @@ export const BoardCell = memo(function BoardCell({
   return (
     <button
       type="button"
-      aria-label={buildAriaLabel(index, value, isNextToRemove)}
+      aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove)}
       aria-keyshortcuts={String(index + 1)}
       aria-disabled={isDisabled || value !== null}
       disabled={isDisabled}
@@ -127,13 +127,15 @@ export const BoardCell = memo(function BoardCell({
 const buildAriaLabel = (
   index: number,
   value: PlayerSymbol | null,
+  valueShape: SymbolShape | undefined,
   isNextToRemove: boolean,
 ): string => {
   const row = Math.floor(index / 3) + 1;
   const col = (index % 3) + 1;
   const position = `Row ${row} column ${col}`;
   if (value) {
-    return `${position}, occupied by ${value}${isNextToRemove ? ", next to be removed" : ""}`;
+    const mark = valueShape ? SHAPE_LABELS[valueShape] : value;
+    return `${position}, occupied by ${mark}${isNextToRemove ? ", next to be removed" : ""}`;
   }
   return `${position}, empty`;
 };

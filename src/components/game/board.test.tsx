@@ -66,4 +66,29 @@ describe("Board accessibility semantics", () => {
     fireEvent.click(occupiedCell);
     expect(onCellClick).not.toHaveBeenCalled();
   });
+
+  it("names the picked shape, not the symbol letter, in occupied-cell labels", () => {
+    const board: (PlayerSymbolType | null)[] = Array(9).fill(null);
+    board[0] = PlayerSymbol.X;
+    board[4] = PlayerSymbol.O;
+
+    render(
+      <Board
+        board={board}
+        colors={{ [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED }}
+        shapes={{ [PlayerSymbol.X]: SymbolShape.TRIANGLE, [PlayerSymbol.O]: SymbolShape.HEART }}
+        winningCombination={null}
+        nextToRemove={{ [PlayerSymbol.X]: null, [PlayerSymbol.O]: null }}
+        disabled={false}
+        onCellClick={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Row 1 column 1, occupied by Triangle" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Row 2 column 2, occupied by Heart" }),
+    ).toBeTruthy();
+  });
 });
