@@ -469,6 +469,22 @@ describe("isPeerMessage hostile game-state frames", () => {
     expect(isPeerMessage(frame)).toBe(true);
   });
 
+  // F471: isPlayerConfig validated that p.symbol was a PlayerSymbol but not
+  // that it matched the map key, so players.X.symbol === "O" passed — a
+  // state the engine cannot produce (freshGameState always writes the key
+  // into symbol). Same impossible-state family as F192/F404.
+  it("rejects gameState whose player symbol disagrees with its map key (F471)", () => {
+    const frame = validMessage();
+    // Swap the two player configs: every field stays individually valid,
+    // only the key↔symbol pairing becomes impossible.
+    const players = frame.gameState.players;
+    [players[PlayerSymbol.X], players[PlayerSymbol.O]] = [
+      players[PlayerSymbol.O],
+      players[PlayerSymbol.X],
+    ];
+    expect(isPeerMessage(frame)).toBe(false);
+  });
+
   it("rejects gameState where moves.X contains out-of-range indices", () => {
     const frame = validMessage();
     frame.gameState.moves[PlayerSymbol.X] = [0, 99, 2] as never;

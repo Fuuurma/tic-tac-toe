@@ -310,12 +310,16 @@ const isBoundedOptionalColor = (
 const isBoardCell = (value: unknown): boolean =>
   value === null || isPlayerSymbol(value);
 
-const isPlayerConfig = (value: unknown): boolean => {
+const isPlayerConfig = (value: unknown, symbol: PlayerSymbol): boolean => {
   if (!value || typeof value !== "object") return false;
   const p = value as Record<string, unknown>;
   if (!isBoundedDisplayName(p.username)) return false;
   if (!isColor(p.color)) return false;
-  if (!isPlayerSymbol(p.symbol)) return false;
+  // F471: the engine always writes symbol identical to the map key
+  // (freshGameState/createInitialGameState), so a players.X entry carrying
+  // symbol "O" is a state no producer can make — individually valid fields,
+  // impossible pair. Same cross-check family as F192/F404.
+  if (p.symbol !== symbol) return false;
   if (!isSymbolShape(p.shape)) return false;
   if (!isPlayerType(p.type)) return false;
   if (
@@ -370,7 +374,11 @@ const isGameState = (value: unknown): value is GameState => {
   }
 
   const players = state.players as Record<string, unknown> | undefined;
-  if (!players || !isPlayerConfig(players.X) || !isPlayerConfig(players.O)) {
+  if (
+    !players ||
+    !isPlayerConfig(players.X, PlayerSymbol.X) ||
+    !isPlayerConfig(players.O, PlayerSymbol.O)
+  ) {
     return false;
   }
 
