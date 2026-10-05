@@ -255,7 +255,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
     >
       <Card variant="glass" className="gap-0 overflow-hidden py-0">
         <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
-          <GameMark playerColor={color} opponentColor={opponentColor} />
+          <GameMark />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-xl font-extrabold leading-none tracking-tight sm:text-2xl">
               Tic Tac Toe Disappear

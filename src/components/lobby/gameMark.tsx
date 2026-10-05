@@ -4,21 +4,19 @@ import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
 interface MarkTile {
   shape: SymbolShape;
-  color: "player" | "opponent";
+  color: Color;
 }
 
+// Brand mark, not player chrome: the masthead tiles stay on the fixed
+// X-blue / O-red identity (DESIGN.md) no matter which colors the players
+// picked for themselves.
 const MARKS: (MarkTile | null)[] = [
-  { shape: SymbolShape.X, color: "player" }, null, null,
-  null, { shape: SymbolShape.O, color: "opponent" }, null,
-  null, null, { shape: SymbolShape.X, color: "player" },
+  { shape: SymbolShape.X, color: Color.BLUE }, null, null,
+  null, { shape: SymbolShape.O, color: Color.RED }, null,
+  null, null, { shape: SymbolShape.X, color: Color.BLUE },
 ];
 
-interface GameMarkProps {
-  playerColor: Color;
-  opponentColor: Color;
-}
-
-export function GameMark({ playerColor, opponentColor }: GameMarkProps) {
+export function GameMark() {
   return (
     <div
       aria-hidden="true"
@@ -36,8 +34,7 @@ export function GameMark({ playerColor, opponentColor }: GameMarkProps) {
           style={
             mark
               ? ({
-                  "--mark-color":
-                    COLOR_RGB[mark.color === "player" ? playerColor : opponentColor],
+                  "--mark-color": COLOR_RGB[mark.color],
                 } as React.CSSProperties)
               : undefined
           }
