@@ -277,7 +277,15 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             message={message}
             gameMode={GameModes.ONLINE}
             roomCode={peer.state.roomId || undefined}
-            onNewGame={canRequestRematch ? () => peer.requestRematch() : undefined}
+            onNewGame={
+              // Host-only: a guest's rematchAccept is dropped by
+              // handleHostMessage when no host request is pending, so the
+              // button would be inert for guests. Guests rematch via the
+              // labeled Accept/Decline prompt (onAcceptRematch below).
+              canRequestRematch && peer.state.role === "host"
+                ? () => peer.requestRematch()
+                : undefined
+            }
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
             onPauseChange={setPanelPaused}
