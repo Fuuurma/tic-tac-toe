@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { COLOR_BG_CLASSES, AVAILABLE_COLORS, type Color, type SymbolShape } from "@/game/constants";
+import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
@@ -33,7 +34,12 @@ export function ColorPicker({
         </span>
         <span className="text-xs font-semibold text-foreground">{formatColorName(value)}</span>
       </div>
-      <div className="grid grid-cols-4 gap-1.5">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="grid grid-cols-4 gap-1.5"
+        onKeyDown={handleRadioGroupKeyDown}
+      >
         {AVAILABLE_COLORS.map((color) => {
           const isSelected = value === color;
           const colorName = formatColorName(color);
@@ -42,10 +48,12 @@ export function ColorPicker({
             <button
               key={color}
               type="button"
+              role="radio"
               data-color={color}
-              aria-label={`${colorName} color${isSelected ? ", selected" : ""}`}
-              aria-pressed={isSelected}
+              aria-label={colorName}
+              aria-checked={isSelected}
               title={colorName}
+              tabIndex={isSelected ? 0 : -1}
               onClick={() => onChange(color)}
               className={cn(
                 "flex min-h-11 items-center justify-between gap-1 rounded-lg border px-1.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:px-2 sm:text-xs",
