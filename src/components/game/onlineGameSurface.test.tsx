@@ -29,7 +29,6 @@ vi.mock("@/hooks/useGameStats", () => ({
   useGameStats: () => ({
     recordWin: mocks.recordWin,
     recordLoss: mocks.recordLoss,
-    recordDraw: vi.fn(),
   }),
 }));
 // The orbs animate on canvas, which jsdom does not implement.
