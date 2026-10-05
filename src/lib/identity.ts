@@ -111,6 +111,25 @@ const isAllowedCharacter = (character: string): boolean => {
 const stripDisallowedCharacters = (value: string): string =>
   Array.from(value).filter(isAllowedCharacter).join("").replace(INVISIBLE_CHARS, "");
 
+/**
+ * F469: the cap is a UTF-16 unit budget — the wire bound
+ * (PEER_MAX_NAME_LENGTH) counts `.length` units, so the producers must
+ * honor the same unit count. Slicing the rejoined string at unit 20 splits
+ * an astral character's surrogate pair and emits a lone surrogate, which
+ * renders as U+FFFD opponent-side. The cut therefore lands on a code-point
+ * boundary: a pair that does not fit is dropped whole.
+ */
+const truncateToUtf16Length = (value: string, maxUnits: number): string => {
+  let units = 0;
+  let end = 0;
+  for (const character of value) {
+    if (units + character.length > maxUnits) break;
+    units += character.length;
+    end += character.length;
+  }
+  return value.slice(0, end);
+};
+
 export const sanitizeDisplayName = (
   value: string | null | undefined,
   fallback = generateGuestDisplayName(),
@@ -118,10 +137,10 @@ export const sanitizeDisplayName = (
   // F121: stripping happens before the length checks below, or a name that is
   // only zero-widths passes `>= MIN_LENGTH` on characters nobody can see.
   const safeValue = stripDisallowedCharacters(value || "");
-  const normalized = safeValue
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, DISPLAY_NAME_MAX_LENGTH);
+  const normalized = truncateToUtf16Length(
+    safeValue.replace(/\s+/g, " ").trim(),
+    DISPLAY_NAME_MAX_LENGTH,
+  );
 
   return normalized.length >= DISPLAY_NAME_MIN_LENGTH ? normalized : fallback;
 };
@@ -140,7 +159,10 @@ export const sanitizeDisplayName = (
  * counts characters the user can see.
  */
 export const filterDisplayNameInput = (value: string): string =>
-  stripDisallowedCharacters(value).slice(0, DISPLAY_NAME_MAX_LENGTH);
+  truncateToUtf16Length(
+    stripDisallowedCharacters(value),
+    DISPLAY_NAME_MAX_LENGTH,
+  );
 
 export const getOrCreateGuestIdentity = (
   storage: Storage | null = getBrowserStorage(),

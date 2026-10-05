@@ -262,10 +262,31 @@ const isWinningCombination = (
   });
 };
 
+/**
+ * F469: a lone surrogate passes a `.length` bound but encodes no character —
+ * the DOM renders it as U+FFFD. The producers truncate at code-point
+ * boundaries, so a lone surrogate here means a stale or hostile peer, and
+ * the frame is rejected rather than sanitized on the way in.
+ */
+const isWellFormedUtf16 = (value: string): boolean => {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(i + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
+      i += 1;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      return false;
+    }
+  }
+  return true;
+};
+
 const isBoundedDisplayName = (value: unknown): value is string =>
   typeof value === "string" &&
   value.length > 0 &&
-  value.length <= PEER_MAX_NAME_LENGTH;
+  value.length <= PEER_MAX_NAME_LENGTH &&
+  isWellFormedUtf16(value);
 
 const isBoundedIdentifier = (value: unknown): value is string =>
   typeof value === "string" &&

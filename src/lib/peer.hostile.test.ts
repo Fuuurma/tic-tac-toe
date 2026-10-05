@@ -100,6 +100,43 @@ describe("isPeerMessage hostile frames", () => {
     ).toBe(true);
   });
 
+  // F469: the producers now truncate at code-point boundaries, but the wire
+  // check is the trust boundary — a stale or hostile peer can still send a
+  // name ending in a lone surrogate, which renders as U+FFFD.
+  it("rejects display names containing lone surrogates (F469)", () => {
+    const splitPair = `${"a".repeat(19)}\uD83E`;
+    expect(
+      isPeerMessage({
+        type: "join",
+        displayName: splitPair,
+        guestId: "guest:1",
+      }),
+    ).toBe(false);
+    expect(
+      isPeerMessage({
+        type: "join",
+        displayName: "ab\uDC00",
+        guestId: "guest:1",
+      }),
+    ).toBe(false);
+    // The mirror check: a well-formed pair in the same field must pass.
+    expect(
+      isPeerMessage({
+        type: "join",
+        displayName: "Alice\u{1F600}",
+        guestId: "guest:1",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects gameState usernames containing lone surrogates (F469)", () => {
+    const frame = validMessage();
+    (
+      frame.gameState.players[PlayerSymbol.X] as unknown as { username: string }
+    ).username = `Host\uD83E`;
+    expect(isPeerMessage(frame)).toBe(false);
+  });
+
   it("rejects join frames that spoof invalid preferred colors", () => {
     expect(
       isPeerMessage({

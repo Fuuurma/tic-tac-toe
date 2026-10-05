@@ -64,6 +64,26 @@ describe("sanitizeDisplayName", () => {
     // Soft hyphen is invisible too.
     expect(sanitizeDisplayName("Ma\u00ADrio")).toBe("Mario");
   });
+
+  // F469: the cap is a UTF-16 unit budget (the wire bound counts units), but
+  // slicing the rejoined string at unit 20 splits an emoji's surrogate pair
+  // and emits a lone high surrogate, which renders as U+FFFD opponent-side.
+  // The cut must land on a code-point boundary: a pair that does not fit is
+  // dropped whole.
+  it("truncates at a code-point boundary, never inside a surrogate pair", () => {
+    // 19 units of ASCII + an emoji needing 2: only the ASCII fits in 20.
+    expect(sanitizeDisplayName(`${"a".repeat(19)}\u{1F600}`)).toBe(
+      "a".repeat(19),
+    );
+    // 18 units + the emoji exactly fills the budget — it survives whole.
+    expect(sanitizeDisplayName(`${"a".repeat(18)}\u{1F600}`)).toBe(
+      `${"a".repeat(18)}\u{1F600}`,
+    );
+    // An astral character mid-name still counts its 2 units against the cap.
+    expect(sanitizeDisplayName(`\u{1F600}${"a".repeat(19)}`)).toBe(
+      `\u{1F600}${"a".repeat(18)}`,
+    );
+  });
 });
 
 describe("filterDisplayNameInput", () => {
@@ -96,6 +116,18 @@ describe("filterDisplayNameInput", () => {
   // 20-character name the user cannot see.
   it("reduces an all-invisible field to empty rather than counting it as length", () => {
     expect(filterDisplayNameInput("\u200B\u200C\u200D\uFEFF\u2060")).toBe("");
+  });
+
+  // F469: the per-keystroke cap shares the sanitizer's budget, so it splits
+  // the same surrogate pair — an emoji typed as the 20th code point used to
+  // leave a lone high surrogate sitting in the field.
+  it("caps at a code-point boundary — an emoji straddling the budget is dropped whole", () => {
+    expect(filterDisplayNameInput(`${"a".repeat(19)}\u{1F600}bb`)).toBe(
+      "a".repeat(19),
+    );
+    expect(filterDisplayNameInput(`${"a".repeat(18)}\u{1F600}`)).toBe(
+      `${"a".repeat(18)}\u{1F600}`,
+    );
   });
 
   // INVISIBLE_CHARS is written out by hand because ES2022 has no regex set
