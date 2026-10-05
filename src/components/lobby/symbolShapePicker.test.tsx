@@ -13,13 +13,21 @@ import { AVAILABLE_SHAPES, SHAPE_LABELS, SymbolShape } from "@/game/constants";
 describe("SymbolShapePicker tiles", () => {
   afterEach(cleanup);
 
-  const renderPicker = () =>
+  const renderPicker = (label = "Your shape") =>
     render(
       <SymbolShapePicker
+        label={label}
         value={SymbolShape.STAR}
         onChange={vi.fn()}
       />,
     );
+
+  it("names its legend and radiogroup from the caller's label", () => {
+    renderPicker("Opponent shape");
+
+    expect(screen.getByRole("radiogroup", { name: "Opponent shape" })).toBeTruthy();
+    expect(screen.getByText("Opponent shape")).toBeTruthy();
+  });
 
   it("shows every shape name as visible text, not only as an accessible name", () => {
     renderPicker();

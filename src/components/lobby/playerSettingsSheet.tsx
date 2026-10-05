@@ -329,6 +329,7 @@ function PlayerTab({
       />
 
       <SymbolShapePicker
+        label="Your shape"
         value={value.playerShape}
         disabled={isOnline}
         onChange={(shape) => onChange({ ...value, playerShape: shape })}
@@ -427,6 +428,7 @@ function OpponentTab({
       />
 
       <SymbolShapePicker
+        label="Opponent shape"
         value={value.opponentShape}
         onChange={(shape) => onChange({ ...value, opponentShape: shape })}
       />

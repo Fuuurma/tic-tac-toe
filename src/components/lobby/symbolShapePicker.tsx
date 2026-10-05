@@ -4,12 +4,14 @@ import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
 interface SymbolShapePickerProps {
+  label: string;
   value: SymbolShape;
   disabled?: boolean;
   onChange: (shape: SymbolShape) => void;
 }
 
 export function SymbolShapePicker({
+  label,
   value,
   disabled = false,
   onChange,
@@ -17,11 +19,11 @@ export function SymbolShapePicker({
   return (
     <fieldset className="flex flex-col gap-2" disabled={disabled}>
       <legend className="text-[11px] font-semibold tracking-normal text-muted-foreground">
-        Your shape
+        {label}
       </legend>
       <div
         role="radiogroup"
-        aria-label="Your shape"
+        aria-label={label}
         className="grid grid-cols-4 gap-2"
         onKeyDown={handleRadioGroupKeyDown}
       >
