@@ -268,10 +268,15 @@ export function PlayersPanel({
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
             {roomCode && (
+              // 44px touch floor without a 44px box: the chip lives in a dense
+              // 11px meta row, and growing the element would reflow the panel
+              // (the active left column is capped at 50% minus 2rem). A centred
+              // empty pseudo-element carries the hit area instead, so the
+              // target clears 2.5.5 while the layout is untouched.
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="glass-cell inline-flex max-w-40 min-h-6 min-w-0 items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="glass-cell relative inline-flex max-w-40 min-h-6 min-w-0 items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors after:absolute after:left-1/2 after:top-1/2 after:size-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 title={`Room code: ${roomCode}, click to copy`}
                 aria-label={`Room code ${roomCode}, click to copy`}
               >
