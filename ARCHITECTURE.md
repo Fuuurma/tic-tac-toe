@@ -8,16 +8,12 @@ Online rooms go through the shared `fuurma-matchmaking` Worker (quick-match
 pairing + `GameRoomDO` WebSocket relay); host-authoritative validation runs
 client-side in `src/lib/peer.ts`.
 
-```mermaid
-flowchart LR
-  UI["src/components<br/>game · lobby · ui"] --> HOOKS["src/hooks<br/>usePeerRoom · useLocalGame · useGameStats"]
-  HOOKS --> ENGINE["src/game — pure<br/>logic.ts · ai.ts"]
-  UI --> PEER["src/lib/peer.ts<br/>host authority · validation"]
-  MM["src/lib/matchmaking.ts<br/>relay URL · FIFO queue"] --> RELAY["fuurma-matchmaking Worker<br/>GameRoomDO relay + quick match"]
-  PEER --> RELAY
-  ID["src/lib/identity.ts<br/>local guest identity"] --> UI
-  ROOM["src/lib/room.ts · roomId.ts<br/>room client + ids"] --> PEER
-```
+The architecture, drawn: **[diagrams/architecture.html](diagrams/architecture.html)**
+(diagram-design editorial HTML — refresh it when modules or data flows change;
+never redraw it as Mermaid). It keeps both paths: guest identity into the
+React UI, hooks, and the pure game engine for local play, and the UI through
+the host-authoritative peer room and matchmaking client onto the external
+`fuurma-matchmaking` relay for online rooms.
 
 ## Modules
 
