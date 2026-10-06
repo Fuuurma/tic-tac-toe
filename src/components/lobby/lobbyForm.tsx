@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import {
   AI_Difficulty,
   AI_DIFFICULTY_LABELS,
@@ -454,12 +454,16 @@ function OnlineOption({
   description: string;
   onClick: () => void;
 }) {
+  // Same contract as GameModeSelector: aria-label forms the accessible
+  // name, so without this the visible description line never reaches AT.
+  const descriptionId = useId();
   return (
     <button
       type="button"
       role="radio"
       aria-checked={active}
       aria-label={label}
+      aria-describedby={descriptionId}
       data-state={active ? "active" : "inactive"}
       tabIndex={active ? 0 : -1}
       onClick={onClick}
@@ -477,7 +481,7 @@ function OnlineOption({
         </span>
         {active && <Check className="size-3.5 shrink-0 text-[rgb(var(--player-color))]" aria-hidden="true" />}
       </span>
-      <span className="text-[11px] leading-tight text-muted-foreground">
+      <span id={descriptionId} className="text-[11px] leading-tight text-muted-foreground">
         {description}
       </span>
     </button>
