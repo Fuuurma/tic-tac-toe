@@ -163,9 +163,13 @@ export function PlayersPanel({
     return () => observer.disconnect();
   }, []);
 
+  // A fresh game (moveCount 0) has nothing to confirm either, and `showNewGame`
+  // / `showExit` deliberately suppress the dialog for it. Arming the pause here
+  // would then strand the game: only the dialog disarms it, so the timer stays
+  // frozen and the board stays disabled with no visible pause state.
   const handleNewGameClick = () => {
     if (!onNewGame) return;
-    if (isGameOver) {
+    if (isGameOver || freshGame) {
       onNewGame();
       return;
     }
@@ -174,7 +178,7 @@ export function PlayersPanel({
   };
 
   const handleExitClick = () => {
-    if (isGameOver) {
+    if (isGameOver || freshGame) {
       onExit();
       return;
     }

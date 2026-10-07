@@ -492,6 +492,31 @@ test("play again after a local win resets the board", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("exiting before the first move exits instead of freezing the board", async ({
+  page,
+}) => {
+  await fillLobby(page, {
+    name: "Alice",
+    color: "blue",
+    mode: "vs Friend",
+    opponentName: "Bob",
+  });
+  await page.getByRole("button", { name: "Start Game" }).click();
+  await expect(
+    page.getByRole("button", { name: "Row 1 column 1, empty" }),
+  ).toBeVisible();
+
+  // No moves yet, so there is nothing to confirm. The panel suppresses the
+  // dialog for a fresh game; if it also armed the pause, only the dialog could
+  // disarm it, stranding the board disabled with no visible pause state.
+  await page.getByRole("button", { name: "Exit game" }).click();
+
+  await expect(page.getByRole("button", { name: "Start Game" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Row 1 column 1, empty" }),
+  ).toHaveCount(0);
+});
+
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
