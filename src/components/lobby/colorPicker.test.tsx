@@ -15,7 +15,7 @@ import { AVAILABLE_COLORS, Color, SymbolShape } from "@/game/constants";
 describe("ColorPicker radiogroup contract (F516)", () => {
   afterEach(cleanup);
 
-  const renderPicker = (onChange = vi.fn(), value = Color.BLUE) =>
+  const renderPicker = (onChange = vi.fn(), value: Color = Color.BLUE) =>
     render(
       <ColorPicker
         label="Your color"
