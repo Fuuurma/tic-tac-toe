@@ -92,3 +92,53 @@ describe("Board accessibility semantics", () => {
     ).toBeTruthy();
   });
 });
+
+// An unplayable cell used to announce as plain "empty" — no reason, so a
+// screen-reader user was told the board looked interactive while every tap
+// did nothing. The reason travels Board → BoardCell → accessible name.
+describe("Board disabled reasons", () => {
+  const base = {
+    board: Array(9).fill(null),
+    colors: { [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED },
+    shapes: {
+      [PlayerSymbol.X]: SymbolShape.X,
+      [PlayerSymbol.O]: SymbolShape.O,
+    },
+    winningCombination: null,
+    nextToRemove: { [PlayerSymbol.X]: null, [PlayerSymbol.O]: null },
+    onCellClick: vi.fn(),
+  };
+
+  it("keeps the plain label when the board is playable", () => {
+    render(<Board {...base} disabled={false} />);
+
+    expect(
+      screen.getByRole("button", { name: "Row 1 column 1, empty" }),
+    ).toBeTruthy();
+  });
+
+  it("states the reason when the board is unplayable", () => {
+    render(
+      <Board {...base} disabled disabledReason="waiting for the computer to move" />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: "Row 1 column 1, empty, waiting for the computer to move",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("does not claim a reason on an occupied cell", () => {
+    const board = Array(9).fill(null);
+    board[0] = PlayerSymbol.X;
+    render(
+      <Board {...base} board={board} disabled disabledReason="game is paused" />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /occupied by/ }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/game is paused/)).toBeNull();
+  });
+});

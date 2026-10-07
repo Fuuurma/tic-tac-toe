@@ -11,6 +11,9 @@ interface BoardCellProps {
   isNextToRemove: boolean;
   isWinningCell: boolean;
   isDisabled: boolean;
+  /** Plain-language reason the cell cannot be played, appended to the
+   *  accessible name. Absent when the cell is playable. */
+  disabledReason?: string;
   isHovered: boolean;
   previewPlayer?: PlayerSymbol;
   previewColor?: Color;
@@ -60,6 +63,7 @@ export const BoardCell = memo(function BoardCell({
   isNextToRemove,
   isWinningCell,
   isDisabled,
+  disabledReason,
   isHovered,
   previewPlayer,
   previewColor,
@@ -72,7 +76,7 @@ export const BoardCell = memo(function BoardCell({
   return (
     <button
       type="button"
-      aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove)}
+      aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove, disabledReason)}
       aria-keyshortcuts={String(index + 1)}
       aria-disabled={isDisabled || value !== null}
       disabled={isDisabled}
@@ -129,6 +133,7 @@ const buildAriaLabel = (
   value: PlayerSymbol | null,
   valueShape: SymbolShape | undefined,
   isNextToRemove: boolean,
+  disabledReason?: string,
 ): string => {
   const row = Math.floor(index / 3) + 1;
   const col = (index % 3) + 1;
@@ -137,5 +142,8 @@ const buildAriaLabel = (
     const mark = valueShape ? SHAPE_LABELS[valueShape] : value;
     return `${position}, occupied by ${mark}${isNextToRemove ? ", next to be removed" : ""}`;
   }
-  return `${position}, empty`;
+  // An unplayable cell used to announce as plain "empty", which tells a
+  // screen-reader user nothing about why it cannot be played — the board
+  // looked interactive and behaved like a dead end. Say it outright.
+  return `${position}, empty${disabledReason ? `, ${disabledReason}` : ""}`;
 };
