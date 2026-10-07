@@ -98,14 +98,34 @@ interface FindMatchOptions {
 }
 
 const _matchmakingUrl = import.meta.env.VITE_MATCHMAKING_URL;
-if (import.meta.env.PROD && !_matchmakingUrl) {
-  throw new Error(
-    "Missing VITE_MATCHMAKING_URL: production builds must define it (set it in the build environment; see .env.example); refusing the localhost fallback.",
-  );
-}
+
+/**
+ * Whether this build can reach a matchmaking backend at all.
+ *
+ * A production build without `VITE_MATCHMAKING_URL` is a build misconfig,
+ * and it used to be enforced with a throw at module scope. That throw was
+ * inside the lazily-loaded online chunk, so it escalated to the app-wide
+ * ErrorBoundary: one missing variable replaced the whole product, including
+ * the single-player games the visitor was playing, with a developer-facing
+ * message. The URL is now resolved per call so only online play fails, and
+ * only when it is actually used.
+ */
+export const MATCHMAKING_CONFIGURED = Boolean(_matchmakingUrl);
 
 const MATCHMAKING_BASE_URL =
   _matchmakingUrl ?? "http://127.0.0.1:8787";
+
+/** Thrown when online play is invoked in a build with no backend configured. */
+export const MATCHMAKING_UNAVAILABLE_MESSAGE =
+  "Online play isn't available in this build.";
+
+const resolveBaseUrl = (override?: string): string => {
+  if (override) return override;
+  if (!_matchmakingUrl && import.meta.env.PROD) {
+    throw new Error(MATCHMAKING_UNAVAILABLE_MESSAGE);
+  }
+  return MATCHMAKING_BASE_URL;
+};
 
 export const MATCH_POLL_INITIAL_DELAY_MS = 1_000;
 export const MATCH_POLL_MAX_DELAY_MS = 4_000;
@@ -124,7 +144,7 @@ export function getMatchPollDelay(attempt: number): number {
 
 export async function findMatch(options: FindMatchOptions): Promise<MatchmakingResponse> {
   const response = await fetch(
-    `${options.baseUrl ?? MATCHMAKING_BASE_URL}/api/matchmaking/${options.game}/join`,
+    `${resolveBaseUrl(options.baseUrl)}/api/matchmaking/${options.game}/join`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -147,10 +167,10 @@ export async function findMatch(options: FindMatchOptions): Promise<MatchmakingR
 export async function pollMatch(
   game: string,
   ticket: string,
-  baseUrl: string = MATCHMAKING_BASE_URL,
+  baseUrl?: string,
 ): Promise<MatchmakingResponse> {
   const response = await fetch(
-    `${baseUrl}/api/matchmaking/${game}/poll?ticket=${encodeURIComponent(ticket)}`,
+    `${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/poll?ticket=${encodeURIComponent(ticket)}`,
     { method: "GET", signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS) },
   );
 
@@ -164,10 +184,10 @@ export async function pollMatch(
 export async function leaveMatch(
   game: string,
   ticket: string,
-  baseUrl: string = MATCHMAKING_BASE_URL,
+  baseUrl?: string,
   options?: { keepalive?: boolean },
 ): Promise<void> {
-  const response = await fetch(`${baseUrl}/api/matchmaking/${game}/leave`, {
+  const response = await fetch(`${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/leave`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticket }),

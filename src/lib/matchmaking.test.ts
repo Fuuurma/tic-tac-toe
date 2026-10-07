@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   getMatchPollDelay,
   MATCH_POLL_INITIAL_DELAY_MS,
@@ -70,5 +70,58 @@ describe("parseMatchmakingResponse", () => {
     expect(() =>
       parseMatchmakingResponse({ status: "waiting", ticket: "t", roomId: "r", position: 0 }),
     ).toThrow("Malformed");
+  });
+});
+
+// The module used to `throw` at import scope when VITE_MATCHMAKING_URL was
+// unset. That throw shipped inside the lazily-loaded online chunk, so it
+// escalated to the app-wide ErrorBoundary: one missing build variable
+// replaced the WHOLE app — including the single-player games already in
+// progress — with a developer-facing error screen. The blast radius is now
+// confined to the online call that needs the URL.
+describe("module import safety without VITE_MATCHMAKING_URL", () => {
+  it("imports without throwing in a build with no backend configured", async () => {
+    // This spec file already imports the module at the top, so simply
+    // reaching here proves the import did not throw. Assert the exported
+    // shape so a future regression fails loudly rather than silently.
+    const mod = await import("@/lib/matchmaking");
+    expect(typeof mod.findMatch).toBe("function");
+    expect(typeof mod.pollMatch).toBe("function");
+    expect(typeof mod.leaveMatch).toBe("function");
+    expect(typeof mod.MATCHMAKING_UNAVAILABLE_MESSAGE).toBe("string");
+    expect(mod.MATCHMAKING_UNAVAILABLE_MESSAGE.length).toBeGreaterThan(0);
+  });
+
+  it("reports the configured state as a boolean the UI can gate on", async () => {
+    const mod = await import("@/lib/matchmaking");
+    expect(typeof mod.MATCHMAKING_CONFIGURED).toBe("boolean");
+  });
+
+  it("resolves the base URL at call time, not at import time", async () => {
+    const mod = await import("@/lib/matchmaking");
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        return {
+          ok: true,
+          json: async () => ({ status: "waiting", ticket: "t", roomId: "r" }),
+        };
+      }),
+    );
+    try {
+      await mod.findMatch({
+        game: "ttt",
+        peerId: "p",
+        displayName: "P",
+        guestId: "g",
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    // The call reached a real URL rather than exploding at module scope.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("/api/matchmaking/ttt/join");
   });
 });

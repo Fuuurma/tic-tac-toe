@@ -15,6 +15,10 @@ import {
   type GameMode,
   type PlayerType,
 } from "@/game/constants";
+import {
+  MATCHMAKING_CONFIGURED,
+  MATCHMAKING_UNAVAILABLE_MESSAGE,
+} from "@/lib/matchmaking";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -167,6 +171,17 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
   );
 
   const isValid = useMemo(() => validate(payload) === null, [payload]);
+
+  // Quick Match is the one entry point that cannot work without a backend:
+  // create/join only hand a room id to the WebSocket relay, but quick match
+  // must call the matchmaking service. In a build with no VITE_MATCHMAKING_URL
+  // the tap used to escalate to the app-wide ErrorBoundary and take the
+  // whole product down with it. Offer the mode, but say plainly that it is
+  // unavailable instead of failing after the click.
+  const quickMatchUnavailable =
+    gameMode === GameModes.ONLINE && onlineAction === "quick" && !MATCHMAKING_CONFIGURED;
+  const startDisabled = !isValid || quickMatchUnavailable;
+  const startTitle = quickMatchUnavailable ? MATCHMAKING_UNAVAILABLE_MESSAGE : undefined;
 
   const playerSettings: PlayerSettings = useMemo(
     () => ({ displayName, color, playerShape }),
@@ -379,10 +394,11 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             type="submit"
             size="lg"
             variant="glass"
-            disabled={!isValid}
+            disabled={startDisabled}
+            title={startTitle}
             className={cn(
               "h-12 w-full text-base font-bold sm:h-14",
-              !isValid && "cursor-not-allowed opacity-50",
+              startDisabled && "cursor-not-allowed opacity-50",
             )}
             style={{
               "--glass-sweep-color": COLOR_RGB[color],
@@ -408,6 +424,11 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
               </>
             )}
           </Button>
+          {quickMatchUnavailable && (
+            <p role="status" className="text-center text-xs text-white/60">
+              {MATCHMAKING_UNAVAILABLE_MESSAGE} Create or join a room instead.
+            </p>
+          )}
         </CardFooter>
       </Card>
 
@@ -433,7 +454,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                 : "Join Room"
             : "Start Game"
         }
-        startDisabled={!isValid}
+        startDisabled={startDisabled}
       />
 
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
