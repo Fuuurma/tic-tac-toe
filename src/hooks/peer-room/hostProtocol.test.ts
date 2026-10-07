@@ -46,6 +46,7 @@ function makeDeps(game: GameState) {
     // Most tests exercise the post-join surface — the flag flips on join.
     guestJoinedRef: { current: true },
     hostPendingSettingsRef: { current: null },
+    pausedRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
     },
@@ -333,7 +334,13 @@ describe("handleHostMessage rematch deadline", () => {
 });
 
 describe("handleHostMessage invalid guest move", () => {
-  it("replies 'Invalid move' so the guest rolls back its optimistic move", () => {
+  // The relay RESERVES the `error` frame type for itself and answers a
+  // client-sent one back to the sender, so the host can never deliver a
+  // rejection to the guest. It resyncs with an authoritative gameUpdate
+  // instead; the guest detects a non-landing move by comparing moveCount
+  // against its own rollback snapshot. Sending `error` here would look
+  // correct in a unit test and diverge both boards in production.
+  it("resyncs the guest with the authoritative state so its move is withdrawn", () => {
     const game: GameState = {
       ...freshGameState(),
       gameStatus: GameStatus.ACTIVE,
@@ -344,13 +351,15 @@ describe("handleHostMessage invalid guest move", () => {
     handleHostMessage(deps, { type: "move", index: 0 });
 
     expect(deps.stateRef.current).toBe(game);
-    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
-      type: "error",
-      message: "Invalid move",
-    });
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+    expect(send).toHaveBeenCalledTimes(1);
+    const frame = send.mock.calls[0][0] as { type: string; gameState: GameState };
+    expect(frame.type).toBe("gameUpdate");
+    expect(frame.gameState.moveCount).toBe(0);
+    expect(frame.gameState.board).toEqual(game.board);
   });
 
-  it("does not send a wire error for the host's own rejected move", () => {
+  it("does not resync the guest for the host's own rejected move", () => {
     const game: GameState = {
       ...freshGameState(),
       gameStatus: GameStatus.ACTIVE,
@@ -365,8 +374,44 @@ describe("handleHostMessage invalid guest move", () => {
   });
 });
 
+// A paused host froze its clock on purpose; accepting a move while frozen
+// would restart the turn at a full TURN_DURATION_MS and hand the guest free
+// time. sendMove gates the host's own clicks on pausedRef; this is the same
+// gate for moves arriving over the wire.
+describe("applyHostMove pause gate (F225 host half)", () => {
+  it("ignores an inbound guest move while a mid-game overlay has frozen the clock", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O,
+    };
+    const { deps } = makeDeps(game);
+    deps.pausedRef.current = true;
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
+  });
+
+  it("still applies the guest's move once the overlay closes", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      currentPlayer: PlayerSymbol.O,
+    };
+    const { deps } = makeDeps(game);
+    deps.pausedRef.current = false;
+
+    handleHostMessage(deps, { type: "move", index: 0 });
+
+    expect(deps.stateRef.current.board[0]).toBe(PlayerSymbol.O);
+    expect(deps.stateRef.current.turnDeadlineAt).toBeDefined();
+  });
+});
+
 describe("handleHostMessage unassigned host symbol", () => {
-  it("rejects a guest move with an error so the guest rolls back (F159)", () => {
+  it("resyncs a guest move instead of dropping it silently (F159)", () => {
     const game: GameState = {
       ...freshGameState(),
       gameStatus: GameStatus.ACTIVE,
@@ -378,13 +423,12 @@ describe("handleHostMessage unassigned host symbol", () => {
     handleHostMessage(deps, { type: "move", index: 0 });
 
     expect(deps.stateRef.current).toBe(game);
-    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
-      type: "error",
-      message: "Invalid move",
-    });
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((send.mock.calls[0][0] as { type: string }).type).toBe("gameUpdate");
   });
 
-  it("answers a guest join with 'Room not ready' instead of a silent drop", () => {
+  it("resyncs a guest join instead of leaving it waiting on `joined` forever", () => {
     const { deps } = makeDeps(freshGameState());
     deps.hostSymbolRef.current = null;
 
@@ -394,10 +438,9 @@ describe("handleHostMessage unassigned host symbol", () => {
       guestId: "g-1",
     });
 
-    expect(deps.roomRef.current?.send).toHaveBeenCalledWith({
-      type: "error",
-      message: "Room not ready",
-    });
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((send.mock.calls[0][0] as { type: string }).type).toBe("gameUpdate");
   });
 });
 

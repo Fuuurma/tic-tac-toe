@@ -58,6 +58,11 @@ export interface HostProtocolDeps {
    *  restarts each round — must be re-armed when a new game begins. */
   reconnectResetsRef: { current: { moveCount: number } };
   hostPendingSettingsRef: { current: PendingPlayerSettings | null };
+  /** True while a mid-game overlay (Settings/Help/confirm) freezes the
+   *  turn clock. The host owns the clock, so it must also refuse inbound
+   *  guest moves while frozen — otherwise the guest keeps playing against a
+   *  stopped timer and the host's "frozen" turn silently resets to 10s. */
+  pausedRef: { current: boolean };
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
@@ -65,22 +70,45 @@ export interface HostProtocolDeps {
   clearRematchTimeout: () => void;
 }
 
+/**
+ * Re-syncs the guest with the host's authoritative state.
+ *
+ * The relay reserves the `error` frame type for itself and answers a
+ * client-sent one back to the *sender*, so the host can never deliver an
+ * `error` to the guest (fuurma-matchmaking/src/room.ts RESERVED_TYPES).
+ * Every "your assumption was wrong, resync" path therefore ships a
+ * `gameUpdate` instead: the guest's handler replaces its board wholesale,
+ * which both rolls back a bad optimistic move and repairs any other drift.
+ */
+function resyncGuest(deps: HostProtocolDeps) {
+  const { roomRef, stateRef } = deps;
+  roomRef.current?.send({
+    type: "gameUpdate",
+    gameState: toWireGameState(stateRef.current),
+  });
+}
+
 export function applyHostMove(deps: HostProtocolDeps, index: number, actor: PlayerSymbol) {
-  const { stateRef, roomRef, hostSymbolRef, commitHostState } = deps;
+  const { stateRef, hostSymbolRef, commitHostState, pausedRef } = deps;
   {
+    // Mirrors sendMove's pause gate: the clock is frozen, so no move may
+    // commit — not the host's own click, and not a guest move arriving over
+    // the wire. Accepted either way it would restart the turn at a full
+    // TURN_DURATION_MS and hand the guest free time.
+    if (pausedRef.current) return;
     const current = stateRef.current;
     const next = applyAuthorizedMove(current, index, actor);
     if (!next) {
-      // Only the guest's failed moves get a wire error — it drives the
-      // guest's optimistic-move rollback (F159). The host's own moves are
-      // validated locally and never need one. No null special-case: every
-      // caller already rejects an unassigned hostSymbol before dispatching
-      // here, and a real actor symbol never equals a null ref anyway, so
-      // the error would still go out and the guest would roll back rather
-      // than diverge (F160 — the old `hostSymbol === null` early-return
-      // was unreachable dead code).
+      // Only the guest's failed moves need a wire correction — it drives the
+      // guest's optimistic-move rollback. The host's own moves are validated
+      // locally and never need one. No null special-case: every caller
+      // already rejects an unassigned hostSymbol before dispatching here, and
+      // a real actor symbol never equals a null ref anyway, so the resync
+      // would still go out and the guest would roll back rather than diverge
+      // (F160 — the old `hostSymbol === null` early-return was unreachable
+      // dead code).
       if (actor !== hostSymbolRef.current) {
-        roomRef.current?.send({ type: "error", message: "Invalid move" });
+        resyncGuest(deps);
       }
       return;
     }
@@ -118,11 +146,13 @@ function resetForRematch(deps: HostProtocolDeps, closePrompt: boolean) {
   // hostSymbolRef — when symbols swap, indexing by the NEW symbol
   // would give each side the other player's name/color/shape
   // (fleet critic 2026-09-06 P1). A null ref means the room was never
-  // initialized — tell the guest instead of leaving it thinking the
-  // rematch went through (F159).
+  // initialized — resync the guest with the untouched state so it stops
+  // waiting on a rematch that will never come (F159). An `error` frame
+  // cannot do this: the relay reserves that type and bounces it back to
+  // the sender.
   const oldHostSymbol = hostSymbolRef.current;
   if (oldHostSymbol === null) {
-    roomRef.current?.send({ type: "error", message: "Room not ready" });
+    resyncGuest(deps);
     return;
   }
   const hostPlayer = state.players[oldHostSymbol];
@@ -205,12 +235,12 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
   {
     if (message.type === "join") {
       // hostSymbolRef is assigned synchronously in startAsHost; a null
-      // here means the room was never initialized — tell the guest the
-      // room isn't ready instead of dropping the join silently (F159:
-      // a silent drop leaves the guest waiting on `joined` forever).
+      // here means the room was never initialized — resync the guest with
+      // the untouched state rather than leaving it waiting on `joined`
+      // forever (F159: a silent drop strands the guest on a spinner).
       const hostSymbol = hostSymbolRef.current;
       if (hostSymbol === null) {
-        roomRef.current?.send({ type: "error", message: "Room not ready" });
+        resyncGuest(deps);
         return;
       }
       const result = applyHostGuestJoin(stateRef.current, hostSymbol, {
@@ -286,11 +316,11 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     }
     if (message.type === "move") {
       const hostSymbol = hostSymbolRef.current;
-      // A null ref means the room was never initialized — send "Invalid
-      // move" so the guest rolls back its optimistic move instead of
-      // diverging on a silent drop (F159).
+      // A null ref means the room was never initialized — resync the guest
+      // with the untouched state so its optimistic move is withdrawn instead
+      // of diverging on a silent drop (F159).
       if (hostSymbol === null) {
-        roomRef.current?.send({ type: "error", message: "Invalid move" });
+        resyncGuest(deps);
         return;
       }
       const guestSymbol = oppositeSymbol(hostSymbol);

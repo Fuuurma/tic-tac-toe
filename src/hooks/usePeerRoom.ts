@@ -258,6 +258,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       reconnectResetsRef,
       hostPendingSettingsRef,
       pendingGuestStateRef,
+      pausedRef,
       setState,
       commitHostState,
       broadcastGameState,
@@ -310,10 +311,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
       stateRef,
       guestSymbolRef,
       pendingGuestStateRef,
+      rematchPendingRef,
+      clearRematchTimeout,
       setState,
       stopTimer,
     }),
-    [stopTimer],
+    [stopTimer, clearRematchTimeout],
   );
   const handleGuestData = useCallback(
     (message: PeerMessage) => handleGuestMessage(guestDeps(), message),

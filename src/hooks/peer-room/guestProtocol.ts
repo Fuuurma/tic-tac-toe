@@ -19,6 +19,12 @@ export interface GuestProtocolDeps {
   /** Optimistic-move rollback snapshot; cleared ONLY on an
    *  authoritative host update (never in the ref-sync effect). */
   pendingGuestStateRef: { current: GameState | null };
+  /** True while THIS guest has an unanswered rematch request out. The host
+   *  gates its prompt on the same flag, so without it here both sides can
+   *  prompt at once and each waits 30s on the other. */
+  rematchPendingRef: { current: boolean };
+  /** Cancels this guest's rematch-expiry timer. */
+  clearRematchTimeout: () => void;
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   stopTimer: () => void;
 }
@@ -32,6 +38,8 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     stateRef,
     guestSymbolRef,
     pendingGuestStateRef,
+    rematchPendingRef,
+    clearRematchTimeout,
     setState,
     stopTimer,
   } = deps;
@@ -50,6 +58,15 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
               (message.gameState.turnTimeRemaining ?? TURN_DURATION_MS),
           }
         : message.gameState;
+      // Capture the rollback snapshot BEFORE clearing it. The host cannot
+      // send an `error` (the relay reserves that type and bounces it back to
+      // the sender), so it resyncs with a plain authoritative update instead.
+      // An update whose moveCount still equals the pre-move snapshot means
+      // the host rejected our optimistic move — say so, rather than letting
+      // the mark silently vanish.
+      const pending = pendingGuestStateRef.current;
+      const moveRejected =
+        pending !== null && pending.moveCount === message.gameState.moveCount;
       stateRef.current = gameState;
       // An authoritative state update supersedes any pending optimistic
       // move, so clear the rollback snapshot. This is the ONLY place we
@@ -64,6 +81,14 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       if (message.type === "gameStart" && message.symbol) {
         guestSymbolRef.current = message.symbol;
       }
+      // A new game supersedes any request of ours that is still out: the
+      // host answering it IS the accept. Leaving the flag set would make the
+      // guest cancel a request nobody is waiting on, and block it from
+      // asking for a third game until the 30s expiry fired.
+      if (message.type === "gameStart") {
+        rematchPendingRef.current = false;
+        clearRematchTimeout();
+      }
       setState((prev) => {
         const localSymbol =
           message.type === "joined" && message.symbol
@@ -76,7 +101,8 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           status: "connected",
           gameState,
           guestSymbol: localSymbol,
-          message: "",
+          message: moveRejected ? "Move was rejected by host" : "",
+          rematchOutgoing: message.type === "gameStart" ? false : prev.rematchOutgoing,
           // A terminal frame (state_snapshot/joined resync on a finished
           // game) does not supersede a live rematch prompt — only a new
           // ACTIVE game does (review 2026-10-03 P3).
@@ -91,11 +117,22 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       // meaningful on a terminal game. A mid-game request from a hostile
       // or buggy host must not pop the prompt over live play.
       if (state.winner === null || state.gameStatus !== GameStatus.COMPLETED) return;
-      setState((prev) => ({
-        ...prev,
-        message: `${state.players[message.requesterSymbol].username} wants a rematch. Accept or decline below.`,
-        rematchIncoming: true,
-      }));
+      // Mirror the host's own pending gate (hostProtocol rematchRequested):
+      // only one request may be in flight. Without this, a mutual ask leaves
+      // both sides showing a prompt plus a "waiting for opponent" cancel,
+      // each waiting 30s on the other with no way to settle it.
+      if (rematchPendingRef.current) return;
+      setState((prev) =>
+        // A prompt already up is a no-op: answering one request and asking
+        // another would leave both players waiting.
+        prev.rematchIncoming
+          ? prev
+          : {
+              ...prev,
+              message: `${state.players[message.requesterSymbol].username} wants a rematch. Accept or decline below.`,
+              rematchIncoming: true,
+            },
+      );
       return;
     }
     if (message.type === "rematchCancel") {
@@ -133,25 +170,19 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       return;
     }
     if (message.type === "error") {
-      // Host rejected the guest's most recent optimistic move. Roll
-      // back to the last authoritative state so the UI and gameState
-      // ref do not drift while we wait for the next gameUpdate.
-      // (Branch moved here from hostProtocol — the host SENDS this
-      // error, only the GUEST receives it. Fleet critic 2026-09-06.)
-      if (message.message === "Invalid move") {
-        const previous = pendingGuestStateRef.current;
-        if (previous) {
-          stateRef.current = previous;
-          pendingGuestStateRef.current = null;
-          setState((prev) => ({
-            ...prev,
-            gameState: previous,
-            message: "Move was rejected by host",
-          }));
-        }
-        return;
-      }
-      setState((prev) => ({ ...prev, message: message.message }));
+      // Diagnostics only. The host can NEVER deliver a move rejection here:
+      // the relay reserves the `error` type and answers a client-sent one
+      // back to the sender, so the old rollback branch was unreachable and
+      // an optimistic-move rejection silently diverged the two boards.
+      // Rejection now arrives as an authoritative state whose moveCount still
+      // matches the rollback snapshot — detected in the branch above. What
+      // does reach this handler is the relay complaining about a frame THIS
+      // client sent, which is worth showing.
+      setState((prev) =>
+        prev.message === message.message
+          ? prev
+          : { ...prev, message: message.message },
+      );
       return;
     }
   }

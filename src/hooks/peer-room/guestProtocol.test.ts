@@ -46,10 +46,12 @@ function makeDeps(game: GameState, roomInit: Partial<PeerRoomState> = {}) {
     stateRef: { current: game },
     guestSymbolRef: { current: PlayerSymbol.O },
     pendingGuestStateRef: { current: null },
+    rematchPendingRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
     },
     stopTimer: vi.fn(),
+    clearRematchTimeout: vi.fn(),
   };
   return { deps, getRoom: () => roomState };
 }

@@ -24,45 +24,131 @@ function gameState(overrides: Partial<GameState>): GameState {
 }
 
 describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
-  it('restores the pending snapshot on host "Invalid move"', () => {
-    const authoritative = gameState({ turnTimeRemaining: 20_000 });
-    const pendingGuestStateRef = { current: authoritative };
-    const stateRef = { current: gameState({ board: ['X'] } as never) };
-    const patches: unknown[] = [];
+  // The relay RESERVES `error` and answers a client-sent frame back to the
+  // sender, so the host could never deliver the rejection this rollback once
+  // listened for. The host resyncs with an authoritative update instead; the
+  // guest recognises a rejected move by an update whose moveCount still
+  // matches its own pre-move snapshot. These pin that replacement contract.
+  const guestDeps = (stateRef: { current: GameState }, pendingGuestStateRef: { current: GameState | null }, patches: Array<(prev: never) => { message?: string }>) => ({
+    stateRef,
+    guestSymbolRef: { current: 'O' as never },
+    pendingGuestStateRef,
+    rematchPendingRef: { current: false },
+    setState: (fn: (prev: never) => never) => patches.push(fn as never),
+    stopTimer: () => {},
+    clearRematchTimeout: () => {},
+  });
+
+  it('rolls back and says so when the host resyncs without counting our move', () => {
+    const preMove = gameState({ turnTimeRemaining: 20_000 });
+    const pendingGuestStateRef = { current: preMove as GameState | null };
+    // Guest optimistically rendered its own mark: moveCount 1 locally.
+    const stateRef = { current: gameState({ board: ['X'], moveCount: 1 } as never) };
+    const patches: Array<(prev: never) => { message?: string }> = [];
+    // The host resyncs at moveCount 0 — our move never landed.
+    const authoritative = gameState({});
+
+    handleGuestMessage(guestDeps(stateRef, pendingGuestStateRef, patches) as never, {
+      type: 'gameUpdate',
+      gameState: authoritative,
+    });
+
+    expect(stateRef.current.board).toEqual(authoritative.board);
+    expect(pendingGuestStateRef.current).toBeNull();
+    expect(patches).toHaveLength(1);
+    const next = patches[0]({} as never);
+    expect(next.message).toBe('Move was rejected by host');
+  });
+
+  it('stays silent when the resync DOES count our move', () => {
+    const preMove = gameState({});
+    const pendingGuestStateRef = { current: preMove as GameState | null };
+    const stateRef = { current: gameState({ moveCount: 1 } as never) };
+    const patches: Array<(prev: never) => { message?: string }> = [];
+    const authoritative = gameState({ moveCount: 1 } as never);
+
+    handleGuestMessage(guestDeps(stateRef, pendingGuestStateRef, patches) as never, {
+      type: 'gameUpdate',
+      gameState: authoritative,
+    });
+
+    expect(stateRef.current.board).toEqual(authoritative.board);
+    expect(pendingGuestStateRef.current).toBeNull();
+    expect(patches[0]({} as never).message).toBe('');
+  });
+
+  it('treats a relay error as display-only (no rollback, snapshot kept)', () => {
+    const stateRef = { current: gameState({}) };
+    const pendingGuestStateRef = { current: gameState({}) };
+    const patches: Array<(prev: never) => { message?: string }> = [];
+
+    handleGuestMessage(guestDeps(stateRef, pendingGuestStateRef, patches) as never, {
+      type: 'error',
+      message: 'reserved type: something',
+    });
+
+    // No rollback: board state untouched, snapshot kept.
+    const before = stateRef.current;
+    expect(stateRef.current).toBe(before);
+    expect(pendingGuestStateRef.current).not.toBeNull();
+    expect(patches[0]({} as never).message).toBe('reserved type: something');
+  });
+});
+
+// Either side may ask for a rematch, so the guest must honour the same
+// one-request-in-flight rule the host does — otherwise a mutual ask leaves
+// both sides showing a prompt plus an outgoing cancel, each waiting out the
+// 30s expiry on the other.
+describe('guestProtocol.handleGuestMessage — rematch mutual-ask gate', () => {
+  const state = gameState({
+    gameStatus: GameStatus.COMPLETED,
+    winner: 'X' as never,
+    players: { X: { username: 'Host' }, O: { username: 'Guest' } },
+  } as never);
+
+  it('ignores an incoming request while one of ours is still pending', () => {
+    const patches: Array<(prev: never) => never> = [];
     const deps = {
-      stateRef,
+      stateRef: { current: state },
       guestSymbolRef: { current: 'O' as never },
-      pendingGuestStateRef,
+      pendingGuestStateRef: { current: null },
+      rematchPendingRef: { current: true },
       setState: (fn: (prev: never) => never) => patches.push(fn),
       stopTimer: () => {},
       clearRematchTimeout: () => {},
     };
 
-    handleGuestMessage(deps as never, { type: 'error', message: 'Invalid move' });
+    handleGuestMessage(deps as never, { type: 'rematchRequested', requesterSymbol: 'X' as never });
 
-    expect(stateRef.current).toBe(authoritative);
-    expect(pendingGuestStateRef.current).toBeNull();
-    expect(patches).toHaveLength(1);
+    expect(patches).toHaveLength(0);
   });
 
-  it('treats other host errors as display-only (no rollback)', () => {
-    const stateRef = { current: gameState({}) };
-    const pendingGuestStateRef = { current: gameState({}) };
+  it('clears our own pending flag when the host accepts with a gameStart', () => {
+    const rematchPendingRef = { current: true };
+    const clearRematchTimeout = vi.fn();
+    let cleared = 0;
     const deps = {
-      stateRef,
+      stateRef: { current: state },
       guestSymbolRef: { current: 'O' as never },
-      pendingGuestStateRef,
-      setState: () => {},
+      pendingGuestStateRef: { current: null },
+      rematchPendingRef,
+      setState: (fn: (prev: never) => never) => {
+        cleared = 1;
+        fn({ rematchOutgoing: true } as never);
+      },
       stopTimer: () => {},
-      clearRematchTimeout: () => {},
+      clearRematchTimeout,
     };
 
-    const before = stateRef.current;
-    handleGuestMessage(deps as never, { type: 'error', message: 'Room closed' });
+    handleGuestMessage(deps as never, {
+      type: 'gameStart',
+      symbol: 'X' as never,
+      gameState: gameState({}),
+    });
 
-    // No rollback: board state untouched, snapshot kept.
-    expect(stateRef.current).toBe(before);
-    expect(pendingGuestStateRef.current).not.toBeNull();
+    expect(rematchPendingRef.current).toBe(false);
+    expect(clearRematchTimeout).toHaveBeenCalledOnce();
+    expect(cleared).toBe(1);
   });
 });
 
@@ -151,6 +237,7 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
       stateRef: { current: newState },
       guestSymbolRef,
       pendingGuestStateRef: { current: null },
+      rematchPendingRef: { current: true },
       setState: (fn: (prev: never) => never) => {
         lastState = fn({ guestSymbol: 'O' } as never);
       },
@@ -177,6 +264,7 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
       stateRef: { current: newState },
       guestSymbolRef,
       pendingGuestStateRef: { current: null },
+      rematchPendingRef: { current: true },
       setState: (fn: (prev: never) => never) => {
         lastState = fn({ guestSymbol: 'O' } as never);
       },
@@ -200,6 +288,7 @@ describe('guestProtocol.handleGuestMessage — rematch prompt gate (F191)', () =
     stateRef: { current: state },
     guestSymbolRef: { current: 'O' as never },
     pendingGuestStateRef: { current: null },
+    rematchPendingRef: { current: false },
     setState: (fn: (prev: never) => never) => patches.push(fn),
     stopTimer: () => {},
     clearRematchTimeout: () => {},
