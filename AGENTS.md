@@ -128,7 +128,9 @@ pnpm check
 - Guest sends move intents to host; host validates, applies, and broadcasts state to guest
 - Inbound wire frames are validated by `isPeerMessage`/`isGameState` in `src/lib/peer.ts` (colors, display names, move indices, winning lines, timer bounds, game-mode/AI-difficulty/player-type enums)
 - Host resets `turnTimeRemaining` to `TURN_DURATION_MS` after `peer-reconnected` so a same-identity reconnect cannot trigger an immediate random move
-- Host gates `rematchAccept` on a pending host-issued rematch request and on the previous game being terminal; a stray guest accept is ignored
+- Either side may request a rematch: both send `rematchRequested` with their own symbol and arm the same 30s expiry. The host still owns the reset, so it answers a guest request locally (`acceptIncomingRematch`) instead of sending an accept and waiting for its own echo
+- The host gates `rematchAccept` on a pending request of its own and on the previous game being terminal; a stray guest accept is ignored. It gates an incoming guest request the same way, and on `guestJoinedRef` so a peer that never joined cannot pop a prompt over live play
+- Requesting while a prompt is already up is a no-op on both sides: answering one request and asking another would leave both players waiting
 - Forfeit winner is determined by the actual host/guest symbol refs, not hardcoded X/O
 - `peer-left: disconnect` is transient during the 30-second reconnect grace; `peer-reconnected` restores the peer; `closed` and `expired` are final
 
@@ -142,6 +144,8 @@ pnpm check
 - `BackgroundPattern` keeps the resting symbol grid on an offscreen base layer and repaints only the lit spotlight region per frame. `clearRect` the region before `drawImage`-ing the base back: a transparent source pixel composites as a no-op, so the copy alone leaves the previous frame baked in
 - Canvas resolves gradient coordinates in the user space of the fill, not of `createRadialGradient`. The cached spotlight gradient is built at the origin and painted under `ctx.translate(pointer.x, pointer.y)`
 - Pointer handlers record the position and start the rAF loop; they never draw. A synchronous draw per event repaints the grid twice per frame
+- The reveal follows the pointer's path, not just its position. Samples are laid down by distance travelled (`TRAIL_SAMPLE_STEP`) and aged out by time (`TRAIL_FADE_MS`), so a fast flick leaves a streak, a slow drag keeps a halo, and a resting cursor collapses to the single-point halo. Pointer speed decides the look for free — no explicit velocity maths
+- `TRAIL_MAX_SPAN` is a performance dial first: the repaint box grows with the trail, and each extra pixel is another base-layer blit. Measured on a 4x throttled mid-range viewport during a continuous sweep, the trail costs ~1ms median frame and takes dropped frames from ~1.7% to ~3.1%. Idle and a parked cursor cost nothing — the rAF loop stops entirely
 - Measure main-thread cost with `requestAnimationFrame` frame gaps. Headless Chromium's `longtask` `PerformanceObserver` reports nothing, even for a deliberate 120ms block, so a clean long-task reading is an unproven instrument
 
 ## Record Storage
