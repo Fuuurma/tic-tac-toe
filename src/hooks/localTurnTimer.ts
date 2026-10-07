@@ -42,13 +42,23 @@ export function stopLocalTurnTimer(deps: Pick<LocalTurnTimerDeps, "tickRef">) {
  * snapshot). The guarded updater drops the commit when a concurrent
  * update landed first; clearing the notice is safe either way — a stale
  * snapshot means another commit already ran and owns the status line.
+ *
+ * `rebase` handles the case where the concurrent update is *not* a rival
+ * move. The turn clock rewrites `turnTimeRemaining` onto a fresh object
+ * every second, and the AI's move is scheduled 700–1300ms after the turn
+ * starts — so roughly half of all AI moves land in the same batch as a
+ * clock tick. Dropping them stranded the AI's turn until it expired, so
+ * `rebase` re-derives the same move from whatever state did commit. It
+ * must stay pure (StrictMode double-invokes updaters) and must return the
+ * state unchanged when another move genuinely owns the board.
  */
 export function commitLocalMove(
   deps: Pick<LocalTurnTimerDeps, "setGameState" | "setMessage">,
   prev: GameState,
   next: GameState,
+  rebase?: (cur: GameState) => GameState,
 ) {
-  deps.setGameState((cur) => (cur === prev ? next : cur));
+  deps.setGameState((cur) => (cur === prev ? next : rebase ? rebase(cur) : cur));
   deps.setMessage("");
 }
 

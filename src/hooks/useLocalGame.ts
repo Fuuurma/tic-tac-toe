@@ -202,7 +202,17 @@ export function useLocalGame(input: LocalGameInput) {
         if (move === null) return;
         const next = makeMove(prev, move);
         if (!next) return;
-        commitLocalMove({ setGameState, setMessage }, prev, next);
+        commitLocalMove({ setGameState, setMessage }, prev, next, (cur) => {
+          // The turn clock ticks on the same 1s cadence the AI's move is
+          // scheduled against, so `cur` is often the same game one tick
+          // newer: same side, same turn, only the clock moved on. Re-derive
+          // the move there; anything else (a completed game, a moved turn,
+          // a human on the clock) belongs to another commit.
+          if (!isGameActive(cur)) return cur;
+          if (cur.currentPlayer !== scheduledSymbol) return cur;
+          if (cur.players[cur.currentPlayer].type !== PlayerTypes.COMPUTER) return cur;
+          return makeMove(cur, move) ?? cur;
+        });
       }, AI_MOVE_DELAY_MS + Math.random() * AI_MOVE_DELAY_JITTER_MS);
     }
     return () => {

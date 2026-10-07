@@ -17,6 +17,7 @@ import {
   GameModes,
   GameStatus,
   PlayerSymbol,
+  PlayerTypes,
   TURN_DURATION_MS,
 } from "@/game/constants";
 import { useLocalGame, type LocalGameInput } from "./useLocalGame";
@@ -189,6 +190,55 @@ describe("useLocalGame timeout notice", () => {
     });
     expect(result.current.gameState.turnNotice).toBeUndefined();
     expect(result.current.gameState.gameStatus).toBe(GameStatus.WAITING);
+  });
+});
+
+describe("useLocalGame computer-opening turn", () => {
+  // The computer opens when randomPlayerSymbol() hands the human O, so the
+  // AI owns X and the very first commit of the game belongs to it. The turn
+  // clock is already ticking on that same opening turn, which is the only
+  // place the clock tick and the AI's setTimeout overlap.
+  function renderComputerOpening() {
+    vi.mocked(Math.random).mockReturnValue(0.6);
+    return renderHook(() => useLocalGame(makeComputerInput()));
+  }
+
+  it("gives the human O and the computer X", () => {
+    const { result } = renderComputerOpening();
+    expect(result.current.humanSymbol).toBe(PlayerSymbol.O);
+    expect(result.current.gameState.currentPlayer).toBe(PlayerSymbol.X);
+    expect(result.current.gameState.players[PlayerSymbol.X].type).toBe(PlayerTypes.COMPUTER);
+  });
+
+  it("plays the opening move without waiting for the turn to expire", () => {
+    const { result } = renderComputerOpening();
+
+    // One clock tick passes before the AI's move lands
+    // (AI delay = 700 + 0.6*600 = 1060ms, first tick at 1000ms).
+    stepSeconds(1);
+    expect(result.current.gameState.moveCount).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(1060);
+    });
+
+    expect(result.current.gameState.moveCount).toBe(1);
+    expect(result.current.gameState.currentPlayer).toBe(PlayerSymbol.O);
+    // The AI's own move, never the "ran out of time" forced move.
+    expect(result.current.gameState.turnNotice).toBeUndefined();
+  });
+
+  it("still opens when the clock tick and the AI move land in one batch", () => {
+    const { result } = renderComputerOpening();
+
+    // Browser frames can deliver both timers in a single task; the AI's
+    // commit must not be dropped by the stale-snapshot guard.
+    act(() => {
+      vi.advanceTimersByTime(1060);
+    });
+
+    expect(result.current.gameState.moveCount).toBe(1);
+    expect(result.current.gameState.turnNotice).toBeUndefined();
   });
 });
 
