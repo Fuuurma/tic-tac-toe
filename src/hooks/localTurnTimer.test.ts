@@ -33,6 +33,7 @@ function makeDeps(game: GameState) {
   const deps: LocalTurnTimerDeps = {
     stateRef: { current: game },
     tickRef: { current: null },
+    pausedRef: { current: false },
     setGameState: (updater) => {
       // Committed state lands in the ref — mirrors the hook's
       // post-render effect that syncs gameStateRef.
@@ -130,6 +131,57 @@ describe("startLocalTurnTimer forced move", () => {
     // No further move applies, so the notice survives into the end panel.
     vi.advanceTimersByTime(3000);
     expect(getGame().winner).toBe(PlayerSymbol.X);
+    expect(getGame().turnNotice).toBe("Ada ran out of time");
+  });
+});
+
+// Pausing stops the interval in the hook, but React only runs the passive
+// effect that clears it on the NEXT commit. A tick landing in that window
+// read the still-expired deadline and played a forced random move for the
+// player who had just paused — their clock froze, the board took a move,
+// and the turn flipped with nothing on screen explaining why.
+describe("startLocalTurnTimer pause gate", () => {
+  it("never forces a move while paused, even against an expired deadline", () => {
+    const { deps, getGame } = makeDeps(activeGame());
+    deps.pausedRef.current = true;
+
+    startLocalTurnTimer(deps);
+    vi.advanceTimersByTime(10_000);
+
+    // Board untouched, no forced move, no notice, turn not flipped.
+    expect(getGame().board[0]).toBeNull();
+    expect(getGame().currentPlayer).toBe(PlayerSymbol.X);
+    expect(getGame().turnNotice).toBeUndefined();
+    expect(getGame().moveCount).toBe(0);
+  });
+
+  it("still freezes the displayed countdown rather than draining it", () => {
+    const { deps, getGame } = makeDeps(
+      activeGame({
+        turnTimeRemaining: 4_000,
+        turnDeadlineAt: Date.now() + 4_000,
+      }),
+    );
+    deps.pausedRef.current = true;
+
+    startLocalTurnTimer(deps);
+    vi.advanceTimersByTime(10_000);
+
+    expect(getGame().turnTimeRemaining).toBe(4_000);
+  });
+
+  it("resumes normally once the pause is lifted", () => {
+    const { deps, getGame } = makeDeps(activeGame());
+
+    startLocalTurnTimer(deps);
+    deps.pausedRef.current = true;
+    vi.advanceTimersByTime(3_000);
+    expect(getGame().board[0]).toBeNull();
+
+    deps.pausedRef.current = false;
+    vi.advanceTimersByTime(1_000);
+
+    expect(getGame().board[0]).toBe(PlayerSymbol.X);
     expect(getGame().turnNotice).toBe("Ada ran out of time");
   });
 });

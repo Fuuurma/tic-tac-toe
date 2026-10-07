@@ -82,6 +82,7 @@ export function useLocalGame(input: LocalGameInput) {
     startLocalTurnTimer({
       stateRef: gameStateRef,
       tickRef,
+      pausedRef,
       setGameState,
       setMessage,
     });
@@ -145,6 +146,14 @@ export function useLocalGame(input: LocalGameInput) {
     // pause would recompute turnTimeRemaining off the already-stale
     // deadline and drain it while paused.
     if (pausedRef.current === target) return;
+    // Stop the interval NOW, in the same synchronous block that raises the
+    // flag. The passive effect below only clears it on the NEXT commit, and
+    // a tick landing in that window reads the still-expired deadline and
+    // plays a forced random move for the player who just paused. The peer
+    // twin (usePeerRoom.setPaused) already stopped first; this brings the
+    // local hook in line. `pausedRef` inside the tick is the second line of
+    // defence for the same window.
+    if (target) stopTimer();
     pausedRef.current = target;
     setPausedState(target);
     setGameState((prev) => {
@@ -162,7 +171,7 @@ export function useLocalGame(input: LocalGameInput) {
       if (prev.turnDeadlineAt === undefined) return prev;
       return { ...prev, turnDeadlineAt: Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS) };
     });
-  }, []);
+  }, [stopTimer]);
 
   useEffect(() => {
     if (gameIsActive && !paused) {

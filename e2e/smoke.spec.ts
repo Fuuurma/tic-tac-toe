@@ -517,6 +517,54 @@ test("exiting before the first move exits instead of freezing the board", async 
   ).toHaveCount(0);
 });
 
+// Pausing must freeze BOTH the numeric countdown and the CSS ring. The ring
+// is an animation keyed to the turn, so it used to keep draining while the
+// number stood still — the two disagreed for the rest of the turn.
+test("pausing freezes the countdown and the ring", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("radio", { name: "vs Friend", exact: true }).click();
+  await page.getByRole("button", { name: "Edit opponent settings" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Bob");
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Start Game" }).click();
+
+  const ring = page.locator("path.animate-countdown-border");
+  const timer = page.getByRole("timer");
+  await expect(ring).toBeVisible();
+
+  const playState = () =>
+    ring.evaluate((el) => getComputedStyle(el).animationPlayState);
+  const seconds = () => timer.getAttribute("aria-label");
+
+  expect(await playState()).toBe("running");
+  const beforePause = await seconds();
+
+  // Open the in-game settings sheet — this pauses the clock. Poll rather
+  // than assert once: the sheet opening, the React effect, and the ring's
+  // recomputed style are separate commits, so a bare read races the render.
+  await page.getByRole("button", { name: "Edit player settings" }).click();
+
+  await expect.poll(playState).toBe("paused");
+  await expect
+    .poll(async () => {
+      const value = await seconds();
+      // Hold until two reads a second apart agree: the number must not be
+      // draining while the ring is frozen.
+      await page.waitForTimeout(1200);
+      return value === (await seconds()) ? value : "still-ticking";
+    })
+    .not.toBe("still-ticking");
+
+  const atPause = await seconds();
+  expect(atPause).toBe(beforePause);
+
+  // Closing resumes: the ring runs again and the number moves on.
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect.poll(playState).toBe("running");
+  await page.waitForTimeout(1500);
+  expect(await seconds()).not.toBe(atPause);
+});
+
 test("keeps the mobile layout usable in a single-column viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

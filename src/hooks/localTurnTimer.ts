@@ -17,6 +17,14 @@ export interface LocalTurnTimerDeps {
   stateRef: { current: GameState };
   /** Interval handle, owned by the hook as a useRef. */
   tickRef: { current: number | null };
+  /**
+   * True while a mid-game overlay freezes the clock. The interval is
+   * stopped on pause, but React only runs the passive effect that clears it
+   * on the NEXT commit — so a tick can still fire in that window against a
+   * deadline that has already expired. Without this guard it plays a forced
+   * random move for the player who just paused.
+   */
+  pausedRef: { current: boolean };
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   /**
    * Status-line setter. Already supplied by every caller — `useLocalGame`
@@ -65,7 +73,7 @@ export function commitLocalMove(
 /** Starts (or restarts) the 1s turn-clock tick. Call from effects or
  *  event handlers — never during render. */
 export function startLocalTurnTimer(deps: LocalTurnTimerDeps) {
-  const { stateRef, tickRef, setGameState } = deps;
+  const { stateRef, tickRef, pausedRef, setGameState } = deps;
   stopLocalTurnTimer(deps);
   tickRef.current = window.setInterval(() => {
     // Updaters must stay pure (StrictMode double-invokes them), so the
@@ -74,6 +82,7 @@ export function startLocalTurnTimer(deps: LocalTurnTimerDeps) {
     // updater then only applies the precomputed result when the state
     // is still the snapshot we decided from; a concurrent commit
     // (click, AI move) makes the next tick recompute fresh.
+    if (pausedRef.current) return;
     const prev = stateRef.current;
     if (prev.winner !== null || prev.gameStatus !== GameStatus.ACTIVE) return;
     // Use the absolute deadline so the timer stays correct even when

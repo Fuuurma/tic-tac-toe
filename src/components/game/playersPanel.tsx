@@ -40,6 +40,13 @@ interface PlayersPanelProps {
   onCancelRematch?: () => void;
   onRequestRematch?: () => void;
   onPauseChange?: (paused: boolean) => void;
+  /**
+   * True while a mid-game overlay freezes the clock. The countdown ring is a
+   * CSS animation, so it kept draining while the numeric timer stood still —
+   * the two disagreed for the rest of the turn and the ring read as though
+   * the player were burning time they were not.
+   */
+  paused?: boolean;
 }
 
 const formatTime = (ms: number | undefined): number => {
@@ -101,6 +108,7 @@ export function PlayersPanel({
   onCancelRematch,
   onRequestRematch,
   onPauseChange,
+  paused,
 }: PlayersPanelProps) {
   // Stored flags + derived read: a fresh game (moveCount 0) must not
   // re-open a confirm stored from the previous game. Resetting via effect
@@ -244,6 +252,11 @@ export function PlayersPanel({
                 style={
                   {
                     "--timer-duration": `${TURN_DURATION_MS}ms`,
+                    // Freeze the ring with the clock. `animation-play-state`
+                    // holds the current offset instead of restarting the
+                    // animation, so the ring resumes exactly where the
+                    // number left off.
+                    animationPlayState: paused ? "paused" : "running",
                   } as React.CSSProperties
                 }
               />
