@@ -44,7 +44,7 @@ export interface HostProtocolDeps {
   stateRef: { current: GameState };
   roomRef: { current: RoomClient | null };
   hostSymbolRef: { current: PlayerSymbol | null };
-  hostRematchPendingRef: { current: boolean };
+  rematchPendingRef: { current: boolean };
   /** Timestamp (performance.now) of the last state_snapshot reply —
    *  throttles sync_request spam (see SYNC_REPLY_COOLDOWN_MS). */
   lastSyncReplyAtRef: { current: number };
@@ -91,6 +91,102 @@ export function applyHostMove(deps: HostProtocolDeps, index: number, actor: Play
 }
 
 /**
+ * Resets the room to a fresh game with randomly swapped symbols and
+ * broadcasts the new authoritative state.
+ *
+ * Shared by both ways a rematch can start now that either side may ask:
+ * the guest accepting the host's request (arrives as `rematchAccept`) and
+ * the host accepting the guest's request (a local action, no wire message
+ * — the host is the authority, so it just resets and announces).
+ */
+function resetForRematch(deps: HostProtocolDeps, closePrompt: boolean) {
+  const {
+    stateRef,
+    roomRef,
+    hostSymbolRef,
+    lastSyncReplyAtRef,
+    reconnectResetsRef,
+    hostPendingSettingsRef,
+    setState,
+    clearRematchTimeout,
+  } = deps;
+  const state = stateRef.current;
+  clearRematchTimeout();
+  const newHostSymbol: PlayerSymbol = randomPlayerSymbol();
+  const newGuestSymbol = oppositeSymbol(newHostSymbol);
+  // Read BOTH player configs from the OLD state BEFORE overwriting
+  // hostSymbolRef — when symbols swap, indexing by the NEW symbol
+  // would give each side the other player's name/color/shape
+  // (fleet critic 2026-09-06 P1). A null ref means the room was never
+  // initialized — tell the guest instead of leaving it thinking the
+  // rematch went through (F159).
+  const oldHostSymbol = hostSymbolRef.current;
+  if (oldHostSymbol === null) {
+    roomRef.current?.send({ type: "error", message: "Room not ready" });
+    return;
+  }
+  const hostPlayer = state.players[oldHostSymbol];
+  const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
+  hostSymbolRef.current = newHostSymbol;
+  // If the host edited their identity mid-game via the edit button,
+  // pull that into the next match instead of keeping the previous one.
+  const pending = hostPendingSettingsRef.current;
+  const hostName = pending?.displayName ?? hostPlayer.username;
+  const hostColor = pending?.color ?? hostPlayer.color;
+  const hostShape = pending?.playerShape ?? hostPlayer.shape;
+  if (pending) hostPendingSettingsRef.current = null;
+  const reset = createInitialGameState({
+    gameMode: GameModes.ONLINE,
+    playerXName: newHostSymbol === PlayerSymbol.X ? hostName : guestPlayer.username,
+    playerOName: newHostSymbol === PlayerSymbol.O ? hostName : guestPlayer.username,
+    playerColor: hostColor,
+    opponentColor: guestPlayer.color,
+    playerShape: hostShape,
+    opponentShape: guestPlayer.shape,
+    humanSymbol: newHostSymbol,
+  });
+  stateRef.current = reset;
+  // New game = new sync window: a guest catch-up pull arriving right
+  // after the rematch gameStart must be answered, not throttled by
+  // the previous game's last reply (review 2026-10-03 repair P2).
+  disarmSyncReplyThrottle(lastSyncReplyAtRef);
+  // New game = fresh reconnect-reset budget too (F362): the once-per-
+  // move full-deadline reset is keyed on moveCount, which just
+  // restarted at 0 — the old game's consumed budget would deny the
+  // reset at the same moveCount in this round.
+  reconnectResetsRef.current.moveCount = -1;
+  setState((prev) => ({
+    ...prev,
+    hostSymbol: newHostSymbol,
+    guestSymbol: newGuestSymbol,
+    gameState: reset,
+    message: "",
+    rematchOutgoing: false,
+    rematchIncoming: closePrompt ? false : prev.rematchIncoming,
+  }));
+  // gameStart alone carries the reset + the swapped guest symbol —
+  // a gameUpdate alongside it duplicated the same state on the wire
+  // and was applied twice by the guest's shared handler branch
+  // (fleet brief 62c86d31).
+  roomRef.current?.send({ type: "gameStart", symbol: newGuestSymbol, gameState: toWireGameState(reset) });
+}
+
+/**
+ * The host accepts a rematch the guest asked for. Local action only: the
+ * host owns the room, so it resets and announces rather than sending an
+ * accept and waiting for its own echo.
+ */
+export function acceptIncomingRematch(deps: HostProtocolDeps) {
+  // Connection state and the visible prompt belong to the hook; this
+  // guards only the rule the protocol owns: a finished game.
+  const { stateRef, rematchPendingRef } = deps;
+  const state = stateRef.current;
+  if (state.winner === null || state.gameStatus !== GameStatus.COMPLETED) return;
+  rematchPendingRef.current = false;
+  resetForRematch(deps, true);
+}
+
+/**
  * Handles one peer message addressed to the host (routed by role in
  * buildRoomClient).
  */
@@ -99,11 +195,9 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     stateRef,
     roomRef,
     hostSymbolRef,
-    hostRematchPendingRef,
+    rematchPendingRef,
     lastSyncReplyAtRef,
     guestJoinedRef,
-    reconnectResetsRef,
-    hostPendingSettingsRef,
     setState,
     stopTimer,
     clearRematchTimeout,
@@ -203,6 +297,42 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       applyHostMove(deps, message.index, guestSymbol);
       return;
     }
+    if (message.type === "rematchRequested") {
+      // Either side may ask for another game. Mirror the guest's prompt
+      // gate exactly: only on a finished game, and only from a peer that
+      // actually joined this room — a peer that never sent `join` must not
+      // be able to pop a rematch prompt over live play.
+      const state = stateRef.current;
+      if (
+        !guestJoinedRef.current ||
+        state.winner === null ||
+        state.gameStatus !== GameStatus.COMPLETED
+      ) {
+        return;
+      }
+      // A second request while one is already pending is a no-op: the
+      // prompt is up, and the pending flag belongs to whoever asked first.
+      if (rematchPendingRef.current) return;
+      setState((prev) => {
+        if (prev.rematchIncoming) return prev;
+        return {
+          ...prev,
+          message: `${state.players[message.requesterSymbol].username} wants a rematch. Accept or decline below.`,
+          rematchIncoming: true,
+        };
+      });
+      return;
+    }
+    if (message.type === "rematchCancel") {
+      // The guest withdrew their request before the host responded. Gate
+      // on the explicit flag, never on the message copy.
+      setState((prev) =>
+        prev.rematchIncoming
+          ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false }
+          : prev,
+      );
+      return;
+    }
     if (message.type === "rematchAccept") {
       const state = stateRef.current;
       // Two gates:
@@ -211,84 +341,28 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // 2. The current game must already be terminal — we never reset a
       //    game that's still in progress, even if both sides agree.
       if (
-        !hostRematchPendingRef.current ||
+        !rematchPendingRef.current ||
         state.winner === null ||
         state.gameStatus !== GameStatus.COMPLETED
       ) {
         return;
       }
-      hostRematchPendingRef.current = false;
-      clearRematchTimeout();
-      const newHostSymbol: PlayerSymbol = randomPlayerSymbol();
-      const newGuestSymbol = oppositeSymbol(newHostSymbol);
-      // Read BOTH player configs from the OLD state BEFORE overwriting
-      // hostSymbolRef — when symbols swap, indexing by the NEW symbol
-      // would give each side the other player's name/color/shape
-      // (fleet critic 2026-09-06 P1). A null ref means the room was never
-      // initialized — tell the guest instead of leaving it thinking the
-      // rematch went through (F159).
-      const oldHostSymbol = hostSymbolRef.current;
-      if (oldHostSymbol === null) {
-        roomRef.current?.send({ type: "error", message: "Room not ready" });
-        return;
-      }
-      const hostPlayer = state.players[oldHostSymbol];
-      const guestPlayer = state.players[oppositeSymbol(oldHostSymbol)];
-      hostSymbolRef.current = newHostSymbol;
-      // If the host edited their identity mid-game via the edit button,
-      // pull that into the next match instead of keeping the previous one.
-      const pending = hostPendingSettingsRef.current;
-      const hostName = pending?.displayName ?? hostPlayer.username;
-      const hostColor = pending?.color ?? hostPlayer.color;
-      const hostShape = pending?.playerShape ?? hostPlayer.shape;
-      if (pending) hostPendingSettingsRef.current = null;
-      const reset = createInitialGameState({
-        gameMode: GameModes.ONLINE,
-        playerXName: newHostSymbol === PlayerSymbol.X ? hostName : guestPlayer.username,
-        playerOName: newHostSymbol === PlayerSymbol.O ? hostName : guestPlayer.username,
-        playerColor: hostColor,
-        opponentColor: guestPlayer.color,
-        playerShape: hostShape,
-        opponentShape: guestPlayer.shape,
-        humanSymbol: newHostSymbol,
-      });
-      stateRef.current = reset;
-      // New game = new sync window: a guest catch-up pull arriving right
-      // after the rematch gameStart must be answered, not throttled by
-      // the previous game's last reply (review 2026-10-03 repair P2).
-      disarmSyncReplyThrottle(lastSyncReplyAtRef);
-      // New game = fresh reconnect-reset budget too (F362): the once-per-
-      // move full-deadline reset is keyed on moveCount, which just
-      // restarted at 0 — the old game's consumed budget would deny the
-      // reset at the same moveCount in this round.
-      reconnectResetsRef.current.moveCount = -1;
-      setState((prev) => ({
-        ...prev,
-        hostSymbol: newHostSymbol,
-        guestSymbol: newGuestSymbol,
-        gameState: reset,
-        message: "",
-        rematchOutgoing: false,
-      }));
-      // gameStart alone carries the reset + the swapped guest symbol —
-      // a gameUpdate alongside it duplicated the same state on the wire
-      // and was applied twice by the guest's shared handler branch
-      // (fleet brief 62c86d31).
-      roomRef.current?.send({ type: "gameStart", symbol: newGuestSymbol, gameState: toWireGameState(reset) });
+      rematchPendingRef.current = false;
+      resetForRematch(deps, false);
       return;
     }
     if (message.type === "rematchDecline") {
       // F254: mirror rematchAccept's pending gate — a stray decline with no
       // outstanding request must not stamp "Rematch declined" over live UI.
-      if (!hostRematchPendingRef.current) return;
-      hostRematchPendingRef.current = false;
+      if (!rematchPendingRef.current) return;
+      rematchPendingRef.current = false;
       clearRematchTimeout();
       setState((prev) => ({ ...prev, message: "Rematch declined", rematchOutgoing: false }));
       return;
     }
     if (message.type === "leave") {
       stopTimer();
-      hostRematchPendingRef.current = false;
+      rematchPendingRef.current = false;
       clearRematchTimeout();
       const state = stateRef.current;
       // Host wins by forfeit when the guest leaves (unless the game

@@ -5,6 +5,7 @@ import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState } from "../usePeerRoom";
 import {
+  acceptIncomingRematch,
   applyHostMove,
   handleHostMessage,
   SYNC_REPLY_COOLDOWN_MS,
@@ -35,7 +36,7 @@ function makeDeps(game: GameState) {
     stateRef: { current: game },
     roomRef: { current: { send: vi.fn() } as unknown as RoomClient },
     hostSymbolRef: { current: PlayerSymbol.X },
-    hostRematchPendingRef: { current: true },
+    rematchPendingRef: { current: true },
     // Fresh once-per-move reconnect-reset budget (relayEvents consumes
     // it; rematch must re-arm it for the new round).
     reconnectResetsRef: { current: { moveCount: -1 } },
@@ -270,7 +271,7 @@ describe("handleHostMessage rematch deadline", () => {
 
     handleHostMessage(deps, { type: "rematchAccept" });
 
-    expect(deps.hostRematchPendingRef.current).toBe(false);
+    expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 
@@ -292,13 +293,13 @@ describe("handleHostMessage rematch deadline", () => {
 
     handleHostMessage(deps, { type: "rematchDecline" });
 
-    expect(deps.hostRematchPendingRef.current).toBe(false);
+    expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 
   it("F254: a stray rematchDecline with no pending request writes nothing", () => {
     const { deps, getRoom } = makeDeps(terminalGame());
-    deps.hostRematchPendingRef.current = false;
+    deps.rematchPendingRef.current = false;
     const before = getRoom().message;
 
     handleHostMessage(deps, { type: "rematchDecline" });
@@ -312,7 +313,7 @@ describe("handleHostMessage rematch deadline", () => {
 
     handleHostMessage(deps, { type: "leave" });
 
-    expect(deps.hostRematchPendingRef.current).toBe(false);
+    expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 
@@ -397,5 +398,120 @@ describe("handleHostMessage unassigned host symbol", () => {
       type: "error",
       message: "Room not ready",
     });
+  });
+});
+
+// Rematch used to be host-only: the guest could answer a request but could
+// never make one. These pin the symmetric contract — either side asks, the
+// other is prompted, and the host still owns the reset.
+describe("handleHostMessage guest-initiated rematch", () => {
+  it("prompts the host when the guest asks for a rematch", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.rematchPendingRef.current = false;
+
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+
+    expect(getRoom().rematchIncoming).toBe(true);
+    expect(getRoom().message).toContain("wants a rematch");
+    // The host is the one who resets, so it does not accept on the wire yet.
+    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
+  });
+
+  it("ignores a guest request while the game is still running", () => {
+    const { deps, getRoom } = makeDeps({
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      winner: null,
+    });
+    deps.rematchPendingRef.current = false;
+
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+
+    expect(getRoom().rematchIncoming).toBeFalsy();
+    // No prompt text was written either.
+    expect(getRoom().message).toBeUndefined();
+  });
+
+  it("ignores a rematch request from a peer that never joined", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.rematchPendingRef.current = false;
+    deps.guestJoinedRef.current = false;
+
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+
+    expect(getRoom().rematchIncoming).toBeFalsy();
+  });
+
+  it("does not overwrite a prompt the host is already showing", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.rematchPendingRef.current = false;
+
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+    const first = getRoom().message;
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+
+    expect(getRoom().message).toBe(first);
+    expect(getRoom().rematchIncoming).toBe(true);
+  });
+
+  it("clears the prompt when the guest withdraws the request", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.rematchPendingRef.current = false;
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+    expect(getRoom().rematchIncoming).toBe(true);
+
+    handleHostMessage(deps, { type: "rematchCancel" });
+
+    expect(getRoom().rematchIncoming).toBe(false);
+    expect(getRoom().message).toContain("withdrawn");
+  });
+
+  it("resets the game and announces it when the host accepts", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+    deps.rematchPendingRef.current = false;
+    handleHostMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.O,
+    });
+
+    acceptIncomingRematch(deps);
+
+    expect(deps.stateRef.current.winner).toBeNull();
+    expect(deps.stateRef.current.gameStatus).not.toBe(GameStatus.COMPLETED);
+    expect(getRoom().rematchIncoming).toBe(false);
+    expect(deps.roomRef.current?.send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "gameStart" }),
+    );
+  });
+
+  it("refuses to accept while the game is still in progress", () => {
+    const { deps } = makeDeps({
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      winner: null,
+    });
+
+    acceptIncomingRematch(deps);
+
+    expect(deps.stateRef.current.winner).toBeNull();
+    expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
   });
 });

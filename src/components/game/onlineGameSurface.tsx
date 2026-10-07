@@ -124,11 +124,17 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   const message = onlineMessage(peer.state.status, peer.state.message);
 
   // Online rematch is terminal-only: requestRematch no-ops mid-game for both
-  // roles, so don't offer "Start a new game" until the game is over.
+  // roles, so don't offer "Start a new game" until the game is over. While
+  // the opponent's request is on screen the labeled Accept/Decline prompt
+  // IS the answer, so asking again would be a second, contradictory offer.
   const isOnlineGameOver =
     peer.state.gameState.winner !== null ||
     peer.state.gameState.gameStatus !== GameStatus.ACTIVE;
-  const canRequestRematch = peer.state.status === "connected" && isOnlineGameOver;
+  const canRequestRematch =
+    peer.state.status === "connected" &&
+    isOnlineGameOver &&
+    !peer.state.rematchIncoming &&
+    !peer.state.rematchOutgoing;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -294,36 +300,24 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             gameMode={GameModes.ONLINE}
             roomCode={peer.state.roomId || undefined}
             onNewGame={
-              // Host-only: a guest's rematchAccept is dropped by
-              // handleHostMessage when no host request is pending, so the
-              // button would be inert for guests. Guests rematch via the
-              // labeled Accept/Decline prompt (onAcceptRematch below).
-              canRequestRematch && peer.state.role === "host"
-                ? () => peer.requestRematch()
-                : undefined
+              // Either side may ask for another game; the receiver answers
+              // with Accept or Decline. Both roles get the same controls.
+              canRequestRematch ? () => peer.requestRematch() : undefined
             }
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
             onPauseChange={setPanelPaused}
             onAcceptRematch={
-              peer.state.role === "guest" && peer.state.rematchIncoming
-                ? () => peer.requestRematch()
-                : undefined
+              peer.state.rematchIncoming ? () => peer.acceptRematch() : undefined
             }
             onDeclineRematch={
-              peer.state.role === "guest" && peer.state.rematchIncoming
-                ? () => peer.declineRematch()
-                : undefined
+              peer.state.rematchIncoming ? () => peer.declineRematch() : undefined
             }
             onCancelRematch={
-              peer.state.role === "host" && peer.state.rematchOutgoing
-                ? () => peer.cancelRematch()
-                : undefined
+              peer.state.rematchOutgoing ? () => peer.cancelRematch() : undefined
             }
             onRequestRematch={
-              peer.state.role === "host" &&
-              canRequestRematch &&
-              !peer.state.rematchOutgoing
+              canRequestRematch && !peer.state.rematchOutgoing
                 ? () => peer.requestRematch()
                 : undefined
             }

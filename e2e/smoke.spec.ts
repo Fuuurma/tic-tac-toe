@@ -610,21 +610,39 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   await expect(hostPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
   await expect(guestPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
 
-  // The guest's icon-only "Play again" is hidden: a stray rematchAccept is
-  // dropped by the host's pending-request gate, so the button would be inert.
-  // The host keeps the icon button; guests rematch via the labeled prompt.
-  await expect(guestPage.getByRole("button", { name: "Play again" })).toHaveCount(0);
+  // Either side may ask for another game, so both get the same controls.
+  await expect(guestPage.getByRole("button", { name: "Play again" })).toBeVisible();
   await expect(hostPage.getByRole("button", { name: "Play again" })).toBeVisible();
 
-  // Rematch: host requests, guest accepts. Both use the labeled terminal
-  // CTAs — the icon-only "Play again" button is not the primary path.
-  await hostPage.getByRole("button", { name: "Rematch", exact: true }).click();
-  await expect(guestPage.getByText(/Host wants a rematch/i)).toBeVisible();
-  await guestPage.getByRole("button", { name: "Accept rematch" }).click();
+  // Rematch: the guest asks, and the host is the one prompted. Reversing
+  // the direction used to be impossible.
+  await guestPage.getByRole("button", { name: "Rematch", exact: true }).click();
+  await expect(hostPage.getByText(/Guest.*wants a rematch/i)).toBeVisible();
+  await expect(guestPage.getByText(/Waiting for opponent/i)).toBeVisible();
+  await hostPage.getByRole("button", { name: "Accept rematch" }).click();
 
-  // Board is reset - the winner text is gone, the timer is back, and cell (1,1) is empty again.
+  // Board is reset for BOTH sides - the winner text is gone and the timer
+  // is back.
   await expect(hostPage.getByText(/Host wins/i)).toBeHidden({ timeout: 10_000 });
+  await expect(guestPage.getByText(/Host wins/i)).toBeHidden({ timeout: 10_000 });
   await expect(hostPage.getByRole("timer")).toBeVisible();
+  await expect(guestPage.getByRole("timer")).toBeVisible();
+
+  // The second game is live: no winner yet, the clock runs, and somebody
+  // has the move. Only the side on turn has enabled cells, so the move is
+  // counted across both boards.
+  const enabledOn = (view: typeof hostPage) =>
+    view
+      .locator('button:not(:disabled)')
+      .evaluateAll(
+        (cells) =>
+          cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
+      );
+  await expect
+    .poll(async () => (await enabledOn(hostPage)) + (await enabledOn(guestPage)), {
+      timeout: 10_000,
+    })
+    .toBeGreaterThan(0);
 
   await host.close();
   await guest.close();

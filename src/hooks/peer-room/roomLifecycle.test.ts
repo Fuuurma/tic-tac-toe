@@ -59,11 +59,11 @@ describe("leaveRoom", () => {
 });
 
 describe("joinAsGuest rematch-flag reset", () => {
-  // needs-work 2026-09-10 P2: hostRematchPendingRef was never reset by the
+  // needs-work 2026-09-10 P2: rematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
   // would be honored against a game that never asked for one.
   function lifecycleDeps(
-    hostRematchPendingRef: { current: boolean },
+    rematchPendingRef: { current: boolean },
     hostPendingSettingsRef = { current: null as PendingPlayerSettings | null },
   ) {
     const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
@@ -89,7 +89,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       handleHostData: vi.fn(),
       handleGuestData: vi.fn(),
       stopTimer: vi.fn(),
-      hostRematchPendingRef,
+      rematchPendingRef,
       lastSyncReplyAtRef: { current: 0 },
       guestJoinedRef: { current: false },
       hostPendingSettingsRef,
@@ -100,12 +100,12 @@ describe("joinAsGuest rematch-flag reset", () => {
   }
 
   it("F241: clears stale pending identity settings on room entry", () => {
-    const hostRematchPendingRef = { current: false };
+    const rematchPendingRef = { current: false };
     const hostPendingSettingsRef = {
       current: { displayName: "OldHost" } as PendingPlayerSettings,
     };
     joinAsGuest(
-      lifecycleDeps(hostRematchPendingRef, hostPendingSettingsRef).deps,
+      lifecycleDeps(rematchPendingRef, hostPendingSettingsRef).deps,
       "ROOM42",
       "ws://127.0.0.1:1",
     );
@@ -182,7 +182,7 @@ describe("joinAsGuest rematch-flag reset", () => {
           roleRef: deps.roleRef,
           hostSymbolRef: deps.hostSymbolRef,
           guestSymbolRef: deps.guestSymbolRef,
-          hostRematchPendingRef: deps.hostRematchPendingRef,
+          rematchPendingRef: deps.rematchPendingRef,
           reconnectResetsRef: { current: { moveCount: -1 } },
           pausedRef: { current: false },
           setState: deps.setState,
@@ -257,9 +257,9 @@ describe("joinAsGuest rematch-flag reset", () => {
   });
 
   it("clears a stale pending-rematch flag on room entry", () => {
-    const hostRematchPendingRef = { current: true };
-    joinAsGuest(lifecycleDeps(hostRematchPendingRef).deps, "ROOM42", "ws://127.0.0.1:1");
-    expect(hostRematchPendingRef.current).toBe(false);
+    const rematchPendingRef = { current: true };
+    joinAsGuest(lifecycleDeps(rematchPendingRef).deps, "ROOM42", "ws://127.0.0.1:1");
+    expect(rematchPendingRef.current).toBe(false);
   });
 
   it("clears a stale guest symbol on room entry so a pre-join leave crowns nobody", () => {

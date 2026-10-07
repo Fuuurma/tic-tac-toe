@@ -46,7 +46,7 @@ export interface RoomLifecycleDeps {
   handleHostData: (message: PeerMessage) => void;
   handleGuestData: (message: PeerMessage) => void;
   stopTimer: () => void;
-  hostRematchPendingRef: { current: boolean };
+  rematchPendingRef: { current: boolean };
   /** Sync-reply throttle clock (hostProtocol) — disarmed on room entry
    *  so the first pull of a new room is never dropped by the previous
    *  room's cooldown (review 2026-10-03 repair P2). */
@@ -196,7 +196,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // without this a stray rematchAccept arriving right after the room
   // swap is honored against a game that never asked for one
   // (needs-work 2026-09-10 P2).
-  deps.hostRematchPendingRef.current = false;
+  deps.rematchPendingRef.current = false;
   // F241: pending identity edits are room-scoped — a leftover from the
   // previous room would apply silently on the next room's rematch accept.
   deps.hostPendingSettingsRef.current = null;
@@ -253,7 +253,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
-  deps.hostRematchPendingRef.current = false;
+  deps.rematchPendingRef.current = false;
   deps.hostPendingSettingsRef.current = null;
   deps.guestJoinedRef.current = false;
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);

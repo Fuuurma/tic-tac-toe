@@ -40,7 +40,7 @@ function makeDeps(
     roleRef: { current: role },
     hostSymbolRef: { current: PlayerSymbol.X },
     guestSymbolRef: { current: PlayerSymbol.O },
-    hostRematchPendingRef: { current: false },
+    rematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
     pausedRef: { current: false },
     setState: (updater) => {
@@ -352,11 +352,11 @@ describe("handleRelayEvent peer-reconnected", () => {
   it("peer-left expired clears the rematch deadline + pending flag", () => {
     const game = activeGame();
     const { deps } = makeDeps(game, "host");
-    deps.hostRematchPendingRef.current = true;
+    deps.rematchPendingRef.current = true;
 
     handleRelayEvent(deps, { type: "peer-left", reason: "expired" });
 
-    expect(deps.hostRematchPendingRef.current).toBe(false);
+    expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
   });
 });

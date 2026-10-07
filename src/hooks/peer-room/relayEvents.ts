@@ -26,7 +26,7 @@ export interface RelayEventDeps {
   roleRef: { current: PeerRole };
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
-  hostRematchPendingRef: { current: boolean };
+  rematchPendingRef: { current: boolean };
   /** Last move the reconnect grace reset the timer for (fleet 09-07
    *  finding 2: one full reset per move — repeated reconnects within
    *  the same turn keep the remaining time). */
@@ -60,7 +60,7 @@ export function handleRelayEvent(
     roleRef,
     hostSymbolRef,
     guestSymbolRef,
-    hostRematchPendingRef,
+    rematchPendingRef,
     reconnectResetsRef,
     pausedRef,
     setState,
@@ -318,7 +318,7 @@ export function handleRelayEvent(
     }
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
     stopTimer();
-    hostRematchPendingRef.current = false;
+    rematchPendingRef.current = false;
     clearRematchTimeout();
     const current = stateRef.current;
     const leaveReason = reason === "expired" ? "expired" : "closed";

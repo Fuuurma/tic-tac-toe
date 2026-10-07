@@ -101,16 +101,13 @@ const config = {
 };
 
 describe("OnlineGameSurface terminal rematch affordances", () => {
-  it("does not render the icon Play again button for a guest — its rematchAccept is silently dropped by the host", () => {
-    // Regression pin: a stray guest rematchAccept without a pending host
-    // request is ignored by handleHostMessage, so the button was inert.
-    // Guests rematch via the Accept/Decline prompt instead.
+  it("offers Play again to a guest too — either side may ask", () => {
+    // This used to be host-only: a guest's accept was dropped unless the
+    // host had asked first, so a guest could never start a rematch.
     mocks.usePeerRoom.mockReturnValue(makePeer("guest"));
     render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
 
-    expect(
-      screen.queryByRole("button", { name: "Play again" }),
-    ).toBeNull();
+    screen.getByRole("button", { name: "Play again" });
     expect(
       screen.queryByRole("button", { name: "Start a new game" }),
     ).toBeNull();
@@ -123,16 +120,40 @@ describe("OnlineGameSurface terminal rematch affordances", () => {
     screen.getByRole("button", { name: "Play again" });
   });
 
-  it("guest still gets the labeled rematch prompt when a host request is pending", () => {
+  it("shows the labeled prompt to either side when a request is pending", () => {
+    for (const role of ["host", "guest"] as const) {
+      const view = render(
+        <OnlineGameSurface config={config} onExit={vi.fn()} />,
+      );
+      mocks.usePeerRoom.mockReturnValue(
+        makePeer(role, { rematchIncoming: true }),
+      );
+      view.rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+      screen.getByRole("button", { name: "Accept rematch" });
+      // Answering a prompt and asking for one at the same time would
+      // leave both sides waiting, so the ask button steps aside.
+      expect(screen.queryByRole("button", { name: "Play again" })).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("lets a guest decline, and lets the asker cancel", () => {
+    const incoming = render(
+      <OnlineGameSurface config={config} onExit={vi.fn()} />,
+    );
     mocks.usePeerRoom.mockReturnValue(
       makePeer("guest", { rematchIncoming: true }),
     );
-    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    incoming.rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    screen.getByRole("button", { name: "Decline rematch" });
+    incoming.unmount();
 
-    screen.getByRole("button", { name: "Accept rematch" });
-    expect(
-      screen.queryByRole("button", { name: "Play again" }),
-    ).toBeNull();
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", { rematchOutgoing: true }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    screen.getByRole("button", { name: "Cancel rematch" });
   });
 });
 
