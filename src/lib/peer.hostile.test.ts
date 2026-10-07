@@ -674,3 +674,38 @@ describe("forfeit state survives the wire validator", () => {
     ).toBe(false);
   });
 });
+
+// `pause` is a host→guest session signal: the host froze its clock. It must
+// not carry game state (the host still broadcasts that separately) and must
+// not be craftable into anything else.
+describe("isPeerMessage pause frame", () => {
+  it("accepts a well-formed pause signal both ways", () => {
+    expect(isPeerMessage({ type: "pause", paused: true })).toBe(true);
+    expect(isPeerMessage({ type: "pause", paused: false })).toBe(true);
+  });
+
+  it("rejects a non-boolean pause flag", () => {
+    expect(isPeerMessage({ type: "pause", paused: "yes" })).toBe(false);
+    expect(isPeerMessage({ type: "pause", paused: 1 })).toBe(false);
+    expect(isPeerMessage({ type: "pause" })).toBe(false);
+  });
+
+  it("ignores an extra gameState rather than trusting it", () => {
+    // A guest must not be able to assert authority over the game through the
+    // session channel. The validator is a tolerant reader — it checks the
+    // fields it knows and ignores the rest — so a smuggled gameState is
+    // simply not read by the pause branch. State only ever takes effect on
+    // the state-bearing frames, which validate `winner` against the board.
+    expect(
+      isPeerMessage({
+        type: "pause",
+        paused: true,
+        gameState: { ...baselineState(), winner: PlayerSymbol.X },
+      }),
+    ).toBe(true);
+
+    // The state-bearing frames still refuse that same payload.
+    const smuggled = { ...baselineState(), winner: PlayerSymbol.X };
+    expect(isPeerMessage({ type: "gameUpdate", gameState: smuggled })).toBe(false);
+  });
+});

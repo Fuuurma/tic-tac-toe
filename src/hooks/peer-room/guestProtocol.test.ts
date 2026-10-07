@@ -52,6 +52,7 @@ function makeDeps(game: GameState, roomInit: Partial<PeerRoomState> = {}) {
     },
     stopTimer: vi.fn(),
     clearRematchTimeout: vi.fn(),
+    onHostPause: vi.fn(),
   };
   return { deps, getRoom: () => roomState };
 }
@@ -190,5 +191,38 @@ describe("handleGuestMessage reconnect fan-in (double-apply)", () => {
     expect(getRoom().guestSymbol).toBe(PlayerSymbol.O);
     expect(deps.pendingGuestStateRef.current).toBeNull();
     expect(getRoom().gameState).toBe(applied);
+  });
+});
+
+// The host freezing its clock used to be invisible to the guest: its
+// countdown drained to 0 against a stopped clock, and any move it sent was
+// refused — the optimistic mark simply vanished, with nothing explaining why.
+describe("handleGuestMessage host pause frame", () => {
+  const activeGame = () => baseGame({ turnDeadlineAt: Date.now() + 8_000 });
+
+  it("applies the host's pause and freezes the display", () => {
+    const { deps, getRoom } = makeDeps(activeGame());
+
+    handleGuestMessage(deps, { type: "pause", paused: true });
+
+    expect(deps.onHostPause).toHaveBeenCalledWith(true);
+    expect(getRoom().message).toBe("Your host paused the game");
+  });
+
+  it("clears the notice on resume without inventing a new one", () => {
+    const { deps, getRoom } = makeDeps(activeGame());
+    handleGuestMessage(deps, { type: "pause", paused: true });
+
+    handleGuestMessage(deps, { type: "pause", paused: false });
+
+    expect(deps.onHostPause).toHaveBeenLastCalledWith(false);
+    expect(getRoom().message).toBe("");
+  });
+
+  it("leaves an unrelated message alone on resume", () => {
+    const { deps, getRoom } = makeDeps(activeGame(), { message: "Host left the game" });
+    handleGuestMessage(deps, { type: "pause", paused: false });
+
+    expect(getRoom().message).toBe("Host left the game");
   });
 });

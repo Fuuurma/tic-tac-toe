@@ -32,6 +32,14 @@ export type PeerMessage =
   | { type: "leave" }
   | { type: "sync_request" }
   | { type: "state_snapshot"; gameState: GameState }
+  /**
+   * Host → guest: the host froze the clock (Settings/Help/confirm open).
+   * Without this the guest's countdown drained to 0 against a clock that had
+   * stopped, and any move it sent was refused with no explanation — the
+   * optimistic mark just vanished. The guest stops its own clock and says
+   * why, so a refusal is legible instead of mysterious.
+   */
+  | { type: "pause"; paused: boolean }
   | { type: "error"; message: string };
 
 /** Hard upper bound on inbound wire-message scalar string fields. */
@@ -555,6 +563,12 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
       return true;
     case "state_snapshot":
       return isGameState(message.gameState);
+    case "pause":
+      // Host→guest session signal, not game state. A guest cannot rewrite
+      // the host's clock by sending this — the host only ever acts on its own
+      // local pause — so accepting the frame on the guest side is safe, and
+      // the strict boolean keeps a malformed value off the wire.
+      return typeof message.paused === "boolean";
     case "error":
       return (
         typeof message.message === "string" &&

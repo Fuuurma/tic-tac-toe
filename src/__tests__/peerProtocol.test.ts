@@ -37,6 +37,7 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
     setState: (fn: (prev: never) => never) => patches.push(fn as never),
     stopTimer: () => {},
     clearRematchTimeout: () => {},
+    onHostPause: () => {},
   });
 
   it('rolls back and says so when the host resyncs without counting our move', () => {
@@ -116,6 +117,7 @@ describe('guestProtocol.handleGuestMessage — rematch mutual-ask gate', () => {
       setState: (fn: (prev: never) => never) => patches.push(fn),
       stopTimer: () => {},
       clearRematchTimeout: () => {},
+      onHostPause: () => {},
     };
 
     handleGuestMessage(deps as never, { type: 'rematchRequested', requesterSymbol: 'X' as never });
@@ -243,6 +245,7 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
       },
       stopTimer: () => {},
       clearRematchTimeout: () => {},
+      onHostPause: () => {},
     };
 
     // Simulate gameStart after rematch where host swapped to O → guest is X
@@ -270,6 +273,7 @@ describe('guestProtocol.handleGuestMessage — symbol update on gameStart', () =
       },
       stopTimer: () => {},
       clearRematchTimeout: () => {},
+      onHostPause: () => {},
     };
 
     handleGuestMessage(deps as never, {

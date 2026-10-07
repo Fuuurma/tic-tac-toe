@@ -25,6 +25,14 @@ export interface GuestProtocolDeps {
   rematchPendingRef: { current: boolean };
   /** Cancels this guest's rematch-expiry timer. */
   clearRematchTimeout: () => void;
+  /**
+   * Applies the host's pause to this guest's own clock. Separate from the
+   * local `setPaused` because a guest must never REBUILD its deadline from
+   * the frozen value — its real deadline stayed truthful while the host's
+   * clock was stopped, so rebuilding would overstate the remaining time by
+   * the whole pause (F226). Freezing only stops the display draining.
+   */
+  onHostPause: (paused: boolean) => void;
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   stopTimer: () => void;
 }
@@ -145,6 +153,23 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false }
           : prev,
       );
+      return;
+    }
+    if (message.type === "pause") {
+      // The host froze the clock. Stop counting down (the countdown racing
+      // to 0 against a stopped clock read as the game having expired) and
+      // say why, so a refused move is legible rather than a mark that simply
+      // disappears. The host is authoritative here; a guest cannot move the
+      // host's clock with this frame.
+      deps.onHostPause(message.paused);
+      setState((prev) => ({
+        ...prev,
+        message: message.paused
+          ? "Your host paused the game"
+          : prev.message === "Your host paused the game"
+            ? ""
+            : prev.message,
+      }));
       return;
     }
     if (message.type === "leave") {

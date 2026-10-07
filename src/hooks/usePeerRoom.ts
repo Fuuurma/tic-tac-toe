@@ -149,6 +149,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // paused span never counts down the turn.
   const pausedRef = useRef(false);
   const [paused, setPausedState] = useState(false);
+  // True when the HOST has frozen the clock (online only). Distinct from
+  // `paused`, which is this client's own overlay — a guest must reflect the
+  // host's pause without conflating it with its own.
+  const [hostPaused, setHostPausedState] = useState(false);
 
   useEffect(() => {
     stateRef.current = state.gameState;
@@ -196,6 +200,16 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (pausedRef.current === target) return;
       pausedRef.current = target;
       setPausedState(target);
+      // Tell the guest the clock stopped / started. Host-authoritative: a
+      // guest never acts on its own pause here. Without this frame the guest
+      // keeps counting down against a frozen host clock (draining to 0), and
+      // any move it sends is refused — its optimistic mark vanishing with no
+      // explanation is the most confusing thing this protocol can do to a
+      // player. Sent before the isGameActive bail so the guest is never left
+      // believing the game is live when the host has already frozen it.
+      if (roleRef.current === "host") {
+        roomRef.current?.send({ type: "pause", paused: target });
+      }
       const current = stateRef.current;
       if (!isGameActive(current)) return;
       if (target) {
@@ -231,6 +245,42 @@ export function usePeerRoom(options: PeerRoomOptions) {
       broadcastGameState(rebuilt);
     },
     [broadcastGameState, stopTimer],
+  );
+
+  const hostPausedRef = useRef(false);
+  /** Guest-side response to the host's `pause` frame.
+   *
+   *  Deliberately does NOT rebuild the deadline, unlike the local
+   *  setPaused resume branch: the guest's deadline stayed truthful while the
+   *  host's clock was stopped, so `Date.now() + frozen` would overstate the
+   *  remaining time by the entire pause duration (F226). The host's resume
+   *  frame and its next gameUpdate reconcile the real clock. Here we only
+   *  stop the countdown draining and mirror the flag so the board disables
+   *  for the same reason it does locally. */
+  const applyHostPause = useCallback(
+    (paused: boolean) => {
+      if (hostPausedRef.current === paused) return;
+      hostPausedRef.current = paused;
+      setHostPausedState(paused);
+      if (paused) {
+        stopTimer();
+        const current = stateRef.current;
+        if (!isGameActive(current) || current.turnDeadlineAt === undefined) return;
+        setState((prev) => ({
+          ...prev,
+          gameState: {
+            ...prev.gameState,
+            turnTimeRemaining: Math.max(
+              0,
+              (prev.gameState.turnDeadlineAt ?? 0) - Date.now(),
+            ),
+          },
+        }));
+      }
+      // Unpausing: the active-game effect re-runs off hostPaused and
+      // restarts the interval against the untouched deadline.
+    },
+    [stopTimer],
   );
 
   const clearRematchTimeout = useCallback(() => {
@@ -313,10 +363,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
       pendingGuestStateRef,
       rematchPendingRef,
       clearRematchTimeout,
+      onHostPause: applyHostPause,
       setState,
       stopTimer,
     }),
-    [stopTimer, clearRematchTimeout],
+    [stopTimer, clearRematchTimeout, applyHostPause],
   );
   const handleGuestData = useCallback(
     (message: PeerMessage) => handleGuestMessage(guestDeps(), message),
@@ -512,6 +563,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
     stopTimer();
     pausedRef.current = false;
     setPausedState(false);
+    hostPausedRef.current = false;
+    setHostPausedState(false);
     abandonTicket({ matchmakingTicketRef }, "on leave");
     hasStartedRef.current = false;
     rematchPendingRef.current = false;
@@ -535,6 +588,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       (state.role === "host" || state.role === "guest") &&
       state.status === "connected" &&
       !paused &&
+      !hostPaused &&
       isGameActive(stateRef.current)
     ) {
       startTimer();
@@ -546,6 +600,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     state.role,
     state.status,
     paused,
+    hostPaused,
     state.gameState.gameStatus,
     state.gameState.winner,
     state.gameState.turnDeadlineAt,
@@ -596,5 +651,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
     updatePendingSettings,
     setPaused,
     paused,
+    // True while the HOST has frozen the clock — a guest needs this to
+    // disable its board and stop its countdown for the same reason a local
+    // pause does. A host never sets this.
+    hostPaused,
   };
 }
