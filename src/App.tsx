@@ -202,14 +202,25 @@ function LocalGameSurface({
     if (gameState.winner !== null) {
       if (gameState.moveCount === recordedGameId.current) return;
       recordedGameId.current = gameState.moveCount;
-      if (gameState.winner === humanSymbol) recordWin();
-      else recordLoss();
+      // Attribute the result to the mode and difficulty actually played so
+      // the record breakdown can separate them.
+      const statsContext = {
+        gameMode: config.gameMode,
+        aiDifficulty:
+          config.gameMode === GameModes.VS_COMPUTER
+            ? opponentSettings.aiDifficulty
+            : undefined,
+      };
+      if (gameState.winner === humanSymbol) recordWin(statsContext);
+      else recordLoss(statsContext);
     }
   }, [
     gameState.winner,
     gameState.gameStatus,
     gameState.moveCount,
     humanSymbol,
+    config.gameMode,
+    opponentSettings.aiDifficulty,
     recordWin,
     recordLoss,
   ]);

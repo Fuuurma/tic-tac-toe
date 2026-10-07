@@ -16,6 +16,7 @@ import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
 import { Button } from "@/components/ui/button";
 import { Confirm } from "./confirm";
+import { RecordBreakdown } from "./recordBreakdown";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
 import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
@@ -258,7 +259,10 @@ export function PlayersPanel({
           </div>
         </>
       )}
-      <div className="relative z-10 mb-3 flex items-center justify-between gap-2 sm:mb-3.5">
+      {/* z-20, above the z-10 player-card grid: the record breakdown
+          popover is anchored in this header and would otherwise be painted
+          under the cards, which come later in the DOM at the same level. */}
+      <div className="relative z-20 mb-3 flex items-center justify-between gap-2 sm:mb-3.5">
         <div
           className={cn(
             "min-w-0 flex-1",
@@ -271,7 +275,7 @@ export function PlayersPanel({
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="glass-cell inline-flex max-w-40 min-h-6 min-w-0 items-center gap-1 rounded-md px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="glass-cell inline-flex max-w-40 min-h-11 min-w-0 items-center gap-1 rounded-md px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 title={`Room code: ${roomCode}, click to copy`}
                 aria-label={`Room code ${roomCode}, click to copy`}
               >
@@ -285,20 +289,26 @@ export function PlayersPanel({
               </button>
             )}
             {stats && stats.totalGames > 0 && (
-              <span
-                role="status"
-                aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses`}
-                className="font-medium normal-case tracking-normal text-muted-foreground"
-              >
-                <span className="text-emerald-600 dark:text-emerald-400">{stats.wins} wins</span>
-                <span className="mx-0.5 text-muted-foreground/50">·</span>
-                <span className="text-red-500">{stats.losses} losses</span>
-                {stats.currentWinStreak > 1 && (
-                  <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
-                    · <Flame className="size-3" aria-hidden="true" />
-                    {stats.currentWinStreak}
-                  </span>
-                )}
+              <span className="inline-flex items-center gap-0.5">
+                <span
+                  role="status"
+                  aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses`}
+                  className="font-medium normal-case tracking-normal text-muted-foreground"
+                >
+                  <span className="text-emerald-600 dark:text-emerald-400">{stats.wins} wins</span>
+                  <span className="mx-0.5 text-muted-foreground/50">·</span>
+                  <span className="text-red-500">{stats.losses} losses</span>
+                  {stats.currentWinStreak > 1 && (
+                    <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
+                      · <Flame className="size-3" aria-hidden="true" />
+                      {stats.currentWinStreak}
+                    </span>
+                  )}
+                </span>
+                <RecordBreakdown
+                  stats={stats}
+                  gameMode={gameMode ?? gameState.gameMode}
+                />
               </span>
             )}
           </div>

@@ -98,8 +98,11 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       return;
     }
     resultRecorded.current = true;
-    if (peer.state.gameState.winner === localSymbol) recordWin();
-    else recordLoss();
+    if (peer.state.gameState.winner === localSymbol) {
+      recordWin({ gameMode: GameModes.ONLINE });
+    } else {
+      recordLoss({ gameMode: GameModes.ONLINE });
+    }
   }, [
     peer.state.gameState.winner,
     peer.state.gameState.gameStatus,

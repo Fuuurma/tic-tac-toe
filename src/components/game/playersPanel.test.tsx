@@ -121,3 +121,30 @@ describe("PlayersPanel terminal rematch CTA", () => {
     ).toBeNull();
   });
 });
+
+describe("PlayersPanel room-code chip", () => {
+  it("copies the room code to the clipboard on click", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const state = terminalState();
+    state.gameStatus = GameStatus.ACTIVE;
+    state.winner = null;
+    render(
+      <PlayersPanel
+        gameState={state}
+        message=""
+        roomCode="AB3XK9"
+        onExit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Room code AB3XK9, click to copy" }),
+    );
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("AB3XK9"));
+  });
+});
