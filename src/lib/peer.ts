@@ -93,13 +93,25 @@ export const peerLeftUserMessage = (
  * A peer that drops during WAITING (joined then left, or never sat down)
  * must not mint a COMPLETED game — that writes a phantom win into local
  * stats (F146). Already-terminal games keep their recorded winner.
+ *
+ * A forfeit has no winning line, so `winningCombination` stays null. The
+ * `forfeited` flag is what distinguishes this legitimate winner-without-a-line
+ * from a peer claiming a win it never made (F404): without it the state this
+ * function returns is rejected by `isGameState`, and any resync or snapshot
+ * carrying it is silently dropped by the receiver — which strands a rejoining
+ * guest waiting on a frame that will never validate.
  */
 export const applyForfeitIfActive = (
   state: GameState,
   survivor: PlayerSymbol | null,
 ): GameState => {
   if (survivor === null || !isGameActive(state)) return state;
-  return { ...state, winner: survivor, gameStatus: GameStatus.COMPLETED };
+  return {
+    ...state,
+    winner: survivor,
+    gameStatus: GameStatus.COMPLETED,
+    forfeited: true,
+  };
 };
 
 export type HostGuestJoinResult = {
@@ -297,10 +309,15 @@ const isBoundedDisplayName = (value: unknown): value is string =>
   value.length <= PEER_MAX_NAME_LENGTH &&
   isWellFormedUtf16(value);
 
+// Identifiers travel to the relay and into logs the same way display names
+// do, so they get the same lone-surrogate check. Without it a crafted id
+// splits a code point across the JSON boundary and corrupts whatever
+// renders or logs it downstream.
 const isBoundedIdentifier = (value: unknown): value is string =>
   typeof value === "string" &&
   value.length > 0 &&
-  value.length <= PEER_MAX_ID_LENGTH;
+  value.length <= PEER_MAX_ID_LENGTH &&
+  isWellFormedUtf16(value);
 
 const isBoundedOptionalColor = (
   value: unknown,
@@ -355,18 +372,34 @@ const isGameState = (value: unknown): value is GameState => {
   // check must also fire when the combination is missing — a frame
   // carrying `winner` with a null combination minted a phantom win
   // through state_snapshot/gameUpdate. makeMove always sets both
-  // fields together, so a lone winner is never legitimate.
-  if (
+  // fields together, so the only legitimate winner-without-a-line is a
+  // forfeit (opponent disconnected), which must set `forfeited` or this
+  // validator drops every resync of a finished game (F146 follow-up).
+  const winnerWithoutLine =
     state.winner !== null &&
     (state.winningCombination === null ||
-      !state.winningCombination.every((i) => (state.board as unknown[])[i] === state.winner))
-  ) {
+      !state.winningCombination.every(
+        (i) => (state.board as unknown[])[i] === state.winner,
+      ));
+  if (winnerWithoutLine && state.forfeited !== true) {
     return false;
   }
   // Mirror of the F404 check (review 2026-10-03 repair P2): makeMove
   // always writes winner + winningCombination together, so a claimed
   // line with NO winner is as impossible as a winner with no line.
   if (state.winner === null && state.winningCombination !== null) {
+    return false;
+  }
+  // The forfeit marker is only meaningful on a completed game that names a
+  // winner. A stray flag on a live or winnerless state is not a shape this
+  // code produces — reject rather than let it ride to the UI.
+  if (state.forfeited !== undefined && typeof state.forfeited !== "boolean") {
+    return false;
+  }
+  if (
+    state.forfeited === true &&
+    (state.winner === null || state.gameStatus !== GameStatus.COMPLETED)
+  ) {
     return false;
   }
   if (state.lastMoveIndex !== null && !isBoundedCellIndex(state.lastMoveIndex)) {
@@ -526,7 +559,10 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
       return (
         typeof message.message === "string" &&
         message.message.length > 0 &&
-        message.message.length <= PEER_MAX_ERROR_LENGTH
+        message.message.length <= PEER_MAX_ERROR_LENGTH &&
+        // Rendered verbatim in the status line, so it gets the same
+        // lone-surrogate check as every other string that reaches the DOM.
+        isWellFormedUtf16(message.message)
       );
     default:
       return false;

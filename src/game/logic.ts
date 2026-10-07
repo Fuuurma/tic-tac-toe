@@ -47,6 +47,14 @@ export interface GameState {
   // was played for that player; surfaced in the HUD. Cleared by the next
   // successful move (makeMove) and absent on fresh states.
   turnNotice?: string;
+  /**
+   * Set when the game ended because a peer disconnected, not because a line
+   * was completed. This is the ONE legitimate case of `winner !== null` with
+   * no `winningCombination` — the wire validator requires this flag before
+   * accepting such a state, so a peer claiming a win without a line is still
+   * rejected as a phantom win (F404). Absent on every non-forfeit state.
+   */
+  forfeited?: boolean;
 }
 
 export const freshGameState = (): GameState => ({

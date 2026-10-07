@@ -17,6 +17,7 @@ import {
 } from "@/game/logic";
 import {
   applyAuthorizedMove,
+  applyForfeitIfActive,
   isPeerMessage,
   PEER_MAX_BOARD_INDEX,
   PEER_MAX_MOVE_COUNT,
@@ -600,6 +601,75 @@ describe("isPeerMessage joined payload", () => {
         symbol: PlayerSymbol.O,
         color: Color.RED,
         gameState: { ...baselineState(), board: Array(5).fill(null) },
+      }),
+    ).toBe(false);
+  });
+});
+
+// A forfeit ends a game without a completed line, so `winner` is set while
+// `winningCombination` stays null. That is precisely the shape F404 rejects
+// as a phantom win — so `applyForfeitIfActive` used to mint a state that the
+// receiving peer's own validator dropped. The flag is what separates the
+// legitimate forfeit from a peer claiming a win it never made; without it,
+// every resync of a finished game (a rejoining peer's `joined`, a sync
+// snapshot, a rejected move's correction) was silently discarded and the
+// joiner waited forever on a frame that could never validate.
+describe("forfeit state survives the wire validator", () => {
+  const forfeited = () =>
+    applyForfeitIfActive(baselineState(), PlayerSymbol.X);
+
+  it("marks the forfeit and leaves the line empty", () => {
+    const state = forfeited();
+    expect(state.winner).toBe(PlayerSymbol.X);
+    expect(state.gameStatus).toBe(GameStatus.COMPLETED);
+    expect(state.winningCombination).toBeNull();
+    expect(state.forfeited).toBe(true);
+  });
+
+  it("validates on every frame type that can carry it", () => {
+    const gameState = forfeited();
+    expect(isPeerMessage({ type: "gameUpdate", gameState })).toBe(true);
+    expect(isPeerMessage({ type: "state_snapshot", gameState })).toBe(true);
+    expect(
+      isPeerMessage({
+        type: "joined",
+        symbol: PlayerSymbol.O,
+        color: Color.RED,
+        gameState,
+      }),
+    ).toBe(true);
+    expect(
+      isPeerMessage({
+        type: "gameStart",
+        symbol: PlayerSymbol.O,
+        gameState,
+      }),
+    ).toBe(true);
+  });
+
+  it("still rejects an UNFLAGGED winner with no line — the F404 guard is intact", () => {
+    const { forfeited: _dropped, ...unflagged } = forfeited();
+    expect(
+      isPeerMessage({ type: "gameUpdate", gameState: unflagged }),
+    ).toBe(false);
+  });
+
+  it("rejects a stray forfeit flag that no state this code produces can carry", () => {
+    // A flag on a live game, or on a game with no winner, is not a shape any
+    // caller can build — reject rather than let it ride through to the UI.
+    expect(
+      isPeerMessage({
+        type: "gameUpdate",
+        gameState: { ...baselineState(), forfeited: true },
+      }),
+    ).toBe(false);
+    expect(
+      isPeerMessage({
+        type: "gameUpdate",
+        gameState: {
+          ...forfeited(),
+          winner: null,
+        },
       }),
     ).toBe(false);
   });
