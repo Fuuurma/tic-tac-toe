@@ -56,6 +56,11 @@
       .diagram-container { overflow-x: visible; }
       svg { min-width: 0; }
     }
+
+    .cards{display:grid;grid-template-columns:1.1fr 1fr 0.9fr;gap:12px;margin:16px 0 0}
+    .card{background:#ffffff;border:1px solid rgba(45,49,66,0.12);border-radius:6px;padding:10px 12px}
+    .card h2{margin:0 0 6px;font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#4f5d75}
+    .card p{margin:0;font-family:'Geist',sans-serif;font-size:12px;line-height:1.5;color:#2d3142}
   </style>
 </head>
 <body>
@@ -176,6 +181,11 @@
         <line x1="1040" y1="630" x2="1072" y2="630" stroke="#2e5aa8" stroke-width="1.2"/>
         <text x="1080" y="634" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">WEBSOCKET</text>
       </svg>
+    </div>
+    <div class="cards">
+      <div class="card"><h2>ENGINE</h2><p>Pure src/game core with behavior, selfplay and bench suites behind the minimax AI.</p></div>
+      <div class="card"><h2>QUALITY</h2><p>37 test files; 7 of them pin the game engine alone.</p></div>
+      <div class="card"><h2>DEPLOY</h2><p>Cloudflare Pages via wrangler — static SPA, no server of its own.</p></div>
     </div>
   </div>
 </body>
