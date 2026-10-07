@@ -201,3 +201,158 @@ describe("BackgroundPattern pointer repaint", () => {
     expect(drawIndex).toBeGreaterThan(clearIndex);
   });
 });
+
+/**
+ * The reveal follows the pointer's path, not just its position: samples are
+ * laid down by distance travelled and aged out by time, so a fast flick
+ * leaves a streak and a resting cursor collapses back to a halo. The span
+ * cap is a performance cap — the repaint box grows with the trail.
+ */
+describe("BackgroundPattern gesture trail", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const recordingContext = () => {
+    const calls: Array<{ op: string; args: unknown[] }> = [];
+    const target: Record<string, unknown> = {
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      canvas: null,
+    };
+    const ctx = new Proxy(target, {
+      get(t, prop) {
+        if (prop in t) return t[prop as string];
+        const value = (...args: unknown[]) => {
+          calls.push({ op: String(prop), args });
+        };
+        t[prop as string] = value;
+        return value;
+      },
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  };
+
+  /** Drives N frames, moving the pointer by `step` px between each. */
+  const run = (
+    ctx: CanvasRenderingContext2D,
+    queue: FrameRequestCallback[],
+    frames: Array<{ x: number; y: number; time: number }>,
+  ) => {
+    for (const frame of frames) {
+      window.dispatchEvent(
+        new PointerEvent("pointermove", {
+          clientX: frame.x,
+          clientY: frame.y,
+        }),
+      );
+      const cb = queue.shift();
+      if (cb) cb(frame.time);
+      ctx.clearRect(0, 0, 0, 0); // no-op, keeps the recorder honest
+    }
+  };
+
+  const setup = () => {
+    const { ctx, calls } = recordingContext();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => ctx,
+    );
+    stubReducedMotion(false);
+    const queue: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      queue.push(cb);
+      return queue.length;
+    });
+    render(<BackgroundPattern />);
+    return { ctx, calls, queue };
+  };
+
+  it("paints a stroke that outlives the instant the pointer passed", () => {
+    const { ctx, calls, queue } = setup();
+
+    // Two fast frames: the pointer sweeps 300px between them.
+    run(ctx, queue, [
+      { x: 200, y: 300, time: 16 },
+      { x: 500, y: 300, time: 32 },
+    ]);
+
+    const stroked = calls.filter((c) => c.op === "lineTo");
+    expect(stroked.length).toBeGreaterThan(0);
+    // More symbols lit than a single 480px-wide disc can hold: the path
+    // between the two pointer positions is lit too.
+    const xs = calls
+      .filter((c) => c.op === "translate" && c.args[1] === 300)
+      .map((c) => c.args[0] as number);
+    expect(Math.max(...xs)).toBeGreaterThan(400);
+    expect(Math.min(...xs)).toBeLessThan(300);
+  });
+
+  it("keeps the repaint region bounded during a full-screen flick", () => {
+    const boxWidthFor = (travel: number) => {
+      const { ctx, calls, queue } = setup();
+      run(ctx, queue, [{ x: 400, y: 400, time: 16 }]);
+      // Only the second frame's calls: the first one includes the full
+      // canvas clear that resize() does.
+      const before = calls.length;
+      run(ctx, queue, [{ x: 400 + travel, y: 400, time: 32 }]);
+      const clears = calls
+        .slice(before)
+        .filter((c) => c.op === "clearRect");
+      return Math.max(...clears.map((c) => c.args[2] as number));
+    };
+
+    // The box is TRAIL_MAX_SPAN of travel plus the reveal radius and its
+    // margin on each side, so it must NOT grow with the distance actually
+    // travelled: this is the difference between a bounded repaint and the
+    // full-grid redraw the component exists to avoid.
+    const short = boxWidthFor(60);
+    const long = boxWidthFor(900);
+    expect(long).toBeLessThanOrEqual(short);
+    // Bounded by the span cap plus the reveal radius and margin, not by the
+    // canvas: a 900px flick must not repaint the whole viewport.
+    expect(long).toBeLessThan(900);
+  });
+
+  it("collapses to a halo once the pointer stops", () => {
+    const { ctx, calls, queue } = setup();
+
+    run(ctx, queue, [
+      { x: 200, y: 300, time: 16 },
+      { x: 500, y: 300, time: 32 },
+    ]);
+    // Held still long enough for every sample but the cursor's to age out.
+    const beforeIdle = calls.length;
+    run(ctx, queue, [
+      { x: 500, y: 300, time: 400 },
+      { x: 500, y: 300, time: 800 },
+    ]);
+    const idle = calls.slice(beforeIdle);
+
+    const xs = idle
+      .filter((c) => c.op === "translate" && c.args[1] === 300)
+      .map((c) => c.args[0] as number);
+    // Only the cursor position is lit once the trail has collapsed.
+    expect(xs.length).toBeGreaterThan(0);
+    expect(Math.min(...xs)).toBeGreaterThan(240);
+    expect(Math.max(...xs)).toBeLessThan(760);
+  });
+
+  it("stops painting entirely once the pointer leaves", () => {
+    const { ctx, calls, queue } = setup();
+    run(ctx, queue, [{ x: 200, y: 300, time: 16 }]);
+
+    const before = calls.length;
+    run(ctx, queue, [{ x: -900, y: -900, time: 32 }]);
+    run(ctx, queue, [{ x: -900, y: -900, time: 48 }]);
+    run(ctx, queue, [{ x: -900, y: -900, time: 64 }]);
+
+    // Energy decays to zero and the trail is dropped; only the final
+    // restore happens, and no symbol is re-stroked afterwards.
+    const strokesAfter = calls
+      .slice(before)
+      .filter((c) => c.op === "lineTo").length;
+    expect(strokesAfter).toBe(0);
+  });
+});

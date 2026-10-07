@@ -18,6 +18,30 @@ const SPOTLIGHT_RADIUS = REVEAL_RADIUS * 1.15;
 // the previous frame's spill survives the restore.
 const REGION_MARGIN = SYMBOL_SIZE + 24;
 
+// Gesture trail tuning. TRAIL_SAMPLE_STEP is what turns time+distance into
+// the look: samples are laid down by distance travelled, so pointer speed
+// decides whether they cluster (halo) or stretch (streak). The span cap is
+// a performance cap first — the repaint box grows with the trail, and every
+// extra pixel of it is another blit of the base layer each frame.
+const TRAIL_SAMPLES = 4;
+const TRAIL_SAMPLE_STEP = 14;
+const TRAIL_MAX_SPAN = 120;
+const TRAIL_FADE_MS = 300;
+
+interface TrailSample {
+  x: number;
+  y: number;
+  t: number;
+}
+
+/** A repaint region in CSS pixels, top-left anchored. */
+interface Region {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 const COLOR_HEX: Record<Color, [number, number, number]> = {
   [Color.BLUE]: [59, 130, 246],
   [Color.GREEN]: [34, 197, 94],
@@ -173,11 +197,6 @@ function drawShape(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-interface Region {
-  x: number;
-  y: number;
-  r: number;
-}
 
 export function BackgroundPattern() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -201,6 +220,46 @@ export function BackgroundPattern() {
     // never re-stroked.
     let litRegion: Region | null = null;
 
+    // Gesture trail. The pointer's recent path is sampled by distance and
+    // aged out by time, which is what makes the reveal read as movement
+    // rather than as a spotlight glued to the cursor: a fast flick leaves a
+    // streak that closes behind the hand, a slow drag keeps a tight halo,
+    // and a resting cursor collapses to the single-point halo it always was.
+    //
+    // Both caps are load-bearing. TRAIL_SAMPLES and TRAIL_MAX_SPAN bound the
+    // repaint box, so a flick across the whole screen can never grow back
+    // into the full-grid redraw this component was rewritten to avoid.
+    const trail: TrailSample[] = [];
+    const pushSample = (x: number, y: number, now: number) => {
+      const newest = trail[trail.length - 1];
+      if (newest && Math.hypot(x - newest.x, y - newest.y) < TRAIL_SAMPLE_STEP) {
+        // Too close to be a new sample: refresh instead, so a cursor held
+        // still keeps its halo instead of expiring.
+        newest.t = now;
+        return;
+      }
+      trail.push({ x, y, t: now });
+      while (trail.length > TRAIL_SAMPLES) trail.shift();
+      while (trail.length > 1) {
+        const head = trail[0];
+        const tail = trail[trail.length - 1];
+        if (
+          Math.hypot(tail.x - head.x, tail.y - head.y) <= TRAIL_MAX_SPAN
+        ) {
+          break;
+        }
+        trail.shift();
+      }
+    };
+    const ageTrail = (now: number) => {
+      // The newest sample tracks the cursor and must survive; the rest
+      // fade once they are old enough.
+      for (let i = 0; i < trail.length - 1; ) {
+        if (now - trail[i].t > TRAIL_FADE_MS) trail.splice(i, 1);
+        else i += 1;
+      }
+    };
+
     // Static base layer — the whole symbol grid at rest. Pointer frames copy
     // small rects back out of it instead of clearing the canvas and walking
     // every symbol again, which is what made pointer tracking expensive:
@@ -213,12 +272,6 @@ export function BackgroundPattern() {
     const baseCtx = base.getContext("2d");
     if (!baseCtx) return;
     let spotlight: CanvasGradient | null = null;
-
-    const highlightFor = (distance: number): number => {
-      const proximity = Math.max(0, 1 - distance / REVEAL_RADIUS);
-      const eased = proximity * proximity * (3 - 2 * proximity);
-      return eased * pointer.energy;
-    };
 
     const drawSymbol = (
       target: CanvasRenderingContext2D,
@@ -275,10 +328,10 @@ export function BackgroundPattern() {
     // source pixel composites as a no-op, so copying it alone would leave
     // the previous frame's spotlight tint baked in underneath.
     const restoreBase = (region: Region) => {
-      const left = Math.max(0, Math.floor((region.x - region.r) * dpr));
-      const top = Math.max(0, Math.floor((region.y - region.r) * dpr));
-      const right = Math.min(base.width, Math.ceil((region.x + region.r) * dpr));
-      const bottom = Math.min(base.height, Math.ceil((region.y + region.r) * dpr));
+      const left = Math.max(0, Math.floor(region.x * dpr));
+      const top = Math.max(0, Math.floor(region.y * dpr));
+      const right = Math.min(base.width, Math.ceil((region.x + region.w) * dpr));
+      const bottom = Math.min(base.height, Math.ceil((region.y + region.h) * dpr));
       const w = right - left;
       const h = bottom - top;
       if (w <= 0 || h <= 0) return;
@@ -288,34 +341,67 @@ export function BackgroundPattern() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    // Lights up the symbols the pointer actually reaches. Only those are
-    // re-stroked; everything else in the region comes from the base copy.
-    const drawLit = () => {
+    const trailBounds = (): Region | null => {
+      if (trail.length === 0) return null;
+      let minX = trail[0].x;
+      let maxX = trail[0].x;
+      let minY = trail[0].y;
+      let maxY = trail[0].y;
+      for (const sample of trail) {
+        if (sample.x < minX) minX = sample.x;
+        if (sample.x > maxX) maxX = sample.x;
+        if (sample.y < minY) minY = sample.y;
+        if (sample.y > maxY) maxY = sample.y;
+      }
+      const pad = SPOTLIGHT_RADIUS + REGION_MARGIN;
+      return { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
+    };
+
+    // Lights up the symbols the pointer reaches, and the ones its recent
+    // path just left behind, each at its own age-weighted strength. Taking
+    // the max rather than summing keeps overlapping samples from blowing the
+    // highlight out to white.
+    const drawLit = (now: number) => {
+      const bounds = trailBounds();
+      if (!bounds) return;
       drawSpotlight();
       for (const symbol of symbols) {
-        const dx = pointer.x - symbol.x;
-        const dy = pointer.y - symbol.y;
-        const distance = Math.hypot(dx, dy);
-        if (distance > REVEAL_RADIUS) continue;
-        drawSymbol(ctx, symbol, highlightFor(distance));
+        // Box-cull first: the distance maths only runs for symbols that
+        // could possibly be lit.
+        if (
+          symbol.x < bounds.x ||
+          symbol.x > bounds.x + bounds.w ||
+          symbol.y < bounds.y ||
+          symbol.y > bounds.y + bounds.h
+        ) {
+          continue;
+        }
+        let best = 0;
+        for (const sample of trail) {
+          const distance = Math.hypot(sample.x - symbol.x, sample.y - symbol.y);
+          if (distance > REVEAL_RADIUS) continue;
+          const proximity = 1 - distance / REVEAL_RADIUS;
+          const eased = proximity * proximity * (3 - 2 * proximity);
+          const freshness = Math.max(0, 1 - (now - sample.t) / TRAIL_FADE_MS);
+          const strength = eased * freshness;
+          if (strength > best) best = strength;
+        }
+        if (best > 0.01) drawSymbol(ctx, symbol, best * pointer.energy);
       }
     };
 
-    const renderFrame = () => {
+    const renderFrame = (now: number) => {
       // Restore first, at full opacity and outside the globalAlpha block —
       // a half-transparent copy would leave the old frame showing through.
       if (litRegion) restoreBase(litRegion);
       litRegion = null;
-      if (pointer.energy > 0.01) {
+      const bounds = trailBounds();
+      if (bounds && pointer.energy > 0.01) {
         ctx.save();
         ctx.globalAlpha = pointer.energy;
-        drawLit();
+        drawLit(now);
         ctx.restore();
-        litRegion = {
-          x: pointer.x,
-          y: pointer.y,
-          r: SPOTLIGHT_RADIUS + REGION_MARGIN,
-        };
+        litRegion = bounds;
       }
     };
 
@@ -358,15 +444,24 @@ export function BackgroundPattern() {
       // spotlight lights up immediately instead of arriving a frame late.
       const delta = lastT === 0 ? 16 : Math.min(50, time - lastT);
       lastT = time;
+      if (pointer.active) {
+        // Sample every frame rather than only on move events: the trail has
+        // to keep ageing out even when the pointer is parked, or a resting
+        // cursor would leave a permanent streak.
+        pushSample(pointer.x, pointer.y, time);
+        ageTrail(time);
+      } else {
+        trail.length = 0;
+      }
       const target = pointer.active ? 1 : 0;
       pointer.energy += (target - pointer.energy) * Math.min(1, delta / 120);
-      renderFrame();
+      renderFrame(time);
 
       if (Math.abs(target - pointer.energy) > 0.01) {
         raf = requestAnimationFrame(step);
       } else if (pointer.energy !== target) {
         pointer.energy = target;
-        renderFrame();
+        renderFrame(time);
       }
     };
 
