@@ -12,6 +12,11 @@ const SYMBOL_SIZE = 8;
 const SYMBOL_STROKE = 1;
 const SYMBOL_COLOR = "rgba(148,163,184,0.15)";
 const REVEAL_RADIUS = 240;
+const SPOTLIGHT_RADIUS = REVEAL_RADIUS * 1.15;
+// Symbols are stroked centred on their position and the lit ones carry an
+// 18px shadow, so a repaint region needs a margin around the spotlight or
+// the previous frame's spill survives the restore.
+const REGION_MARGIN = SYMBOL_SIZE + 24;
 
 const COLOR_HEX: Record<Color, [number, number, number]> = {
   [Color.BLUE]: [59, 130, 246],
@@ -168,6 +173,12 @@ function drawShape(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+interface Region {
+  x: number;
+  y: number;
+  r: number;
+}
+
 export function BackgroundPattern() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -185,62 +196,126 @@ export function BackgroundPattern() {
     let lastT = 0;
     let touchRelease: number | null = null;
     const pointer = { x: -9999, y: -9999, active: false, energy: 0 };
+    // Region the lit spotlight last painted. Each frame restores it from the
+    // base layer before repainting the new one, so the rest of the grid is
+    // never re-stroked.
+    let litRegion: Region | null = null;
 
-    const drawSpotlight = () => {
-      if (pointer.energy < 0.01) return;
+    // Static base layer — the whole symbol grid at rest. Pointer frames copy
+    // small rects back out of it instead of clearing the canvas and walking
+    // every symbol again, which is what made pointer tracking expensive:
+    // a full-viewport grid is ~700 symbols on a phone and ~1900 on desktop,
+    // and every one of them built two rgba() strings and toggled shadow
+    // state per frame. The gradient is built once per resize for the same
+    // reason — `energy` is applied through globalAlpha, which is exactly
+    // equivalent to the per-stop alpha it replaces.
+    const base = document.createElement("canvas");
+    const baseCtx = base.getContext("2d");
+    if (!baseCtx) return;
+    let spotlight: CanvasGradient | null = null;
 
-      const radius = REVEAL_RADIUS * 1.15;
-      const gradient = ctx.createRadialGradient(
-        pointer.x,
-        pointer.y,
-        0,
-        pointer.x,
-        pointer.y,
-        radius,
-      );
-      gradient.addColorStop(0, `rgba(41,121,255,${pointer.energy * 0.34})`);
-      gradient.addColorStop(0.42, `rgba(56,182,255,${pointer.energy * 0.2})`);
-      gradient.addColorStop(0.72, `rgba(42,252,152,${pointer.energy * 0.09})`);
-      gradient.addColorStop(1, "rgba(2,6,23,0)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(
-        pointer.x - radius,
-        pointer.y - radius,
-        radius * 2,
-        radius * 2,
-      );
+    const highlightFor = (distance: number): number => {
+      const proximity = Math.max(0, 1 - distance / REVEAL_RADIUS);
+      const eased = proximity * proximity * (3 - 2 * proximity);
+      return eased * pointer.energy;
     };
 
-    const drawSymbol = (symbol: GridSymbol) => {
-      const distance = Math.hypot(pointer.x - symbol.x, pointer.y - symbol.y);
-      const proximity = Math.max(0, 1 - distance / REVEAL_RADIUS);
-      const easedProximity = proximity * proximity * (3 - 2 * proximity);
-      const highlight = easedProximity * pointer.energy;
-      const [r, g, b] = COLOR_HEX[symbol.color];
-      const red = Math.round(148 + (r - 148) * highlight);
-      const green = Math.round(163 + (g - 163) * highlight);
-      const blue = Math.round(184 + (b - 184) * highlight);
+    const drawSymbol = (
+      target: CanvasRenderingContext2D,
+      symbol: GridSymbol,
+      highlight: number,
+    ) => {
       const size = SYMBOL_SIZE * (1 + highlight * 0.42);
       const stroke = SYMBOL_STROKE * (1 + highlight * 0.4);
 
+      if (highlight <= 0.01) {
+        // Resting symbol: no color math, no shadow state. This is the path
+        // ~99% of the grid takes on every rebuild.
+        target.save();
+        target.translate(symbol.x, symbol.y);
+        target.rotate(symbol.rotation);
+        target.strokeStyle = SYMBOL_COLOR;
+        drawShape(target, symbol.shape, size, stroke);
+        target.restore();
+        return;
+      }
+
+      const [r, g, b] = COLOR_HEX[symbol.color];
+      target.save();
+      target.translate(symbol.x, symbol.y);
+      target.rotate(symbol.rotation);
+      target.strokeStyle = `rgba(${Math.round(148 + (r - 148) * highlight)},${Math.round(
+        163 + (g - 163) * highlight,
+      )},${Math.round(184 + (b - 184) * highlight)},${0.15 + highlight * 0.84})`;
+      target.shadowBlur = highlight * 18;
+      target.shadowColor = `rgba(${r},${g},${b},${highlight * 0.92})`;
+      drawShape(target, symbol.shape, size, stroke);
+      target.restore();
+    };
+
+    const drawSpotlight = () => {
+      if (!spotlight) return;
+      // The gradient is cached centred on the origin, but canvas resolves
+      // gradient coordinates in the user space of the fill — so translate
+      // the pointer to the origin instead of rebuilding it every frame.
       ctx.save();
-      ctx.translate(symbol.x, symbol.y);
-      ctx.rotate(symbol.rotation);
-      ctx.strokeStyle =
-        highlight > 0.01
-          ? `rgba(${red},${green},${blue},${0.15 + highlight * 0.84})`
-          : SYMBOL_COLOR;
-      ctx.shadowBlur = highlight * 18;
-      ctx.shadowColor = `rgba(${r},${g},${b},${highlight * 0.92})`;
-      drawShape(ctx, symbol.shape, size, stroke);
+      ctx.translate(pointer.x, pointer.y);
+      ctx.fillStyle = spotlight;
+      ctx.fillRect(
+        -SPOTLIGHT_RADIUS,
+        -SPOTLIGHT_RADIUS,
+        SPOTLIGHT_RADIUS * 2,
+        SPOTLIGHT_RADIUS * 2,
+      );
       ctx.restore();
     };
 
-    const renderSymbols = () => {
-      ctx.clearRect(0, 0, width, height);
+    // Erases one region back to the resting grid. `clearRect` is mandatory:
+    // the base layer is transparent between symbols, and a transparent
+    // source pixel composites as a no-op, so copying it alone would leave
+    // the previous frame's spotlight tint baked in underneath.
+    const restoreBase = (region: Region) => {
+      const left = Math.max(0, Math.floor((region.x - region.r) * dpr));
+      const top = Math.max(0, Math.floor((region.y - region.r) * dpr));
+      const right = Math.min(base.width, Math.ceil((region.x + region.r) * dpr));
+      const bottom = Math.min(base.height, Math.ceil((region.y + region.r) * dpr));
+      const w = right - left;
+      const h = bottom - top;
+      if (w <= 0 || h <= 0) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(left, top, w, h);
+      ctx.drawImage(base, left, top, w, h, left, top, w, h);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    // Lights up the symbols the pointer actually reaches. Only those are
+    // re-stroked; everything else in the region comes from the base copy.
+    const drawLit = () => {
       drawSpotlight();
       for (const symbol of symbols) {
-        drawSymbol(symbol);
+        const dx = pointer.x - symbol.x;
+        const dy = pointer.y - symbol.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance > REVEAL_RADIUS) continue;
+        drawSymbol(ctx, symbol, highlightFor(distance));
+      }
+    };
+
+    const renderFrame = () => {
+      // Restore first, at full opacity and outside the globalAlpha block —
+      // a half-transparent copy would leave the old frame showing through.
+      if (litRegion) restoreBase(litRegion);
+      litRegion = null;
+      if (pointer.energy > 0.01) {
+        ctx.save();
+        ctx.globalAlpha = pointer.energy;
+        drawLit();
+        ctx.restore();
+        litRegion = {
+          x: pointer.x,
+          y: pointer.y,
+          r: SPOTLIGHT_RADIUS + REGION_MARGIN,
+        };
       }
     };
 
@@ -248,29 +323,50 @@ export function BackgroundPattern() {
       dpr = Math.min(2, window.devicePixelRatio || 1);
       width = window.innerWidth;
       height = window.innerHeight;
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
+      const deviceW = Math.round(width * dpr);
+      const deviceH = Math.round(height * dpr);
+      canvas.width = deviceW;
+      canvas.height = deviceH;
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
+      base.width = deviceW;
+      base.height = deviceH;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       symbols = buildGrid(width, height);
-      renderSymbols();
+
+      // Resting layer: every symbol once, no lighting.
+      baseCtx.clearRect(0, 0, width, height);
+      for (const symbol of symbols) drawSymbol(baseCtx, symbol, 0);
+
+      spotlight = baseCtx.createRadialGradient(0, 0, 0, 0, 0, SPOTLIGHT_RADIUS);
+      spotlight.addColorStop(0, "rgba(41,121,255,0.34)");
+      spotlight.addColorStop(0.42, "rgba(56,182,255,0.2)");
+      spotlight.addColorStop(0.72, "rgba(42,252,152,0.09)");
+      spotlight.addColorStop(1, "rgba(2,6,23,0)");
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, deviceW, deviceH);
+      ctx.drawImage(base, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      litRegion = null;
     };
 
     const step = (time: number) => {
       raf = null;
-      if (lastT === 0) lastT = time;
-      const delta = Math.min(50, time - lastT);
+      // First frame after a (re)start: charge it one frame of energy so the
+      // spotlight lights up immediately instead of arriving a frame late.
+      const delta = lastT === 0 ? 16 : Math.min(50, time - lastT);
       lastT = time;
       const target = pointer.active ? 1 : 0;
       pointer.energy += (target - pointer.energy) * Math.min(1, delta / 120);
-      renderSymbols();
+      renderFrame();
 
       if (Math.abs(target - pointer.energy) > 0.01) {
         raf = requestAnimationFrame(step);
-      } else {
+      } else if (pointer.energy !== target) {
         pointer.energy = target;
-        renderSymbols();
+        renderFrame();
       }
     };
 
@@ -286,11 +382,13 @@ export function BackgroundPattern() {
       raf = null;
     };
 
+    // Records the pointer and lets the rAF loop draw it. Drawing here would
+    // repaint the whole grid once per pointer event (60-120Hz) and again on
+    // the next frame, doubling the cost for no visible gain.
     const updatePointer = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       pointer.active = true;
-      renderSymbols();
       start();
     };
 

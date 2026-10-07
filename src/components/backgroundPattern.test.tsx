@@ -115,3 +115,89 @@ describe("BackgroundPattern reduced-motion resize (F312)", () => {
     expect(raf).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Pointer-frame painting contract.
+ *
+ * Repaints are local: the resting grid lives on a base layer and a frame
+ * erases its previous spotlight region before lighting the new one. Both
+ * halves have bitten the real implementation — a base copy alone left the
+ * old spotlight baked in (a transparent source pixel is a composite no-op),
+ * and a gradient cached at the origin but filled at pointer coordinates
+ * painted a hard-edged blob in the screen corner.
+ */
+describe("BackgroundPattern pointer repaint", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const recordingContext = () => {
+    const calls: Array<{ op: string; args: unknown[] }> = [];
+    const target: Record<string, unknown> = {
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      canvas: null,
+    };
+    const ctx = new Proxy(target, {
+      get(t, prop) {
+        if (prop in t) return t[prop as string];
+        const value = (...args: unknown[]) => {
+          calls.push({ op: String(prop), args });
+        };
+        t[prop as string] = value;
+        return value;
+      },
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  };
+
+  it("centers the spotlight on the pointer and erases the previous region", () => {
+    const { ctx, calls } = recordingContext();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => ctx,
+    );
+    stubReducedMotion(false);
+
+    // Drive the rAF loop by hand so each frame is observable.
+    const queue: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      queue.push(cb);
+      return queue.length;
+    });
+
+    render(<BackgroundPattern />);
+
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 100, clientY: 120 }),
+    );
+    expect(queue.length).toBeGreaterThan(0);
+    const firstFrame = queue.shift()!;
+    firstFrame(16);
+
+    const callsBefore = calls.length;
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 400, clientY: 320 }),
+    );
+    const secondFrame = queue.shift()!;
+    secondFrame(32);
+    const frame = calls.slice(callsBefore);
+
+    // The spotlight is filled under a translate to the pointer, so the
+    // cached origin-centred gradient lands where the pointer is.
+    const translateIndex = frame.findIndex(
+      (c) => c.op === "translate" && c.args[0] === 400 && c.args[1] === 320,
+    );
+    expect(translateIndex).toBeGreaterThanOrEqual(0);
+    const fillIndex = frame.findIndex((c) => c.op === "fillRect");
+    expect(fillIndex).toBeGreaterThan(translateIndex);
+
+    // The frame that moved the spotlight cleared the old region before
+    // copying the resting layer back over it.
+    const clearIndex = frame.findIndex((c) => c.op === "clearRect");
+    const drawIndex = frame.findIndex((c) => c.op === "drawImage");
+    expect(clearIndex).toBeGreaterThanOrEqual(0);
+    expect(drawIndex).toBeGreaterThan(clearIndex);
+  });
+});
