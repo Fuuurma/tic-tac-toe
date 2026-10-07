@@ -145,6 +145,76 @@ test("starts a vs Computer game with a random first player", async ({ page }) =>
   await expect(page.locator('button[aria-label*="occupied by"]').first()).toBeVisible({ timeout: 2_000 });
 });
 
+test("the computer plays on its own turn, including the opening one", async ({ page }) => {
+  await fillLobby(page, { name: "Race Player", color: "blue", mode: "vs Computer" });
+  await page.getByRole("button", { name: "Start Game" }).click();
+  await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
+
+  // Whoever was dealt the first move, the game must advance by itself.
+  // The computer's opening move is the regression this pins: its setTimeout
+  // lands in the same batch as the turn clock's first tick, and the commit
+  // used to be dropped, leaving the AI to sit there until the 10s timeout.
+  const computerOpens = await page.evaluate(() =>
+    [...document.querySelectorAll("[role=group]")].some((group) =>
+      /^AI,/.test(group.getAttribute("aria-label") ?? "") &&
+      /current turn/i.test(group.getAttribute("aria-label") ?? ""),
+    ),
+  );
+
+  if (!computerOpens) {
+    await page.locator('button[aria-label$=", empty"]').first().click();
+  }
+
+  // A piece on the board proves the move landed, well inside the turn clock.
+  await expect(page.locator('button[aria-label*="occupied by"]').first()).toBeVisible({
+    timeout: 3_000,
+  });
+  await expect(page.getByText(/ran out of time/i)).toHaveCount(0);
+});
+
+test("record breakdown breaks the record down by mode and difficulty", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("tic-tac-toe:guestId", "guest:e2e-record");
+    window.localStorage.setItem(
+      "tic-tac-toe:stats:guest:e2e-record",
+      JSON.stringify({
+        totalGames: 7,
+        wins: 5,
+        losses: 2,
+        currentWinStreak: 1,
+        bestWinStreak: 3,
+        breakdown: {
+          "VS_COMPUTER:HARD": { wins: 4, losses: 2 },
+          VS_FRIEND: { wins: 1, losses: 0 },
+        },
+      }),
+    );
+  });
+  await fillLobby(page, { name: "Record Player", color: "blue", mode: "vs Computer" });
+  await page.getByRole("button", { name: "Start Game" }).click();
+
+  const trigger = page.getByRole("button", { name: "Show record breakdown" });
+  await expect(trigger).toBeVisible();
+  await expect(page.getByRole("group", { name: /record by mode/i })).toHaveCount(0);
+
+  // Click opens it (the touch path); the panel sits above the player cards.
+  await trigger.click();
+  const panel = page.getByRole("group", { name: /record by mode/i });
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Easy");
+  await expect(panel).toContainText("Normal");
+  await expect(panel).toContainText("Hard");
+  await expect(panel).toContainText("4W");
+  await expect(panel).toContainText("2L");
+  await expect(panel).toContainText("vs Friend");
+
+  // Clicking unpins it, but the pointer is still over the trigger, so it
+  // stays up on hover until the pointer leaves.
+  await trigger.click();
+  await page.mouse.move(5, 5);
+  await expect(page.getByRole("group", { name: /record by mode/i })).toHaveCount(0);
+});
+
 test("sets up a private room with a custom code or a friend code", async ({ page }) => {
   await page.goto("/");
   await openPlayerSettings(page);
@@ -196,13 +266,24 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
 
   // Human plays the first available empty cell, then the AI should play somewhere.
   const emptyCell = page.locator('button[aria-label$=", empty"]').first();
+  const pieces = page.locator('button[aria-label*="occupied by"]');
+  // Sample before the click: whoever opened, the reply cycle adds exactly
+  // two pieces (this move and the AI's). Reading the count after the click
+  // races the AI's ~700ms timer.
+  const beforePlay = await pieces.count();
   await emptyCell.click();
   // The clicked cell should now have an SVG (piece was placed).
-  const occupiedCell = page.locator('button[aria-label*="occupied by"]').first();
-  await expect(occupiedCell.locator("svg")).toBeVisible();
+  await expect(pieces.first().locator("svg")).toBeVisible();
 
   // The AI has an intentional thinking delay (~700ms) so the player can
-  // see the board state. After it finishes, empty cells become clickable again.
+  // see the board state. It answers by placing a piece.
+  await expect
+    .poll(() => pieces.count(), { timeout: 5_000 })
+    .toBe(beforePlay + 2);
+
+  // Both pieces render, and the turn is back with the human.
+  await expect(pieces.first().locator("svg")).toHaveClass(/text-(red|blue)-500/);
+  await expect(pieces.last().locator("svg")).toHaveClass(/text-(red|blue)-500/);
   await expect
     .poll(
       () =>
@@ -214,19 +295,6 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
       { timeout: 2_000 },
     )
     .toBeGreaterThan(0);
-
-  // The AI responds after its short thinking delay; exactly one
-  // O cell should appear and the panel should not say it's the
-  // human's turn anymore.
-  const oCell = page.getByRole("button", { name: /, occupied by O/ });
-  await expect(oCell).toBeVisible({ timeout: 5_000 });
-
-  // Both the human and AI pieces should be visible with distinct colors.
-  // Who is X vs O is random, so just verify both X and O cells have colored SVGs.
-  const xCell = page.getByRole("button", { name: /, occupied by X/ }).first();
-  await expect(xCell).toBeVisible();
-  await expect(oCell.first().locator("svg")).toHaveClass(/text-(red|blue)-500/);
-  await expect(xCell.locator("svg")).toHaveClass(/text-(red|blue)-500/);
 });
 
 test("starts a vs Friend game and the turn alternates", async ({ page }) => {
@@ -269,9 +337,9 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
   await openPlayerSettings(page);
   const yourColor = page.getByRole("group", { name: /Your color/i });
   await expect(yourColor).toBeVisible();
-  await yourColor.getByRole("button", { name: /green color/i }).click();
-  await expect(yourColor.getByRole("button", { name: /green color/i })).toHaveAttribute(
-    "aria-pressed",
+  await yourColor.getByRole("radio", { name: /green/i }).click();
+  await expect(yourColor.getByRole("radio", { name: /green/i })).toHaveAttribute(
+    "aria-checked",
     "true",
   );
   await closePlayerSettings(page);
@@ -282,28 +350,28 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
   await openOpponentSettings(page);
   const opponentColor = page.getByRole("group", { name: /Opponent color/i });
   await expect(opponentColor).toBeVisible();
-  await opponentColor.getByRole("button", { name: /green color/i }).click();
-  await expect(opponentColor.getByRole("button", { name: /green color/i })).toHaveAttribute(
-    "aria-pressed",
+  await opponentColor.getByRole("radio", { name: /green/i }).click();
+  await expect(opponentColor.getByRole("radio", { name: /green/i })).toHaveAttribute(
+    "aria-checked",
     "true",
   );
   await closeOpponentSettings(page);
 
   // Re-open the player sheet to confirm the user was swapped to red.
   await openPlayerSettings(page);
-  await expect(page.getByRole("group", { name: /Your color/i }).getByRole("button", { name: /red color/i })).toHaveAttribute(
-    "aria-pressed",
+  await expect(page.getByRole("group", { name: /Your color/i }).getByRole("radio", { name: /red/i })).toHaveAttribute(
+    "aria-checked",
     "true",
   );
   await closePlayerSettings(page);
 
   // Swap colors back: player picks green, then opponent picks red.
   await openPlayerSettings(page);
-  await page.getByRole("group", { name: /Your color/i }).getByRole("button", { name: /green color/i }).click();
+  await page.getByRole("group", { name: /Your color/i }).getByRole("radio", { name: /green/i }).click();
   await closePlayerSettings(page);
 
   await openOpponentSettings(page);
-  await page.getByRole("group", { name: /Opponent color/i }).getByRole("button", { name: /red color/i }).click();
+  await page.getByRole("group", { name: /Opponent color/i }).getByRole("radio", { name: /red/i }).click();
   await closeOpponentSettings(page);
 
   await page.getByRole("button", { name: "Start Game" }).click();
@@ -541,6 +609,12 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // Both clients see the host win regardless of the randomized symbol.
   await expect(hostPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
   await expect(guestPage.getByText(/Host wins/i)).toBeVisible({ timeout: 10_000 });
+
+  // The guest's icon-only "Play again" is hidden: a stray rematchAccept is
+  // dropped by the host's pending-request gate, so the button would be inert.
+  // The host keeps the icon button; guests rematch via the labeled prompt.
+  await expect(guestPage.getByRole("button", { name: "Play again" })).toHaveCount(0);
+  await expect(hostPage.getByRole("button", { name: "Play again" })).toBeVisible();
 
   // Rematch: host requests, guest accepts. Both use the labeled terminal
   // CTAs — the icon-only "Play again" button is not the primary path.
