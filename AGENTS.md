@@ -132,6 +132,24 @@ pnpm check
 - Forfeit winner is determined by the actual host/guest symbol refs, not hardcoded X/O
 - `peer-left: disconnect` is transient during the 30-second reconnect grace; `peer-reconnected` restores the peer; `closed` and `expired` are final
 
+## Local Move Commit
+
+- Every local move commits through `commitLocalMove` (`src/hooks/localTurnTimer.ts`) with a `cur === prev` identity guard, so a decision computed off the post-render `gameStateRef` snapshot can never clobber a newer commit
+- An identity mismatch does **not** mean a rival move landed: the turn clock rewrites `turnTimeRemaining` onto a fresh object every second. The AI's move is scheduled 700-1300ms after the turn starts against a 1000ms clock, so roughly half of all AI moves land in the same batch as a tick. `commitLocalMove` therefore takes an optional pure `rebase(cur)` that re-derives the move from whatever actually committed and drops only when a real move took the turn. Dropping there used to strand the AI until the turn expired
+
+## Rendering Budget
+
+- `BackgroundPattern` keeps the resting symbol grid on an offscreen base layer and repaints only the lit spotlight region per frame. `clearRect` the region before `drawImage`-ing the base back: a transparent source pixel composites as a no-op, so the copy alone leaves the previous frame baked in
+- Canvas resolves gradient coordinates in the user space of the fill, not of `createRadialGradient`. The cached spotlight gradient is built at the origin and painted under `ctx.translate(pointer.x, pointer.y)`
+- Pointer handlers record the position and start the rAF loop; they never draw. A synchronous draw per event repaints the grid twice per frame
+- Measure main-thread cost with `requestAnimationFrame` frame gaps. Headless Chromium's `longtask` `PerformanceObserver` reports nothing, even for a deliberate 120ms block, so a clean long-task reading is an unproven instrument
+
+## Record Storage
+
+- `useGameStats` stores one record per guest under `tic-tac-toe:stats:<guestId>`, the same identity key as the display name
+- `GameStats.breakdown` keys results by `mode` (or `mode:difficulty` for vs Computer) so the record can be split per mode and AI difficulty. Records written before the field existed load with `breakdown: {}`
+- `recordWin`/`recordLoss` require a `StatsContext`; passing the wrong mode or difficulty would misfile the result, so every caller passes the mode it actually played
+
 ## Key Constants
 
 - `TURN_DURATION_MS = 10_000` (10s per turn)
