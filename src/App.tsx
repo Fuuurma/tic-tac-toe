@@ -202,13 +202,17 @@ function LocalGameSurface({
     if (gameState.winner !== null) {
       if (gameState.moveCount === recordedGameId.current) return;
       recordedGameId.current = gameState.moveCount;
-      // Attribute the result to the mode and difficulty actually played so
-      // the record breakdown can separate them.
+      // Attribute the result to the mode and difficulty actually PLAYED.
+      // The difficulty is read off the committed game state, not the live
+      // settings: the in-game settings sheet can change the selection
+      // mid-game, but the running game keeps the difficulty it was created
+      // with (only a reset rebuilds it). Recording from the live setting
+      // filed the result under a difficulty the game was never played at.
       const statsContext = {
         gameMode: config.gameMode,
         aiDifficulty:
           config.gameMode === GameModes.VS_COMPUTER
-            ? opponentSettings.aiDifficulty
+            ? gameState.aiDifficulty
             : undefined,
       };
       if (gameState.winner === humanSymbol) recordWin(statsContext);
@@ -218,9 +222,9 @@ function LocalGameSurface({
     gameState.winner,
     gameState.gameStatus,
     gameState.moveCount,
+    gameState.aiDifficulty,
     humanSymbol,
     config.gameMode,
-    opponentSettings.aiDifficulty,
     recordWin,
     recordLoss,
   ]);

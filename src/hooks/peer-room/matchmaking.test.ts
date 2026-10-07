@@ -175,7 +175,12 @@ describe("runQuickMatch", () => {
   });
 
   it("gives up after 5 consecutive poll failures and shows the failure", async () => {
-    const { deps, hasStartedRef } = makeDeps();
+    // The default 25ms poll ceiling is a WALL-CLOCK budget: under load the
+    // five back-to-back attempts can outrun it and the loop exits on the
+    // timer rather than on the failure rule, so this test asserted a race.
+    // Bound it by the rule under test instead — the failure count — and give
+    // the loop room it can never exhaust.
+    const { deps, hasStartedRef } = makeDeps({ maxPollMs: 60_000 });
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
     mockedPollMatch.mockRejectedValue(new Error("relay down"));
 

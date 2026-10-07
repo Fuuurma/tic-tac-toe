@@ -209,7 +209,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       )}
       {peer.state.status === "connecting" && (
         <OnlineConnectionState
-          message="Joining room…"
+          // relayEvents already writes the accurate reason here ("Waiting
+          // for host…", a relay rejection, a room-not-found). A hardcoded
+          // string threw it away, so a join that fails for a knowable
+          // reason spun on "Joining room…" indefinitely with no way to tell
+          // a slow host from a dead room.
+          message={peer.state.message || "Joining room…"}
           onCancel={() => {
             peer.leave();
             onExit();
