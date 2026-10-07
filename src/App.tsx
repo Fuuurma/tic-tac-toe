@@ -237,11 +237,39 @@ function LocalGameSurface({
     ? gameState.players[previewPlayer].color
     : undefined;
 
+  // Stable across a turn-clock tick: the tick spread-copies the state, so
+  // both players keep the same identity objects. Rebuilding these as fresh
+  // object literals every render failed Board's memo (and BoardCell's) on
+  // every comparison, re-rendering all nine cells once a second for nothing.
+  const boardColors = useMemo(
+    () => ({
+      [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].color,
+      [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].color,
+    }),
+    [gameState.players],
+  );
+  const boardShapes = useMemo(
+    () => ({
+      [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].shape,
+      [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].shape,
+    }),
+    [gameState.players],
+  );
+
   const isAITurn =
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
   const isBoardDisabled =
     paused || isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
+  // Why the board is unplayable, in words. Every empty cell announces
+  // "empty" alone, which reads as interactive and behaves as a dead end.
+  const boardDisabledReason = paused
+    ? "game is paused"
+    : isAITurn
+      ? "waiting for the computer to move"
+      : gameState.gameStatus !== GameStatus.ACTIVE
+        ? "game is over"
+        : undefined;
 
   return (
     <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
@@ -273,20 +301,15 @@ function LocalGameSurface({
       />
       <Board
         board={gameState.board}
-        colors={{
-          [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].color,
-          [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].color,
-        }}
-        shapes={{
-          [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].shape,
-          [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].shape,
-        }}
+        colors={boardColors}
+        shapes={boardShapes}
         winningCombination={gameState.winningCombination}
         nextToRemove={gameState.nextToRemove}
         previewPlayer={previewPlayer}
         previewColor={previewColor}
         previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
         disabled={isBoardDisabled}
+        disabledReason={boardDisabledReason}
         onCellClick={handleCellClick}
       />
       <HelpDrawer

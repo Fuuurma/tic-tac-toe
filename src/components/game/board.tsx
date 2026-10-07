@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { COLOR_RGB, Color, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { BoardCell } from "./boardCell";
 
@@ -12,10 +12,25 @@ interface BoardProps {
   previewColor?: Color;
   previewShape?: SymbolShape;
   disabled: boolean;
+  /** Plain-language reason the board is unplayable (paused, waiting for the
+   *  other player, game over). Surfaced in every empty cell's accessible
+   *  name so "empty" is not the whole story. */
+  disabledReason?: string;
   onCellClick: (index: number) => void;
 }
 
-export function Board({
+/**
+ * Memoized: the turn clock rewrites `turnTimeRemaining` once a second, and
+ * every other prop here is a stable reference across a tick (board,
+ * winningCombination and nextToRemove are spread-copied, not rebuilt). Only
+ * `hovered` changes locally, and it lives inside this component. Without
+ * memo the whole 9-cell subtree re-rendered on every idle tick.
+ *
+ * This only pays off if callers pass stable `colors`/`shapes` objects —
+ * a fresh object literal each render fails every comparison and defeats both
+ * this and BoardCell's own memo.
+ */
+export const Board = memo(function Board({
   board,
   colors,
   shapes,
@@ -25,6 +40,7 @@ export function Board({
   previewColor,
   previewShape,
   disabled,
+  disabledReason,
   onCellClick,
 }: BoardProps) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -102,6 +118,7 @@ export function Board({
                     isNextToRemove={isNext}
                     isWinningCell={isWinning}
                     isDisabled={disabled}
+                    disabledReason={disabledReason}
                     isHovered={hovered === index}
                     previewPlayer={previewPlayer}
                     previewColor={previewColor}
@@ -117,4 +134,4 @@ export function Board({
       </div>
     </div>
   );
-}
+});

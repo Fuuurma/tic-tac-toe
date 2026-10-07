@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AI_Difficulty,
   Color,
@@ -119,6 +119,23 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     localSymbol !== null
       ? peer.state.gameState.players[localSymbol]?.color
       : undefined;
+  // Stable across a turn-clock tick, so Board's memo actually holds. Fresh
+  // object literals here failed every comparison and re-rendered all nine
+  // cells once a second for nothing.
+  const boardColors = useMemo(
+    () => ({
+      [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
+      [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
+    }),
+    [peer.state.gameState.players],
+  );
+  const boardShapes = useMemo(
+    () => ({
+      [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].shape,
+      [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].shape,
+    }),
+    [peer.state.gameState.players],
+  );
   const showGame = ["connected", "reconnecting", "disconnected"].includes(peer.state.status);
 
   const message = onlineMessage(peer.state.status, peer.state.message);
@@ -312,7 +329,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             onHelp={() => setHelpOpen(true)}
             onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
             onPauseChange={setPanelPaused}
-            paused={peer.paused || settingsOpen || helpOpen}
+            paused={peer.paused || peer.hostPaused || settingsOpen || helpOpen}
             onAcceptRematch={
               peer.state.rematchIncoming ? () => peer.acceptRematch() : undefined
             }
@@ -335,14 +352,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
           <Board
             board={peer.state.gameState.board}
-            colors={{
-              [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
-              [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
-            }}
-            shapes={{
-              [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].shape,
-              [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].shape,
-            }}
+            colors={boardColors}
+            shapes={boardShapes}
             winningCombination={peer.state.gameState.winningCombination}
             nextToRemove={peer.state.gameState.nextToRemove}
             previewPlayer={previewPlayer}
@@ -350,10 +361,22 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             previewShape={previewPlayer ? peer.state.gameState.players[previewPlayer].shape : undefined}
             disabled={
               peer.paused ||
+              peer.hostPaused ||
               peer.state.status !== "connected" ||
               localSymbol === null ||
               peer.state.gameState.currentPlayer !== localSymbol ||
               peer.state.gameState.gameStatus !== "ACTIVE"
+            }
+            disabledReason={
+              peer.paused || peer.hostPaused
+                ? "game is paused"
+                : peer.state.status !== "connected"
+                  ? "not connected to your opponent"
+                  : peer.state.gameState.currentPlayer !== localSymbol
+                    ? "waiting for your opponent to move"
+                    : peer.state.gameState.gameStatus !== "ACTIVE"
+                      ? "game is over"
+                      : undefined
             }
             onCellClick={peer.sendMove}
           />
