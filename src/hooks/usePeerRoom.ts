@@ -406,7 +406,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
 
   const joinAsGuest = useCallback(
-    (roomId: string, wsUrl?: string) => joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl),
+    (roomId: string, wsUrl?: string, slotToken?: string) =>
+      joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl, slotToken),
     [lifecycleDeps],
   );
 
@@ -421,6 +422,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostDisplayName: options.hostDisplayName,
       startAsHost,
       joinAsGuest,
+      setRoomSlotToken: (token) => roomRef.current?.setSlotToken(token),
     });
   }, [joinAsGuest, options.hostDisplayName, startAsHost, stopTimer, update]);
 

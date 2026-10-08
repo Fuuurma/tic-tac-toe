@@ -395,6 +395,63 @@ describe("RoomClient reconnect credential (MM-01)", () => {
     await expect(pending).rejects.toThrow("closed");
   });
 
+  it("echoes the matchmaking slotToken in hello when bound", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    stubStorage();
+    const client = new RoomClient({
+      displayName: "Tester",
+      game: "tictactoe",
+      guestId: "guest:1",
+      role: "guest",
+      wsUrl: "ws://relay.test/room/ABCDEF1234567890?game=tictactoe",
+      slotToken: "slot-tok-123",
+    });
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    const sent = captureSent(ws);
+    ws.emit("open");
+    expect(sent).toHaveLength(1);
+    const hello = JSON.parse(sent[0]) as Record<string, unknown>;
+    expect(hello.slotToken).toBe("slot-tok-123");
+    client.close();
+    await expect(pending).rejects.toThrow("closed");
+  });
+
+  it("omits slotToken from hello when none was issued", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    stubStorage();
+    const client = makeRoomClient();
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    const sent = captureSent(ws);
+    ws.emit("open");
+    const hello = JSON.parse(sent[0]) as Record<string, unknown>;
+    expect("slotToken" in hello).toBe(false);
+    client.close();
+    await expect(pending).rejects.toThrow("closed");
+  });
+
+  it("a late-bound slotToken rides the next hello", async () => {
+    // The host's socket opens before its match is disclosed, so its join
+    // capability arrives via setSlotToken — it must ride every hello from
+    // then on, including reconnects.
+    vi.stubGlobal("WebSocket", FakeSocket);
+    stubStorage();
+    const client = makeRoomClient();
+    client.setSlotToken("late-token");
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    const sent = captureSent(ws);
+    ws.emit("open");
+    const hello = JSON.parse(sent[0]) as Record<string, unknown>;
+    expect(hello.slotToken).toBe("late-token");
+    client.close();
+    await expect(pending).rejects.toThrow("closed");
+  });
+
   it("retains the welcome credential and sends it on reconnect", async () => {
     vi.stubGlobal("WebSocket", FakeSocket);
     vi.useFakeTimers();

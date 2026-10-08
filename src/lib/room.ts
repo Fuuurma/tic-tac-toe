@@ -66,6 +66,13 @@ interface RoomClientOptions {
   guestId: string;
   displayName: string;
   role?: "host" | "guest";
+  /**
+   * Per-player join capability issued by matchmaking (pre-claim fix).
+   * Echoed in `hello` so an allocated room can tell the real player from a
+   * peer that merely learned the disclosed guestId. Invite/direct rooms
+   * send none.
+   */
+  slotToken?: string;
   protocol?: string;
   maxBackoffMs?: number;
   autoReconnect?: boolean;
@@ -145,6 +152,7 @@ export class RoomClient {
   private pendingConnect: Promise<RoomSession> | null = null;
   private preWelcomeError: Error | null = null;
   private reconnectToken: string | null = null;
+  private slotToken: string | null = null;
 
   private messageHandler: ((msg: RoomEnvelope) => void) | null = null;
   private statusHandler: ((status: RoomStatus, detail?: string) => void) | null =
@@ -165,6 +173,16 @@ export class RoomClient {
     // Retained credential from a previous session in this room (MM-01):
     // lets a refresh reclaim the same slot within the server grace window.
     this.reconnectToken = loadToken(tokenKey(opts.wsUrl));
+    this.slotToken = opts.slotToken ?? null;
+  }
+
+  /**
+   * Bind the matchmaking-issued join capability after construction — the
+   * host's socket opens before its match is disclosed, so the token can
+   * only arrive later via the poll result.
+   */
+  setSlotToken(token: string | null): void {
+    this.slotToken = token;
   }
 
   setMessageHandler(handler: (msg: RoomEnvelope) => void): void {
@@ -389,6 +407,7 @@ export class RoomClient {
           displayName: this.opts.displayName,
           role: this.role ?? this.opts.role ?? undefined,
           reconnectToken: this.reconnectToken ?? undefined,
+          slotToken: this.slotToken ?? undefined,
         });
         if (!sent) {
           settled = true;

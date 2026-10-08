@@ -87,7 +87,7 @@ function closeExistingRoom(roomRef: RoomLifecycleDeps["roomRef"]) {
   leaveRoom(roomRef);
 }
 
-export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "host" | "guest"): RoomClient {
+export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "host" | "guest", slotToken?: string): RoomClient {
   const { stateRef, roleRef, setState, handleWsEvent, handleHostData, handleGuestData } = deps;
   const identity = getOrCreateGuestIdentity();
   const client = new RoomClient({
@@ -96,6 +96,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     guestId: identity.guestId,
     displayName: deps.hostDisplayName,
     role,
+    slotToken,
   });
   client.setMessageHandler((msg) => {
     // Relay errors carry a `code` field (lib/room.ts ErrorMessage);
@@ -249,7 +250,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   });
 }
 
-export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: string) {
+export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: string, slotToken?: string) {
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
@@ -283,7 +284,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
-  const room = buildRoomClient(deps, resolvedUrl, "guest");
+  const room = buildRoomClient(deps, resolvedUrl, "guest", slotToken);
   room.connect().catch((err) => {
     update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
   });

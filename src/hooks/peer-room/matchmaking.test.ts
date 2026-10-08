@@ -91,11 +91,12 @@ describe("runQuickMatch", () => {
     mockedFindMatch.mockResolvedValue({
       status: "matched",
       match: makeMatch({ roomId: "r2", wsUrl: "wss://relay.example/room/r2" }),
+      slotToken: "guest-slot-tok",
     });
 
     await runQuickMatch(deps);
 
-    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2");
+    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", "guest-slot-tok");
     expect(deps.startAsHost).not.toHaveBeenCalled();
     expect(mockedLeaveMatch).not.toHaveBeenCalled();
     expect(hasStartedRef.current).toBe(false);

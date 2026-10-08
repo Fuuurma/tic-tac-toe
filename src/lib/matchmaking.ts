@@ -33,7 +33,7 @@ export type MatchmakingResponse =
        */
       position?: number;
     }
-  | { status: "matched"; match: Match };
+  | { status: "matched"; match: Match; slotToken?: string };
 
 function isParticipant(value: unknown): value is Match["host"] {
   if (typeof value !== "object" || value === null) return false;
@@ -77,12 +77,14 @@ export function parseMatchmakingResponse(data: unknown): MatchmakingResponse {
       isParticipant(guest) &&
       (wsUrl === undefined || typeof wsUrl === "string")
     ) {
+      const slotToken = typeof d.slotToken === "string" ? d.slotToken : undefined;
       return {
         status: "matched",
         match:
           wsUrl === undefined
             ? { roomId, role, host, guest }
             : { roomId, role, host, guest, wsUrl },
+        ...(slotToken === undefined ? {} : { slotToken }),
       };
     }
   }

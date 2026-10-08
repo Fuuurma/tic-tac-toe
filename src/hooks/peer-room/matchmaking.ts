@@ -29,7 +29,14 @@ export interface MatchmakingDeps {
   patchStatus: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   hostDisplayName: string;
   startAsHost: (roomId?: string, wsUrl?: string) => void;
-  joinAsGuest: (roomId: string, wsUrl?: string) => void;
+  joinAsGuest: (roomId: string, wsUrl?: string, slotToken?: string) => void;
+  /**
+   * Hands the match-issued join capability to the live room client. The
+   * host's socket opens before its match is disclosed, so its token can
+   * only arrive via the poll result — needed if a later reconnect hellos
+   * after the slot's reconnect grace expired.
+   */
+  setRoomSlotToken?: (token: string | null) => void;
   /** Test seam: shrink the 2-minute quick-match poll ceiling. */
   maxPollMs?: number;
 }
@@ -121,6 +128,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           consecutiveFailures = 0;
           if (pollResponse.status === "matched") {
             matched = true;
+            deps.setRoomSlotToken?.(pollResponse.slotToken ?? null);
             break;
           }
           setStatus({ queuePosition: pollResponse.position ?? null });
@@ -175,7 +183,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     if (response.status === "matched") {
       matchmakingTicketRef.current = null;
       hasStartedRef.current = false;
-      joinAsGuest(response.match.roomId, response.match.wsUrl);
+      joinAsGuest(response.match.roomId, response.match.wsUrl, response.slotToken);
       return;
     }
   } catch (err) {
