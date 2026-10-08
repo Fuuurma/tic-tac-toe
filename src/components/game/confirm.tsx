@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ConfirmProps {
   isOpen: boolean;
@@ -24,10 +25,8 @@ export function Confirm({
   onConfirm,
   onCancel,
 }: ConfirmProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const hasPreviousFocusRef = useRef(false);
   const dialogId = useId();
   const titleId = `${dialogId}-title`;
   const descriptionId = `${dialogId}-description`;
@@ -36,95 +35,71 @@ export function Confirm({
     onCancelRef.current = onCancel;
   }, [onCancel]);
 
+  // Native <dialog> + showModal(): Esc fires `cancel`, focus is trapped
+  // in the top layer, and focus returns to the invoker on close — the
+  // hand-rolled keydown handler and focus-save refs existed only to
+  // re-create this behavior. The dialog stays mounted so `open` is the
+  // single source of truth; isOpen just syncs it.
   useEffect(() => {
-    if (!isOpen) {
-      const previousFocus = previousFocusRef.current;
-      if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
-      previousFocusRef.current = null;
-      hasPreviousFocusRef.current = false;
-      return;
+    const dlg = dialogRef.current;
+    if (!dlg) return;
+    if (isOpen && !dlg.open) {
+      dlg.showModal();
+      cancelRef.current?.focus();
+    } else if (!isOpen && dlg.open) {
+      dlg.close();
     }
-    if (!hasPreviousFocusRef.current) {
-      previousFocusRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      hasPreviousFocusRef.current = true;
-    }
-    cancelRef.current?.focus();
-    const dialog = containerRef.current;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancelRef.current();
-        return;
-      }
-      if (e.key === "Tab" && dialog) {
-        const focusable = dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, [isOpen]);
 
-  if (!isOpen) return null;
   return (
-    <div
-      ref={containerRef}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className="absolute inset-x-0 -top-3 bottom-0 z-50 flex flex-col justify-center rounded-2xl bg-overlay-scrim p-4"
+      onCancel={() => onCancelRef.current()}
+      className={cn(
+        "inset-0 m-auto w-[calc(100%-2rem)] max-w-sm bg-transparent p-0 backdrop:bg-overlay-scrim",
+        isOpen && "animate-pop-in",
+      )}
     >
       <div
-        className="glass animate-pop-in rounded-2xl px-5 py-6 sm:px-6 sm:py-7"
-        style={{
-          "--glass-alpha": "0.96",
-          "--player-color": destructive ? "239 68 68" : playerColor,
-        } as React.CSSProperties}
+        className="glass rounded-2xl px-5 py-6 sm:px-6 sm:py-7"
+        style={
+          {
+            "--glass-alpha": "0.96",
+            "--player-color": destructive ? "239 68 68" : playerColor,
+          } as React.CSSProperties
+        }
       >
-      <h2 id={titleId} className="text-base font-semibold">
-        {title}
-      </h2>
-      <p id={descriptionId} className="mt-2 text-sm text-muted-foreground">
-        {description}
-      </p>
-      <div className="mt-5 flex justify-end gap-2">
-        <Button ref={cancelRef} variant="glass" size="sm" onClick={onCancel}>
-          {cancelText}
-        </Button>
-        <Button
-          size="sm"
-          variant="glass"
-          onClick={onConfirm}
-          className="font-bold"
-          style={{
-            "--glass-sweep-color": destructive ? "239 68 68" : playerColor,
-            "--glass-tint": destructive ? "239 68 68" : playerColor,
-            "--glass-alpha": "0.15",
-            "--glass-sheen": destructive ? "239 68 68" : playerColor,
-            "--glass-sheen-alpha": "0.25",
-          } as React.CSSProperties}
-        >
-          {confirmText}
-        </Button>
+        <h2 id={titleId} className="text-base font-semibold">
+          {title}
+        </h2>
+        <p id={descriptionId} className="mt-2 text-sm text-muted-foreground">
+          {description}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button ref={cancelRef} variant="glass" size="sm" onClick={onCancel}>
+            {cancelText}
+          </Button>
+          <Button
+            size="sm"
+            variant="glass"
+            onClick={onConfirm}
+            className="font-bold"
+            style={
+              {
+                "--glass-sweep-color": destructive ? "239 68 68" : playerColor,
+                "--glass-tint": destructive ? "239 68 68" : playerColor,
+                "--glass-alpha": "0.15",
+                "--glass-sheen": destructive ? "239 68 68" : playerColor,
+                "--glass-sheen-alpha": "0.25",
+              } as React.CSSProperties
+            }
+          >
+            {confirmText}
+          </Button>
+        </div>
       </div>
-      </div>
-    </div>
+    </dialog>
   );
 }
