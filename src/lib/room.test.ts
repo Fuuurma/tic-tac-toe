@@ -115,6 +115,44 @@ describe("RoomClient reconnect gating (F151)", () => {
     expect(statuses).toContain("reconnecting");
     client.close();
   });
+
+  it("auto-reconnects when an established session errors before close", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "guest", type: "welcome" }),
+    });
+    await expect(pending).resolves.toMatchObject({ role: "guest" });
+
+    // Per the WebSocket spec an `error` is always followed by `close`.
+    // The error must not consume the attempt the close handler needs
+    // to reach F151 auto-reconnect (work:690).
+    ws.emit("error");
+    ws.close();
+    expect(statuses).toContain("reconnecting");
+    client.close();
+  });
+
+  it("a pre-welcome error followed by close stays terminal", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("error");
+    ws.close();
+    await expect(pending).rejects.toThrow("socket error");
+
+    expect(statuses).not.toContain("reconnecting");
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
 });
 
 /**

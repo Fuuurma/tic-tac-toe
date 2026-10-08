@@ -491,7 +491,12 @@ export class RoomClient {
         if (!isCurrent() || (settled && !welcomed)) return;
         settled = true;
         retireHandshakeTimer();
-        supersede();
+        // Do NOT supersede here: the spec-mandated `close` that follows
+        // owns terminal state (including F151 auto-reconnect), and it
+        // returns early for a non-current attempt. Superseding would
+        // swallow the close and strand an established session with no
+        // retry. Pre-welcome, the close's `settled && !welcomed` guard
+        // already prevents a double settle.
         if (!welcomed) {
           settleWelcome(
             null,
