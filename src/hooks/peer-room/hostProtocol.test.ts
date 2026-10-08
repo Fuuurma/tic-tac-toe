@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
+import { isPeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState } from "../usePeerRoom";
 import {
@@ -267,6 +268,26 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
 });
 
 describe("handleHostMessage rematch deadline", () => {
+  it("keeps the rematch gameStart valid when the host clears their name", () => {
+    const game = terminalGame();
+    game.players[PlayerSymbol.X].username = "Alice";
+    game.players[PlayerSymbol.O].username = "Bob";
+    const { deps } = makeDeps(game);
+    deps.hostPendingSettingsRef.current = {
+      displayName: "",
+      color: game.players[PlayerSymbol.X].color,
+      playerShape: game.players[PlayerSymbol.X].shape,
+    };
+
+    handleHostMessage(deps, { type: "rematchAccept" });
+
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+    const frame = send.mock.calls[0][0] as { type: string; gameState: GameState };
+    expect(frame).toMatchObject({ type: "gameStart" });
+    expect(Object.values(frame.gameState.players).map(({ username }) => username)).toContain("Alice");
+    expect(isPeerMessage(frame)).toBe(true);
+  });
+
   it("rematchAccept clears the pending flag + timeout", () => {
     const { deps } = makeDeps(terminalGame());
 
