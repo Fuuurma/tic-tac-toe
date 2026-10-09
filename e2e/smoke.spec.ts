@@ -5,8 +5,19 @@ async function openPlayerSettings(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Edit your player settings" }).click();
 }
 
+// The settings sheet's dismiss button is named "Close" and the help drawer's
+// is "Close help" — an unscoped getByRole name match is a substring hit on
+// both, so whenever both dialogs render (the drawer once stayed mounted in
+// the lobby) strict mode fails on two elements. Scope to the sheet.
+async function closeSettingsSheet(page: import("@playwright/test").Page) {
+  await page
+    .getByRole("dialog", { name: "Settings" })
+    .getByRole("button", { name: "Close" })
+    .click();
+}
+
 async function closePlayerSettings(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Close" }).click();
+  await closeSettingsSheet(page);
 }
 
 async function openOpponentSettings(page: import("@playwright/test").Page) {
@@ -14,7 +25,7 @@ async function openOpponentSettings(page: import("@playwright/test").Page) {
 }
 
 async function closeOpponentSettings(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Close" }).click();
+  await closeSettingsSheet(page);
 }
 
 async function fillLobby(
@@ -532,7 +543,7 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
   await page.getByRole("radio", { name: "vs Friend", exact: true }).click();
   await page.getByRole("button", { name: "Edit opponent settings" }).click();
   await page.getByLabel("Opponent name", { exact: true }).fill("Bob");
-  await page.getByRole("button", { name: "Close" }).click();
+  await closeSettingsSheet(page);
   await page.getByRole("button", { name: "Start Game" }).click();
 
   const ring = page.locator("path.animate-countdown-border");
@@ -566,7 +577,7 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
   expect(atPause).toBe(beforePause);
 
   // Closing resumes: the ring runs again and the number moves on.
-  await page.getByRole("button", { name: "Close" }).click();
+  await closeSettingsSheet(page);
   await expect.poll(playState).toBe("running");
   await page.waitForTimeout(1500);
   expect(await seconds()).not.toBe(atPause);
