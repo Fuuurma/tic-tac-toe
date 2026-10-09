@@ -207,3 +207,50 @@ describe("OnlineGameSurface result recording (F474)", () => {
     expect(mocks.recordLoss).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("OnlineGameSurface room-code disclosure", () => {
+  // A room code is a join credential for a specific invited person. Quick
+  // Match is paired by the service, so it used to hand out the internal room
+  // id of a match nobody asked to share — both as a share banner while
+  // searching and as a copyable chip in the HUD once play started.
+  it("shows no room code while a quick match is searching", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "waiting", roomId: "QM-7731" }),
+    );
+    render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "quick" }} onExit={vi.fn()} />,
+    );
+
+    expect(screen.queryByText("QM-7731")).toBeNull();
+    expect(screen.queryByText("Room ready")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Copy code/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Copy invite link/ })).toBeNull();
+    screen.getByText("Finding an opponent…");
+  });
+
+  it("keeps the room code out of the HUD for a quick-match game", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "connected", roomId: "QM-7731" }),
+    );
+    render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "quick" }} onExit={vi.fn()} />,
+    );
+
+    expect(screen.queryByText("QM-7731")).toBeNull();
+    expect(screen.queryByLabelText(/Room code/)).toBeNull();
+  });
+
+  it("still shares the code for a room the user deliberately created", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "waiting", roomId: "FRIDAY-9" }),
+    );
+    render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "create" }} onExit={vi.fn()} />,
+    );
+
+    screen.getByText("Room ready");
+    screen.getByText("FRIDAY-9");
+    screen.getByRole("button", { name: /Copy code/ });
+    expect(screen.queryByText("Finding an opponent…")).toBeNull();
+  });
+});

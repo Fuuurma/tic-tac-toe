@@ -3,7 +3,9 @@ import {
   getMatchPollDelay,
   MATCH_POLL_INITIAL_DELAY_MS,
   MATCH_POLL_MAX_DELAY_MS,
+  parseMatchmakingHealth,
   parseMatchmakingResponse,
+  totalOnlinePlayers,
 } from "@/lib/matchmaking";
 
 describe("getMatchPollDelay", () => {
@@ -123,5 +125,47 @@ describe("module import safety without VITE_MATCHMAKING_URL", () => {
     // The call reached a real URL rather than exploding at module scope.
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("/api/matchmaking/ttt/join");
+  });
+});
+
+describe("parseMatchmakingHealth", () => {
+  it("accepts a well-formed health body", () => {
+    expect(
+      parseMatchmakingHealth({ ok: true, game: "tictactoe", waiting: 3, matches: 2 }),
+    ).toEqual({ game: "tictactoe", waiting: 3, matches: 2 });
+  });
+
+  it("accepts an empty queue", () => {
+    expect(
+      parseMatchmakingHealth({ ok: true, game: "tictactoe", waiting: 0, matches: 0 }),
+    ).toEqual({ game: "tictactoe", waiting: 0, matches: 0 });
+  });
+
+  // The readout sits next to the Quick Match button. A confident 0 read as
+  // "nobody is playing" and talked people out of pressing it, so anything
+  // unexpected has to collapse to "unknown" instead of to a number.
+  it("rejects bodies that are not a healthy service report", () => {
+    expect(parseMatchmakingHealth(null)).toBeNull();
+    expect(parseMatchmakingHealth("nope")).toBeNull();
+    expect(parseMatchmakingHealth({})).toBeNull();
+    expect(parseMatchmakingHealth({ ok: false, game: "g", waiting: 1, matches: 1 })).toBeNull();
+    expect(parseMatchmakingHealth({ ok: true, waiting: 1, matches: 1 })).toBeNull();
+  });
+
+  it("rejects counts that are not whole non-negative numbers", () => {
+    const base = { ok: true, game: "tictactoe", matches: 0 };
+    expect(parseMatchmakingHealth({ ...base, waiting: -1 })).toBeNull();
+    expect(parseMatchmakingHealth({ ...base, waiting: 1.5 })).toBeNull();
+    expect(parseMatchmakingHealth({ ...base, waiting: "3" })).toBeNull();
+    expect(parseMatchmakingHealth({ ...base, waiting: Number.NaN })).toBeNull();
+    expect(parseMatchmakingHealth({ ok: true, game: "g", waiting: 1, matches: null })).toBeNull();
+  });
+});
+
+describe("totalOnlinePlayers", () => {
+  it("counts both players of every live match alongside the queue", () => {
+    expect(totalOnlinePlayers({ game: "g", waiting: 3, matches: 2 })).toBe(7);
+    expect(totalOnlinePlayers({ game: "g", waiting: 0, matches: 0 })).toBe(0);
+    expect(totalOnlinePlayers({ game: "g", waiting: 1, matches: 0 })).toBe(1);
   });
 });

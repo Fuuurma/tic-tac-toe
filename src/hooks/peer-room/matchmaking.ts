@@ -164,15 +164,16 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
 
       // If the polling timed out without a match and the user didn't
       // cancel, surface an error so they aren't left in "waiting"
-      // forever. The host room stays open — the user can share the
-      // code manually or exit.
+      // forever. The host room stays open, but it was never a room the
+      // user was told about — offering to share its code would resurrect
+      // exactly the invite flow Quick Match exists to avoid.
       if (!matched && !userCancelled) {
         patchStatus((prev) =>
           prev.status === "waiting" || prev.status === "creating"
             ? {
                 ...prev,
                 status: "error",
-                message: "No opponent found after 2 minutes. Try again or share your room code.",
+                message: "No opponent found after 2 minutes. Try again, or create a room to invite someone.",
               }
             : prev,
         );

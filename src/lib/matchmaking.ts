@@ -144,6 +144,73 @@ export function getMatchPollDelay(attempt: number): number {
   );
 }
 
+/**
+ * Live queue/match depth for a game, used for the "N players online"
+ * readout. Counts are the Worker's own and are approximate by nature:
+ * tickets expire, tabs close without a clean leave, and a match is only
+ * known once both tickets have been consumed.
+ */
+export interface MatchmakingHealth {
+  game: string;
+  /** Players sitting in the matchmaking queue right now. */
+  waiting: number;
+  /** Matches formed and not yet expired. Each one is two players. */
+  matches: number;
+}
+
+/**
+ * The wire is not the type system, same rule as the matchmaking response:
+ * a proxy error page, an HTML body, or a future shape must not reach the
+ * UI as a number. Anything unexpected yields `null`, which the UI renders
+ * as "count unavailable" rather than as a confident wrong 0.
+ */
+export function parseMatchmakingHealth(data: unknown): MatchmakingHealth | null {
+  if (typeof data !== "object" || data === null) return null;
+  const d = data as Record<string, unknown>;
+  if (d.ok !== true || typeof d.game !== "string") return null;
+  const { waiting, matches } = d;
+  if (
+    typeof waiting !== "number" ||
+    typeof matches !== "number" ||
+    !Number.isInteger(waiting) ||
+    !Number.isInteger(matches) ||
+    waiting < 0 ||
+    matches < 0
+  ) {
+    return null;
+  }
+  return { game: d.game, waiting, matches };
+}
+
+/** Players a visitor could plausibly meet: everyone queued plus both
+ *  players of every live match. */
+export function totalOnlinePlayers(health: MatchmakingHealth): number {
+  return health.waiting + health.matches * 2;
+}
+
+/**
+ * Best-effort queue depth. Callers treat a throw as "unknown", never as 0 —
+ * a hard 0 next to the Quick Match button would read as "nobody is playing"
+ * and talk people out of pressing it.
+ */
+export async function fetchMatchmakingHealth(
+  game: string,
+  baseUrl?: string,
+): Promise<MatchmakingHealth> {
+  const response = await fetch(
+    `${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/health`,
+    { method: "GET", signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS) },
+  );
+  if (!response.ok) {
+    throw new Error(`Matchmaking health failed: ${response.status}`);
+  }
+  const parsed = parseMatchmakingHealth(await response.json());
+  if (!parsed) {
+    throw new Error("Malformed matchmaking health response");
+  }
+  return parsed;
+}
+
 export async function findMatch(options: FindMatchOptions): Promise<MatchmakingResponse> {
   const response = await fetch(
     `${resolveBaseUrl(options.baseUrl)}/api/matchmaking/${options.game}/join`,

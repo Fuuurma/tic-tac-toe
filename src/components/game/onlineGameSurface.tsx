@@ -12,6 +12,7 @@ import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
 import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
+import { usePlayerCount } from "@/hooks/usePlayerCount";
 import { useGameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
 import { savePreferences } from "@/lib/preferences";
@@ -43,6 +44,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     hostShape: config.playerShape,
     gameMode: GameModes.ONLINE,
   });
+  // Only the searching state needs the live count, and only Quick Match has
+  // a searching state worth watching.
+  const { count: playerCount } = usePlayerCount(
+    config.onlineAction === "quick" &&
+      (peer.state.status === "waiting" || peer.state.status === "creating"),
+  );
 
   // Connection effect: runs when the action or room ID changes.
   // The cleanup leaves the room before re-connecting, so changing the action
@@ -201,11 +208,27 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
   return (
     <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
-      {/* Status banners — always on top so the user sees them first */}
-      {peer.state.status === "waiting" && (
+      {/* Status banners — always on top so the user sees them first.
+          A room code is an invitation token for a specific person, so it
+          belongs to "create a room" only. Quick match is paired by the
+          service; surfacing its internal room id would hand out a join key
+          for a match nobody asked to be in. */}
+      {peer.state.status === "waiting" && config.onlineAction === "create" && (
         <RoomIdShare
           roomId={peer.state.roomId}
           origin={typeof window !== "undefined" ? window.location.origin : ""}
+          onCancel={() => {
+            peer.leave();
+            onExit();
+          }}
+        />
+      )}
+      {peer.state.status === "waiting" && config.onlineAction === "quick" && (
+        <OnlineConnectionState
+          message="Finding an opponent…"
+          detail={quickMatchDetail(playerCount?.players, peer.state.queuePosition)}
+          hint="No room code needed — we'll pair you automatically."
+          cancelLabel="Cancel search"
           onCancel={() => {
             peer.leave();
             onExit();
@@ -322,7 +345,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             gameState={peer.state.gameState}
             message={message}
             gameMode={GameModes.ONLINE}
-            roomCode={peer.state.roomId || undefined}
+            roomCode={
+              // Same rule as the share banner: the HUD's copyable chip is a
+              // join credential, and a quick match was never something the
+              // opponent was invited to.
+              config.onlineAction === "quick" ? undefined : peer.state.roomId || undefined
+            }
             onNewGame={
               // Either side may ask for another game; the receiver answers
               // with Accept or Decline. Both roles get the same controls.
@@ -429,6 +457,24 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
   if (status === "reconnecting") return fallback || "Reconnecting…";
   if (status === "error") return fallback;
   return fallback;
+}
+
+/**
+ * The live line under a Quick Match search. The count is the honest answer to
+ * "is anybody actually playing?", which is what someone who pressed a button
+ * instead of typing a code is actually asking.
+ */
+function quickMatchDetail(
+  playersOnline: number | undefined,
+  queuePosition: number | null,
+): string | undefined {
+  const count =
+    typeof playersOnline === "number"
+      ? `${playersOnline} ${playersOnline === 1 ? "player" : "players"} online.`
+      : "Checking how many players are online.";
+  // The queue depth includes you, so "1 online" while you search is expected
+  // and not a reason to bail. Say where you actually stand instead.
+  return queuePosition != null ? `${count} You are number ${queuePosition} in the queue.` : count;
 }
 
 function RoomIdShare({
@@ -547,10 +593,15 @@ function RoomIdShare({
 function OnlineConnectionState({
   message,
   detail,
+  hint,
+  cancelLabel,
   onCancel,
 }: {
   message: string;
   detail?: string;
+  /** Overrides the room-flavoured default. A Quick Match has no room to change. */
+  hint?: string;
+  cancelLabel?: string;
   onCancel: () => void;
 }) {
   return (
@@ -569,10 +620,10 @@ function OnlineConnectionState({
         </p>
       )}
       <p className="text-[11px] leading-tight text-muted-foreground">
-        You can return to setup if you want to choose a different room.
+        {hint ?? "You can return to setup if you want to choose a different room."}
       </p>
       <Button size="sm" variant="glass" onClick={onCancel}>
-        Back to setup
+        {cancelLabel ?? "Back to setup"}
       </Button>
     </div>
   );

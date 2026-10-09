@@ -9,7 +9,7 @@ async function configureQuickPlayer(
   await page.getByRole("radio", { name: "Online", exact: true }).click();
   await page.getByRole("radio", { name: "Quick", exact: true }).click();
   await page.getByRole("button", { name: "Edit your player settings" }).click();
-  await page.getByLabel("Name", { exact: true }).fill(name);
+  await page.getByLabel("Your name", { exact: true }).fill(name);
   await page.getByRole("button", { name: "Close" }).click();
 }
 
@@ -25,13 +25,9 @@ test("quick match pairs two players", async ({ browser }) => {
   const hostPage = await host.newPage();
   const guestPage = await guest.newPage();
 
-  // Host starts a quick match — the host sees the "Finding an opponent…"
-  // connection state until the relay completes the pairing.
+  // Host starts a quick match.
   await configureQuickPlayer(hostPage, "Host");
   await hostPage.getByRole("button", { name: "Quick Match" }).click();
-  await expect(hostPage.getByText(/Finding an opponent…|Room ready/)).toBeVisible({
-    timeout: 30_000,
-  });
 
   // Guest starts a quick match
   await configureQuickPlayer(guestPage, "Guest");
@@ -40,6 +36,19 @@ test("quick match pairs two players", async ({ browser }) => {
   // Both reach the board and connect
   await expect(hostPage.getByRole("group", { name: /^Guest,/ })).toBeVisible({ timeout: 90_000 });
   await expect(guestPage.getByRole("group", { name: /^Host,/ })).toBeVisible({ timeout: 90_000 });
+
+  // A quick match is paired by the service, so its room is never an
+  // invitation for a third person: no share banner, no copy buttons, and no
+  // code chip in the HUD — on either side. Asserted here rather than mid-
+  // search because with a warm queue the pairing can complete before the
+  // "Finding an opponent…" state is ever observable, and a test that waits
+  // for a spinner races the match instead of checking the rule.
+  for (const page of [hostPage, guestPage]) {
+    await expect(page.getByText("Room ready")).toBeHidden();
+    await expect(page.getByRole("button", { name: /Copy code/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Copy invite link/ })).toHaveCount(0);
+    await expect(page.getByLabel(/Room code/)).toHaveCount(0);
+  }
 
   // Host plays top-left
   await hostPage.getByRole("button", { name: "Row 1 column 1" }).click();

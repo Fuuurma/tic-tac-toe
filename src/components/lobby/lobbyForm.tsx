@@ -51,6 +51,7 @@ import { loadPreferences, savePreferences } from "@/lib/preferences";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
+import { usePlayerCount, type PlayerCount } from "@/hooks/usePlayerCount";
 
 export interface LobbyFormPayload {
   displayName: string;
@@ -151,6 +152,11 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Live Online population, polled only while Online is actually on screen.
+  // Answering "is anyone playing?" before the user presses Quick Match is the
+  // whole point — without it, pressing the button is a leap of faith.
+  const { count: playerCount } = usePlayerCount(gameMode === GameModes.ONLINE);
 
   const payload: LobbyFormPayload = useMemo(
     () => ({
@@ -360,6 +366,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
 
           {gameMode === GameModes.ONLINE && (
             <div className="flex flex-col gap-3">
+              <OnlinePopulation count={playerCount} />
               <div
                 role="radiogroup"
                 aria-label="Online match type"
@@ -514,6 +521,37 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
 
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </form>
+  );
+}
+
+/**
+ * Live population readout for Online mode.
+ *
+ * Renders nothing until the first successful read: a confident "0 players"
+ * while the request is still in flight is worse than no line at all, since
+ * it reads as "nobody is playing" and talks people out of pressing Quick
+ * Match. Once known, the queue depth is called out separately from the
+ * total, because only the queued players are the ones you can actually be
+ * matched with.
+ */
+function OnlinePopulation({ count }: { count: PlayerCount | null }) {
+  if (!count) return null;
+  const { players, waiting } = count;
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"
+    >
+      <span aria-hidden="true" className="relative flex size-1.5 shrink-0">
+        <span className="animate-pulse-slow absolute inline-flex size-full rounded-full bg-[rgb(var(--player-color))] opacity-60" />
+        <span className="relative inline-flex size-1.5 rounded-full bg-[rgb(var(--player-color))]" />
+      </span>
+      {players === 0
+        ? "No players online right now"
+        : `${players} ${players === 1 ? "player" : "players"} online` +
+          (waiting > 0 ? ` · ${waiting} looking` : "")}
+    </p>
   );
 }
 

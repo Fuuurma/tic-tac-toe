@@ -23,7 +23,7 @@ async function fillLobby(
     await page.getByLabel("Room code").fill(options.roomId);
   }
   await page.getByRole("button", { name: "Edit your player settings" }).click();
-  await page.getByLabel("Name", { exact: true }).fill(options.name);
+  await page.getByLabel("Your name", { exact: true }).fill(options.name);
   await page.getByRole("button", { name: "Close" }).click();
 }
 

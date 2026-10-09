@@ -120,6 +120,14 @@ pnpm check
 - 10s turn timer; on timeout, random legal move
 - Win detection: 3 in a row/column/diagonal
 
+## Online Match Modes
+
+- Three entry points, three different contracts. **Quick** is paired by the matchmaking service, **Create** mints a room the user invites a specific person to, **Join** consumes a code they were sent. Room codes belong to Create and Join only
+- Quick Match must never surface a room code — not as the share banner while searching, not as the HUD's copyable chip during play, and not in the "no opponent found" error. A quick-match room is an internal pairing detail; publishing it hands out a join key for a match nobody asked to be in. It leaked in all three places before, which is what `onlineGameSurface.test.tsx`'s "room-code disclosure" block now pins shut
+- The live population comes from `GET /api/matchmaking/{game}/health` (`{ ok, game, waiting, matches }`), which the Worker already served — no Worker deploy was needed. `players = waiting + matches * 2`
+- `usePlayerCount` lives in a module-level store behind `useSyncExternalStore`, not component state: polling is not a render concern, and the lobby and the online surface both read it. It never reports 0 before its first successful read — a confident "0 players" next to Quick Match reads as "nobody is playing" and talks people out of pressing it. A failed refresh keeps the last good value and backs off; the poll pauses while the tab is hidden
+- The Worker's queue already matched pairs FIFO on a `waiting` response that carries the room id, so the client still hosts a relay room while searching. That is transport, not a feature — suppressing the code is a UI decision, not a protocol one
+
 ## WebSocket Relay Model
 
 - Default transport is the shared `fuurma-matchmaking` Cloudflare Durable Object WebSocket relay
