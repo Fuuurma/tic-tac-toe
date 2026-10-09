@@ -20,7 +20,7 @@ export function GameMark() {
   return (
     <div
       aria-hidden="true"
-      className="glass-cell grid size-14 shrink-0 grid-cols-3 grid-rows-3 gap-1 rounded-xl p-1.5 shadow-lg"
+      className="glass-cell grid size-14 shrink-0 grid-cols-3 grid-rows-3 gap-1 rounded-xl p-1.5 shadow-lg max-[360px]:hidden"
     >
       {MARKS.map((mark, index) => (
         <span
