@@ -226,8 +226,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       {peer.state.status === "waiting" && config.onlineAction === "quick" && (
         <OnlineConnectionState
           message="Finding an opponent…"
-          detail={quickMatchDetail(playerCount?.players, peer.state.queuePosition)}
-          hint="No room code needed — we'll pair you automatically."
+          detail={quickMatchDetail(playerCount?.waiting, peer.state.queuePosition)}
+          hint="No room code needed. Just wait here and we'll start you."
           cancelLabel="Cancel search"
           onCancel={() => {
             peer.leave();
@@ -460,21 +460,26 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
 }
 
 /**
- * The live line under a Quick Match search. The count is the honest answer to
- * "is anybody actually playing?", which is what someone who pressed a button
- * instead of typing a code is actually asking.
+ * The live line under a Quick Match search.
+ *
+ * This reports the QUEUE, not the lobby's "players online", because the
+ * queue includes the person reading it: "0 players online" while you are the
+ * one searching is self-contradictory, and the number you actually want is
+ * how many OTHER people you can be paired with right now. So count the rest
+ * of the queue, and say so plainly when you are first — which is a real,
+ * reassuring state rather than a failure.
  */
-function quickMatchDetail(
-  playersOnline: number | undefined,
-  queuePosition: number | null,
-): string | undefined {
-  const count =
-    typeof playersOnline === "number"
-      ? `${playersOnline} ${playersOnline === 1 ? "player" : "players"} online.`
-      : "Checking how many players are online.";
-  // The queue depth includes you, so "1 online" while you search is expected
-  // and not a reason to bail. Say where you actually stand instead.
-  return queuePosition != null ? `${count} You are number ${queuePosition} in the queue.` : count;
+function quickMatchDetail(waiting: number | undefined, queuePosition: number | null): string {
+  if (waiting === undefined) return "Checking the queue.";
+  // The health read can also land before the join has registered, in which
+  // case `waiting` undercounts by one — the same "you're first" copy is the
+  // right answer either way, and the next poll corrects it.
+  const others = Math.max(0, waiting - 1);
+  if (others === 0) {
+    return "You're first in the queue. We'll pair you as soon as someone else is looking.";
+  }
+  const place = queuePosition != null ? ` You're number ${queuePosition}.` : "";
+  return `${others} other ${others === 1 ? "player is" : "players are"} looking.${place}`;
 }
 
 function RoomIdShare({

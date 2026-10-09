@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   usePeerRoom: vi.fn(),
   recordWin: vi.fn(),
   recordLoss: vi.fn(),
+  playerCount: null as { players: number; waiting: number } | null,
 }));
 
 vi.mock("@/hooks/usePeerRoom", () => ({
@@ -34,6 +35,12 @@ vi.mock("@/hooks/useGameStats", () => ({
 // The orbs animate on canvas, which jsdom does not implement.
 vi.mock("thinking-orbs", () => ({ ThinkingOrb: () => null }));
 
+// The searching state polls the live queue; keep it inert so these render
+// tests do not depend on the network.
+vi.mock("@/hooks/usePlayerCount", () => ({
+  usePlayerCount: () => ({ count: mocks.playerCount, refresh: () => {} }),
+}));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
 
@@ -46,7 +53,10 @@ class ResizeObserverStub {
 }
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-afterEach(cleanup);
+afterEach(() => {
+  mocks.playerCount = null;
+  cleanup();
+});
 
 function terminalOnlineGame(): GameState {
   return {
@@ -252,5 +262,42 @@ describe("OnlineGameSurface room-code disclosure", () => {
     screen.getByText("FRIDAY-9");
     screen.getByRole("button", { name: /Copy code/ });
     expect(screen.queryByText("Finding an opponent…")).toBeNull();
+  });
+});
+
+describe("OnlineGameSurface quick-match queue copy", () => {
+  const searching = (count: { players: number; waiting: number } | null) => {
+    mocks.playerCount = count;
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "waiting", roomId: "QM-9001" }),
+    );
+    render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "quick" }} onExit={vi.fn()} />,
+    );
+  };
+
+  // The health read counts YOU, because you are in the queue while you read
+  // it. Reporting the raw total gave "0 players online" to a player who was
+  // online and searching, which is both self-contradictory and reads like a
+  // dead lobby.
+  it("never claims nobody is online while the player is searching", () => {
+    searching({ players: 1, waiting: 1 });
+    expect(screen.queryByText(/0 players online/)).toBeNull();
+    screen.getByText(/You're first in the queue/);
+  });
+
+  it("counts the other players who can actually be paired", () => {
+    searching({ players: 5, waiting: 3 });
+    screen.getByText(/2 other players are looking/);
+  });
+
+  it("handles a single other player in the queue", () => {
+    searching({ players: 2, waiting: 2 });
+    screen.getByText(/1 other player is looking/);
+  });
+
+  it("says nothing about the queue until the first read lands", () => {
+    searching(null);
+    screen.getByText("Checking the queue.");
   });
 });
