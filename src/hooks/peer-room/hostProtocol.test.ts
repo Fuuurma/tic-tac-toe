@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { GameStatus, PlayerSymbol } from "@/game/constants";
+import { GameStatus, PLAYER_CONFIG, PlayerSymbol } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/room";
@@ -556,5 +556,46 @@ describe("handleHostMessage guest-initiated rematch", () => {
 
     expect(deps.stateRef.current.winner).toBeNull();
     expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("F582: the rematch host name is sanitized before it reaches the next match", () => {
+  const namedGame = (): GameState => {
+    const game = freshGameState();
+    game.players[PlayerSymbol.X] = { ...game.players[PlayerSymbol.X], username: "Host" };
+    game.players[PlayerSymbol.O] = { ...game.players[PlayerSymbol.O], username: "Guest" };
+    return { ...game, gameStatus: GameStatus.COMPLETED, winner: PlayerSymbol.X };
+  };
+  const pendingFor = (displayName: string) => ({
+    displayName,
+    color: PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
+    playerShape: PLAYER_CONFIG[PlayerSymbol.X].defaultShape,
+  });
+
+  it("a cleared pending name falls back to the current username, not the empty string", () => {
+    const { deps } = makeDeps(namedGame());
+    deps.hostPendingSettingsRef.current = pendingFor("");
+
+    handleHostMessage(deps, { type: "rematchAccept" });
+
+    const names = [
+      deps.stateRef.current.players[PlayerSymbol.X].username,
+      deps.stateRef.current.players[PlayerSymbol.O].username,
+    ];
+    expect(names).toContain("Host");
+    expect(names).toContain("Guest");
+  });
+
+  it("invisible padding and whitespace runs are normalized into the next match (join-path parity)", () => {
+    const { deps } = makeDeps(namedGame());
+    deps.hostPendingSettingsRef.current = pendingFor("  Zoe\u200B\t B ");
+
+    handleHostMessage(deps, { type: "rematchAccept" });
+
+    const names = [
+      deps.stateRef.current.players[PlayerSymbol.X].username,
+      deps.stateRef.current.players[PlayerSymbol.O].username,
+    ];
+    expect(names).toContain("Zoe B");
   });
 });

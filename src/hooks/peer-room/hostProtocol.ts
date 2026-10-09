@@ -8,6 +8,7 @@ import {
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
+import { sanitizeDisplayName } from "@/lib/identity";
 import type { PeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
@@ -161,7 +162,12 @@ function resetForRematch(deps: HostProtocolDeps, closePrompt: boolean) {
   // If the host edited their identity mid-game via the edit button,
   // pull that into the next match instead of keeping the previous one.
   const pending = hostPendingSettingsRef.current;
-  const hostName = pending?.displayName ?? hostPlayer.username;
+  // F582: the join path sanitizes this same field; an unusable edit
+  // ("" after clearing) must fall back to the current name, not ship
+  // an empty username to the guest.
+  const hostName = pending
+    ? sanitizeDisplayName(pending.displayName, hostPlayer.username)
+    : hostPlayer.username;
   const hostColor = pending?.color ?? hostPlayer.color;
   const hostShape = pending?.playerShape ?? hostPlayer.shape;
   if (pending) hostPendingSettingsRef.current = null;
