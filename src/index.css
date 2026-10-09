@@ -46,6 +46,13 @@
   --glass-cell-sheen-alpha: 0.12;
   --player-color: 59 130 246;
 
+  /* Tell the UA which palette the app is drawing in. Without it the
+     browser assumes `normal` and paints its own surfaces — the scrollbar on
+     the scrolling app shell, and input chrome — for a light theme while the
+     app is dark. This is the same signal the `dark:` variants key off, so
+     the two can never disagree. */
+  color-scheme: light dark;
+
   /* Safe-area insets, read by #main-content below. Defined here rather than
      in @theme because env() belongs to the cascade, not the type scale. */
   --inset-top: env(safe-area-inset-top, 0px);
@@ -192,6 +199,15 @@ body,
   overscroll-behavior: none;
   font-family: var(--font-sans);
   caret-color: var(--color-primary);
+  /* Every themed color in this file is a Tailwind token that flips with
+     prefers-color-scheme, but nothing ever published one to the document.
+     Anything without its own `text-*` utility therefore inherited the UA
+     default — black — and vanished into the dark gradient: the Confirm
+     titles ("Start a new game", "Exit game"), the help and settings sheet
+     headings, and the HUD player names all rendered near-invisible in dark
+     mode. One inherited value fixes every one of them and keeps the
+     explicit utilities winning, as they already do. */
+  color: var(--color-foreground);
 }
 
 /* Mobile insets and input affordances.
