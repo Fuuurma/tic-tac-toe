@@ -124,7 +124,12 @@ function saveToken(key: string | null, token: string): void {
 }
 
 export class RoomClient {
-  private readonly opts: Required<Omit<RoomClientOptions, "protocol" | "role">> & {
+  // slotToken is omitted from this mirror on purpose: the host binds it
+  // after construction (the socket opens before its match is disclosed),
+  // so it lives on the dedicated nullable `this.slotToken`, never here.
+  private readonly opts: Required<
+    Omit<RoomClientOptions, "protocol" | "role" | "slotToken">
+  > & {
     protocol: string;
     maxBackoffMs: number;
     role: RoomRole | null;
