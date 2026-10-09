@@ -292,10 +292,15 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-md"
+      // Adaptive height. `max-h-full` + `my-auto` against the stretched app
+      // wrapper means a short form centers at its natural size — no stretched
+      // card wrapped around a void — while a tall one (Online adds the
+      // match-type row and a room-code field) fills the phone and scrolls
+      // instead of pushing Start below the fold.
+      className="my-auto flex max-h-full w-full max-w-md flex-col"
       style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
     >
-      <Card variant="glass" className="gap-0 overflow-clip py-0">
+      <Card variant="glass" className="flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0">
         <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
           <GameMark />
           <div className="min-w-0 flex-1">
@@ -318,7 +323,8 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             <CircleHelp className="size-4.5" aria-hidden="true" />
           </button>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 px-5 pb-4 pt-0 sm:gap-3.5 sm:px-6">
+        <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4 pt-0 sm:px-6">
+          <div className="flex flex-col gap-3 sm:gap-3.5">
           {error && (
             <div
               role="alert"
@@ -418,17 +424,21 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
               )}
             </div>
           )}
+          </div>
         </CardContent>
         <CardFooter
           className={cn(
             "flex flex-col gap-2 px-5 pb-5 pt-1 sm:px-6 sm:pb-6",
-            // On a rotated phone the card is ~750px tall in a ~320px
-            // viewport, which put the primary action 124px below the fold.
-            // Pinning it to the bottom of the scrollport keeps Start in
-            // thumb reach while the settings above scroll underneath.
-            // `overflow-clip` on the Card above is what allows this:
-            // `overflow-hidden` would establish a scroll container and the
-            // footer would stick to a box that never scrolls.
+            // A wide-but-short window (a rotated tablet, or any desktop
+            // window under 560px tall) is past the `sm:h-auto` breakpoint,
+            // so the card sizes to its content and outgrows the scrollport
+            // instead of stretching. Pinning the footer to the bottom of
+            // that scrollport keeps Start in thumb reach while the settings
+            // above scroll underneath. `overflow-clip` on the Card is what
+            // allows this: `overflow-hidden` would establish a scroll
+            // container and the footer would stick to a box that never
+            // scrolls. On phones this is inert — the footer simply sits
+            // below the scrolling content already.
             "landscape-short:sticky landscape-short:bottom-0",
             "landscape-short:border-t landscape-short:border-border/60",
             "landscape-short:bg-background/80 landscape-short:backdrop-blur-md",
@@ -532,18 +542,23 @@ function OnlineOption({
       tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={cn(
-        "group flex min-h-[4.5rem] flex-col items-stretch justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+        "group relative flex min-h-[4.5rem] flex-col items-stretch justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
         active
           ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
           : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
       )}
     >
-      <span className="flex items-center justify-between gap-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          {icon}
-          <span className="truncate text-xs font-semibold">{label}</span>
-        </span>
-        {active && <Check className="size-3.5 shrink-0 text-[rgb(var(--player-color))]" aria-hidden="true" />}
+      {/* Taken out of flow: in a three-up row on a 320px phone an inline check
+          left ~14px for the label and "Join" truncated to "J…". */}
+      {active && (
+        <Check
+          className="absolute right-1.5 top-1.5 size-3.5 text-[rgb(var(--player-color))]"
+          aria-hidden="true"
+        />
+      )}
+      <span className="flex min-w-0 items-center gap-1.5">
+        {icon}
+        <span className="truncate text-xs font-semibold">{label}</span>
       </span>
       <span id={descId} className="text-[11px] leading-tight text-muted-foreground">
         {description}

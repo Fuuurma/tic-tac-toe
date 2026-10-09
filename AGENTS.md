@@ -139,6 +139,18 @@ pnpm check
 - Every local move commits through `commitLocalMove` (`src/hooks/localTurnTimer.ts`) with a `cur === prev` identity guard, so a decision computed off the post-render `gameStateRef` snapshot can never clobber a newer commit
 - An identity mismatch does **not** mean a rival move landed: the turn clock rewrites `turnTimeRemaining` onto a fresh object every second. The AI's move is scheduled 700-1300ms after the turn starts against a 1000ms clock, so roughly half of all AI moves land in the same batch as a tick. `commitLocalMove` therefore takes an optional pure `rebase(cur)` that re-derives the move from whatever actually committed and drops only when a real move took the turn. Dropping there used to strand the AI until the turn expired
 
+## Text Color
+
+- `color` is published once on `html/body/#root` in `src/index.css` and every themed color flips with `prefers-color-scheme`. Nothing else sets a document-level color, because that omission is invisible in review and brutal in dark mode: any element without its own `text-*` utility inherits the UA default black and disappears into the dark gradient. That is what made the Confirm titles, the help and settings headings, and the HUD player names invisible before. Add an explicit color when you add text, but never assume inheritance is neutral
+- `color-scheme: light dark` on `:root` keeps UA-drawn surfaces (the app-shell scrollbar, input chrome) on the same palette the `dark:` variants key off, so the two cannot disagree
+
+## Mobile Layout
+
+- The app shell stretches its child below `sm` and centers at `sm:`. Auto cross-axis margins suppress the stretch, so the lobby wrapper leaves `my-auto` off (its card stretches to fill a phone) while the game wrapper keeps it (the board stays vertically centred instead of hanging off the top of a tall phone with 300px of dead space below)
+- The lobby form is `my-auto max-h-full` against that stretched shell: short content centres at its natural size, tall content (Online adds a match-type row and a room-code field) fills the phone and scrolls its middle while the footer keeps Start pinned. Never let the card grow past `max-h-full` — that is what pushed the primary action below the fold
+- Sheet drag-to-dismiss (`src/hooks/useDragToDismiss.ts`) is bound to the sheet's grabber/header, never the panel. Winning the gesture needs `touch-action: none`, and putting that on the panel would make its own pickers unscrollable; the handle carries `DRAG_HANDLE_TOUCH_ACTION` instead
+- `useDismissOnOutsidePress` dismisses on `click`, not `pointerdown`. These panels expand inside a sheet, so collapsing one on pointerdown reflows the sheet and slides its close button ~35px before the pointer comes back up, swallowing the tap. Same reason the active check on `OnlineOption` is positioned out of flow: an inline check ate the label's width and truncated "Join" to "J…" at 320px
+
 ## Rendering Budget
 
 - `BackgroundPattern` keeps the resting symbol grid on an offscreen base layer and repaints only the lit spotlight region per frame. `clearRect` the region before `drawImage`-ing the base back: a transparent source pixel composites as a no-op, so the copy alone leaves the previous frame baked in

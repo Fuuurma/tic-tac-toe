@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { Clock, Grid3x3, Keyboard, MoveRight, Trophy, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DRAG_HANDLE_TOUCH_ACTION, useDragToDismiss } from "@/hooks/useDragToDismiss";
 
 interface HelpDrawerProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
   const dialogId = useId();
   const titleId = `${dialogId}-title`;
   const onCloseRef = useRef(onClose);
+  const drag = useDragToDismiss({ onDismiss: onClose, enabled: isOpen });
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
@@ -108,7 +110,11 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
 
   const panel = (
     <>
-      <div className="flex shrink-0 flex-col gap-2 pb-2">
+      <div
+        className="flex shrink-0 select-none flex-col gap-2 pb-2"
+        style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
+        {...drag.handleProps}
+      >
         <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden" />
         <div className="flex items-center justify-between gap-2">
           <h2 id={titleId} className="text-lg font-bold tracking-tight">
@@ -187,6 +193,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
           open
           aria-labelledby={titleId}
           className={panelClass}
+          style={drag.panelStyle}
         >
           {panel}
         </dialog>
@@ -205,6 +212,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
         if (e.target === dialogRef.current) onClose();
       }}
       className={cn(panelClass, "backdrop:bg-overlay-scrim")}
+      style={drag.panelStyle}
     >
       {panel}
     </dialog>

@@ -18,6 +18,7 @@ import { Bot, Pencil, Play, User, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
 import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
+import { DRAG_HANDLE_TOUCH_ACTION, useDragToDismiss } from "@/hooks/useDragToDismiss";
 
 export type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -142,6 +143,7 @@ export function SettingsSheet({
   const { containerRef, panelRef, titleId, sheetId } = useSheetFocus(isOpen, onClose);
   const playerPanelId = `${sheetId}-panel-player`;
   const opponentPanelId = `${sheetId}-panel-opponent`;
+  const drag = useDragToDismiss({ onDismiss: onClose, enabled: isOpen });
 
   if (!isOpen) return null;
 
@@ -165,7 +167,12 @@ export function SettingsSheet({
         ref={panelRef}
         tabIndex={-1}
         className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-[max(1.75rem,var(--inset-bottom))] outline-none sm:rounded-2xl sm:border-b"
-        style={{ "--player-color": COLOR_RGB[activeColor] } as React.CSSProperties}
+        style={
+          {
+            "--player-color": COLOR_RGB[activeColor],
+            ...drag.panelStyle,
+          } as React.CSSProperties
+        }
       >
         {/* The grabber is a decorative sheet handle (DESIGN.md: pills are for
             color dots and sheet grabbers), so it gets its own row above the
@@ -173,7 +180,11 @@ export function SettingsSheet({
             of that row it stole width and pushed "Settings" off-centre against
             the close button, and as a bare div it was announced to AT as
             nothing. Matches helpDrawer.tsx, which already does it this way. */}
-        <div className="flex shrink-0 flex-col gap-2">
+        <div
+          className="flex shrink-0 select-none flex-col gap-2"
+          style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
+          {...drag.handleProps}
+        >
           <div
             aria-hidden="true"
             className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"

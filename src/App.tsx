@@ -26,6 +26,7 @@ import {
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { normalizeRoomId } from "@/lib/roomId";
+import { cn } from "@/lib/utils";
 import { saveDisplayName } from "@/lib/identity";
 import { savePreferences } from "@/lib/preferences";
 
@@ -83,7 +84,7 @@ export default function App() {
   };
 
   return (
-    <main id="main-content" className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark)] sm:items-center">
+    <main id="main-content" className="relative isolate flex h-dvh w-full items-stretch justify-center overflow-y-auto bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark)] sm:items-center">
       {/* Living symbol field: canvas layer above the gradient base */}
       <BackgroundPattern />
       {/* Centered black mask keeps the board readable over the symbol texture */}
@@ -91,7 +92,18 @@ export default function App() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
       />
-      <div className="relative z-10 my-auto flex w-full justify-center">
+      {/* Auto cross-axis margins suppress the stretch, so this wrapper
+          fills the scrollport below `sm` — which is what lets a phone form
+          own the screen — and snaps back to content height the moment there
+          is free space to distribute. The lobby wants the first (its card
+          stretches to fill); the game wants the second, or the board would
+          hang off the top of a tall phone with 300px of nothing below it. */}
+      <div
+        className={cn(
+          "relative z-10 flex w-full justify-center sm:my-auto",
+          view === "lobby" ? "" : "my-auto",
+        )}
+      >
         {view === "lobby" && (
           <LobbyForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
