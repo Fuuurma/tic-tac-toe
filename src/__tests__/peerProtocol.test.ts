@@ -328,3 +328,65 @@ describe('guestProtocol.handleGuestMessage — rematch prompt gate (F191)', () =
     expect(patches[0]({} as never).rematchIncoming).toBe(true);
   });
 });
+
+// F590: a pause used to overwrite the current message unconditionally and
+// clear it on resume, so a live notice (rematch prompt, error text) was
+// destroyed. The pause frame now stashes a live message and restores it on
+// resume — while the 5b76d7b contract still holds: resume clears only the
+// pause notice, leaving a message that arrived mid-pause alone.
+describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () => {
+  const PAUSE_TEXT = 'Your host paused the game';
+  const REMATCH_NOTICE = 'Host wants a rematch. Accept or decline below.';
+  type RoomSlice = { message?: string; pausedStash?: string | null };
+
+  const makeDeps = (patches: Array<(prev: never) => RoomSlice>) => ({
+    stateRef: { current: gameState({}) },
+    guestSymbolRef: { current: 'O' as never },
+    pendingGuestStateRef: { current: null },
+    rematchPendingRef: { current: false },
+    setState: (fn: (prev: never) => never) => patches.push(fn),
+    stopTimer: () => {},
+    clearRematchTimeout: () => {},
+    onHostPause: () => {},
+  });
+
+  const send = (
+    patches: Array<(prev: never) => RoomSlice>,
+    paused: boolean,
+  ) => handleGuestMessage(makeDeps(patches) as never, { type: 'pause', paused });
+
+  it('stashes a live notice on pause and restores it on resume', () => {
+    const patches: Array<(prev: never) => RoomSlice> = [];
+    send(patches, true);
+    send(patches, false);
+
+    const s0 = { message: REMATCH_NOTICE, pausedStash: null };
+    const s1 = patches[0](s0 as never);
+    expect(s1.message).toBe(PAUSE_TEXT);
+    const s2 = patches[1](s1 as never);
+    expect(s2.message).toBe(REMATCH_NOTICE);
+  });
+
+  it('pause on an empty message still clears to empty on resume (5b76d7b)', () => {
+    const patches: Array<(prev: never) => RoomSlice> = [];
+    send(patches, true);
+    send(patches, false);
+
+    const s1 = patches[0]({ message: '', pausedStash: null } as never);
+    expect(s1.message).toBe(PAUSE_TEXT);
+    expect(patches[1](s1 as never).message).toBe('');
+  });
+
+  it('a message that arrives mid-pause wins over the stale stash on resume', () => {
+    const patches: Array<(prev: never) => RoomSlice> = [];
+    send(patches, true);
+    send(patches, false);
+
+    const s1 = patches[0]({ message: REMATCH_NOTICE, pausedStash: null } as never);
+    // Some other frame wrote a newer message while paused.
+    const midPause = { ...s1, message: 'Connection lost' };
+    const s2 = patches[1](midPause as never);
+    expect(s2.message).toBe('Connection lost');
+    expect(s2.pausedStash).toBeNull();
+  });
+});

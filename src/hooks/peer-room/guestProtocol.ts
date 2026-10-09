@@ -4,6 +4,9 @@ import type { GameState } from "@/game/logic";
 import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
 import type { PeerRoomState } from "../usePeerRoom";
 
+/** Guest-facing notice while the host's clock is frozen (5b76d7b). */
+const PAUSE_MESSAGE = "Your host paused the game";
+
 /**
  * Guest-side game protocol, extracted from usePeerRoom (god-hook
  * decomposition, slice 3).
@@ -162,14 +165,31 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       // disappears. The host is authoritative here; a guest cannot move the
       // host's clock with this frame.
       deps.onHostPause(message.paused);
-      setState((prev) => ({
-        ...prev,
-        message: message.paused
-          ? "Your host paused the game"
-          : prev.message === "Your host paused the game"
-            ? ""
-            : prev.message,
-      }));
+      setState((prev) => {
+        if (message.paused) {
+          // F590: stash a live notice instead of destroying it — a
+          // rematch prompt or error text outlives the pause and comes
+          // back on resume. An empty/already-paused message stashes
+          // nothing (and a repeated pause frame keeps the stash).
+          const live = prev.message !== "" && prev.message !== PAUSE_MESSAGE;
+          return {
+            ...prev,
+            message: PAUSE_MESSAGE,
+            pausedStash: live ? prev.message : prev.pausedStash,
+          };
+        }
+        // Resume clears only the pause notice (5b76d7b): restore the
+        // stash if the pause text is still on screen, else leave
+        // whatever a mid-pause frame wrote alone.
+        return {
+          ...prev,
+          message:
+            prev.message === PAUSE_MESSAGE
+              ? (prev.pausedStash ?? "")
+              : prev.message,
+          pausedStash: null,
+        };
+      });
       return;
     }
     if (message.type === "leave") {

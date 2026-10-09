@@ -55,6 +55,13 @@ export interface PeerRoomState {
   guestSymbol: PlayerSymbol | null;
   message: string;
   /**
+   * F590: the message a host pause replaced. The pause frame shows
+   * "Your host paused the game" so a stopped clock is legible, but a live
+   * notice (rematch prompt, error text) is stashed here and restored on
+   * resume instead of being destroyed. `null` when nothing is stashed.
+   */
+  pausedStash: string | null;
+  /**
    * True while a host rematch request is pending on the guest. This is
    * the source of truth for rematch-prompt UI — never derive it by
    * matching user-facing message copy with a regex.
@@ -92,6 +99,7 @@ const initialState: PeerRoomState = {
   hostSymbol: null,
   guestSymbol: null,
   message: "",
+  pausedStash: null,
   rematchIncoming: false,
   rematchOutgoing: false,
   queuePosition: null,
