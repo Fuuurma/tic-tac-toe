@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PlayersPanel } from "./playersPanel";
 import { freshGameState, type GameState } from "@/game/logic";
-import { GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
+import { GameModes, GameStatus, PlayerSymbol, PlayerTypes, AI_Difficulty } from "@/game/constants";
 
 // The orbs animate on canvas, which jsdom does not implement. They only
 // mount mid-game (isCurrent) and are unrelated to the rematch CTA wiring
@@ -146,5 +146,35 @@ describe("PlayersPanel room-code chip", () => {
     );
 
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("AB3XK9"));
+  });
+});
+
+describe("PlayersPanel AI difficulty label", () => {
+  const vsComputerState = (): GameState => {
+    const state = freshGameState();
+    state.gameMode = GameModes.VS_COMPUTER;
+    state.gameStatus = GameStatus.ACTIVE;
+    state.players[PlayerSymbol.O].type = PlayerTypes.COMPUTER;
+    state.players[PlayerSymbol.O].username = "CPU";
+    return state;
+  };
+
+  it("labels the computer card with the tier passed by App (F578: the creation tier)", () => {
+    render(
+      <PlayersPanel
+        gameState={vsComputerState()}
+        aiDifficulty={AI_Difficulty.HARD}
+        message=""
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("(Hard)")).not.toBeNull();
+  });
+
+  it("labels no card without a difficulty (friend games pass undefined)", () => {
+    render(<PlayersPanel gameState={vsComputerState()} message="" onExit={vi.fn()} />);
+
+    expect(screen.queryByText("(Hard)")).toBeNull();
   });
 });

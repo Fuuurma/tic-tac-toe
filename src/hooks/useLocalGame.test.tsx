@@ -20,7 +20,16 @@ import {
   PlayerTypes,
   TURN_DURATION_MS,
 } from "@/game/constants";
+import { getAIMove } from "@/game/ai";
 import { useLocalGame, type LocalGameInput } from "./useLocalGame";
+
+// F578: the mock delegates to the real engine — every existing assertion
+// keeps its exact behavior — while recording the difficulty the hook asks
+// for, so a mid-game settings switch can be caught red-handed.
+vi.mock("@/game/ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/game/ai")>();
+  return { ...actual, getAIMove: vi.fn(actual.getAIMove) };
+});
 
 // Hook-level coverage for the local "ran out of time" notice (F300):
 // gameState.turnNotice must move atomically with the move that raises or
@@ -268,5 +277,44 @@ describe("useLocalGame click semantics", () => {
     });
     expect(result.current.gameState.moveCount).toBe(1);
     expect(result.current.gameState.board[1]).toBeNull();
+  });
+});
+
+describe("useLocalGame AI difficulty source (F578)", () => {
+  it("plays the creation difficulty even when settings switch mid-game", () => {
+    vi.mocked(getAIMove).mockClear();
+    // Created at EASY (makeInput's default); the human (X) opens.
+    const { result, rerender } = renderHook(
+      (props: LocalGameInput) => useLocalGame(props),
+      { initialProps: makeComputerInput() },
+    );
+
+    act(() => {
+      result.current.handleCellClick(0);
+    });
+
+    // The in-game settings sheet switches the selection to HARD for the
+    // NEXT match; the running game must keep playing the tier it was
+    // created at — recording already reads the committed state (4073b1e),
+    // so a HARD move here would be filed under EASY.
+    rerender(makeComputerInput({ aiDifficulty: AI_Difficulty.HARD }));
+    expect(result.current.gameState.aiDifficulty).toBe(AI_Difficulty.EASY);
+
+    // AI delay = AI_MOVE_DELAY_MS + jitter·random (random pinned to 0).
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(result.current.gameState.moveCount).toBe(2);
+    expect(vi.mocked(getAIMove)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ currentPlayer: PlayerSymbol.O }),
+      AI_Difficulty.EASY,
+      PlayerSymbol.O,
+    );
+
+    // Only a reset rebuilds the game: the next match picks up HARD.
+    act(() => {
+      result.current.handleReset();
+    });
+    expect(result.current.gameState.aiDifficulty).toBe(AI_Difficulty.HARD);
   });
 });

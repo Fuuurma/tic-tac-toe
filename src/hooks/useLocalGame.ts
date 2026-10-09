@@ -207,7 +207,11 @@ export function useLocalGame(input: LocalGameInput) {
         // move for the wrong side.
         if (prev.currentPlayer !== scheduledSymbol) return;
         if (prev.players[prev.currentPlayer].type !== PlayerTypes.COMPUTER) return;
-        const move = getAIMove(prev, input.aiDifficulty ?? AI_Difficulty.NORMAL, scheduledSymbol);
+        // F578: the running game plays the tier it was created at. The
+        // committed state's aiDifficulty is immutable until a reset, so a
+        // mid-game settings switch must not reach the engine — recording
+        // (App.tsx statsContext) already reads this same field.
+        const move = getAIMove(prev, prev.aiDifficulty ?? AI_Difficulty.NORMAL, scheduledSymbol);
         if (move === null) return;
         const next = makeMove(prev, move);
         if (!next) return;
@@ -236,7 +240,6 @@ export function useLocalGame(input: LocalGameInput) {
     gameState.winner,
     gameState.moveCount,
     currentPlayerType,
-    input.aiDifficulty,
     paused,
   ]);
 

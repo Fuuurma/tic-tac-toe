@@ -277,9 +277,11 @@ function LocalGameSurface({
         gameState={gameState}
         stats={stats}
         gameMode={config.gameMode}
+        // F578, same contract as the stats context above: the card shows
+        // the tier the running game was created at, not the live selection.
         aiDifficulty={
           config.gameMode === GameModes.VS_COMPUTER
-            ? opponentSettings.aiDifficulty
+            ? gameState.aiDifficulty
             : undefined
         }
         message={gameState.turnNotice ?? ""}
