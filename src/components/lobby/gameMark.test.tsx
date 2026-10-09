@@ -12,19 +12,21 @@ describe("GameMark", () => {
     // The logo is brand identity, not player chrome (DESIGN.md: default
     // X blue, O red) — it must not tint with the user's color picks.
     const { container } = render(<GameMark />);
-    const tiles = container.querySelectorAll<HTMLElement>(
-      "[style*='--mark-color']",
-    );
-    expect(tiles).toHaveLength(3);
-    // MARKS layout: X at top-left and bottom-right, O in the center.
-    expect(tiles[0].style.getPropertyValue("--mark-color").trim()).toBe(
-      COLOR_RGB[Color.BLUE],
-    );
-    expect(tiles[1].style.getPropertyValue("--mark-color").trim()).toBe(
-      COLOR_RGB[Color.RED],
-    );
-    expect(tiles[2].style.getPropertyValue("--mark-color").trim()).toBe(
-      COLOR_RGB[Color.BLUE],
-    );
+    const x = container.querySelector('[data-mark="x"]');
+    expect(x?.getAttribute("fill")).toBe(`rgb(${COLOR_RGB[Color.BLUE]})`);
+    const stops = container.querySelectorAll("stop");
+    expect(stops.length).toBeGreaterThan(0);
+    for (const stop of stops) {
+      expect(stop.getAttribute("stop-color")).toBe(`rgb(${COLOR_RGB[Color.RED]})`);
+    }
+  });
+
+  it("fades the O ring through gradient and knockout ids that resolve", () => {
+    const { container } = render(<GameMark />);
+    const ring = container.querySelector('[data-mark="o"]');
+    const fill = ring?.getAttribute("stroke")?.match(/^url\(#(.+)\)$/)?.[1];
+    const mask = ring?.getAttribute("mask")?.match(/^url\(#(.+)\)$/)?.[1];
+    expect(fill && container.querySelector(`[id="${fill}"]`)).toBeTruthy();
+    expect(mask && container.querySelector(`[id="${mask}"]`)).toBeTruthy();
   });
 });

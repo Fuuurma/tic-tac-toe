@@ -299,12 +299,15 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
         <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
           <GameMark />
           <div className="min-w-0 flex-1">
-            <h1 className="font-display text-xl font-extrabold leading-none tracking-tight sm:text-2xl">
-              Tic Tac Toe Disappear
+            <h1 className="font-display leading-none">
+              <span className="block text-sm font-bold tracking-tight text-muted-foreground sm:text-base">
+                Tic Tac Toe
+              </span>{" "}
+              {/* The word does what it says: its tail fades toward the card. */}
+              <span className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/25 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent min-[400px]:text-[1.625rem] sm:text-[2rem]">
+                Disappear
+              </span>
             </h1>
-            <p className="mt-1.5 text-xs leading-snug text-foreground/80">
-              Three in a row wins, only your latest three marks stay on the board.
-            </p>
           </div>
           <button
             type="button"

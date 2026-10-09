@@ -1,8 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="6" fill="#0f172a"/>
-  <g stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" fill="none">
-    <line x1="8" y1="8" x2="13" y2="13"/>
-    <line x1="13" y1="8" x2="8" y2="13"/>
-    <circle cx="22" cy="22" r="3.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32" height="32">
+  <defs>
+    <linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="47" y2="0">
+      <stop offset="0" stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#ef4444" stop-opacity="0.18"/>
+    </linearGradient>
+    <mask id="knockout" maskUnits="userSpaceOnUse" x="0" y="0" width="48" height="48">
+      <rect width="48" height="48" fill="#fff"/>
+      <g fill="#000">
+        <rect x="2.5" y="18.5" width="25" height="11" rx="4.6" transform="rotate(45 15 24)"/>
+        <rect x="2.5" y="18.5" width="25" height="11" rx="4.6" transform="rotate(-45 15 24)"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="48" height="48" rx="11" fill="#15181c"/>
+  <g transform="translate(-1 0)">
+    <circle cx="34" cy="24" r="11" fill="none" stroke="url(#fade)" stroke-width="6" mask="url(#knockout)"/>
+    <g fill="#3b82f6">
+      <rect x="3.5" y="20.5" width="23" height="7" rx="2.9" transform="rotate(45 15 24)"/>
+      <rect x="3.5" y="20.5" width="23" height="7" rx="2.9" transform="rotate(-45 15 24)"/>
+    </g>
   </g>
 </svg>

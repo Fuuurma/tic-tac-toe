@@ -68,7 +68,13 @@ Icon buttons use `rounded-lg`, never `rounded-full`.
 
 ## Lobby
 
-Hairline masthead: GameMark + Syne wordmark + one sentence of rules.
+Hairline masthead: GameMark + two-line Syne wordmark, no rules copy (Help
+owns the rules). "Tic Tac Toe" sits small and muted above a large
+"Disappear" whose tail fades toward the card. GameMark is a bold "XO"
+lockup: the X knocks a gap out of the O, which fades toward the wordmark
+like the word. Never concentric (an X in a ring reads as a close button).
+No literal mini-board: it read as clip art.
+`public/favicon.svg` is the same mark.
 No uppercase eyebrow. Modes are a 3-up radio, not three equal glass
 marketing cards. Start CTA tints to the player's color.
 
