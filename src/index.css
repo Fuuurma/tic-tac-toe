@@ -45,6 +45,13 @@
   --glass-cell-rim-alpha: 0.5;
   --glass-cell-sheen-alpha: 0.12;
   --player-color: 59 130 246;
+
+  /* Safe-area insets, read by #main-content below. Defined here rather than
+     in @theme because env() belongs to the cascade, not the type scale. */
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+  --inset-left: env(safe-area-inset-left, 0px);
+  --inset-right: env(safe-area-inset-right, 0px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -86,6 +93,12 @@
 
   --font-display: "Syne Variable", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Source Sans 3 Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* 16px is the iOS Safari zoom threshold: an input with a smaller computed
+     font-size is auto-zoomed on focus, which then breaks the layout and is
+     left scrolled away from the caret. Text inputs opt in with
+     `text-field` rather than hardcoding a literal at each call site. */
+  --text-field: 16px;
 
   --color-background: oklch(0.97 0.005 220);
   --color-foreground: oklch(0.18 0.02 220);
@@ -142,6 +155,19 @@
   );
 }
 
+/* Coarse-pointer material budget. The lobby stacks a card, the settings
+   sheet, and pickers, so several backdrop-filter layers can composite at
+   once; on a phone GPU that is the most expensive thing on the page and it
+   competes with the board's own animations. Halve the blur and drop the
+   saturate pass for touch, keeping the authored material. Fine-pointer
+   devices (and hybrid laptops with a mouse) keep the full effect. */
+@media (pointer: coarse) {
+  :root {
+    --glass-blur: 10px;
+    --glass-saturate: 140%;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --color-background: oklch(0.16 0.02 220);
@@ -168,9 +194,80 @@ body,
   caret-color: var(--color-primary);
 }
 
+/* Mobile insets and input affordances.
+   `viewport-fit=cover` (index.html) lets the layout run under the notch and
+   the home indicator. That is only safe if the app re-claims the space the
+   OS reserves: without these paddings the masthead sits under the status bar
+   on a notched phone and the board's bottom row under the home indicator.
+   `env()` resolves to 0 on devices without insets, so desktop is unchanged.
+   max() keeps the authored rhythm when there is no inset to cover. */
+:root {
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+  --inset-left: env(safe-area-inset-left, 0px);
+  --inset-right: env(safe-area-inset-right, 0px);
+}
+
 ::selection {
   background: oklch(0.55 0.16 205 / 0.35);
   color: inherit;
+}
+
+/* App shell padding. Lives here rather than as utilities on <main> so the
+   inset floor cannot be clobbered by a later `sm:` padding rule: in
+   landscape a notched phone reports a wide left/right inset, and a media
+   query that simply re-pads would slide the board back under the sensor
+   housing. Base is the mobile rhythm (p-3), sm widens to p-4. */
+#main-content {
+  padding-top: max(0.75rem, var(--inset-top));
+  padding-right: max(0.75rem, var(--inset-right));
+  padding-bottom: max(0.75rem, var(--inset-bottom));
+  padding-left: max(0.75rem, var(--inset-left));
+}
+
+@media (min-width: 640px) {
+  #main-content {
+    padding-top: max(1rem, var(--inset-top));
+    padding-right: max(1rem, var(--inset-right));
+    padding-bottom: max(1rem, var(--inset-bottom));
+    padding-left: max(1rem, var(--inset-left));
+  }
+}
+
+/* Touch input affordances. `touch-action: manipulation` drops the legacy
+   ~300ms double-tap-to-zoom delay without disabling pinch-zoom, and
+   `-webkit-tap-highlight-color` drops the grey flash Android puts on every
+   tap — the app already authors its own press state via :active. */
+button,
+[role="button"],
+[role="radio"],
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Short landscape — a phone rotated, not a small desktop window.
+   The width and the height disagree, and the height is the one that cannot
+   scroll away cheaply while a turn clock runs. Deliberately narrow: a
+   667x375 phone qualifies, a 900x600 small window does not, so desktops
+   and tablets keep the stacked operate layout. `landscape-short:` utilities
+   in the components resolve against this. */
+@custom-variant landscape-short (@media (orientation: landscape) and (max-height: 560px));
+
+/* Height the board may claim. Portrait stacks HUD above board, so the well
+   gets what the panel leaves; short landscape puts them side by side and the
+   HUD costs the well nothing, only the shell padding. Sizing the square from
+   the tighter of width and this value is what keeps all nine cells on screen
+   without a scroll. */
+:root {
+  --board-avail: calc(100dvh - 15.5rem);
+  --board-max: min(100%, var(--board-avail));
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  :root {
+    --board-avail: calc(100dvh - 4rem);
+  }
 }
 
 @keyframes shimmer {
@@ -502,9 +599,15 @@ body,
     }
   }
 
-  /* Touch devices: no hover rotation, sweep stays at rest angle. */
+  /* Touch devices: no hover rotation, sweep stays at rest angle.
+     iOS pins :hover to the last-tapped element until you tap elsewhere, so
+     the hover state above has to be actively undone — resetting only the
+     two custom properties left every tapped glass button stuck 2.5%
+     shrunken with a permanent specular sweep, reading as a stalled press.
+     The press itself still reads through :active below. */
   @media (hover: none) and (pointer: coarse) {
     &::before,
+    &:hover::before,
     &:active::before {
       --glass-sweep: -45deg;
     }
@@ -512,6 +615,13 @@ body,
     &:hover::after,
     &:active::after {
       --glass-angle: 0deg;
+    }
+    &:hover {
+      transform: none;
+      &::before {
+        opacity: 0;
+        background-position: 0% 50%;
+      }
     }
   }
 

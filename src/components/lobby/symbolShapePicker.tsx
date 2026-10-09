@@ -4,71 +4,57 @@ import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
 interface SymbolShapePickerProps {
+  /** Accessible name for the radiogroup (the visible label lives on the dropdown trigger). */
   label: string;
   value: SymbolShape;
-  disabled?: boolean;
   onChange: (shape: SymbolShape) => void;
 }
 
 export function SymbolShapePicker({
   label,
   value,
-  disabled = false,
   onChange,
 }: SymbolShapePickerProps) {
   return (
-    <fieldset className="flex flex-col gap-2" disabled={disabled}>
-      <legend className="text-[11px] font-semibold tracking-normal text-muted-foreground">
-        {label}
-      </legend>
-      <div
-        role="radiogroup"
-        aria-label={label}
-        className="grid grid-cols-4 gap-2"
-        onKeyDown={handleRadioGroupKeyDown}
-      >
-        {AVAILABLE_SHAPES.map((shape) => {
-          const isSelected = value === shape;
-          const label = SHAPE_LABELS[shape];
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="grid grid-cols-4 gap-2"
+      onKeyDown={handleRadioGroupKeyDown}
+    >
+      {AVAILABLE_SHAPES.map((shape) => {
+        const isSelected = value === shape;
+        const label = SHAPE_LABELS[shape];
 
-          return (
-            <button
-              key={shape}
-              type="button"
-              role="radio"
-              aria-label={label}
-              aria-checked={isSelected}
-              title={label}
-              data-state={isSelected ? "active" : "inactive"}
-              tabIndex={isSelected ? 0 : -1}
-              onClick={() => onChange(shape)}
+        return (
+          <button
+            key={shape}
+            type="button"
+            role="radio"
+            aria-label={label}
+            aria-checked={isSelected}
+            title={label}
+            data-state={isSelected ? "active" : "inactive"}
+            tabIndex={isSelected ? 0 : -1}
+            onClick={() => onChange(shape)}
+            className={cn(
+              "flex h-12 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              isSelected
+                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+            )}
+          >
+            <SymbolShapeRenderer
+              shape={shape}
+              strokeWidth={8}
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-1.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60",
-                isSelected
-                  ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                  : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                "size-8",
+                isSelected ? "text-[rgb(var(--player-color))]" : "text-current",
               )}
-            >
-              <SymbolShapeRenderer
-                shape={shape}
-                strokeWidth={8}
-                className={cn(
-                  "h-6 w-6",
-                  isSelected ? "text-[rgb(var(--player-color))]" : "text-current",
-                )}
-              />
-              <span className="max-w-full truncate text-[11px] font-semibold leading-none">
-                {label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      {disabled && (
-        <p className="text-xs leading-tight text-muted-foreground">
-          Online rooms assign your shape when you connect.
-        </p>
-      )}
-    </fieldset>
+            />
+          </button>
+        );
+      })}
+    </div>
   );
 }

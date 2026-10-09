@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ColorPicker } from "./colorPicker";
-import { AVAILABLE_COLORS, Color, SymbolShape } from "@/game/constants";
+import { AVAILABLE_COLORS, Color } from "@/game/constants";
 
 /**
  * F516: the swatch grid rendered eight aria-pressed toggles — every one in
@@ -19,7 +19,6 @@ describe("ColorPicker radiogroup contract (F516)", () => {
     render(
       <ColorPicker
         label="Your color"
-        shape={SymbolShape.X}
         value={value}
         onChange={onChange}
       />,

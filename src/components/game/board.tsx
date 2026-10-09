@@ -88,7 +88,14 @@ export const Board = memo(function Board({
     <div className="flex w-full max-w-md flex-col gap-1.5">
       <div
         ref={boardRef}
-        className="relative mx-auto aspect-square w-full rounded-2xl border border-white/12 bg-black/50 p-2.5 sm:p-3.5"
+        // The well is square, so it has to be bounded on BOTH axes. Left
+        // width-driven it grows with the viewport and a landscape phone
+        // (~667x375) got a 448px well in a 375px-tall screen: all nine cells
+        // were unreachable without scrolling mid-turn, against a 10s clock.
+        // --board-avail carries the height left over after the rest of the
+        // column, and the landscape variant in index.css restates it for the
+        // side-by-side layout, where the HUD no longer consumes any of it.
+        className="relative mx-auto aspect-square w-full max-w-[var(--board-max)] rounded-2xl border border-white/12 bg-black/50 p-2.5 sm:p-3.5"
       >
         <div
           role="group"

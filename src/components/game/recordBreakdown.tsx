@@ -63,7 +63,12 @@ export function RecordBreakdown({ stats, gameMode }: RecordBreakdownProps) {
         aria-controls={open ? panelId : undefined}
         onClick={() => setPinned((value) => !value)}
         className={cn(
-          "inline-flex size-6 items-center justify-center rounded-lg text-muted-foreground transition-colors",
+          // The 24px visual sits inline in an 11px stat run, so growing the
+          // box itself would break the header rhythm. A pseudo-element
+          // expands the hit area to the 44px touch minimum without moving
+          // anything; the icon stays where it was.
+          "relative inline-flex size-6 items-center justify-center rounded-lg text-muted-foreground transition-colors",
+          "after:absolute after:-inset-2.5 after:content-['']",
           "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
           open && "text-foreground",
         )}

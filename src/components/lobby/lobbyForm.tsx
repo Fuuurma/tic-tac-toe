@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
+import { loadPreferences, savePreferences } from "@/lib/preferences";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
@@ -115,17 +116,32 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
   const [displayName, setDisplayName] = useState<string>(
     () => getOrCreateGuestIdentity().displayName,
   );
-  const [color, setColor] = useState<Color>(PLAYER_CONFIG[PlayerSymbol.X].defaultColor);
-  const [playerShape, setPlayerShape] = useState<SymbolShape>(PLAYER_CONFIG[PlayerSymbol.X].defaultShape);
-  const [opponentColor, setOpponentColor] = useState<Color>(
-    PLAYER_CONFIG[PlayerSymbol.O].defaultColor,
+  // Appearance + opponent picks persist across sessions (tic-tac-toe:preferences).
+  const [initialPrefs] = useState(loadPreferences);
+  const [color, setColor] = useState<Color>(
+    initialPrefs.color ?? PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
   );
-  const [opponentShape, setOpponentShape] = useState<SymbolShape>(PLAYER_CONFIG[PlayerSymbol.O].defaultShape);
+  const [playerShape, setPlayerShape] = useState<SymbolShape>(
+    initialPrefs.playerShape ?? PLAYER_CONFIG[PlayerSymbol.X].defaultShape,
+  );
+  const [opponentColor, setOpponentColor] = useState<Color>(() => {
+    const playerColor = initialPrefs.color ?? PLAYER_CONFIG[PlayerSymbol.X].defaultColor;
+    return initialPrefs.opponentColor && initialPrefs.opponentColor !== playerColor
+      ? initialPrefs.opponentColor
+      : oppositeColor(playerColor);
+  });
+  const [opponentShape, setOpponentShape] = useState<SymbolShape>(
+    initialPrefs.opponentShape ?? PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
+  );
   const [gameMode, setGameMode] = useState<GameMode>(
     initialRoomId ? GameModes.ONLINE : GameModes.VS_COMPUTER,
   );
-  const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(AI_Difficulty.NORMAL);
-  const [opponentName, setOpponentName] = useState<string>("AI");
+  const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(
+    initialPrefs.aiDifficulty ?? AI_Difficulty.NORMAL,
+  );
+  const [opponentName, setOpponentName] = useState<string>(
+    initialPrefs.opponentName ?? "AI",
+  );
   const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
   const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
   const [onlineAction, setOnlineAction] = useState<"create" | "join" | "quick">(
@@ -198,11 +214,17 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
       setDisplayName(next.displayName);
       setColor(next.color);
       setPlayerShape(next.playerShape);
+      saveDisplayName(next.displayName);
       // Keep opponent color opposite in non-friend modes; in VS Friend the
       // opponent sheet owns the opponent color and ensures distinctness.
-      if (gameMode !== GameModes.VS_FRIEND) {
-        setOpponentColor(oppositeColor(next.color));
-      }
+      const derivedOpponent =
+        gameMode !== GameModes.VS_FRIEND ? oppositeColor(next.color) : undefined;
+      if (derivedOpponent) setOpponentColor(derivedOpponent);
+      savePreferences({
+        color: next.color,
+        playerShape: next.playerShape,
+        ...(derivedOpponent ? { opponentColor: derivedOpponent } : {}),
+      });
     },
     [gameMode],
   );
@@ -215,12 +237,16 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
       setOpponentShape(next.opponentShape);
       // If the opponent picks the user's color, swap so they stay distinct:
       // the user takes the opponent's previous color, the opponent gets the pick.
-      if (next.opponentColor === color) {
-        setColor(opponentColor);
-        setOpponentColor(next.opponentColor);
-      } else {
-        setOpponentColor(next.opponentColor);
-      }
+      const playerColor = next.opponentColor === color ? opponentColor : color;
+      if (next.opponentColor === color) setColor(opponentColor);
+      setOpponentColor(next.opponentColor);
+      savePreferences({
+        color: playerColor,
+        opponentColor: next.opponentColor,
+        opponentName: next.opponentName,
+        opponentShape: next.opponentShape,
+        aiDifficulty: next.aiDifficulty,
+      });
     },
     [color, opponentColor],
   );
@@ -233,7 +259,8 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
         setOpponentName("AI");
         setOpponentType(PlayerTypes.COMPUTER);
       } else if (nextMode === GameModes.VS_FRIEND) {
-        setOpponentName("");
+        // Hydrate the last saved opponent name so Friend mode reopens with it.
+        setOpponentName(loadPreferences().opponentName ?? "");
         setOpponentType(PlayerTypes.HUMAN);
       }
     },
@@ -268,7 +295,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
       className="w-full max-w-md"
       style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
     >
-      <Card variant="glass" className="gap-0 overflow-hidden py-0">
+      <Card variant="glass" className="gap-0 overflow-clip py-0">
         <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
           <GameMark />
           <div className="min-w-0 flex-1">
@@ -389,7 +416,22 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-2 px-5 pb-5 pt-1 sm:px-6 sm:pb-6">
+        <CardFooter
+          className={cn(
+            "flex flex-col gap-2 px-5 pb-5 pt-1 sm:px-6 sm:pb-6",
+            // On a rotated phone the card is ~750px tall in a ~320px
+            // viewport, which put the primary action 124px below the fold.
+            // Pinning it to the bottom of the scrollport keeps Start in
+            // thumb reach while the settings above scroll underneath.
+            // `overflow-clip` on the Card above is what allows this:
+            // `overflow-hidden` would establish a scroll container and the
+            // footer would stick to a box that never scrolls.
+            "landscape-short:sticky landscape-short:bottom-0",
+            "landscape-short:border-t landscape-short:border-border/60",
+            "landscape-short:bg-background/80 landscape-short:backdrop-blur-md",
+            "landscape-short:pb-[max(1.25rem,var(--inset-bottom))]",
+          )}
+        >
           <Button
             type="submit"
             size="lg"
@@ -551,7 +593,7 @@ function Field({
         aria-describedby={describedBy}
         autoComplete="off"
         className={cn(
-          "h-10 w-full rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
+          "h-11 w-full rounded-lg border border-input bg-background/60 px-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
           error && "border-destructive focus-visible:ring-destructive",
         )}
       />

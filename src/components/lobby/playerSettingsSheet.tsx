@@ -11,8 +11,7 @@ import {
   COLOR_MARK_TEXT,
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
-import { SymbolShapePicker } from "./symbolShapePicker";
-import { ColorPicker } from "./colorPicker";
+import { AppearancePickers } from "./appearancePickers";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, Play, User, X } from "lucide-react";
@@ -165,7 +164,7 @@ export function SettingsSheet({
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-7 outline-none sm:rounded-2xl sm:border-b"
+        className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-[max(1.75rem,var(--inset-bottom))] outline-none sm:rounded-2xl sm:border-b"
         style={{ "--player-color": COLOR_RGB[activeColor] } as React.CSSProperties}
       >
         {/* The grabber is a decorative sheet handle (DESIGN.md: pills are for
@@ -210,7 +209,7 @@ export function SettingsSheet({
             tabIndex={tab === "player" ? 0 : -1}
             onClick={() => onTabChange("player")}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               tab === "player"
                 ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
                 : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
@@ -228,7 +227,7 @@ export function SettingsSheet({
               tabIndex={tab === "opponent" ? 0 : -1}
               onClick={() => onTabChange("opponent")}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                 tab === "opponent"
                   ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
                   : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
@@ -243,7 +242,7 @@ export function SettingsSheet({
         {/* Tab content */}
         <div className="flex flex-col gap-4 overflow-y-auto">
           {tab === "player" && (
-            <div role="tabpanel" id={playerPanelId} aria-hidden={false}>
+            <div role="tabpanel" id={playerPanelId} aria-hidden={false} className="flex flex-col gap-4">
               <PlayerTab
                 isOnline={isOnline}
                 value={player}
@@ -252,7 +251,7 @@ export function SettingsSheet({
             </div>
           )}
           {tab === "opponent" && showOpponentTab && (
-            <div role="tabpanel" id={opponentPanelId} aria-hidden={false}>
+            <div role="tabpanel" id={opponentPanelId} aria-hidden={false} className="flex flex-col gap-4">
               <OpponentTab
                 value={opponent}
                 onChange={onOpponentChange}
@@ -304,35 +303,32 @@ function PlayerTab({
 }) {
   return (
     <>
-      <label htmlFor="sheet-name" className="block">
-        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold tracking-normal text-muted-foreground">
-          <User className="size-3.5" />
-          Name
-        </span>
+      <div className="relative">
+        <User
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        />
         <input
           id="sheet-name"
           type="text"
           value={value.displayName}
           placeholder="Your name"
+          aria-label="Your name"
           onChange={(e) => onChange({ ...value, displayName: filterDisplayNameInput(e.target.value) })}
           maxLength={20}
           autoComplete="off"
-          className="h-10 w-full rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+          className="h-12 w-full rounded-lg border border-input bg-background/60 pl-9 pr-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
         />
-      </label>
+      </div>
 
-      <ColorPicker
-        label="Your color"
+      <AppearancePickers
+        colorLabel="Your color"
+        shapeLabel="Your symbol"
+        color={value.color}
         shape={value.playerShape}
-        value={value.color}
-        onChange={(nextColor) => onChange({ ...value, color: nextColor })}
-      />
-
-      <SymbolShapePicker
-        label="Your shape"
-        value={value.playerShape}
-        disabled={isOnline}
-        onChange={(shape) => onChange({ ...value, playerShape: shape })}
+        shapeDisabled={isOnline}
+        onColorChange={(nextColor) => onChange({ ...value, color: nextColor })}
+        onShapeChange={(shape) => onChange({ ...value, playerShape: shape })}
       />
     </>
   );
@@ -401,36 +397,33 @@ function OpponentTab({
         />
       )}
 
-      <label htmlFor="sheet-opponent-name" className="block">
-        <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold tracking-normal text-muted-foreground">
-          <User className="size-3.5" />
-          Name
-        </span>
+      <div className="relative">
+        <User
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        />
         <input
           id="sheet-opponent-name"
           type="text"
           value={value.opponentName}
-          placeholder={isAI ? "AI" : "Opponent"}
+          placeholder="Opponent name"
+          aria-label="Opponent name"
           onChange={(e) =>
             onChange({ ...value, opponentName: filterDisplayNameInput(e.target.value) })
           }
           maxLength={20}
           autoComplete="off"
-          className="h-10 w-full rounded-lg border border-input bg-background/60 px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+          className="h-12 w-full rounded-lg border border-input bg-background/60 pl-9 pr-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
         />
-      </label>
+      </div>
 
-      <ColorPicker
-        label="Opponent color"
+      <AppearancePickers
+        colorLabel="Opponent color"
+        shapeLabel="Opponent symbol"
+        color={value.opponentColor}
         shape={value.opponentShape}
-        value={value.opponentColor}
-        onChange={(nextColor) => onChange({ ...value, opponentColor: nextColor })}
-      />
-
-      <SymbolShapePicker
-        label="Opponent shape"
-        value={value.opponentShape}
-        onChange={(shape) => onChange({ ...value, opponentShape: shape })}
+        onColorChange={(nextColor) => onChange({ ...value, opponentColor: nextColor })}
+        onShapeChange={(shape) => onChange({ ...value, opponentShape: shape })}
       />
     </>
   );

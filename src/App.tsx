@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
 import {
@@ -26,6 +26,8 @@ import {
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { normalizeRoomId } from "@/lib/roomId";
+import { saveDisplayName } from "@/lib/identity";
+import { savePreferences } from "@/lib/preferences";
 
 const OnlineGameSurface = lazy(() =>
   import("./components/game/onlineGameSurface").then((m) => ({ default: m.OnlineGameSurface })),
@@ -81,7 +83,7 @@ export default function App() {
   };
 
   return (
-    <main id="main-content" className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] p-3 dark:bg-[image:var(--gradient-dark)] sm:items-center sm:p-4">
+    <main id="main-content" className="relative isolate flex h-dvh w-full items-start justify-center overflow-y-auto bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark)] sm:items-center">
       {/* Living symbol field: canvas layer above the gradient base */}
       <BackgroundPattern />
       {/* Centered black mask keeps the board readable over the symbol texture */}
@@ -157,6 +159,23 @@ function LocalGameSurface({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Settings edits made mid-game persist like lobby edits do, so the next
+  // match reopens with the same setup.
+  const handlePlayerSettingsChange = useCallback((next: PlayerSettings) => {
+    setPlayerSettings(next);
+    saveDisplayName(next.displayName);
+    savePreferences({ color: next.color, playerShape: next.playerShape });
+  }, []);
+  const handleOpponentSettingsChange = useCallback((next: OpponentSettings) => {
+    setOpponentSettings(next);
+    savePreferences({
+      opponentName: next.opponentName,
+      opponentColor: next.opponentColor,
+      opponentShape: next.opponentShape,
+      aiDifficulty: next.aiDifficulty,
+    });
+  }, []);
 
   const input = useMemo(
     () => ({
@@ -272,48 +291,57 @@ function LocalGameSurface({
         : undefined;
 
   return (
-    <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3">
-      <PlayersPanel
-        gameState={gameState}
-        stats={stats}
-        gameMode={config.gameMode}
-        // F578, same contract as the stats context above: the card shows
-        // the tier the running game was created at, not the live selection.
-        aiDifficulty={
-          config.gameMode === GameModes.VS_COMPUTER
-            ? gameState.aiDifficulty
-            : undefined
-        }
-        message={gameState.turnNotice ?? ""}
-        onNewGame={handleReset}
-        onExit={() => {
-          exit();
-          onExit();
-        }}
-        onHelp={() => setHelpOpen(true)}
-        onEditSettings={() => {
-          setSettingsTab("player");
-          setSettingsOpen(true);
-        }}
-        onPauseChange={(panelPause) => {
-          setPanelPaused(panelPause);
-          setPaused(settingsOpen || helpOpen || panelPause);
-        }}
-        paused={paused}
-      />
-      <Board
-        board={gameState.board}
-        colors={boardColors}
-        shapes={boardShapes}
-        winningCombination={gameState.winningCombination}
-        nextToRemove={gameState.nextToRemove}
-        previewPlayer={previewPlayer}
-        previewColor={previewColor}
-        previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
-        disabled={isBoardDisabled}
-        disabledReason={boardDisabledReason}
-        onCellClick={handleCellClick}
-      />
+    // Portrait stacks HUD above board. A short landscape phone (~667x375)
+    // cannot: stacking leaves the board wider than the screen is tall, so
+    // the player scrolls to find the bottom row against a 10s clock. Once
+    // the viewport is wider than it is tall the column lays out side by
+    // side instead, which is the wide axis finally being used.
+    <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3 landscape-short:max-w-3xl landscape-short:flex-row landscape-short:items-start">
+      <div className="landscape-short:min-w-0 landscape-short:flex-1">
+        <PlayersPanel
+          gameState={gameState}
+          stats={stats}
+          gameMode={config.gameMode}
+          // F578, same contract as the stats context above: the card shows
+          // the tier the running game was created at, not the live selection.
+          aiDifficulty={
+            config.gameMode === GameModes.VS_COMPUTER
+              ? gameState.aiDifficulty
+              : undefined
+          }
+          message={gameState.turnNotice ?? ""}
+          onNewGame={handleReset}
+          onExit={() => {
+            exit();
+            onExit();
+          }}
+          onHelp={() => setHelpOpen(true)}
+          onEditSettings={() => {
+            setSettingsTab("player");
+            setSettingsOpen(true);
+          }}
+          onPauseChange={(panelPause) => {
+            setPanelPaused(panelPause);
+            setPaused(settingsOpen || helpOpen || panelPause);
+          }}
+          paused={paused}
+        />
+      </div>
+      <div className="landscape-short:min-w-0 landscape-short:flex-1">
+        <Board
+          board={gameState.board}
+          colors={boardColors}
+          shapes={boardShapes}
+          winningCombination={gameState.winningCombination}
+          nextToRemove={gameState.nextToRemove}
+          previewPlayer={previewPlayer}
+          previewColor={previewColor}
+          previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
+          disabled={isBoardDisabled}
+          disabledReason={boardDisabledReason}
+          onCellClick={handleCellClick}
+        />
+      </div>
       <HelpDrawer
         inline
         isOpen={helpOpen}
@@ -326,8 +354,8 @@ function LocalGameSurface({
         onTabChange={setSettingsTab}
         player={playerSettings}
         opponent={opponentSettings}
-        onPlayerChange={setPlayerSettings}
-        onOpponentChange={setOpponentSettings}
+        onPlayerChange={handlePlayerSettingsChange}
+        onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
       />
     </div>

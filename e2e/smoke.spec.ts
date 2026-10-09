@@ -33,7 +33,7 @@ async function fillLobby(
   await page.getByRole("radio", { name: options.mode, exact: true }).click();
   if (options.opponentName && options.mode === "vs Friend") {
     await openOpponentSettings(page);
-    await page.getByLabel("Name", { exact: true }).fill(options.opponentName);
+    await page.getByLabel("Opponent name", { exact: true }).fill(options.opponentName);
     await closeOpponentSettings(page);
   }
   if (options.mode === "Online") {
@@ -45,7 +45,7 @@ async function fillLobby(
   }
   // Fill the player name inside the settings sheet.
   await openPlayerSettings(page);
-  await page.getByLabel("Name", { exact: true }).fill(options.name);
+  await page.getByLabel("Your name", { exact: true }).fill(options.name);
   await closePlayerSettings(page);
 }
 
@@ -111,12 +111,12 @@ test("settings tablist follows the Arrow/Home/End keyboard contract", async ({ p
 test("remembers the display name after starting a game", async ({ page }) => {
   await page.goto("/");
   await openPlayerSettings(page);
-  await page.getByLabel("Name", { exact: true }).fill("Alice");
+  await page.getByLabel("Your name", { exact: true }).fill("Alice");
   await closePlayerSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
   await page.reload();
   await openPlayerSettings(page);
-  await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Alice");
+  await expect(page.getByLabel("Your name", { exact: true })).toHaveValue("Alice");
   await closePlayerSettings(page);
 });
 
@@ -218,7 +218,7 @@ test("record breakdown breaks the record down by mode and difficulty", async ({ 
 test("sets up a private room with a custom code or a friend code", async ({ page }) => {
   await page.goto("/");
   await openPlayerSettings(page);
-  await page.getByLabel("Name", { exact: true }).fill("Alice");
+  await page.getByLabel("Your name", { exact: true }).fill("Alice");
   await closePlayerSettings(page);
   await page.getByRole("radio", { name: "Online", exact: true }).click();
 
@@ -239,8 +239,9 @@ test("sets up a private room with a custom code or a friend code", async ({ page
 
 test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await fillLobby(page, { name: "AI Player", color: "blue", mode: "vs Computer" });
-  // Difficulty is now inside the opponent sheet.
+  // Difficulty is now inside the opponent sheet, behind a dropdown trigger.
   await openOpponentSettings(page);
+  await page.getByRole("button", { name: /Difficulty/ }).click();
   const difficultyGroup = page.getByRole("radiogroup", { name: "AI difficulty" });
   await expect(difficultyGroup.getByRole("radio")).toHaveCount(3);
   await expect(page.getByRole("radio", { name: "Insane", exact: true })).toHaveCount(0);
@@ -333,9 +334,11 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
     opponentName: "Bob",
   });
 
-  // User picks green in the player sheet.
+  // User picks green in the player sheet — the color options live behind
+  // the "Your color" dropdown trigger.
   await openPlayerSettings(page);
-  const yourColor = page.getByRole("group", { name: /Your color/i });
+  await page.getByRole("button", { name: "Your color" }).click();
+  const yourColor = page.getByRole("radiogroup", { name: "Your color" });
   await expect(yourColor).toBeVisible();
   await yourColor.getByRole("radio", { name: /green/i }).click();
   await expect(yourColor.getByRole("radio", { name: /green/i })).toHaveAttribute(
@@ -348,7 +351,8 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
   // The swap logic moves the user to the opponent's previous color (red)
   // so the two marks stay distinct.
   await openOpponentSettings(page);
-  const opponentColor = page.getByRole("group", { name: /Opponent color/i });
+  await page.getByRole("button", { name: "Opponent color" }).click();
+  const opponentColor = page.getByRole("radiogroup", { name: "Opponent color" });
   await expect(opponentColor).toBeVisible();
   await opponentColor.getByRole("radio", { name: /green/i }).click();
   await expect(opponentColor.getByRole("radio", { name: /green/i })).toHaveAttribute(
@@ -359,7 +363,8 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
 
   // Re-open the player sheet to confirm the user was swapped to red.
   await openPlayerSettings(page);
-  await expect(page.getByRole("group", { name: /Your color/i }).getByRole("radio", { name: /red/i })).toHaveAttribute(
+  await page.getByRole("button", { name: "Your color" }).click();
+  await expect(page.getByRole("radiogroup", { name: "Your color" }).getByRole("radio", { name: /red/i })).toHaveAttribute(
     "aria-checked",
     "true",
   );
@@ -367,11 +372,13 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
 
   // Swap colors back: player picks green, then opponent picks red.
   await openPlayerSettings(page);
-  await page.getByRole("group", { name: /Your color/i }).getByRole("radio", { name: /green/i }).click();
+  await page.getByRole("button", { name: "Your color" }).click();
+  await page.getByRole("radiogroup", { name: "Your color" }).getByRole("radio", { name: /green/i }).click();
   await closePlayerSettings(page);
 
   await openOpponentSettings(page);
-  await page.getByRole("group", { name: /Opponent color/i }).getByRole("radio", { name: /red/i }).click();
+  await page.getByRole("button", { name: "Opponent color" }).click();
+  await page.getByRole("radiogroup", { name: "Opponent color" }).getByRole("radio", { name: /red/i }).click();
   await closeOpponentSettings(page);
 
   await page.getByRole("button", { name: "Start Game" }).click();
@@ -524,7 +531,7 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("radio", { name: "vs Friend", exact: true }).click();
   await page.getByRole("button", { name: "Edit opponent settings" }).click();
-  await page.getByLabel("Name", { exact: true }).fill("Bob");
+  await page.getByLabel("Opponent name", { exact: true }).fill("Bob");
   await page.getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Start Game" }).click();
 

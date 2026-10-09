@@ -148,13 +148,24 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
   // margin:0 kills the UA's `margin: auto`, and display:flex overrides
   // the UA's `dialog[open]{display:block}` for the flex-col layout.
   const panelClass = cn(
-    "glass flex w-full flex-col overflow-hidden p-5 shadow-2xl",
+    // `display` has to follow isOpen rather than being set once. A closed
+    // <dialog> is hidden by the UA rule `dialog:not([open]) { display:none }`,
+    // but any author-level `display` beats the UA stylesheet — so a static
+    // `flex` here left the closed "How to play" panel permanently rendered
+    // in the lobby, 272px of live dialog sitting under the Start button.
+    // The dialog stays mounted (the effect below needs the node to call
+    // showModal()/close()); it is only hidden.
+    isOpen ? "flex" : "hidden",
+    "glass w-full flex-col overflow-hidden p-5 shadow-2xl",
     inline
       ? // static in-flow child of the scrim flex — panel-scoped, full size
         "static m-0 max-h-full rounded-2xl"
       : // absolute+inset-0+margin auto centers; mb-0 anchors the mobile
-        // bottom-sheet edge, sm:mb-auto recenters on desktop
-        "inset-0 m-auto mb-0 max-h-[85dvh] max-w-md rounded-t-2xl sm:mb-auto sm:rounded-2xl",
+        // bottom-sheet edge, sm:mb-auto recenters on desktop.
+        // The bottom pad clears the home indicator: with viewport-fit=cover
+        // the sheet spans the full viewport, and a plain p-5 would leave its
+        // last row under the indicator on a notched iPhone.
+        "inset-0 m-auto mb-0 max-h-[85dvh] max-w-md rounded-t-2xl pb-[max(1.25rem,var(--inset-bottom))] sm:mb-auto sm:rounded-2xl",
     isOpen && "animate-pop-in",
   );
 

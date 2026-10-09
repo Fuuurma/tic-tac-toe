@@ -13,6 +13,8 @@ import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
 import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
 import { useGameStats } from "@/hooks/useGameStats";
+import { saveDisplayName } from "@/lib/identity";
+import { savePreferences } from "@/lib/preferences";
 import {
   SettingsSheet,
   type PlayerSettings,
@@ -398,10 +400,16 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         onPlayerChange={setPendingPlayerSettings}
         onOpponentChange={() => undefined}
         onClose={() => {
-          // Persist the edits so the next rematch picks them up.
+          // Persist the edits so the next rematch picks them up, and store
+          // them locally so the next session keeps the same setup.
           if (peer.state.role === "host") {
             peer.updatePendingSettings({
               displayName: pendingPlayerSettings.displayName,
+              color: pendingPlayerSettings.color,
+              playerShape: pendingPlayerSettings.playerShape,
+            });
+            saveDisplayName(pendingPlayerSettings.displayName);
+            savePreferences({
               color: pendingPlayerSettings.color,
               playerShape: pendingPlayerSettings.playerShape,
             });

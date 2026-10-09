@@ -5,15 +5,14 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { SymbolShapePicker } from "./symbolShapePicker";
 import { AVAILABLE_SHAPES, SHAPE_LABELS, SymbolShape } from "@/game/constants";
 
-// The tiles used to be glyph-only: `label` was computed and handed to
-// aria-label, so screen-reader users heard "Triangle"/"Diamond" while sighted
-// users got eight unlabelled shapes. The sibling colorPicker in the same form
-// already renders a visible truncated name next to its swatch, so this is an
-// internal-consistency gap, not a deliberate icon-only house style.
+// Tiles are icon-only by owner direction: the glyph is self-describing, so the
+// name lives on aria-label (assistive tech) and title (hover tooltip) instead
+// of as visible text under every tile. The radiogroup contract (role, roving
+// tabIndex, aria-checked, arrow keys) is unchanged — only the captions went.
 describe("SymbolShapePicker tiles", () => {
   afterEach(cleanup);
 
-  const renderPicker = (label = "Your shape") =>
+  const renderPicker = (label = "Your symbol") =>
     render(
       <SymbolShapePicker
         label={label}
@@ -22,31 +21,29 @@ describe("SymbolShapePicker tiles", () => {
       />,
     );
 
-  it("names its legend and radiogroup from the caller's label", () => {
-    renderPicker("Opponent shape");
+  it("names its radiogroup from the caller's label", () => {
+    renderPicker("Opponent symbol");
 
-    expect(screen.getByRole("radiogroup", { name: "Opponent shape" })).toBeTruthy();
-    expect(screen.getByText("Opponent shape")).toBeTruthy();
+    expect(screen.getByRole("radiogroup", { name: "Opponent symbol" })).toBeTruthy();
   });
 
-  it("shows every shape name as visible text, not only as an accessible name", () => {
-    renderPicker();
-
-    // textContent is the visible text; getByRole(name:) would also be
-    // satisfied by aria-label alone, which is exactly what the bug had.
-    for (const shape of AVAILABLE_SHAPES) {
-      const tile = screen.getByRole("radio", { name: SHAPE_LABELS[shape] });
-      expect(tile.textContent?.trim()).toBe(SHAPE_LABELS[shape]);
-    }
-  });
-
-  it("labels every tile with its own name", () => {
+  it("renders every tile icon-only, with no visible text", () => {
     const { container } = renderPicker();
     const tiles = container.querySelectorAll('[role="radio"]');
 
     expect(tiles).toHaveLength(AVAILABLE_SHAPES.length);
-    const visible = Array.from(tiles).map((t) => t.textContent?.trim());
-    expect(new Set(visible).size).toBe(AVAILABLE_SHAPES.length);
+    for (const tile of tiles) {
+      expect(tile.textContent?.trim()).toBe("");
+    }
+  });
+
+  it("labels every tile with its own accessible name", () => {
+    renderPicker();
+
+    for (const shape of AVAILABLE_SHAPES) {
+      // getByRole throws if the name is missing or not unique.
+      expect(screen.getByRole("radio", { name: SHAPE_LABELS[shape] })).toBeTruthy();
+    }
   });
 
   it("exposes the same name as a title tooltip, matching colorPicker", () => {

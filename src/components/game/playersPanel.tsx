@@ -333,7 +333,12 @@ export function PlayersPanel({
             <div
               role="status"
               className={cn(
-                "mt-1 truncate text-xs sm:text-sm",
+                // A peer-supplied notice runs up to PEER_MAX_ERROR_LENGTH (200 chars).
+          // `truncate` cut it to a couple of glyphs on a 320px phone — the
+          // player saw what looked like an empty status line. Two clamped
+          // lines keep the HUD compact and still carry the start of the
+          // message; the full text is announced by the status role.
+          "mt-1 line-clamp-2 text-xs sm:text-sm",
                 // An explicit status message is alert-worthy; the default
                 // turn label is not. Key off message presence, not copy.
                 message
