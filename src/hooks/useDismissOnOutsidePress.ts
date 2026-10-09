@@ -16,7 +16,8 @@ import { useEffect, useRef } from "react";
  * it closes. One `click` puts the dismissal and whatever the press targeted in
  * the same batch, so the reflow can only land after the tap has resolved.
  *
- * A scroll still dismisses, because a drag does not produce a click.
+ * A scroll does not dismiss: a drag produces no click, and click is the only
+ * listener.
  */
 export function useDismissOnOutsidePress(
   rootRef: React.RefObject<HTMLElement | null>,
