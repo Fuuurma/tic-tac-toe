@@ -233,12 +233,15 @@ body,
    inset floor cannot be clobbered by a later `sm:` padding rule: in
    landscape a notched phone reports a wide left/right inset, and a media
    query that simply re-pads would slide the board back under the sensor
-   housing. Base is the mobile rhythm (p-3), sm widens to p-4. */
+   housing. Base is full-bleed (insets only), sm pads to p-4. */
 #main-content {
-  padding-top: max(0.75rem, var(--inset-top));
-  padding-right: max(0.75rem, var(--inset-right));
-  padding-bottom: max(0.75rem, var(--inset-bottom));
-  padding-left: max(0.75rem, var(--inset-left));
+  /* Phone: full-bleed. The shell reserves only what the OS reserves; each
+     surface pads its own content, so a lobby or game screen owns the whole
+     display instead of floating as a card with a 12px moat around it. */
+  padding-top: var(--inset-top);
+  padding-right: var(--inset-right);
+  padding-bottom: var(--inset-bottom);
+  padding-left: var(--inset-left);
 }
 
 @media (min-width: 640px) {
@@ -260,6 +263,28 @@ button,
 a {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Long-press on the board or a chip should not open the text-selection
+   loupe or the iOS callout mid-game. Inputs keep normal selection. */
+.no-touch-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* A full-screen phone sheet is a page, not a pane over the lobby: the glass
+   tint thickens so the form reads on its own instead of through a blurred
+   copy of the screen behind it. The footer hairline separates the sticky
+   action row from content scrolling under it. */
+@media (max-width: 639.98px) {
+  .sheet-surface {
+    --glass-alpha: 0.94;
+  }
+}
+
+.sheet-footer {
+  border-top: 1px solid rgb(var(--glass-border) / 0.18);
 }
 
 /* Short landscape — a phone rotated, not a small desktop window.
@@ -419,8 +444,23 @@ a {
 .animate-shimmer {
   animation: shimmer 1.4s ease-in-out infinite;
 }
-.animate-pop-in {
+@utility animate-pop-in {
   animation: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Phone sheets rise from the bottom edge, the way a platform sheet does;
+   desktop keeps the centered pop-in. */
+@keyframes sheet-up {
+  0% {
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@utility animate-sheet-up {
+  animation: sheet-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Win-line craft moment: a one-shot emerald glow pulse that sweeps
