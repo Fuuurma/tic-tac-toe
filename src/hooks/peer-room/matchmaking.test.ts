@@ -5,6 +5,7 @@ import {
   findMatch,
   leaveMatch,
   pollMatch,
+  type MatchmakingResponse,
 } from "@/lib/matchmaking";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
@@ -234,5 +235,129 @@ describe("runQuickMatch", () => {
     await runQuickMatch(deps);
 
     expect(mockedBuildRoomWsUrl).toHaveBeenCalledWith("r9");
+  });
+});
+
+/** Deferred promise: the test resolves a pending network call on its own schedule. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+/** Mirrors usePeerRoom.leave(): the user-cancel path shared with unmount. */
+function cancelLikeLeave(deps: MatchmakingDeps, hasStartedRef: { current: boolean }) {
+  abandonTicket(deps, "on leave");
+  hasStartedRef.current = false;
+}
+
+describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
+  it("(A) cancel while findMatch is pending starts no room and abandons the ticket it got back", async () => {
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    const join = deferred<MatchmakingResponse>();
+    mockedFindMatch.mockReturnValue(join.promise);
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedFindMatch).toHaveBeenCalledTimes(1));
+
+    // The user cancels while the initial join request is still in flight.
+    cancelLikeLeave(deps, hasStartedRef);
+    join.resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+    await attempt;
+
+    expect(deps.startAsHost).not.toHaveBeenCalled();
+    expect(deps.joinAsGuest).not.toHaveBeenCalled();
+    expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "t1");
+    expect(matchmakingTicketRef.current).toBeNull();
+    expect(hasStartedRef.current).toBe(false);
+    expect(deps.setStatus).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error" }),
+    );
+  });
+
+  it("(A) cancel while findMatch is pending does not join a room on an instant match", async () => {
+    const { deps, hasStartedRef } = makeDeps();
+    const join = deferred<MatchmakingResponse>();
+    mockedFindMatch.mockReturnValue(join.promise);
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedFindMatch).toHaveBeenCalledTimes(1));
+    cancelLikeLeave(deps, hasStartedRef);
+    join.resolve({
+      status: "matched",
+      match: makeMatch({ roomId: "r2", wsUrl: "wss://relay.example/room/r2" }),
+      slotToken: "guest-slot-tok",
+    });
+    await attempt;
+
+    expect(deps.joinAsGuest).not.toHaveBeenCalled();
+    expect(deps.startAsHost).not.toHaveBeenCalled();
+    expect(hasStartedRef.current).toBe(false);
+  });
+
+  it("(B1) a stale poll loop from attempt 1 does not leave or abandon attempt 2's live ticket", async () => {
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    const stalePoll = deferred<MatchmakingResponse>();
+    const livePoll = deferred<MatchmakingResponse>();
+    mockedFindMatch
+      .mockResolvedValueOnce({ status: "waiting", ticket: "t1", roomId: "r1" })
+      .mockResolvedValueOnce({ status: "waiting", ticket: "t2", roomId: "r2" });
+    mockedPollMatch.mockImplementation((_game, ticket) =>
+      ticket === "t1" ? stalePoll.promise : livePoll.promise,
+    );
+
+    const attempt1 = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledWith(expect.any(String), "t1"));
+    cancelLikeLeave(deps, hasStartedRef);
+    mockedLeaveMatch.mockClear();
+
+    const attempt2 = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledWith(expect.any(String), "t2"));
+    expect(matchmakingTicketRef.current).toBe("t2");
+
+    // The stale loop's poll lands while attempt 2 owns the live ticket.
+    stalePoll.resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+    await attempt1;
+
+    expect(mockedLeaveMatch).not.toHaveBeenCalledWith(expect.any(String), "t2");
+    expect(matchmakingTicketRef.current).toBe("t2");
+
+    livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2" }) });
+    await attempt2;
+    expect(mockedLeaveMatch).not.toHaveBeenCalledWith(expect.any(String), "t2");
+  });
+
+  it("(B2) a stale poll loop does not clobber attempt 2's hasStarted flag or post a timeout error", async () => {
+    // maxPollMs 25 (makeDeps default): attempt 1's budget expires while its
+    // poll is pending, so the stale loop reaches its timeout branch.
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    const stalePoll = deferred<MatchmakingResponse>();
+    const livePoll = deferred<MatchmakingResponse>();
+    mockedFindMatch
+      .mockResolvedValueOnce({ status: "waiting", ticket: "t1", roomId: "r1" })
+      .mockResolvedValueOnce({ status: "waiting", ticket: "t2", roomId: "r2" });
+    mockedPollMatch.mockImplementation((_game, ticket) =>
+      ticket === "t1" ? stalePoll.promise : livePoll.promise,
+    );
+
+    const attempt1 = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledWith(expect.any(String), "t1"));
+    cancelLikeLeave(deps, hasStartedRef);
+
+    const attempt2 = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledWith(expect.any(String), "t2"));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    stalePoll.resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+    await attempt1;
+
+    expect(hasStartedRef.current).toBe(true);
+    expect(matchmakingTicketRef.current).toBe("t2");
+    expect(deps.patchStatus).not.toHaveBeenCalled();
+
+    livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2" }) });
+    await attempt2;
   });
 });
