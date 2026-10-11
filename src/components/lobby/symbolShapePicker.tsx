@@ -1,6 +1,7 @@
 import { AVAILABLE_SHAPES, SHAPE_LABELS, SymbolShape } from "@/game/constants";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 
 interface SymbolShapePickerProps {
@@ -38,9 +39,9 @@ export function SymbolShapePicker({
             tabIndex={isSelected ? 0 : -1}
             onClick={() => onChange(shape)}
             className={cn(
-              "flex h-12 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              "relative flex h-12 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
               isSelected
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)] max-sm:ring-2 max-sm:ring-[rgb(var(--player-color))] max-sm:ring-offset-2 max-sm:ring-offset-background"
                 : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
             )}
           >
@@ -52,6 +53,13 @@ export function SymbolShapePicker({
                 isSelected ? "text-[rgb(var(--player-color))]" : "text-current",
               )}
             />
+            {isSelected && (
+              <Check
+                className="absolute right-1 top-1 hidden size-3.5 text-[rgb(var(--player-color))] max-sm:block"
+                strokeWidth={3}
+                aria-hidden="true"
+              />
+            )}
           </button>
         );
       })}
