@@ -204,6 +204,19 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
     gameMode === GameModes.ONLINE && onlineAction === "quick" && !MATCHMAKING_CONFIGURED;
   const startDisabled = !isValid || quickMatchUnavailable;
   const startTitle = quickMatchUnavailable ? MATCHMAKING_UNAVAILABLE_MESSAGE : undefined;
+  const startReasonId = useId();
+  // The room-code field already shows its own error inline; repeating it
+  // under the button would say the same thing twice on one screen.
+  const roomFieldError =
+    gameMode === GameModes.ONLINE && onlineAction !== "quick" && onlineRoomId.trim()
+      ? getRoomCodeError(onlineAction, onlineRoomId.trim())
+      : null;
+  const validationError = startDisabled ? validate(payload) : null;
+  const startReason = quickMatchUnavailable
+    ? `${MATCHMAKING_UNAVAILABLE_MESSAGE} Create or join a room instead.`
+    : validationError !== roomFieldError
+      ? validationError
+      : null;
 
   const playerSettings: PlayerSettings = useMemo(
     () => ({ displayName, color, playerShape }),
@@ -266,7 +279,10 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
         setOpponentType(PlayerTypes.COMPUTER);
       } else if (nextMode === GameModes.VS_FRIEND) {
         // Hydrate the last saved opponent name so Friend mode reopens with it.
-        setOpponentName(loadPreferences().opponentName ?? "");
+        // An empty or invalid saved name used to leave Start permanently
+        // disabled with no visible reason, so fall back to a valid default.
+        const saved = loadPreferences().opponentName;
+        setOpponentName(saved && sanitizeDisplayName(saved) === saved ? saved : "Player 2");
         setOpponentType(PlayerTypes.HUMAN);
       }
     },
@@ -303,11 +319,16 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
       // card wrapped around a void — while a tall one (Online adds the
       // match-type row and a room-code field) fills the phone and scrolls
       // instead of pushing Start below the fold.
-      className="my-auto flex max-h-full w-full max-w-md flex-col"
+      className="flex max-h-full w-full max-w-md flex-col max-sm:h-full max-sm:max-w-none sm:my-auto"
       style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
     >
-      <Card variant="glass" className="flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0">
-        <CardHeader className="flex-row items-center gap-3 px-5 pb-4 pt-6 text-left sm:px-6 sm:pb-5 sm:pt-7">
+      {/* On phones the glass panel is the screen itself: no floating border,
+          radius or shadow. */}
+      <Card
+        variant="glass"
+        className="flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0 max-sm:rounded-none max-sm:border-0 max-sm:shadow-none"
+      >
+        <CardHeader className="flex-row items-center gap-3 px-4 pb-3 pt-4 text-left sm:px-6 sm:pb-5 sm:pt-7">
           <GameMark />
           <div className="min-w-0 flex-1">
             <h1 className="font-display leading-none">
@@ -329,12 +350,12 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             <CircleHelp className="size-4.5" aria-hidden="true" />
           </button>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4 pt-0 sm:px-6">
+        <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-0 sm:px-6">
           <div className="flex flex-col gap-3 sm:gap-3.5">
           {error && (
             <div
               role="alert"
-              className="glass-cell rounded-lg border-destructive/30 px-3.5 py-2.5 text-xs text-destructive"
+              className="glass-cell rounded-lg border-destructive/30 px-3.5 py-2.5 text-sm text-destructive sm:text-xs"
             >
               {error}
             </div>
@@ -370,7 +391,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
               <div
                 role="radiogroup"
                 aria-label="Online match type"
-                className="grid grid-cols-3 gap-2"
+                className="flex flex-col gap-2 sm:grid sm:grid-cols-3"
                 onKeyDown={handleRadioGroupKeyDown}
               >
                 <OnlineOption
@@ -399,16 +420,15 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                 <Field
                   id="room"
                   label="Custom room code (optional)"
+                  inputMode="text"
+                  autoCapitalize="none"
+                  enterKeyHint="go"
                   icon={<Hash className="h-3.5 w-3.5" />}
                   value={onlineRoomId}
                   placeholder="Leave empty to generate one"
                   maxLength={64}
                   hint="4-64 letters, numbers, hyphens, or underscores."
-                  error={
-                    onlineRoomId.trim()
-                      ? getRoomCodeError("create", onlineRoomId.trim()) ?? undefined
-                      : undefined
-                  }
+                  error={roomFieldError ?? undefined}
                   onChange={setOnlineRoomId}
                 />
               )}
@@ -416,16 +436,15 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                 <Field
                   id="room"
                   label="Room code"
+                  inputMode="text"
+                  autoCapitalize="none"
+                  enterKeyHint="go"
                   icon={<Hash className="h-3.5 w-3.5" />}
                   value={onlineRoomId}
                   placeholder="e.g. friday-game"
                   maxLength={64}
                   hint="Use the code your friend shared with you."
-                  error={
-                    onlineRoomId.trim()
-                      ? getRoomCodeError("join", onlineRoomId.trim()) ?? undefined
-                      : undefined
-                  }
+                  error={roomFieldError ?? undefined}
                   onChange={setOnlineRoomId}
                 />
               )}
@@ -435,7 +454,8 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
         </CardContent>
         <CardFooter
           className={cn(
-            "flex flex-col gap-2 px-5 pb-5 pt-1 sm:px-6 sm:pb-6",
+            // Phones: the CTA sits in thumb reach above the home indicator.
+            "flex flex-col gap-2 px-4 pb-[max(1rem,var(--inset-bottom))] pt-2 sm:px-6 sm:pb-6 sm:pt-1",
             // A wide-but-short window (a rotated tablet, or any desktop
             // window under 560px tall) is past the `sm:h-auto` breakpoint,
             // so the card sizes to its content and outgrows the scrollport
@@ -458,6 +478,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             variant="glass"
             disabled={startDisabled}
             title={startTitle}
+            aria-describedby={startReason ? startReasonId : undefined}
             className={cn(
               "h-12 w-full text-base font-bold sm:h-14",
               startDisabled && "cursor-not-allowed opacity-50",
@@ -486,9 +507,19 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
               </>
             )}
           </Button>
-          {quickMatchUnavailable && (
-            <p role="status" className="text-center text-xs text-white/60">
-              {MATCHMAKING_UNAVAILABLE_MESSAGE} Create or join a room instead.
+          {/* Says why Start is disabled. On desktop the text stays out of the
+              layout (sr-only) so the 1280x800 view is unchanged, but it is still
+              the button's accessible description. */}
+          {startReason && (
+            <p
+              id={startReasonId}
+              role={quickMatchUnavailable ? "status" : undefined}
+              className={cn(
+                "text-center text-sm text-muted-foreground",
+                quickMatchUnavailable ? "sm:text-xs sm:text-white/60" : "sm:sr-only",
+              )}
+            >
+              {startReason}
             </p>
           )}
         </CardFooter>
@@ -541,7 +572,7 @@ function OnlinePopulation({ count }: { count: PlayerCount | null }) {
     <p
       role="status"
       aria-live="polite"
-      className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"
+      className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground sm:text-[11px] sm:leading-[normal]"
     >
       <span aria-hidden="true" className="relative flex size-1.5 shrink-0">
         <span className="animate-pulse-slow absolute inline-flex size-full rounded-full bg-[rgb(var(--player-color))] opacity-60" />
@@ -580,27 +611,32 @@ function OnlineOption({
       tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={cn(
-        "group relative flex min-h-[4.5rem] flex-col items-stretch justify-center gap-1.5 rounded-lg border px-2.5 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+        // Phones: one full-width row (icon, label, hint, check). From sm up,
+        // the original three-up tile with label above description.
+        "group relative flex min-h-14 flex-row items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-stretch sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
         active
           ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
           : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
       )}
     >
-      {/* Taken out of flow: in a three-up row on a 320px phone an inline check
-          left ~14px for the label and "Join" truncated to "J…". */}
+      <span className="flex min-w-0 items-center gap-2 sm:gap-1.5">
+        {icon}
+        <span className="text-sm font-semibold sm:truncate sm:text-xs">{label}</span>
+      </span>
+      <span
+        id={descId}
+        className="text-sm leading-tight text-muted-foreground max-sm:ml-auto sm:text-[11px]"
+      >
+        {description}
+      </span>
+      {/* Phones: the check sits at the row end. From sm up it is taken out of
+          flow so a three-up tile keeps its full label width at 640px. */}
       {active && (
         <Check
-          className="absolute right-1.5 top-1.5 size-3.5 text-[rgb(var(--player-color))]"
+          className="size-4 shrink-0 text-[rgb(var(--player-color))] sm:absolute sm:right-1.5 sm:top-1.5 sm:size-3.5"
           aria-hidden="true"
         />
       )}
-      <span className="flex min-w-0 items-center gap-1.5">
-        {icon}
-        <span className="truncate text-xs font-semibold">{label}</span>
-      </span>
-      <span id={descId} className="text-[11px] leading-tight text-muted-foreground">
-        {description}
-      </span>
     </button>
   );
 }
@@ -614,6 +650,9 @@ interface FieldProps {
   maxLength?: number;
   hint?: string;
   error?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  autoCapitalize?: "characters" | "none";
+  enterKeyHint?: "go" | "done";
   onChange: (value: string) => void;
 }
 
@@ -626,6 +665,9 @@ function Field({
   maxLength = 20,
   hint,
   error,
+  inputMode,
+  autoCapitalize,
+  enterKeyHint,
   onChange,
 }: FieldProps) {
   const hintId = hint ? `${id}-hint` : undefined;
@@ -634,7 +676,7 @@ function Field({
 
   return (
     <label htmlFor={id} className="block" data-invalid={error ? "true" : undefined}>
-      <span className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold tracking-normal text-muted-foreground">
+      <span className="mb-1.5 flex items-center gap-1 text-sm font-semibold tracking-normal text-muted-foreground sm:text-[11px] sm:leading-[normal]">
         {icon}
         {label}
       </span>
@@ -648,18 +690,23 @@ function Field({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        inputMode={inputMode}
+        autoCapitalize={autoCapitalize}
+        enterKeyHint={enterKeyHint}
         className={cn(
           "h-11 w-full rounded-lg border border-input bg-background/60 px-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
           error && "border-destructive focus-visible:ring-destructive",
         )}
       />
       {hint && !error && (
-        <span id={hintId} className="mt-1.5 block text-xs leading-tight text-muted-foreground">
+        <span id={hintId} className="mt-1.5 block text-sm leading-tight text-muted-foreground sm:text-xs">
           {hint}
         </span>
       )}
       {error && (
-        <span id={errorId} role="alert" className="mt-1.5 block text-xs leading-tight text-destructive">
+        <span id={errorId} role="alert" className="mt-1.5 block text-sm leading-tight text-destructive sm:text-xs">
           {error}
         </span>
       )}

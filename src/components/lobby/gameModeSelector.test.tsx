@@ -8,7 +8,7 @@ import { GameModes } from "@/game/constants";
 afterEach(cleanup);
 
 describe("GameModeSelector", () => {
-  it("keeps the full accessible mode name with a compact mobile label", () => {
+  it("keeps the full accessible mode name on each radio", () => {
     render(
       <GameModeSelector
         selectedMode={GameModes.VS_COMPUTER}
