@@ -64,6 +64,9 @@ export interface RoomLifecycleDeps {
    *  a snapshot from a previous room can only resurrect that room's state,
    *  so it is cleared on entry with the rest of the carried-over state. */
   pendingGuestStateRef: { current: GameState | null };
+  /** Guest snapshot gate (guestProtocol, F618) — room-scoped: a sync_request
+   *  left unanswered in the previous room must not admit a snapshot here. */
+  syncPendingRef: { current: boolean };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -210,6 +213,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // Room-scoped like the rest: a snapshot taken in a previous room is
   // never a valid rollback target in this one (F275).
   deps.pendingGuestStateRef.current = null;
+  deps.syncPendingRef.current = false;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -259,6 +263,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   deps.guestJoinedRef.current = false;
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
   deps.reconnectResetsRef.current.moveCount = -1;
+  deps.syncPendingRef.current = false;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: "Enter a room ID" });

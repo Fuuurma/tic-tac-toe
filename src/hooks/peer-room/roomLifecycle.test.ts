@@ -95,6 +95,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       hostPendingSettingsRef,
       reconnectResetsRef: { current: { moveCount: -1 } },
       pendingGuestStateRef: { current: null as GameState | null },
+      syncPendingRef: { current: false },
     };
     return { deps, guestSymbolRef };
   }
@@ -296,5 +297,14 @@ describe("joinAsGuest rematch-flag reset", () => {
     joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
 
     expect(deps.pendingGuestStateRef.current).toBeNull();
+  });
+
+  it("F618: an unanswered sync_request from the last room does not arm the next room's snapshot gate", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    deps.syncPendingRef.current = true;
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+
+    expect(deps.syncPendingRef.current).toBe(false);
   });
 });

@@ -26,6 +26,10 @@ export interface GuestProtocolDeps {
    *  gates its prompt on the same flag, so without it here both sides can
    *  prompt at once and each waits 30s on the other. */
   rematchPendingRef: { current: boolean };
+  /** True while THIS guest has a sync_request out and no snapshot answered
+   *  it yet. Only a solicited state_snapshot may overwrite a live game; an
+   *  unsolicited one (a stale or hostile frame) must not clobber play. */
+  syncPendingRef: { current: boolean };
   /** Cancels this guest's rematch-expiry timer. */
   clearRematchTimeout: () => void;
   /**
@@ -50,12 +54,32 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
     guestSymbolRef,
     pendingGuestStateRef,
     rematchPendingRef,
+    syncPendingRef,
     clearRematchTimeout,
     setState,
     stopTimer,
   } = deps;
   {
     if (message.type === "joined" || message.type === "gameStart" || message.type === "gameUpdate" || message.type === "state_snapshot") {
+      // F618: a snapshot is only applied when this guest asked for one
+      // (reconnect resync). An unsolicited snapshot must not overwrite a
+      // live board. A solicited one is consumed here, so a duplicate or
+      // late second snapshot is ignored.
+      if (message.type === "state_snapshot") {
+        if (!syncPendingRef.current) return;
+        syncPendingRef.current = false;
+      }
+      // F610: a gameStart mid-play (ACTIVE with moves already made) is a
+      // stale or hostile frame; applying it would wipe the live game. Join
+      // gameStarts arrive from WAITING, and rematch gameStarts arrive after
+      // a terminal game, so both still apply.
+      if (
+        message.type === "gameStart" &&
+        isGameActive(stateRef.current) &&
+        stateRef.current.moveCount > 0
+      ) {
+        return;
+      }
       // Anchor the deadline to THIS clock: the wire state carries only
       // `turnTimeRemaining` (toWireGameState strips the host's absolute
       // deadline), so `now + remaining` is skew-free. A deadline that does
