@@ -26,7 +26,6 @@ import {
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { normalizeRoomId } from "@/lib/roomId";
-import { cn } from "@/lib/utils";
 import { saveDisplayName } from "@/lib/identity";
 import { savePreferences } from "@/lib/preferences";
 
@@ -92,18 +91,11 @@ export default function App() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
       />
-      {/* Auto cross-axis margins suppress the stretch, so this wrapper
-          fills the scrollport below `sm` — which is what lets a phone form
-          own the screen — and snaps back to content height the moment there
-          is free space to distribute. The lobby wants the first (its card
-          stretches to fill); the game wants the second, or the board would
-          hang off the top of a tall phone with 300px of nothing below it. */}
-      <div
-        className={cn(
-          "relative z-10 flex w-full justify-center sm:my-auto",
-          view === "lobby" ? "" : "my-auto",
-        )}
-      >
+      {/* Below `sm` this wrapper stretches to the full scrollport so the
+          phone game column can take the full height and centre the board in
+          what remains. From `sm` up, auto margins restore content-height
+          centring for desktop. */}
+      <div className="relative z-10 flex w-full justify-center sm:my-auto">
         {view === "lobby" && (
           <LobbyForm initialRoomId={initialRoomId} onStart={handleStart} />
         )}
@@ -308,8 +300,8 @@ function LocalGameSurface({
     // the player scrolls to find the bottom row against a 10s clock. Once
     // the viewport is wider than it is tall the column lays out side by
     // side instead, which is the wide axis finally being used.
-    <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 sm:gap-3 landscape-short:max-w-3xl landscape-short:flex-row landscape-short:items-start">
-      <div className="landscape-short:min-w-0 landscape-short:flex-1">
+    <div className="relative flex h-full w-full max-w-md flex-col items-stretch gap-2 sm:h-auto sm:gap-3 landscape-short:max-w-3xl landscape-short:flex-row landscape-short:items-start">
+      <div className="max-sm:contents landscape-short:min-w-0 landscape-short:flex-1">
         <PlayersPanel
           gameState={gameState}
           stats={stats}
@@ -339,7 +331,7 @@ function LocalGameSurface({
           paused={paused}
         />
       </div>
-      <div className="landscape-short:min-w-0 landscape-short:flex-1">
+      <div className="flex min-h-0 flex-1 flex-col justify-center max-sm:order-5 landscape-short:min-w-0 landscape-short:flex-1">
         <Board
           board={gameState.board}
           colors={boardColors}

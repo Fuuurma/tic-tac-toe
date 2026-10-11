@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Sheet } from "@/components/ui/sheet";
 
 interface ConfirmProps {
   isOpen: boolean;
@@ -25,67 +25,48 @@ export function Confirm({
   onConfirm,
   onCancel,
 }: ConfirmProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const dialogId = useId();
-  const titleId = `${dialogId}-title`;
-  const descriptionId = `${dialogId}-description`;
-  const onCancelRef = useRef(onCancel);
-  useEffect(() => {
-    onCancelRef.current = onCancel;
-  }, [onCancel]);
 
-  // Native <dialog> + showModal(): Esc fires `cancel`, focus is trapped
-  // in the top layer, and focus returns to the invoker on close — the
-  // hand-rolled keydown handler and focus-save refs existed only to
-  // re-create this behavior. The dialog stays mounted so `open` is the
-  // single source of truth; isOpen just syncs it.
+  // Sheet focuses its panel on open. Focus Cancel instead so Enter on a
+  // destructive prompt never confirms by accident. This runs after Sheet's
+  // own effect, which has already opened the dialog.
   useEffect(() => {
-    const dlg = dialogRef.current;
-    if (!dlg) return;
-    if (isOpen && !dlg.open) {
-      dlg.showModal();
-      cancelRef.current?.focus();
-    } else if (!isOpen && dlg.open) {
-      dlg.close();
-    }
+    if (isOpen) cancelRef.current?.focus();
   }, [isOpen]);
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      onCancel={() => onCancelRef.current()}
-      className={cn(
-        "inset-0 m-auto w-[calc(100%-2rem)] max-w-sm bg-transparent p-0 backdrop:bg-overlay-scrim",
-        isOpen && "animate-pop-in",
-      )}
-    >
-      <div
-        className="glass rounded-2xl px-5 py-6 sm:px-6 sm:py-7"
-        style={
-          {
-            "--glass-alpha": "0.96",
-            "--player-color": destructive ? "239 68 68" : playerColor,
-          } as React.CSSProperties
-        }
-      >
-        <h2 id={titleId} className="text-base font-semibold">
-          {title}
-        </h2>
-        <p id={descriptionId} className="mt-2 text-sm text-muted-foreground">
-          {description}
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button ref={cancelRef} variant="glass" size="sm" onClick={onCancel}>
+    <Sheet
+      open={isOpen}
+      onClose={onCancel}
+      title={title}
+      size="auto"
+      hideClose
+      className="sm:max-w-sm"
+      style={
+        {
+          "--glass-alpha": "0.96",
+          "--player-color": destructive ? "239 68 68" : playerColor,
+        } as React.CSSProperties
+      }
+      // Primary action first on a phone stack (thumb reach), Cancel first
+      // in the desktop row, matching the native dialog this replaced.
+      footerClassName="flex-col-reverse sm:flex-row sm:justify-end"
+      footer={
+        <>
+          <Button
+            ref={cancelRef}
+            variant="glass"
+            size="sm"
+            onClick={onCancel}
+            className="max-sm:min-h-12 max-sm:w-full"
+          >
             {cancelText}
           </Button>
           <Button
             size="sm"
             variant="glass"
             onClick={onConfirm}
-            className="font-bold"
+            className="font-bold max-sm:min-h-12 max-sm:w-full"
             style={
               {
                 "--glass-sweep-color": destructive ? "239 68 68" : playerColor,
@@ -98,8 +79,10 @@ export function Confirm({
           >
             {confirmText}
           </Button>
-        </div>
-      </div>
-    </dialog>
+        </>
+      }
+    >
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </Sheet>
   );
 }

@@ -91,7 +91,7 @@ export function RecordBreakdown({ stats, gameMode }: RecordBreakdownProps) {
             {rows.map((row) => (
               <div
                 key={row.key}
-                className="flex items-baseline justify-between gap-4 text-[11px]"
+                className="flex items-baseline justify-between gap-4 text-[11px] max-sm:text-xs"
               >
                 <dt className="text-muted-foreground">{row.label}</dt>
                 <dd>

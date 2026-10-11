@@ -85,7 +85,9 @@ export const Board = memo(function Board({
   }, [board, disabled, onCellClick]);
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-1.5">
+    // The phone gutter lives here, not in the shell, so the well's
+    // `max-w-[var(--board-max)]` measures the inset width.
+    <div className="flex w-full max-w-md flex-col gap-1.5 max-sm:px-4">
       <div
         ref={boardRef}
         // The well is square, so it has to be bounded on BOTH axes. Left
@@ -95,7 +97,7 @@ export const Board = memo(function Board({
         // --board-avail carries the height left over after the rest of the
         // column, and the landscape variant in index.css restates it for the
         // side-by-side layout, where the HUD no longer consumes any of it.
-        className="relative mx-auto aspect-square w-full max-w-[var(--board-max)] rounded-2xl border border-white/12 bg-black/50 p-2.5 sm:p-3.5"
+        className="no-touch-select relative mx-auto aspect-square w-full max-w-[var(--board-max)] rounded-2xl border border-white/12 bg-black/50 p-2.5 sm:p-3.5"
       >
         <div
           role="group"
