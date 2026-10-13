@@ -49,6 +49,19 @@ interface Options {
 export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
   const [offset, setOffset] = useState(0);
   const [settling, setSettling] = useState(false);
+  // F632: the modal sheet stays MOUNTED when closed, so a swipe-dismiss
+  // parks its travel in offset (the close animation uses it) and the
+  // parked value must never surface after the reopen. The documented
+  // reset-on-prop-change pattern — adjust during render, no effect, no
+  // cascading commit.
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (prevEnabled !== enabled) {
+    setPrevEnabled(enabled);
+    if (!enabled) {
+      setOffset(0);
+      setSettling(false);
+    }
+  }
   const drag = useRef<DragState | null>(null);
   const dismissRef = useRef(onDismiss);
 
@@ -63,6 +76,8 @@ export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
       drag.current = null;
     };
   }, []);
+
+
 
   const reset = useCallback(() => {
     setSettling(true);
