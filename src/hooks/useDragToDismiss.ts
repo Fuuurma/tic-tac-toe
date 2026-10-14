@@ -63,6 +63,7 @@ export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
     }
   }
   const drag = useRef<DragState | null>(null);
+  const settleTimeout = useRef<number | null>(null);
   const dismissRef = useRef(onDismiss);
 
   useEffect(() => {
@@ -74,16 +75,25 @@ export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
   useEffect(() => {
     return () => {
       drag.current = null;
+      if (settleTimeout.current !== null) {
+        window.clearTimeout(settleTimeout.current);
+        settleTimeout.current = null;
+      }
     };
   }, []);
 
 
 
   const reset = useCallback(() => {
+    if (settleTimeout.current !== null) {
+      window.clearTimeout(settleTimeout.current);
+    }
     setSettling(true);
     setOffset(0);
-    const t = window.setTimeout(() => setSettling(false), SETTLE_MS);
-    return t;
+    settleTimeout.current = window.setTimeout(() => {
+      settleTimeout.current = null;
+      setSettling(false);
+    }, SETTLE_MS);
   }, []);
 
   const onPointerDown = useCallback(
