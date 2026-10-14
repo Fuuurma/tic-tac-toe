@@ -175,6 +175,14 @@ export function PlayersPanel({
       confirmPauseRef.current = false;
       onPauseChange?.(false);
     }
+
+    // The transport-error view can unmount this panel while the room stays mounted.
+    return () => {
+      if (confirmPauseRef.current) {
+        confirmPauseRef.current = false;
+        onPauseChange?.(false);
+      }
+    };
   }, [freshGame, isActive, onPauseChange]);
 
   const activePlayer = gameState.players[gameState.currentPlayer];
