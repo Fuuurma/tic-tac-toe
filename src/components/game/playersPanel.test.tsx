@@ -22,6 +22,16 @@ class ResizeObserverStub {
 }
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
+// jsdom does not implement the native <dialog> modal methods that Sheet calls.
+if (!HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute("open");
+  };
+}
+
 afterEach(cleanup);
 
 const terminalState = (): GameState => {
@@ -30,6 +40,16 @@ const terminalState = (): GameState => {
   state.gameStatus = GameStatus.COMPLETED;
   state.winner = PlayerSymbol.X;
   state.moveCount = 5;
+  state.players[PlayerSymbol.X].username = "Host";
+  state.players[PlayerSymbol.O].username = "Guest";
+  return state;
+};
+
+const activeOnlineState = (): GameState => {
+  const state = freshGameState();
+  state.gameMode = GameModes.ONLINE;
+  state.gameStatus = GameStatus.ACTIVE;
+  state.moveCount = 1;
   state.players[PlayerSymbol.X].username = "Host";
   state.players[PlayerSymbol.O].username = "Guest";
   return state;
@@ -119,6 +139,65 @@ describe("PlayersPanel terminal rematch CTA", () => {
     expect(
       screen.queryByRole("button", { name: /rematch/i }),
     ).toBeNull();
+  });
+});
+
+describe("PlayersPanel confirmation lifecycle", () => {
+  it("unpauses and discards an exit confirmation when the online game ends", () => {
+    const onPauseChange = vi.fn();
+    const onExit = vi.fn();
+    const { rerender } = render(
+      <PlayersPanel
+        gameState={activeOnlineState()}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={onExit}
+        onPauseChange={onPauseChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
+    const dialog = screen
+      .getByText("Leave the room? Your opponent will be notified.")
+      .closest("dialog") as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+
+    rerender(
+      <PlayersPanel
+        gameState={terminalState()}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={onExit}
+        onPauseChange={onPauseChange}
+      />,
+    );
+    expect(dialog.open).toBe(false);
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
+
+    const freshGame = activeOnlineState();
+    freshGame.moveCount = 0;
+    rerender(
+      <PlayersPanel
+        gameState={freshGame}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={onExit}
+        onPauseChange={onPauseChange}
+      />,
+    );
+    rerender(
+      <PlayersPanel
+        gameState={activeOnlineState()}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={onExit}
+        onPauseChange={onPauseChange}
+      />,
+    );
+
+    expect(dialog.open).toBe(false);
+    expect(onExit).not.toHaveBeenCalled();
   });
 });
 
