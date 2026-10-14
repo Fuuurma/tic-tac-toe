@@ -96,8 +96,6 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   const isCurrent = () => liveAttempts.get(matchmakingTicketRef) === attempt;
   stopTimer();
   setStatus({ status: "creating", message: "Finding match…", queuePosition: null });
-  const identity = getOrCreateGuestIdentity();
-  const sessionId = crypto.randomUUID();
 
   // Cancel-on-disconnect: if the tab closes mid-queue, a keepalive
   // leave drops the ticket on the Worker now instead of leaking it
@@ -106,7 +104,10 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   // live attempt may release the shared ticket.
   const cancelTicketOnUnload = () => {
     if (!isCurrent()) return;
+    liveAttempts.delete(matchmakingTicketRef);
     const ticket = matchmakingTicketRef.current;
+    matchmakingTicketRef.current = null;
+    hasStartedRef.current = false;
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
         console.error("Matchmaking leave failed on unload:", (err as Error).message);
@@ -114,9 +115,15 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     }
   };
   const canListen = typeof window !== "undefined";
-  if (canListen) window.addEventListener("pagehide", cancelTicketOnUnload);
 
   try {
+    // Identity/session setup can fail (for example, if secure random UUID
+    // generation is unavailable). Keep it inside the attempt's cleanup path
+    // so the start flag and live-attempt token do not remain wedged.
+    const identity = getOrCreateGuestIdentity();
+    const sessionId = crypto.randomUUID();
+    if (canListen) window.addEventListener("pagehide", cancelTicketOnUnload);
+
     const response: MatchmakingResponse = await findMatch({
       game: GAME_ID,
       peerId: sessionId,

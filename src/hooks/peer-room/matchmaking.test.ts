@@ -68,6 +68,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("abandonTicket", () => {
@@ -100,6 +101,31 @@ describe("runQuickMatch", () => {
     expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", "guest-slot-tok");
     expect(deps.startAsHost).not.toHaveBeenCalled();
     expect(mockedLeaveMatch).not.toHaveBeenCalled();
+    expect(hasStartedRef.current).toBe(false);
+  });
+
+  it("clears the in-flight flag when secure session ID creation fails, allowing retry", async () => {
+    const { deps, hasStartedRef } = makeDeps();
+    vi.spyOn(globalThis.crypto, "randomUUID").mockImplementationOnce(() => {
+      throw new Error("secure randomness unavailable");
+    });
+    mockedFindMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r2", wsUrl: "wss://relay.example/room/r2" }),
+    });
+
+    await runQuickMatch(deps);
+
+    expect(mockedFindMatch).not.toHaveBeenCalled();
+    expect(deps.setStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error", message: expect.stringContaining("secure randomness unavailable") }),
+    );
+    expect(hasStartedRef.current).toBe(false);
+
+    await runQuickMatch(deps);
+
+    expect(mockedFindMatch).toHaveBeenCalledTimes(1);
+    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", undefined);
     expect(hasStartedRef.current).toBe(false);
   });
 
@@ -254,6 +280,37 @@ function cancelLikeLeave(deps: MatchmakingDeps, hasStartedRef: { current: boolea
 }
 
 describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
+  it("retires a pending findMatch on pagehide and releases its late waiting ticket", async () => {
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    const join = deferred<MatchmakingResponse>();
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    vi.stubGlobal("window", { addEventListener, removeEventListener });
+    mockedFindMatch.mockReturnValue(join.promise);
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedFindMatch).toHaveBeenCalledTimes(1));
+
+    const pagehideHandler = addEventListener.mock.calls[0]?.[1] as (() => void) | undefined;
+    expect(pagehideHandler).toBeTypeOf("function");
+    pagehideHandler?.();
+    expect(hasStartedRef.current).toBe(false);
+    expect(matchmakingTicketRef.current).toBeNull();
+
+    join.resolve({ status: "waiting", ticket: "late-ticket", roomId: "r1" });
+    await attempt;
+
+    expect(deps.startAsHost).not.toHaveBeenCalled();
+    expect(deps.joinAsGuest).not.toHaveBeenCalled();
+    expect(mockedPollMatch).not.toHaveBeenCalled();
+    expect(mockedLeaveMatch).toHaveBeenCalledTimes(1);
+    expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "late-ticket");
+    expect(matchmakingTicketRef.current).toBeNull();
+    expect(hasStartedRef.current).toBe(false);
+    expect(deps.patchStatus).not.toHaveBeenCalled();
+    expect(removeEventListener).toHaveBeenCalledWith("pagehide", pagehideHandler);
+  });
+
   it("(A) cancel while findMatch is pending starts no room and abandons the ticket it got back", async () => {
     const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
     const join = deferred<MatchmakingResponse>();
