@@ -108,6 +108,11 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     const ticket = matchmakingTicketRef.current;
     matchmakingTicketRef.current = null;
     hasStartedRef.current = false;
+    setStatus({
+      status: "error",
+      message: "Quick Match ended while this page was away. Try again or go back to setup.",
+      queuePosition: null,
+    });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
         console.error("Matchmaking leave failed on unload:", (err as Error).message);

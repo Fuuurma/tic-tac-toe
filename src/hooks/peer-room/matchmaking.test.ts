@@ -202,6 +202,41 @@ describe("runQuickMatch", () => {
     );
   });
 
+  it("ends the visible search when pagehide retires a queued attempt", async () => {
+    const page = new EventTarget();
+    vi.stubGlobal("window", page);
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+
+    let finishPoll!: () => void;
+    mockedPollMatch.mockImplementation(
+      () => new Promise((resolve) => {
+        finishPoll = () => resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+      }),
+    );
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledTimes(1));
+    page.dispatchEvent(new Event("pagehide"));
+
+    expect(matchmakingTicketRef.current).toBeNull();
+    expect(hasStartedRef.current).toBe(false);
+    expect(deps.setStatus).toHaveBeenLastCalledWith({
+      status: "error",
+      message: "Quick Match ended while this page was away. Try again or go back to setup.",
+      queuePosition: null,
+    });
+    expect(mockedLeaveMatch).toHaveBeenCalledWith(
+      expect.any(String),
+      "t1",
+      undefined,
+      { keepalive: true },
+    );
+
+    finishPoll();
+    await attempt;
+  });
+
   it("gives up after 5 consecutive poll failures and shows the failure", async () => {
     // The default 25ms poll ceiling is a WALL-CLOCK budget: under load the
     // five back-to-back attempts can outrun it and the loop exits on the
