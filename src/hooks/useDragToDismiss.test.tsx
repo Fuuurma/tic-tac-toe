@@ -22,11 +22,19 @@ beforeAll(() => {
  * translated. The pin drives a real 150px swipe through the handle and
  * asserts the parked travel is gone after close + reopen.
  */
-function Harness({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const drag = useDragToDismiss({ onDismiss: onClose, enabled: open });
+function Harness({
+  open,
+  onClose,
+  dragEnabled = true,
+}: {
+  open: boolean;
+  onClose: () => void;
+  dragEnabled?: boolean;
+}) {
+  const drag = useDragToDismiss({ onDismiss: onClose, enabled: open && dragEnabled });
   return (
     <div>
-      <div data-testid="handle" {...drag.handleProps} />
+      <div data-testid="handle" {...(dragEnabled ? drag.handleProps : {})} />
       <div data-testid="panel" style={drag.panelStyle} />
     </div>
   );
@@ -148,5 +156,51 @@ describe("useDragToDismiss settling (F652)", () => {
 
     unmount();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("useDragToDismiss disabled gesture (F666)", () => {
+  it("drops a captured drag when disabled before it is reenabled", () => {
+    const onClose = vi.fn();
+    const { getByTestId, rerender } = render(
+      <Harness open onClose={onClose} />,
+    );
+    const handle = getByTestId("handle");
+    const panel = getByTestId("panel");
+
+    fireEvent.pointerDown(handle, {
+      pointerId: 1,
+      clientX: 0,
+      clientY: 10,
+      pointerType: "touch",
+    });
+    fireEvent.pointerMove(handle, {
+      pointerId: 1,
+      clientX: 0,
+      clientY: 60,
+      pointerType: "touch",
+    });
+    expect(panel.style.transform).toContain("50px");
+
+    // Sheet removes the handle handlers while dragDisabled, then restores
+    // them when the game stops; a captured old gesture must not resume.
+    rerender(<Harness open dragEnabled={false} onClose={onClose} />);
+    expect(panel.style.transform).toBe("");
+    rerender(<Harness open onClose={onClose} />);
+    fireEvent.pointerMove(handle, {
+      pointerId: 1,
+      clientX: 0,
+      clientY: 160,
+      pointerType: "touch",
+    });
+    fireEvent.pointerUp(handle, {
+      pointerId: 1,
+      clientX: 0,
+      clientY: 160,
+      pointerType: "touch",
+    });
+
+    expect(panel.style.transform).toBe("");
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
