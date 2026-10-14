@@ -136,7 +136,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // have queued or paired us. Never host a room or touch shared state
       // for a retired attempt; release the ticket this attempt obtained.
       if (response.status === "waiting") {
-        leaveMatch(GAME_ID, response.ticket).catch((err) => {
+        leaveMatch(GAME_ID, response.ticket, undefined, { keepalive: true }).catch((err) => {
           console.error("Matchmaking leave failed after cancel:", (err as Error).message);
         });
       }

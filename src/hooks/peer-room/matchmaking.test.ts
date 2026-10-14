@@ -296,6 +296,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     pagehideHandler?.();
     expect(hasStartedRef.current).toBe(false);
     expect(matchmakingTicketRef.current).toBeNull();
+    const statusCallsBeforeLateResponse = vi.mocked(deps.setStatus).mock.calls.length;
 
     join.resolve({ status: "waiting", ticket: "late-ticket", roomId: "r1" });
     await attempt;
@@ -304,9 +305,10 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     expect(deps.joinAsGuest).not.toHaveBeenCalled();
     expect(mockedPollMatch).not.toHaveBeenCalled();
     expect(mockedLeaveMatch).toHaveBeenCalledTimes(1);
-    expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "late-ticket");
+    expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "late-ticket", undefined, { keepalive: true });
     expect(matchmakingTicketRef.current).toBeNull();
     expect(hasStartedRef.current).toBe(false);
+    expect(deps.setStatus).toHaveBeenCalledTimes(statusCallsBeforeLateResponse);
     expect(deps.patchStatus).not.toHaveBeenCalled();
     expect(removeEventListener).toHaveBeenCalledWith("pagehide", pagehideHandler);
   });
@@ -326,7 +328,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
 
     expect(deps.startAsHost).not.toHaveBeenCalled();
     expect(deps.joinAsGuest).not.toHaveBeenCalled();
-    expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "t1");
+    expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "t1", undefined, { keepalive: true });
     expect(matchmakingTicketRef.current).toBeNull();
     expect(hasStartedRef.current).toBe(false);
     expect(deps.setStatus).not.toHaveBeenCalledWith(
