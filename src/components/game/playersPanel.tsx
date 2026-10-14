@@ -97,7 +97,7 @@ const getTimerBorderPath = (width: number, height: number): string => {
  *  aria-label (which contains it) stays the accessible name. */
 const HUD_ACTION =
   "size-11 p-0 text-muted-foreground max-sm:h-14 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:flex-col max-sm:gap-1";
-const HUD_ACTION_LABEL = "text-xs font-medium leading-none sm:hidden";
+const HUD_ACTION_LABEL = "text-sm font-medium leading-none sm:hidden";
 
 export function PlayersPanel({
   gameState,
