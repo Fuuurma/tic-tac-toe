@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * Swipe-down-to-dismiss for the bottom sheets.
@@ -65,6 +65,10 @@ export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
   const drag = useRef<DragState | null>(null);
   const settleTimeout = useRef<number | null>(null);
   const dismissRef = useRef(onDismiss);
+
+  useLayoutEffect(() => {
+    if (!enabled) drag.current = null;
+  }, [enabled]);
 
   useEffect(() => {
     dismissRef.current = onDismiss;
