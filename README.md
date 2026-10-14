@@ -50,7 +50,8 @@ Worker at `~/Projects/fuurma-matchmaking` on `127.0.0.1:8787`.
 - A transient `peer-left` with reason `disconnect` enters reconnecting state;
   the room keeps the slot for 30 seconds.
 - `peer-reconnected` restores the connection. `closed` and `expired` are final.
-- Quick match uses `/api/matchmaking/tictactoe` on the shared Worker.
+- `/api/matchmaking/tictactoe` is the shared Worker prefix; the client uses its
+  `/health`, `/join`, `/poll` and `/leave` subroutes.
 
 ## Game rules and controls
 
