@@ -26,6 +26,7 @@ describe("usePlayerCount lifecycle (F608)", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -46,28 +47,24 @@ describe("usePlayerCount lifecycle (F608)", () => {
     expect(fetchMatchmakingHealth).not.toHaveBeenCalled();
   });
 
-  it("does not stack refocus handlers across remounts", async () => {
-    for (let i = 0; i < 3; i += 1) {
+  it("removes each refocus handler after its last subscriber unmounts", () => {
+    const addListener = vi.spyOn(document, "addEventListener");
+    const removeListener = vi.spyOn(document, "removeEventListener");
+
+    for (let i = 0; i < 4; i += 1) {
       const { unmount } = renderHook(() => usePlayerCount(true, "ttt"));
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(10);
-      });
       unmount();
     }
 
-    const { unmount } = renderHook(() => usePlayerCount(true, "ttt"));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10);
-    });
-    vi.mocked(fetchMatchmakingHealth).mockClear();
+    const registered = addListener.mock.calls
+      .filter(([type]) => type === "visibilitychange")
+      .map(([, listener]) => listener);
+    const removed = removeListener.mock.calls
+      .filter(([type]) => type === "visibilitychange")
+      .map(([, listener]) => listener);
 
-    setVisibility("visible");
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10);
-    });
-
-    expect(fetchMatchmakingHealth).toHaveBeenCalledTimes(1);
-    unmount();
+    expect(registered).toHaveLength(4);
+    expect(removed).toEqual(registered);
   });
 
   it("does not re-arm the poll when a read lands after the last unsubscribe", async () => {
