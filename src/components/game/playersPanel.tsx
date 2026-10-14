@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -122,6 +122,7 @@ export function PlayersPanel({
   // trips react-hooks/set-state-in-effect; deriving keeps the reset exact.
   const [showExitStored, setShowExit] = useState(false);
   const [showNewGameStored, setShowNewGame] = useState(false);
+  const confirmPauseRef = useRef(false);
   const freshGame = gameState.moveCount === 0;
   const showExit = showExitStored && !freshGame;
   const showNewGame = showNewGameStored && !freshGame;
@@ -147,6 +148,34 @@ export function PlayersPanel({
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? "Leave game" : "Exit game";
+
+  // Confirmations belong to the active round. A host terminal frame can make
+  // Confirm close through isActive without calling onCancel, so discard both
+  // stored prompts as the round ends or a fresh round starts. Adjusting this
+  // state during render avoids the set-state-in-effect cascading render.
+  const [previousLifecycle, setPreviousLifecycle] = useState({
+    isActive,
+    freshGame,
+  });
+  if (
+    previousLifecycle.isActive !== isActive ||
+    previousLifecycle.freshGame !== freshGame
+  ) {
+    setPreviousLifecycle({ isActive, freshGame });
+    if (!isActive || freshGame) {
+      setShowExit(false);
+      setShowNewGame(false);
+    }
+  }
+
+  // The panel owns only the pause caused by these confirmation sheets. When
+  // round state invalidates one, release that pause in the parent as well.
+  useEffect(() => {
+    if ((!isActive || freshGame) && confirmPauseRef.current) {
+      confirmPauseRef.current = false;
+      onPauseChange?.(false);
+    }
+  }, [freshGame, isActive, onPauseChange]);
 
   const activePlayer = gameState.players[gameState.currentPlayer];
   const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
@@ -189,6 +218,7 @@ export function PlayersPanel({
       return;
     }
     setShowNewGame(true);
+    confirmPauseRef.current = true;
     onPauseChange?.(true);
   };
 
@@ -198,6 +228,7 @@ export function PlayersPanel({
       return;
     }
     setShowExit(true);
+    confirmPauseRef.current = true;
     onPauseChange?.(true);
   };
 
@@ -468,11 +499,13 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowExit(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
           onExit();
         }}
         onCancel={() => {
           setShowExit(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
         }}
       />
@@ -484,11 +517,13 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowNewGame(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
           onNewGame?.();
         }}
         onCancel={() => {
           setShowNewGame(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
         }}
       />
