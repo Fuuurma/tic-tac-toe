@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { SettingsSheet } from "./playerSettingsSheet";
 import {
   AI_Difficulty,
@@ -11,13 +17,22 @@ import {
   SymbolShape,
 } from "@/game/constants";
 
-// The sheet header. The regression here is a layout one, so these assert on
-// DOM structure rather than pixels: the grabber must not be a flex child of
-// the title row, and it must be hidden from assistive tech.
-describe("SettingsSheet header", () => {
+// jsdom does not implement the native <dialog> modal methods that Sheet calls.
+// Model them by toggling the open attribute, which is all the dialog's
+// accessibility and visibility checks depend on.
+if (!HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute("open");
+  };
+}
+
+describe("SettingsSheet", () => {
   afterEach(cleanup);
 
-  const open = () =>
+  const renderSheet = (onClose = vi.fn()) =>
     render(
       <SettingsSheet
         isOpen
@@ -33,51 +48,38 @@ describe("SettingsSheet header", () => {
           opponentName: "Grace",
           opponentColor: Color.RED,
           opponentShape: SymbolShape.SQUARE,
-          opponentType: PlayerTypes.HUMAN,
+          opponentType: PlayerTypes.COMPUTER,
           aiDifficulty: AI_Difficulty.NORMAL,
         }}
         onPlayerChange={vi.fn()}
         onOpponentChange={vi.fn()}
-        onClose={vi.fn()}
+        onClose={onClose}
       />,
     );
 
-  const grabber = (container: HTMLElement) =>
-    container.querySelector(".bg-foreground\\/20");
+  it("renders a modal dialog named Settings with a Close control in its header", () => {
+    renderSheet();
 
-  it("keeps the decorative grabber out of the title row", () => {
-    // The bug: the grabber was the first flex child of the justify-between
-    // title row, so it consumed width and pushed the "Settings" heading
-    // off-centre against the close button. It now sits in its own row above,
-    // matching helpDrawer.tsx.
-    const { container } = open();
-    const title = screen.getByRole("heading", { name: "Settings" });
-    const titleRow = title.parentElement;
-
-    expect(titleRow).not.toBeNull();
-    // The title row holds only the heading and the close control.
-    expect(titleRow?.querySelector(".bg-foreground\\/20")).toBeNull();
-    expect(titleRow?.className).toContain("justify-between");
-    // The grabber still exists — DESIGN.md sanctions sheet grabbers — it just
-    // is not inside the title row any more.
-    expect(grabber(container)).not.toBeNull();
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    expect(within(dialog).getByRole("heading", { name: "Settings" })).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeTruthy();
   });
 
-  it("marks the grabber aria-hidden so it is not announced", () => {
-    const { container } = open();
-    const el = grabber(container);
+  it("calls onClose when the Close control is pressed", () => {
+    const onClose = vi.fn();
+    renderSheet(onClose);
 
-    expect(el?.getAttribute("aria-hidden")).toBe("true");
-    // A bare div with no role and no label is not in the a11y tree anyway, but
-    // aria-hidden makes that explicit rather than incidental.
-    expect(el?.getAttribute("role")).toBeNull();
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("still renders the close control inside the title row", () => {
-    open();
-    const close = screen.getByRole("button", { name: "Close" });
-    const title = screen.getByRole("heading", { name: "Settings" });
+  it("exposes the You and Opponent tabs in a named tablist", () => {
+    renderSheet();
 
-    expect(close.parentElement).toBe(title.parentElement);
+    const tablist = screen.getByRole("tablist", { name: "Settings tabs" });
+    expect(within(tablist).getByRole("tab", { name: "You" })).toBeTruthy();
+    expect(within(tablist).getByRole("tab", { name: "Opponent" })).toBeTruthy();
   });
 });

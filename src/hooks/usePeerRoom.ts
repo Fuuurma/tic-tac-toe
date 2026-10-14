@@ -127,6 +127,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // is only honored while a host request is pending and the game is terminal.
   // Without this gate a hostile or buggy guest can reset the host mid-game.
   const rematchPendingRef = useRef(false);
+  // Guest-side F618 gate: armed only when a sync_request actually left the
+  // socket, so guestProtocol applies just the snapshot it asked for.
+  const syncPendingRef = useRef(false);
   // Throttle for sync_request replies (hostProtocol): the timestamp of
   // the last state_snapshot send bounds burst pulls to one per window.
   // Seeded one full window in the past so the first pull is answered.
@@ -349,9 +352,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
       broadcastGameState,
       // A dropped pull (send → false while the socket is down) needs no
       // retry — the join resync and the host's next gameUpdate still
-      // reconcile the guest, so the boolean is deliberately not read.
+      // reconcile the guest. The flag is armed only on a real send, so a
+      // snapshot that answers nothing we sent stays ignored (F618).
       requestSync: () => {
-        roomRef.current?.send({ type: "sync_request" });
+        if (roomRef.current?.send({ type: "sync_request" })) {
+          syncPendingRef.current = true;
+        }
       },
       startTimer,
       stopTimer,
@@ -370,6 +376,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       guestSymbolRef,
       pendingGuestStateRef,
       rematchPendingRef,
+      syncPendingRef,
       clearRematchTimeout,
       onHostPause: applyHostPause,
       setState,
@@ -404,6 +411,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostPendingSettingsRef,
       reconnectResetsRef,
       pendingGuestStateRef,
+      syncPendingRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );

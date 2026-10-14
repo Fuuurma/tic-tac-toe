@@ -40,6 +40,7 @@ let timer: number | null = null;
 let subscribers = 0;
 let inFlight = false;
 let nextDelayMs = POLL_INTERVAL_MS;
+let onVisibility: (() => void) | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -73,6 +74,8 @@ function clearTimer() {
 
 function schedule(game: string) {
   clearTimer();
+  // A read that lands after the last unsubscribe must not re-arm the loop.
+  if (subscribers === 0) return;
   timer = window.setTimeout(() => {
     timer = null;
     void poll(game).then(() => schedule(game));
@@ -83,7 +86,7 @@ function acquire(game: string) {
   subscribers += 1;
   if (subscribers > 1) return;
   nextDelayMs = POLL_INTERVAL_MS;
-  const onVisibility = () => {
+  onVisibility = () => {
     // Coming back to a hidden tab: the queued timer was throttled or
     // skipped, so re-read now rather than waiting out another backoff.
     if (document.visibilityState === "visible") {
@@ -98,6 +101,10 @@ function release() {
   subscribers = Math.max(0, subscribers - 1);
   if (subscribers > 0) return;
   clearTimer();
+  if (onVisibility) {
+    document.removeEventListener("visibilitychange", onVisibility);
+    onVisibility = null;
+  }
 }
 
 const subscribe = (listener: () => void) => {

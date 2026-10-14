@@ -83,3 +83,35 @@ marketing cards. Start CTA tints to the player's color.
 PlayersPanel is HUD, not a second hero. Sentence-case mode label. The
 board well dominates the column. Help is a sheet, not a new page.
 Online status banners sit above the board so connection state is first.
+
+## Mobile (below `sm`, 640px)
+
+A phone is not a small desktop. Desktop keeps the floating glass column;
+a phone gets a native screen. Everything below is `max-sm:` (or base +
+`sm:` restoring desktop), so the 1280px view does not move.
+
+References: iOS full-screen sheets (title bar, scrolling body, sticky
+action), NYT Games mobile web (board first, thin chrome), Chess.com mobile
+(players hug the board, actions in a bottom bar). Craft move: the thumb
+zone. Primary actions live at the bottom edge with
+`pb-[max(1rem,var(--inset-bottom))]`.
+
+- **Shell**: full-bleed. `#main-content` pads only the safe-area insets;
+  each surface brings its own `px-4` gutter and fills the height.
+- **Lobby**: no card on phones. Masthead on top, modes as a vertical radio
+  list, the Start CTA pinned at the bottom with its disabled reason under it.
+- **Forms are pages**: every overlay is `components/ui/sheet.tsx`. Phone
+  `size="full"` is a full-height page that slides up, swipe-down on its
+  header dismisses, the primary action sits in the sticky footer. Short
+  decisions (confirms) use `size="auto"`, a bottom action sheet. Desktop
+  renders the same Sheet as a centered dialog.
+- **Pickers on phones** are always-open grids (color, symbol, difficulty),
+  not dropdowns: the form owns the screen, so every choice is one tap.
+- **Game**: status + timer on top, player strip, the board as hero, then a
+  bottom action bar of labelled buttons (Help, Edit, New game, Exit). The
+  HUD box dissolves (`max-sm:contents`) and `order` stacks its rows around
+  the board. Game over tints "Play again" and lifts the result to `text-xl`.
+- **Minimums**: 12px text (14px for anything read), 44px targets, 48px
+  primary CTAs, 16px inputs (iOS zoom), `no-touch-select` on the board.
+- Short landscape (`landscape-short:`) is wider than `sm`, so it keeps the
+  desktop HUD beside the board.

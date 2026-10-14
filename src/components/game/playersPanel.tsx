@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -92,6 +92,13 @@ const getTimerBorderPath = (width: number, height: number): string => {
   ].join(" ");
 };
 
+/** HUD actions: 44px icon squares on desktop; on phones, equal-width
+ *  labelled buttons in the bottom bar. The label is visual only, the
+ *  aria-label (which contains it) stays the accessible name. */
+const HUD_ACTION =
+  "size-11 p-0 text-muted-foreground max-sm:h-14 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:flex-col max-sm:gap-1";
+const HUD_ACTION_LABEL = "text-sm font-medium leading-none sm:hidden";
+
 export function PlayersPanel({
   gameState,
   message,
@@ -115,6 +122,7 @@ export function PlayersPanel({
   // trips react-hooks/set-state-in-effect; deriving keeps the reset exact.
   const [showExitStored, setShowExit] = useState(false);
   const [showNewGameStored, setShowNewGame] = useState(false);
+  const confirmPauseRef = useRef(false);
   const freshGame = gameState.moveCount === 0;
   const showExit = showExitStored && !freshGame;
   const showNewGame = showNewGameStored && !freshGame;
@@ -140,6 +148,42 @@ export function PlayersPanel({
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? "Leave game" : "Exit game";
+
+  // Confirmations belong to the active round. A host terminal frame can make
+  // Confirm close through isActive without calling onCancel, so discard both
+  // stored prompts as the round ends or a fresh round starts. Adjusting this
+  // state during render avoids the set-state-in-effect cascading render.
+  const [previousLifecycle, setPreviousLifecycle] = useState({
+    isActive,
+    freshGame,
+  });
+  if (
+    previousLifecycle.isActive !== isActive ||
+    previousLifecycle.freshGame !== freshGame
+  ) {
+    setPreviousLifecycle({ isActive, freshGame });
+    if (!isActive || freshGame) {
+      setShowExit(false);
+      setShowNewGame(false);
+    }
+  }
+
+  // The panel owns only the pause caused by these confirmation sheets. When
+  // round state invalidates one, release that pause in the parent as well.
+  useEffect(() => {
+    if ((!isActive || freshGame) && confirmPauseRef.current) {
+      confirmPauseRef.current = false;
+      onPauseChange?.(false);
+    }
+
+    // The transport-error view can unmount this panel while the room stays mounted.
+    return () => {
+      if (confirmPauseRef.current) {
+        confirmPauseRef.current = false;
+        onPauseChange?.(false);
+      }
+    };
+  }, [freshGame, isActive, onPauseChange]);
 
   const activePlayer = gameState.players[gameState.currentPlayer];
   const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
@@ -182,6 +226,7 @@ export function PlayersPanel({
       return;
     }
     setShowNewGame(true);
+    confirmPauseRef.current = true;
     onPauseChange?.(true);
   };
 
@@ -191,6 +236,7 @@ export function PlayersPanel({
       return;
     }
     setShowExit(true);
+    confirmPauseRef.current = true;
     onPauseChange?.(true);
   };
 
@@ -198,15 +244,20 @@ export function PlayersPanel({
     <div
       ref={panelRef}
       className={cn(
-        "relative w-full rounded-2xl px-4 py-4 sm:px-5 sm:py-5",
+        // Phones: `contents` dissolves the HUD box so its rows join the game
+        // column and order around the board: status on top, players, the
+        // board, then the actions in a thumb-reach bar at the bottom edge.
+        "relative w-full px-4 pt-3 pb-4 max-sm:contents sm:rounded-2xl sm:px-5 sm:py-5",
         !isActive && "glass",
       )}
     >
       {isActive && (
         <>
+          {/* Phones drop the bump-tab ring and mask: the ring pokes above
+              the HUD into the status bar, and the number carries the time. */}
           <div
             aria-hidden="true"
-            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-2xl !border-0"
+            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-2xl !border-0 max-sm:hidden"
             style={{
               WebkitMaskImage:
                 "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
@@ -226,7 +277,7 @@ export function PlayersPanel({
               viewBox={`0 0 ${panelSize.width} ${panelSize.height + 12}`}
               preserveAspectRatio="none"
               className={cn(
-                "pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible",
+                "pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible max-sm:hidden",
                 getTimerColor(seconds),
               )}
             >
@@ -267,6 +318,9 @@ export function PlayersPanel({
             aria-label={`Time remaining: ${seconds} seconds`}
             className={cn(
               "pointer-events-none absolute left-1/2 top-3 z-[3] flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
+              // On phones the clock is an inline chip above the header, not a
+              // disc on the ring, so it does not cover the status line.
+              "max-sm:right-4 max-sm:left-auto max-sm:top-[max(0.75rem,var(--inset-top))] max-sm:h-11 max-sm:w-14 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-lg max-sm:glass-cell",
               getTimerColor(seconds),
             )}
           >
@@ -279,20 +333,20 @@ export function PlayersPanel({
       {/* z-20, above the z-10 player-card grid: the record breakdown
           popover is anchored in this header and would otherwise be painted
           under the cards, which come later in the DOM at the same level. */}
-      <div className="relative z-20 mb-3 flex items-center justify-between gap-2 sm:mb-3.5">
+      <div className="relative z-20 mb-3 flex items-center justify-between gap-2 max-sm:contents sm:mb-3.5">
         <div
           className={cn(
-            "min-w-0 flex-1",
-            isActive && "max-w-[calc(50%-2rem)]",
+            "min-w-0 flex-1 max-sm:order-1 max-sm:flex-none max-sm:px-4 max-sm:pt-[max(0.75rem,var(--inset-top))]",
+            isActive && "sm:max-w-[calc(50%-2rem)] max-sm:pr-22",
           )}
         >
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:text-xs">
             <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
             {roomCode && (
               <button
                 type="button"
                 onClick={copyRoomCode}
-                className="glass-cell inline-flex max-w-40 min-h-11 min-w-0 items-center gap-1 rounded-md px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="glass-cell inline-flex max-w-40 min-h-11 min-w-0 items-center gap-1 rounded-md px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide text-foreground max-sm:text-xs transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 title={`Room code: ${roomCode}, click to copy`}
                 aria-label={`Room code ${roomCode}, click to copy`}
               >
@@ -334,11 +388,11 @@ export function PlayersPanel({
               role="status"
               className={cn(
                 // A peer-supplied notice runs up to PEER_MAX_ERROR_LENGTH (200 chars).
-          // `truncate` cut it to a couple of glyphs on a 320px phone — the
-          // player saw what looked like an empty status line. Two clamped
-          // lines keep the HUD compact and still carry the start of the
-          // message; the full text is announced by the status role.
-          "mt-1 line-clamp-2 text-xs sm:text-sm",
+                // `truncate` cut it to a couple of glyphs on a 320px phone, so
+                // the player saw what looked like an empty status line. Two
+                // clamped lines keep the HUD compact and still carry the start
+                // of the message; the full text is announced by the status role.
+                "mt-1 line-clamp-2 text-xs sm:text-sm",
                 // An explicit status message is alert-worthy; the default
                 // turn label is not. Key off message presence, not copy.
                 message
@@ -350,16 +404,17 @@ export function PlayersPanel({
             </div>
           )}
         </div>
-        <div className="flex shrink-0 justify-end gap-1.5">
+        <div className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]">
           {onHelp && (
             <Button
               variant="glass"
               size="sm"
               onClick={onHelp}
-              aria-label="How to play"
-              className="size-11 p-0 text-muted-foreground"
+              aria-label="Help"
+              className={HUD_ACTION}
             >
-              <CircleHelp className="size-4" aria-hidden="true" />
+              <CircleHelp className="size-4 max-sm:size-5" aria-hidden="true" />
+              <span className={HUD_ACTION_LABEL}>Help</span>
             </Button>
           )}
           {onEditSettings && (
@@ -368,9 +423,10 @@ export function PlayersPanel({
               size="sm"
               onClick={onEditSettings}
               aria-label="Edit player settings"
-              className="size-11 p-0 text-muted-foreground"
+              className={HUD_ACTION}
             >
-              <Pencil className="size-4" aria-hidden="true" />
+              <Pencil className="size-4 max-sm:size-5" aria-hidden="true" />
+              <span className={HUD_ACTION_LABEL}>Edit</span>
             </Button>
           )}
           {onNewGame && (
@@ -379,9 +435,13 @@ export function PlayersPanel({
               size="sm"
               onClick={handleNewGameClick}
               aria-label={isGameOver ? "Play again" : "Start a new game"}
-              className="size-11 p-0 text-muted-foreground"
+              className={cn(HUD_ACTION, isGameOver && "max-sm:font-semibold max-sm:text-foreground")}
+              // Game over: the restart is the next thing a phone player
+              // wants, so it takes the emerald win tint in the bar.
+              style={isGameOver ? ({ "--glass-tint": "16 185 129", "--glass-alpha": "0.22" } as React.CSSProperties) : undefined}
             >
-              <RotateCcw className="size-4" aria-hidden="true" />
+              <RotateCcw className="size-4 max-sm:size-5" aria-hidden="true" />
+              <span className={HUD_ACTION_LABEL}>{isGameOver ? "Play again" : "New game"}</span>
             </Button>
           )}
           <Button
@@ -389,15 +449,16 @@ export function PlayersPanel({
             size="sm"
             onClick={handleExitClick}
             aria-label={exitLabel}
-            className="size-11 p-0 text-muted-foreground hover:text-red-500"
+            className={cn(HUD_ACTION, "hover:text-red-500")}
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
-            <LogOut className="size-4" aria-hidden="true" />
+            <LogOut className="size-4 max-sm:size-5" aria-hidden="true" />
+            <span className={HUD_ACTION_LABEL}>{isOnline ? "Leave" : "Exit"}</span>
           </Button>
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-2 gap-2.5">
+      <div className="no-touch-select relative z-10 grid grid-cols-2 gap-2.5 max-sm:order-2 max-sm:px-4 max-sm:pt-3">
         <PlayerCard
           playerSymbol={PlayerSymbol.X}
           player={gameState.players[PlayerSymbol.X]}
@@ -425,7 +486,7 @@ export function PlayersPanel({
       </div>
 
       {!isActive && gameState.winner && (
-        <div className="relative z-10 mt-3">
+        <div className="relative z-10 mt-3 max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3">
           <GameEndActions
             headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
             message={message}
@@ -446,11 +507,13 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowExit(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
           onExit();
         }}
         onCancel={() => {
           setShowExit(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
         }}
       />
@@ -462,11 +525,13 @@ export function PlayersPanel({
         playerColor={humanColor}
         onConfirm={() => {
           setShowNewGame(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
           onNewGame?.();
         }}
         onCancel={() => {
           setShowNewGame(false);
+          confirmPauseRef.current = false;
           onPauseChange?.(false);
         }}
       />
@@ -513,10 +578,10 @@ const PlayerCard = memo(function PlayerCard({
         <SymbolShapeRenderer shape={player.shape} strokeWidth={10} className="h-4.5 w-4.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-semibold sm:text-sm">
+        <div className="text-sm font-semibold leading-tight max-sm:line-clamp-2 max-sm:break-words sm:truncate landscape-short:line-clamp-2 landscape-short:whitespace-normal landscape-short:break-words">
           {displayName}
           {aiDifficultyLabel && (
-            <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+            <span className="ml-1 text-[11px] font-medium text-muted-foreground max-sm:text-xs landscape-short:ml-0 landscape-short:block">
               ({aiDifficultyLabel})
             </span>
           )}
@@ -556,7 +621,7 @@ function GameEndActions({
       {headline && (
         <div
           role="status"
-          className="text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+          className="text-sm font-semibold max-sm:text-xl max-sm:font-bold text-emerald-600 dark:text-emerald-400"
         >
           {headline}
         </div>

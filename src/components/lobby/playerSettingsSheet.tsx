@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useId, type CSSProperties } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -11,14 +11,14 @@ import {
   COLOR_MARK_TEXT,
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
 import { AppearancePickers } from "./appearancePickers";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
-import { Bot, Pencil, Play, User, X } from "lucide-react";
+import { Bot, Pencil, Play, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
 import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
-import { DRAG_HANDLE_TOUCH_ACTION, useDragToDismiss } from "@/hooks/useDragToDismiss";
 
 export type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -37,72 +37,6 @@ export interface OpponentSettings {
   opponentShape: SymbolShape;
   opponentType: PlayerType;
   aiDifficulty: AI_DifficultyType;
-}
-
-/* ------------------------------------------------------------------ */
-/* Shared sheet hook (focus trap, escape, restore focus)               */
-/* ------------------------------------------------------------------ */
-
-function useSheetFocus(isOpen: boolean, onClose: () => void) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
-  const hasPreviousFocusRef = useRef(false);
-  const onCloseRef = useRef(onClose);
-  // Latest-ref assignment belongs in the commit phase, not render
-  // (react-doctor no-ref-current-in-render).
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
-  const sheetId = useId();
-  const titleId = `${sheetId}-title`;
-
-  useEffect(() => {
-    if (!isOpen) {
-      const previousFocus = previousFocusRef.current;
-      if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
-      previousFocusRef.current = null;
-      hasPreviousFocusRef.current = false;
-      return;
-    }
-    if (!hasPreviousFocusRef.current) {
-      previousFocusRef.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      hasPreviousFocusRef.current = true;
-    }
-    const panel = panelRef.current;
-    panel?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key === "Tab" && panel) {
-        const focusable = panel.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen]);
-
-  return { containerRef, panelRef, titleId, sheetId };
 }
 
 /* ------------------------------------------------------------------ */
@@ -140,138 +74,26 @@ export function SettingsSheet({
   startLabel,
   startDisabled,
 }: SettingsSheetProps) {
-  const { containerRef, panelRef, titleId, sheetId } = useSheetFocus(isOpen, onClose);
+  const sheetId = useId();
   const playerPanelId = `${sheetId}-panel-player`;
   const opponentPanelId = `${sheetId}-panel-opponent`;
-  const drag = useDragToDismiss({ onDismiss: onClose, enabled: isOpen });
-
-  if (!isOpen) return null;
 
   const isOnline = gameMode === GameModes.ONLINE;
   const showOpponentTab = !isOnline;
-  const isAI = opponent.opponentType === PlayerTypes.COMPUTER;
   const activeColor = tab === "opponent" ? opponent.opponentColor : player.color;
 
+  // The Sheet stays mounted so its dialog runs showModal and focus restore on
+  // open and close. The form mounts only while open, so a closed sheet never
+  // leaves a second copy of the name inputs in the DOM.
   return (
-    <div
-      ref={containerRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-overlay-scrim p-0 sm:items-center"
-      onClick={(e) => {
-        if (e.target === containerRef.current) onClose();
-      }}
-    >
-      <div
-        ref={panelRef}
-        tabIndex={-1}
-        className="glass animate-pop-in flex max-h-[85dvh] w-full max-w-md flex-col gap-6 rounded-t-2xl border-b-0 p-5 pb-[max(1.75rem,var(--inset-bottom))] outline-none sm:rounded-2xl sm:border-b"
-        style={
-          {
-            "--player-color": COLOR_RGB[activeColor],
-            ...drag.panelStyle,
-          } as React.CSSProperties
-        }
-      >
-        {/* The grabber is a decorative sheet handle (DESIGN.md: pills are for
-            color dots and sheet grabbers), so it gets its own row above the
-            title rather than sharing the justify-between row. As a flex child
-            of that row it stole width and pushed "Settings" off-centre against
-            the close button, and as a bare div it was announced to AT as
-            nothing. Matches helpDrawer.tsx, which already does it this way. */}
-        <div
-          className="flex shrink-0 select-none flex-col gap-2"
-          style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
-          {...drag.handleProps}
-        >
-          <div
-            aria-hidden="true"
-            className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"
-          />
-          <div className="flex items-center justify-between gap-2">
-            <h2 id={titleId} className="text-base font-semibold">
-              Settings
-            </h2>
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={onClose}
-              aria-label="Close"
-              className="size-11 p-0"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Tab switcher */}
-        <div
-          role="tablist"
-          aria-label="Settings tabs"
-          className="flex shrink-0 gap-2"
-          onKeyDown={handleTabListKeyDown}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "player"}
-            aria-controls={playerPanelId}
-            tabIndex={tab === "player" ? 0 : -1}
-            onClick={() => onTabChange("player")}
-            className={cn(
-              "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              tab === "player"
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
-                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-            )}
-          >
-            <User className="size-3.5" aria-hidden="true" />
-            You
-          </button>
-          {showOpponentTab && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "opponent"}
-              aria-controls={opponentPanelId}
-              tabIndex={tab === "opponent" ? 0 : -1}
-              onClick={() => onTabChange("opponent")}
-              className={cn(
-                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                tab === "opponent"
-                  ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
-                  : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-              )}
-            >
-              <Bot className="size-3.5" aria-hidden="true" />
-              {isAI ? "AI" : "Opponent"}
-            </button>
-          )}
-        </div>
-
-        {/* Tab content */}
-        <div className="flex flex-col gap-4 overflow-y-auto">
-          {tab === "player" && (
-            <div role="tabpanel" id={playerPanelId} aria-hidden={false} className="flex flex-col gap-4">
-              <PlayerTab
-                isOnline={isOnline}
-                value={player}
-                onChange={onPlayerChange}
-              />
-            </div>
-          )}
-          {tab === "opponent" && showOpponentTab && (
-            <div role="tabpanel" id={opponentPanelId} aria-hidden={false} className="flex flex-col gap-4">
-              <OpponentTab
-                value={opponent}
-                onChange={onOpponentChange}
-              />
-            </div>
-          )}
-        </div>
-
-        {onStart && (
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      title="Settings"
+      bodyClassName="max-sm:gap-6"
+      style={{ "--player-color": COLOR_RGB[activeColor] } as CSSProperties}
+      footer={
+        isOpen && onStart ? (
           <Button
             type="button"
             size="lg"
@@ -282,19 +104,133 @@ export function SettingsSheet({
               "h-12 w-full shrink-0 text-base font-bold sm:h-14",
               startDisabled && "cursor-not-allowed opacity-50",
             )}
-            style={{
-              "--glass-sweep-color": COLOR_RGB[activeColor],
-              "--glass-tint": COLOR_RGB[activeColor],
-              "--glass-alpha": "0.15",
-              "--glass-sheen": COLOR_RGB[activeColor],
-              "--glass-sheen-alpha": "0.25",
-            } as React.CSSProperties}
+            style={
+              {
+                "--glass-sweep-color": COLOR_RGB[activeColor],
+                "--glass-tint": COLOR_RGB[activeColor],
+                "--glass-alpha": "0.15",
+                "--glass-sheen": COLOR_RGB[activeColor],
+                "--glass-sheen-alpha": "0.25",
+              } as CSSProperties
+            }
           >
             <Play className="h-5 w-5" aria-hidden="true" />
             {startLabel ?? "Start Game"}
           </Button>
-        )}
-      </div>
+        ) : isOpen ? (
+          // In-game edits apply live, so there is nothing to submit; phones
+          // still get a dismiss in thumb reach instead of only the top-corner X.
+          <Button type="button" size="lg" variant="glass" onClick={onClose} className="h-12 w-full text-base font-semibold sm:hidden">
+            Done
+          </Button>
+        ) : undefined
+      }
+      footerClassName={onStart ? undefined : "sm:hidden"}
+    >
+      {isOpen && (
+        <>
+          <div
+            role="tablist"
+            aria-label="Settings tabs"
+            className="flex shrink-0 gap-2"
+            onKeyDown={handleTabListKeyDown}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "player"}
+              aria-controls={playerPanelId}
+              tabIndex={tab === "player" ? 0 : -1}
+              onClick={() => onTabChange("player")}
+              className={cn(
+                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                tab === "player"
+                  ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
+                  : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+              )}
+            >
+              <User className="size-3.5" aria-hidden="true" />
+              You
+            </button>
+            {showOpponentTab && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "opponent"}
+                aria-controls={opponentPanelId}
+                tabIndex={tab === "opponent" ? 0 : -1}
+                onClick={() => onTabChange("opponent")}
+                className={cn(
+                  "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                  tab === "opponent"
+                    ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
+                    : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                )}
+              >
+                {opponent.opponentType === PlayerTypes.COMPUTER ? (
+                  <Bot className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <User className="size-3.5" aria-hidden="true" />
+                )}
+                Opponent
+              </button>
+            )}
+          </div>
+
+          {tab === "player" && (
+            <div role="tabpanel" id={playerPanelId} className="flex flex-col gap-5 max-sm:gap-6">
+              <PlayerTab isOnline={isOnline} value={player} onChange={onPlayerChange} />
+            </div>
+          )}
+          {tab === "opponent" && showOpponentTab && (
+            <div role="tabpanel" id={opponentPanelId} className="flex flex-col gap-5 max-sm:gap-6">
+              <OpponentTab value={opponent} onChange={onOpponentChange} />
+            </div>
+          )}
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared name field                                                   */
+/* ------------------------------------------------------------------ */
+
+// Name fields are typed on phones with a keyboard that should not autocorrect
+// or capitalise every word of a handle. text-field keeps 16px so iOS does not zoom.
+function NameField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <User
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <input
+        id={id}
+        type="text"
+        value={value}
+        placeholder={label}
+        aria-label={label}
+        onChange={(e) => onChange(filterDisplayNameInput(e.target.value))}
+        maxLength={20}
+        autoComplete="off"
+        autoCapitalize="words"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint="done"
+        className="h-12 w-full rounded-lg border border-input bg-background/60 pl-9 pr-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+      />
     </div>
   );
 }
@@ -314,23 +250,12 @@ function PlayerTab({
 }) {
   return (
     <>
-      <div className="relative">
-        <User
-          aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <input
-          id="sheet-name"
-          type="text"
-          value={value.displayName}
-          placeholder="Your name"
-          aria-label="Your name"
-          onChange={(e) => onChange({ ...value, displayName: filterDisplayNameInput(e.target.value) })}
-          maxLength={20}
-          autoComplete="off"
-          className="h-12 w-full rounded-lg border border-input bg-background/60 pl-9 pr-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
-        />
-      </div>
+      <NameField
+        id="sheet-name"
+        label="Your name"
+        value={value.displayName}
+        onChange={(displayName) => onChange({ ...value, displayName })}
+      />
 
       <AppearancePickers
         colorLabel="Your color"
@@ -360,47 +285,55 @@ function OpponentTab({
 
   return (
     <>
-      {/* Type toggle: AI / Human — AI first to match the lobby game-mode order */}
-      <div role="radiogroup" aria-label="Opponent type" className="grid grid-cols-2 gap-2" onKeyDown={handleRadioGroupKeyDown}>
-        <button
-          type="button"
-          role="radio"
-          aria-label="AI"
-          aria-checked={isAI}
-          data-state={isAI ? "active" : "inactive"}
-          tabIndex={isAI ? 0 : -1}
-          onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
-          className={cn(
-            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-            isAI
-              ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-              : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-          )}
+      {/* AI first to match the lobby game-mode order. The tab already says
+          "Opponent", so this group names what is being chosen. */}
+      <div role="group" aria-label="Opponent type" className="flex flex-col gap-2">
+        <span className="hidden text-sm font-semibold max-sm:block">Plays as</span>
+        <div
+          role="radiogroup"
+          aria-label="Opponent type"
+          className="grid grid-cols-2 gap-2"
+          onKeyDown={handleRadioGroupKeyDown}
         >
-          <Bot className="size-3.5" aria-hidden="true" />
-          AI
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-label="Human"
-          aria-checked={!isAI}
-          data-state={!isAI ? "active" : "inactive"}
-          tabIndex={!isAI ? 0 : -1}
-          onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
-          className={cn(
-            "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-            !isAI
-              ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-              : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-          )}
-        >
-          <User className="size-3.5" aria-hidden="true" />
-          Human
-        </button>
+          <button
+            type="button"
+            role="radio"
+            aria-label="AI"
+            aria-checked={isAI}
+            data-state={isAI ? "active" : "inactive"}
+            tabIndex={isAI ? 0 : -1}
+            onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
+            className={cn(
+              "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              isAI
+                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+            )}
+          >
+            <Bot className="size-3.5" aria-hidden="true" />
+            AI
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-label="Human"
+            aria-checked={!isAI}
+            data-state={!isAI ? "active" : "inactive"}
+            tabIndex={!isAI ? 0 : -1}
+            onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
+            className={cn(
+              "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+              !isAI
+                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+            )}
+          >
+            <User className="size-3.5" aria-hidden="true" />
+            Human
+          </button>
+        </div>
       </div>
 
-      {/* AI difficulty — only when AI */}
       {isAI && (
         <AI_DifficultySelector
           selectedDifficulty={value.aiDifficulty}
@@ -408,25 +341,12 @@ function OpponentTab({
         />
       )}
 
-      <div className="relative">
-        <User
-          aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <input
-          id="sheet-opponent-name"
-          type="text"
-          value={value.opponentName}
-          placeholder="Opponent name"
-          aria-label="Opponent name"
-          onChange={(e) =>
-            onChange({ ...value, opponentName: filterDisplayNameInput(e.target.value) })
-          }
-          maxLength={20}
-          autoComplete="off"
-          className="h-12 w-full rounded-lg border border-input bg-background/60 pl-9 pr-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary"
-        />
-      </div>
+      <NameField
+        id="sheet-opponent-name"
+        label="Opponent name"
+        value={value.opponentName}
+        onChange={(opponentName) => onChange({ ...value, opponentName })}
+      />
 
       <AppearancePickers
         colorLabel="Opponent color"

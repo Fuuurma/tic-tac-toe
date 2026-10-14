@@ -47,6 +47,7 @@ function makeDeps(game: GameState, roomInit: Partial<PeerRoomState> = {}) {
     guestSymbolRef: { current: PlayerSymbol.O },
     pendingGuestStateRef: { current: null },
     rematchPendingRef: { current: false },
+    syncPendingRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
     },
@@ -57,9 +58,29 @@ function makeDeps(game: GameState, roomInit: Partial<PeerRoomState> = {}) {
   return { deps, getRoom: () => roomState };
 }
 
+/** The guest only applies a snapshot it asked for: the sync_request send
+ *  site arms this flag before the host's state_snapshot can arrive. */
+function armSync(deps: GuestProtocolDeps) {
+  deps.syncPendingRef.current = true;
+}
+
+/** A live mid-game board: one move each, turn still open. */
+function liveGame(overrides: Partial<GameState> = {}): GameState {
+  return baseGame({
+    gameStatus: GameStatus.ACTIVE,
+    winner: null,
+    board: [PlayerSymbol.X, null, null, null, PlayerSymbol.O, null, null, null, null],
+    moves: { X: [0], O: [4] },
+    moveCount: 2,
+    turnDeadlineAt: Date.now() + 8_000,
+    ...overrides,
+  });
+}
+
 describe("handleGuestMessage state_snapshot", () => {
   it("replaces state and resynthesizes turnDeadlineAt from turnTimeRemaining", () => {
     const { deps, getRoom } = makeDeps(baseGame());
+    armSync(deps);
     const wire = wireGame({ moveCount: 3 });
     const before = Date.now();
 
@@ -78,6 +99,7 @@ describe("handleGuestMessage state_snapshot", () => {
 
   it("ignores a host-clock deadline that arrives on the wire", () => {
     const { deps } = makeDeps(baseGame());
+    armSync(deps);
     // An older/hostile peer may still ship its own absolute deadline —
     // it must not survive the guest-side resynthesis.
     const wire = wireGame({ turnDeadlineAt: Date.now() - 60_000 });
@@ -92,6 +114,7 @@ describe("handleGuestMessage state_snapshot", () => {
 
   it("clears the pending optimistic-move rollback snapshot", () => {
     const { deps } = makeDeps(baseGame());
+    armSync(deps);
     deps.pendingGuestStateRef.current = baseGame({ moveCount: 0 });
 
     handleGuestMessage(deps, { type: "state_snapshot", gameState: wireGame() });
@@ -103,6 +126,7 @@ describe("handleGuestMessage state_snapshot", () => {
     const { deps, getRoom } = makeDeps(baseGame(), {
       guestSymbol: PlayerSymbol.O,
     });
+    armSync(deps);
     deps.guestSymbolRef.current = PlayerSymbol.O;
 
     handleGuestMessage(deps, { type: "state_snapshot", gameState: wireGame() });
@@ -115,6 +139,7 @@ describe("handleGuestMessage state_snapshot", () => {
     const { deps, getRoom } = makeDeps(baseGame(), {
       rematchIncoming: true,
     });
+    armSync(deps);
     const wire = wireGame({
       gameStatus: GameStatus.COMPLETED,
       winner: PlayerSymbol.X,
@@ -163,6 +188,102 @@ describe("handleGuestMessage state_snapshot", () => {
   });
 });
 
+describe("handleGuestMessage snapshot solicitation (F618)", () => {
+  it("ignores an unsolicited state_snapshot on a live game", () => {
+    const live = liveGame();
+    const { deps, getRoom } = makeDeps(live);
+
+    handleGuestMessage(deps, {
+      type: "state_snapshot",
+      gameState: wireGame({ moveCount: 4 }),
+    });
+
+    expect(deps.stateRef.current).toBe(live);
+    expect(getRoom().gameState).toBe(live);
+  });
+
+  it("applies a solicited state_snapshot on a live game and clears the flag", () => {
+    const { deps, getRoom } = makeDeps(liveGame());
+    armSync(deps);
+
+    handleGuestMessage(deps, {
+      type: "state_snapshot",
+      gameState: wireGame({ moveCount: 4 }),
+    });
+
+    expect(deps.stateRef.current.moveCount).toBe(4);
+    expect(getRoom().gameState).toBe(deps.stateRef.current);
+    expect(deps.syncPendingRef.current).toBe(false);
+  });
+
+  it("ignores a second snapshot once the solicited one has landed", () => {
+    const { deps } = makeDeps(liveGame());
+    armSync(deps);
+    handleGuestMessage(deps, {
+      type: "state_snapshot",
+      gameState: wireGame({ moveCount: 4 }),
+    });
+    const applied = deps.stateRef.current;
+
+    handleGuestMessage(deps, {
+      type: "state_snapshot",
+      gameState: wireGame({ moveCount: 6 }),
+    });
+
+    expect(deps.stateRef.current).toBe(applied);
+  });
+
+  it("ignores a gameStart that lands on a live mid-game board", () => {
+    const live = liveGame();
+    const { deps, getRoom } = makeDeps(live, { guestSymbol: PlayerSymbol.O });
+    deps.guestSymbolRef.current = PlayerSymbol.O;
+
+    handleGuestMessage(deps, {
+      type: "gameStart",
+      symbol: PlayerSymbol.X,
+      gameState: wireGame(),
+    });
+
+    expect(deps.stateRef.current).toBe(live);
+    expect(getRoom().gameState).toBe(live);
+    expect(deps.guestSymbolRef.current).toBe(PlayerSymbol.O);
+  });
+
+  it("applies a rematch gameStart after the game has finished", () => {
+    const finished = liveGame({
+      gameStatus: GameStatus.COMPLETED,
+      winner: PlayerSymbol.X,
+    });
+    const { deps, getRoom } = makeDeps(finished);
+    deps.guestSymbolRef.current = PlayerSymbol.O;
+
+    handleGuestMessage(deps, {
+      type: "gameStart",
+      symbol: PlayerSymbol.X,
+      gameState: wireGame(),
+    });
+
+    expect(deps.stateRef.current.moveCount).toBe(0);
+    expect(getRoom().gameState).toBe(deps.stateRef.current);
+    expect(deps.guestSymbolRef.current).toBe(PlayerSymbol.X);
+  });
+
+  it("applies a gameStart while still waiting for the host", () => {
+    const waiting = baseGame({ gameStatus: GameStatus.WAITING });
+    const { deps, getRoom } = makeDeps(waiting);
+
+    handleGuestMessage(deps, {
+      type: "gameStart",
+      symbol: PlayerSymbol.X,
+      gameState: wireGame(),
+    });
+
+    expect(deps.stateRef.current.gameStatus).toBe(GameStatus.ACTIVE);
+    expect(getRoom().gameState).toBe(deps.stateRef.current);
+    expect(deps.guestSymbolRef.current).toBe(PlayerSymbol.X);
+  });
+});
+
 describe("handleGuestMessage reconnect fan-in (double-apply)", () => {
   it("applies snapshot → joined → gameUpdate in wire order and converges", () => {
     // The combined welcome path puts sync_request BEFORE the auto-join on
@@ -171,6 +292,7 @@ describe("handleGuestMessage reconnect fan-in (double-apply)", () => {
     // sequence must converge to the same state, not tear.
     const diverged = baseGame({ moveCount: 9 });
     const { deps, getRoom } = makeDeps(diverged, { guestSymbol: null });
+    armSync(deps);
     deps.guestSymbolRef.current = null;
     deps.pendingGuestStateRef.current = baseGame({ moveCount: 8 });
     const authoritative = wireGame({ moveCount: 4 });

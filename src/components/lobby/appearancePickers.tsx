@@ -24,10 +24,12 @@ interface AppearancePickersProps {
 }
 
 /**
- * Color + shape as a pair of select-style triggers: the two buttons sit
- * side by side, and the 8-option grid expands full-width below them. Only
- * one panel is open at a time; it stays open after a pick so the selection
- * is visible, and collapses on toggle, Escape, or an outside press.
+ * Color and symbol pickers, one DOM structure for both layouts.
+ *
+ * Phone: each group is a labelled heading over a grid that is always open, so
+ * every choice is one tap away. Desktop: the two triggers sit side by side and
+ * the grid expands full-width below them; only one panel is open at a time.
+ * The grid is `display: contents` on desktop so its panels stay grid items.
  */
 export function AppearancePickers({
   colorLabel,
@@ -61,56 +63,73 @@ export function AppearancePickers({
       ref={rootRef}
       open={open !== null}
       onEscape={dismiss}
-      className="grid grid-cols-2 gap-2"
+      className="flex flex-col gap-6 sm:grid sm:grid-cols-2 sm:gap-2"
     >
-      <PickerTrigger
-        ref={colorTriggerRef}
-        open={open === "color"}
-        controls={colorPanelId}
-        ariaLabel={colorLabel}
-        label="Color"
-        onToggle={() => setOpen(open === "color" ? null : "color")}
-        preview={
-          <span
-            aria-hidden="true"
-            className={cn(
-              "size-5 shrink-0 rounded-full border border-black/10 shadow-sm",
-              COLOR_BG_CLASSES[color],
-            )}
-          />
-        }
-      />
-      <PickerTrigger
-        ref={shapeTriggerRef}
-        open={open === "shape"}
-        controls={shapePanelId}
-        ariaLabel={shapeLabel}
-        label="Symbol"
-        disabled={shapeDisabled}
-        onToggle={() => setOpen(open === "shape" ? null : "shape")}
-        preview={
-          <SymbolShapeRenderer
-            shape={shape}
-            strokeWidth={10}
-            className="size-5 shrink-0 text-foreground"
-          />
-        }
-      />
-      {open === "color" && (
-        <PickerPanel id={colorPanelId}>
+      <div role="group" aria-label="Color" className="flex flex-col gap-2 sm:contents">
+        <p className="text-sm font-semibold sm:hidden">Color</p>
+        <PickerTrigger
+          ref={colorTriggerRef}
+          open={open === "color"}
+          controls={colorPanelId}
+          ariaLabel={colorLabel}
+          label="Color"
+          className="max-sm:hidden"
+          onToggle={() => setOpen(open === "color" ? null : "color")}
+          preview={
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-5 shrink-0 rounded-full border border-black/10 shadow-sm",
+                COLOR_BG_CLASSES[color],
+              )}
+            />
+          }
+        />
+        <PickerPanel
+          id={colorPanelId}
+          open={open === "color"}
+          className="sm:row-start-2"
+        >
           <ColorPicker label={colorLabel} value={color} onChange={onColorChange} />
         </PickerPanel>
-      )}
-      {open === "shape" && (
-        <PickerPanel id={shapePanelId}>
-          <SymbolShapePicker label={shapeLabel} value={shape} onChange={onShapeChange} />
-        </PickerPanel>
-      )}
-      {shapeDisabled && (
-        <p className="col-span-2 text-xs leading-tight text-muted-foreground">
-          Online rooms assign your symbol when you connect.
-        </p>
-      )}
+      </div>
+
+      <div role="group" aria-label="Symbol" className="flex flex-col gap-2 sm:contents">
+        {/* A disabled symbol keeps its trigger on phones too, so the label
+            stays visible; the heading would repeat it. */}
+        {!shapeDisabled && <p className="text-sm font-semibold sm:hidden">Symbol</p>}
+        <PickerTrigger
+          ref={shapeTriggerRef}
+          open={open === "shape"}
+          controls={shapePanelId}
+          ariaLabel={shapeLabel}
+          label="Symbol"
+          disabled={shapeDisabled}
+          className={cn(!shapeDisabled && "max-sm:hidden")}
+          onToggle={() => setOpen(open === "shape" ? null : "shape")}
+          preview={
+            <SymbolShapeRenderer
+              shape={shape}
+              strokeWidth={10}
+              className="size-5 shrink-0 text-foreground"
+            />
+          }
+        />
+        {!shapeDisabled && (
+          <PickerPanel
+            id={shapePanelId}
+            open={open === "shape"}
+            className="sm:row-start-2"
+          >
+            <SymbolShapePicker label={shapeLabel} value={shape} onChange={onShapeChange} />
+          </PickerPanel>
+        )}
+        {shapeDisabled && (
+          <p className="col-span-2 text-xs leading-tight text-muted-foreground max-sm:text-sm">
+            Online rooms assign your symbol when you connect.
+          </p>
+        )}
+      </div>
     </PickerDisclosureRoot>
   );
 }

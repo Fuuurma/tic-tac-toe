@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * Swipe-down-to-dismiss for the bottom sheets.
@@ -49,8 +49,26 @@ interface Options {
 export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
   const [offset, setOffset] = useState(0);
   const [settling, setSettling] = useState(false);
+  // F632: the modal sheet stays MOUNTED when closed, so a swipe-dismiss
+  // parks its travel in offset (the close animation uses it) and the
+  // parked value must never surface after the reopen. The documented
+  // reset-on-prop-change pattern — adjust during render, no effect, no
+  // cascading commit.
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (prevEnabled !== enabled) {
+    setPrevEnabled(enabled);
+    if (!enabled) {
+      setOffset(0);
+      setSettling(false);
+    }
+  }
   const drag = useRef<DragState | null>(null);
+  const settleTimeout = useRef<number | null>(null);
   const dismissRef = useRef(onDismiss);
+
+  useLayoutEffect(() => {
+    if (!enabled) drag.current = null;
+  }, [enabled]);
 
   useEffect(() => {
     dismissRef.current = onDismiss;
@@ -61,14 +79,25 @@ export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
   useEffect(() => {
     return () => {
       drag.current = null;
+      if (settleTimeout.current !== null) {
+        window.clearTimeout(settleTimeout.current);
+        settleTimeout.current = null;
+      }
     };
   }, []);
 
+
+
   const reset = useCallback(() => {
+    if (settleTimeout.current !== null) {
+      window.clearTimeout(settleTimeout.current);
+    }
     setSettling(true);
     setOffset(0);
-    const t = window.setTimeout(() => setSettling(false), SETTLE_MS);
-    return t;
+    settleTimeout.current = window.setTimeout(() => {
+      settleTimeout.current = null;
+      setSettling(false);
+    }, SETTLE_MS);
   }, []);
 
   const onPointerDown = useCallback(

@@ -104,7 +104,7 @@ test("settings tablist follows the Arrow/Home/End keyboard contract", async ({ p
   await page.goto("/");
   await openPlayerSettings(page);
   const youTab = page.getByRole("tab", { name: "You" });
-  const aiTab = page.getByRole("tab", { name: "AI" });
+  const aiTab = page.getByRole("tab", { name: "Opponent" });
   await expect(youTab).toHaveAttribute("aria-selected", "true");
   await youTab.focus();
   await page.keyboard.press("ArrowRight");
@@ -260,7 +260,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await closeOpponentSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "How to play" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Help", exact: true })).toBeVisible();
 
   // Wait for the human's turn — who starts is now random, so the AI
   // might move first. An enabled empty cell means it's the human's turn.
