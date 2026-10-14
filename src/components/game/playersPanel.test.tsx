@@ -199,6 +199,26 @@ describe("PlayersPanel confirmation lifecycle", () => {
     expect(dialog.open).toBe(false);
     expect(onExit).not.toHaveBeenCalled();
   });
+
+  it("releases an exit-confirmation pause when the panel unmounts", () => {
+    const onPauseChange = vi.fn();
+    const { unmount } = render(
+      <PlayersPanel
+        gameState={activeOnlineState()}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={vi.fn()}
+        onPauseChange={onPauseChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+
+    unmount();
+
+    expect(onPauseChange).toHaveBeenLastCalledWith(false);
+  });
 });
 
 describe("PlayersPanel room-code chip", () => {
