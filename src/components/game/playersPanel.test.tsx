@@ -219,6 +219,33 @@ describe("PlayersPanel confirmation lifecycle", () => {
 
     expect(onPauseChange).toHaveBeenLastCalledWith(false);
   });
+
+  it("keeps an exit-confirmation pause when the callback identity changes", () => {
+    const firstPauseChange = vi.fn();
+    const nextPauseChange = vi.fn();
+    const props = {
+      gameState: activeOnlineState(),
+      gameMode: GameModes.ONLINE,
+      message: "",
+      onExit: vi.fn(),
+    };
+    const { rerender } = render(
+      <PlayersPanel {...props} onPauseChange={firstPauseChange} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
+    const dialog = screen
+      .getByText("Leave the room? Your opponent will be notified.")
+      .closest("dialog") as HTMLDialogElement;
+    expect(dialog.open).toBe(true);
+    expect(firstPauseChange).toHaveBeenLastCalledWith(true);
+
+    rerender(<PlayersPanel {...props} onPauseChange={nextPauseChange} />);
+
+    expect(dialog.open).toBe(true);
+    expect(firstPauseChange).not.toHaveBeenLastCalledWith(false);
+    expect(nextPauseChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("PlayersPanel room-code chip", () => {
