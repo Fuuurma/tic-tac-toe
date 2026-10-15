@@ -110,6 +110,39 @@ const config = {
   onlineAction: "join" as const,
 };
 
+describe("OnlineGameSurface phone layout", () => {
+  it("restores the phone container and 48px recovery-action classes", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "error", message: "Room unavailable" }),
+    );
+    const { container } = render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "quick" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    const root = container.firstElementChild;
+    expect(root?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "max-sm:h-full",
+        "max-sm:max-w-none",
+        "max-sm:justify-center",
+      ]),
+    );
+
+    const banner = screen.getByRole("alert");
+    expect(banner.parentElement?.className.split(/\s+/)).toContain(
+      "max-sm:order-4",
+    );
+    for (const name of ["Try again", "Back to setup"]) {
+      expect(
+        screen.getByRole("button", { name }).className.split(/\s+/),
+      ).toContain("max-sm:h-12");
+    }
+  });
+});
+
 describe("OnlineGameSurface terminal rematch affordances", () => {
   it("offers Play again to a guest too — either side may ask", () => {
     // This used to be host-only: a guest's accept was dropped unless the
