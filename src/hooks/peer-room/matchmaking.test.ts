@@ -130,13 +130,21 @@ describe("runQuickMatch", () => {
   });
 
   it("hosts + polls, and does NOT leaveMatch a ticket the poll consumed", async () => {
-    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    const startAsHost = vi.fn();
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps({ startAsHost });
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
-    mockedPollMatch.mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1" }) });
+    mockedPollMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r1" }),
+      slotToken: "host-slot",
+    });
 
     await runQuickMatch(deps);
 
-    expect(deps.startAsHost).toHaveBeenCalledWith("r1", "wss://relay.example/room/r1");
+    expect(startAsHost).toHaveBeenCalledWith("r1", "wss://relay.example/room/r1", "host-slot");
+    expect(startAsHost.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mockedPollMatch.mock.invocationCallOrder[0],
+    );
     expect(mockedPollMatch).toHaveBeenCalledWith(expect.any(String), "t1");
     // The bug (fleet 2026-09-07): matched path must not fire leaveMatch
     // for the just-consumed ticket.
@@ -173,6 +181,7 @@ describe("runQuickMatch", () => {
 
     expect(mockedLeaveMatch).toHaveBeenCalledWith(expect.any(String), "t1");
     expect(matchmakingTicketRef.current).toBeNull();
+    expect(deps.startAsHost).not.toHaveBeenCalled();
     expect(deps.patchStatus).toHaveBeenCalledTimes(1);
     const updater = vi.mocked(deps.patchStatus).mock.calls[0][0] as (
       prev: { status: string },
@@ -289,13 +298,20 @@ describe("runQuickMatch", () => {
     expect(deps.joinAsGuest).not.toHaveBeenCalled();
   });
 
-  it("builds the relay ws url from the waiting response's room", async () => {
+  it("builds the relay ws url from the matched waiting room", async () => {
     const { deps } = makeDeps();
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r9" });
+    mockedBuildRoomWsUrl.mockReturnValueOnce("wss://relay.example/room/r9");
+    mockedPollMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r9" }),
+      slotToken: "host-slot",
+    });
 
     await runQuickMatch(deps);
 
     expect(mockedBuildRoomWsUrl).toHaveBeenCalledWith("r9");
+    expect(deps.startAsHost).toHaveBeenCalledWith("r9", "wss://relay.example/room/r9", "host-slot");
   });
 });
 

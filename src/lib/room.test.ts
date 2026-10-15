@@ -434,9 +434,8 @@ describe("RoomClient reconnect credential (MM-01)", () => {
   });
 
   it("a late-bound slotToken rides the next hello", async () => {
-    // The host's socket opens before its match is disclosed, so its join
-    // capability arrives via setSlotToken — it must ride every hello from
-    // then on, including reconnects.
+    // A refreshed match capability must ride every later hello, including
+    // reconnects.
     vi.stubGlobal("WebSocket", FakeSocket);
     stubStorage();
     const client = makeRoomClient();

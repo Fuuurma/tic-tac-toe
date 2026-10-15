@@ -29,15 +29,8 @@ export interface MatchmakingDeps {
   /** The hook's raw setState — needed for the keep-or-patch pattern. */
   patchStatus: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   hostDisplayName: string;
-  startAsHost: (roomId?: string, wsUrl?: string) => void;
+  startAsHost: (roomId?: string, wsUrl?: string, slotToken?: string) => void;
   joinAsGuest: (roomId: string, wsUrl?: string, slotToken?: string) => void;
-  /**
-   * Hands the match-issued join capability to the live room client. The
-   * host's socket opens before its match is disclosed, so its token can
-   * only arrive via the poll result — needed if a later reconnect hellos
-   * after the slot's reconnect grace expired.
-   */
-  setRoomSlotToken?: (token: string | null) => void;
   /** Test seam: shrink the 2-minute quick-match poll ceiling. */
   maxPollMs?: number;
 }
@@ -153,8 +146,6 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // FIFO queue position, when the Worker reports it — the searching
       // UI shows "position N" instead of a bare spinner.
       setStatus({ queuePosition: response.position ?? null });
-      const wsUrl = buildRoomWsUrl(response.roomId);
-      startAsHost(response.roomId, wsUrl);
 
       // Poll the matchmaking service until the guest is paired.
       // Bounded by a max duration and the user's ability to cancel
@@ -172,7 +163,11 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           consecutiveFailures = 0;
           if (pollResponse.status === "matched") {
             matched = true;
-            deps.setRoomSlotToken?.(pollResponse.slotToken ?? null);
+            startAsHost(
+              response.roomId,
+              buildRoomWsUrl(response.roomId),
+              pollResponse.slotToken,
+            );
             break;
           }
           setStatus({ queuePosition: pollResponse.position ?? null });
@@ -212,10 +207,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       hasStartedRef.current = false;
 
       // Polling ran out of time without a match. Surface an error so the
-      // user isn't left in "waiting" forever. The host room stays open, but
-      // it was never a room the user was told about — offering to share its
-      // code would resurrect exactly the invite flow Quick Match exists to
-      // avoid.
+      // user isn't left in "waiting" forever.
       if (!matched && !userCancelled) {
         patchStatus((prev) =>
           prev.status === "waiting" || prev.status === "creating"

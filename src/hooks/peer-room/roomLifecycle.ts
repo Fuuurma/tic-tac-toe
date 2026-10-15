@@ -187,7 +187,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
   return client;
 }
 
-export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, wsUrl?: string) {
+export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, wsUrl?: string, slotToken?: string) {
   const {
     roomRef,
     stateRef,
@@ -252,7 +252,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   roleRef.current = "host";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId);
-  const room = buildRoomClient(deps, resolvedUrl, "host");
+  const room = buildRoomClient(deps, resolvedUrl, "host", slotToken);
   room.connect().catch((err) => {
     update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
   });

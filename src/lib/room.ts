@@ -124,9 +124,8 @@ function saveToken(key: string | null, token: string): void {
 }
 
 export class RoomClient {
-  // slotToken is omitted from this mirror on purpose: the host binds it
-  // after construction (the socket opens before its match is disclosed),
-  // so it lives on the dedicated nullable `this.slotToken`, never here.
+  // Matchmaking may refresh slotToken for later hello frames, so it stays
+  // mutable outside this options mirror.
   private readonly opts: Required<
     Omit<RoomClientOptions, "protocol" | "role" | "slotToken">
   > & {
@@ -181,11 +180,7 @@ export class RoomClient {
     this.slotToken = opts.slotToken ?? null;
   }
 
-  /**
-   * Bind the matchmaking-issued join capability after construction — the
-   * host's socket opens before its match is disclosed, so the token can
-   * only arrive later via the poll result.
-   */
+  /** Update the capability echoed on subsequent hello frames. */
   setSlotToken(token: string | null): void {
     this.slotToken = token;
   }
