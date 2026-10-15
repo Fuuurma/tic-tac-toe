@@ -4,8 +4,9 @@ import {
   PlayerSymbol,
   oppositeSymbol,
   randomPlayerSymbol,
+  TURN_DURATION_MS,
 } from "@/game/constants";
-import { createInitialGameState } from "@/game/logic";
+import { createInitialGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import { sanitizeDisplayName } from "@/lib/identity";
@@ -234,6 +235,8 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
     rematchPendingRef,
     lastSyncReplyAtRef,
     guestJoinedRef,
+    reconnectResetsRef,
+    pausedRef,
     setState,
     stopTimer,
     clearRematchTimeout,
@@ -253,7 +256,31 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         displayName: message.displayName,
         preferredColor: message.preferredColor,
       });
-      stateRef.current = result.gameState;
+      let hostGameState = result.gameState;
+      let wireGameState = result.wireGameState;
+      // A mid-game join is also a reconnect path. The disconnect stopped
+      // the interval, but the host's absolute deadline kept aging; give the
+      // current move the same bounded reset as welcome/peer-reconnected so
+      // the resumed timer cannot immediately play a forced move. A paused
+      // game keeps its frozen remaining time for the normal unpause path.
+      if (
+        result.kind === "resync" &&
+        isGameActive(hostGameState) &&
+        !pausedRef.current
+      ) {
+        const fullResetAllowed =
+          reconnectResetsRef.current.moveCount !== hostGameState.moveCount;
+        reconnectResetsRef.current.moveCount = hostGameState.moveCount;
+        if (fullResetAllowed) {
+          hostGameState = {
+            ...hostGameState,
+            turnTimeRemaining: TURN_DURATION_MS,
+            turnDeadlineAt: Date.now() + TURN_DURATION_MS,
+          };
+          wireGameState = toWireGameState(hostGameState);
+        }
+      }
+      stateRef.current = hostGameState;
       // A real join unlocks sync pulls and starts a fresh throttle
       // window — a (re)joining guest's catch-up pull must not inherit a
       // cooldown still running from before the disconnect (review
@@ -263,7 +290,6 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // Send the WIRE payload (deadline stripped, fresh remaining) — the
       // host state keeps its own deadline for turn expiry (fleet 09-08
       // devin report: this send site had shipped the stale state).
-      const wireGameState = result.wireGameState;
       roomRef.current?.send({
         type: "joined",
         symbol: result.guestSymbol,
@@ -280,7 +306,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           ...prev,
           status: "connected",
           guestSymbol: result.guestSymbol,
-          gameState: result.gameState,
+          gameState: hostGameState,
           message: "",
         }));
       } else {
@@ -288,7 +314,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           ...prev,
           status: "connected",
           guestSymbol: result.guestSymbol,
-          gameState: result.gameState,
+          gameState: hostGameState,
         }));
       }
       return;

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { GameStatus, PLAYER_CONFIG, PlayerSymbol } from "@/game/constants";
+import {
+  GameStatus,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+  TURN_DURATION_MS,
+} from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/room";
@@ -141,6 +146,72 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
     const frame = (deps.roomRef.current!.send as ReturnType<typeof vi.fn>)
       .mock.calls[0][0] as { type: string };
     expect(frame.type).toBe("state_snapshot");
+  });
+
+  it("F392: a mid-game join resync gets one fresh host deadline per move", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      moveCount: 2,
+      turnTimeRemaining: 0,
+      turnDeadlineAt: Date.now() - 5_000,
+    };
+    const { deps } = makeDeps(game);
+    const before = Date.now();
+
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+
+    const reconciled = deps.stateRef.current;
+    expect(reconciled).not.toBe(game);
+    expect(reconciled.turnDeadlineAt).toBeGreaterThanOrEqual(
+      before + TURN_DURATION_MS,
+    );
+    expect(reconciled.turnTimeRemaining).toBe(TURN_DURATION_MS);
+    expect(deps.reconnectResetsRef.current.moveCount).toBe(2);
+
+    const send = deps.roomRef.current!.send as ReturnType<typeof vi.fn>;
+    const joined = send.mock.calls[0][0] as { type: string; gameState: GameState };
+    expect(joined.type).toBe("joined");
+    expect(joined.gameState.turnDeadlineAt).toBeUndefined();
+    expect(joined.gameState.turnTimeRemaining).toBeGreaterThanOrEqual(
+      TURN_DURATION_MS - 100,
+    );
+    expect(joined.gameState.turnTimeRemaining).toBeLessThanOrEqual(
+      TURN_DURATION_MS,
+    );
+
+    const firstDeadline = reconciled.turnDeadlineAt;
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+    expect(deps.stateRef.current.turnDeadlineAt).toBe(firstDeadline);
+  });
+
+  it("F392: a paused host join preserves frozen time without consuming the reset", () => {
+    const game: GameState = {
+      ...freshGameState(),
+      gameStatus: GameStatus.ACTIVE,
+      moveCount: 2,
+      turnTimeRemaining: 4_000,
+      turnDeadlineAt: Date.now() - 5_000,
+    };
+    const { deps } = makeDeps(game);
+    deps.pausedRef.current = true;
+
+    handleHostMessage(deps, {
+      type: "join",
+      displayName: "guest",
+      guestId: "g-1",
+    });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(deps.reconnectResetsRef.current.moveCount).toBe(-1);
   });
 
   it("replies once the game is COMPLETED — the pull is the terminal catch-up", () => {
