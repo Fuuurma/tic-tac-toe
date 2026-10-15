@@ -139,6 +139,52 @@ describe("joinAsGuest rematch-flag reset", () => {
     );
   });
 
+  it("guest resends join when the host seats for the first time and the game is still WAITING", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: { handler?: (msg: { type: string }) => void } = {};
+    vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+      (h) => {
+        captured.handler = h;
+      },
+    );
+    const send = vi
+      .spyOn(RoomClient.prototype, "send")
+      .mockReturnValue(true);
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    // Same lost-join window as F252, first-seat shape: the matchmaking
+    // allocation can leave the waiting host with no seat while the guest's
+    // one-shot join fanned out to zero sockets. When the host then seats,
+    // peer-joined is the signal the handshake can finally run.
+    deps.stateRef.current = {
+      ...deps.stateRef.current,
+      gameStatus: GameStatus.WAITING,
+    };
+    send.mockClear();
+
+    captured.handler?.({ type: "peer-joined" });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "join" }),
+    );
+  });
+
+  it("an ACTIVE game does not resend join on peer-joined", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: { handler?: (msg: { type: string }) => void } = {};
+    vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+      (h) => {
+        captured.handler = h;
+      },
+    );
+    const send = vi
+      .spyOn(RoomClient.prototype, "send")
+      .mockReturnValue(true);
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    send.mockClear();
+
+    captured.handler?.({ type: "peer-joined" });
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("F252: an ACTIVE game does not resend join on peer-reconnected", () => {
     const { deps } = lifecycleDeps({ current: false });
     const captured: { handler?: (msg: { type: string }) => void } = {};

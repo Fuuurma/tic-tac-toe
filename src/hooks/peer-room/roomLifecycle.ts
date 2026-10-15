@@ -130,8 +130,12 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
       // host socket was down (reconnect grace). When the host comes back
       // the guest gets peer-reconnected — if the game is still WAITING the
       // join was lost and the handshake never ran, so resend it.
+      // The same loss happens on a FIRST seat: a matchmaking allocation
+      // can leave the waiting host without a seat while the guest's join
+      // already fanned out, so peer-joined is the signal it can finally
+      // reach a socket.
       if (
-        msg.type === "peer-reconnected" &&
+        (msg.type === "peer-reconnected" || msg.type === "peer-joined") &&
         role === "guest" &&
         deps.stateRef.current.gameStatus === GameStatus.WAITING
       ) {
