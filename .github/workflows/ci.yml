@@ -20,7 +20,9 @@ concurrency:
 jobs:
   validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Measured 2026-10-15 run 38702769627: setup+lint+unit+matchmaking+build
+    # consumed ~9min and Browser smoke was cancelled at the old 10min cap.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
