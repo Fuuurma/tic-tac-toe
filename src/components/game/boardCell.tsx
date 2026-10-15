@@ -55,23 +55,8 @@ const OCCUPIED_TINT_CLASSES: Record<Color, string> = {
   [Color.GRAY]: "bg-gray-500/10 shadow-md shadow-gray-500/20",
 };
 
-export const BoardCell = memo(function BoardCell({
-  index,
-  value,
-  valueColor,
-  valueShape,
-  isNextToRemove,
-  isWinningCell,
-  isDisabled,
-  disabledReason,
-  isHovered,
-  previewPlayer,
-  previewColor,
-  previewShape,
-  onClick,
-  onHover,
-}: BoardCellProps) {
-  const showPreview = !value && !isDisabled && isHovered && previewPlayer;
+export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
+  const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, onClick, onHover } = props;
 
   return (
     <button
@@ -88,20 +73,29 @@ export const BoardCell = memo(function BoardCell({
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(index)}
       onBlur={() => onHover?.(null)}
-      className={cn(
-        "relative flex aspect-square items-center justify-center rounded-xl transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-        !isWinningCell && !isNextToRemove && !value && "glass-cell",
-        !isDisabled && !value && "cursor-pointer",
-        !isDisabled && !value && "hover:border-[rgb(var(--player-color)/0.5)] hover:bg-[rgb(var(--player-color)/0.1)]",
-        !isDisabled && value && "hover:shadow-sm",
-        isDisabled && !value && "cursor-not-allowed opacity-50",
-        isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30 animate-win-glow",
-        !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
-        !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],
-        !isWinningCell && !isNextToRemove && value && valueColor && OCCUPIED_TINT_CLASSES[valueColor],
-      )}
+      className={getBoardCellClassName(props)}
     >
+      {renderBoardCellContents(props)}
+    </button>
+  );
+});
+
+function renderBoardCellContents({
+  value,
+  valueColor,
+  valueShape,
+  isNextToRemove,
+  isWinningCell,
+  isDisabled,
+  isHovered,
+  previewPlayer,
+  previewColor,
+  previewShape,
+}: BoardCellProps) {
+  const showPreview = !value && !isDisabled && isHovered && previewPlayer;
+
+  return (
+    <>
       {value && valueShape && (
         <SymbolShapeRenderer
           shape={valueShape}
@@ -124,9 +118,31 @@ export const BoardCell = memo(function BoardCell({
           )}
         />
       )}
-    </button>
+    </>
   );
-});
+}
+
+function getBoardCellClassName({
+  value,
+  valueColor,
+  isNextToRemove,
+  isWinningCell,
+  isDisabled,
+}: BoardCellProps): string {
+  return cn(
+    "relative flex aspect-square items-center justify-center rounded-xl transition-all duration-200",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+    !isWinningCell && !isNextToRemove && !value && "glass-cell",
+    !isDisabled && !value && "cursor-pointer",
+    !isDisabled && !value && "hover:border-[rgb(var(--player-color)/0.5)] hover:bg-[rgb(var(--player-color)/0.1)]",
+    !isDisabled && value && "hover:shadow-sm",
+    isDisabled && !value && "cursor-not-allowed opacity-50",
+    isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30 animate-win-glow",
+    !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
+    !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],
+    !isWinningCell && !isNextToRemove && value && valueColor && OCCUPIED_TINT_CLASSES[valueColor],
+  );
+}
 
 const buildAriaLabel = (
   index: number,
