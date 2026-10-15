@@ -123,6 +123,7 @@ export function PlayersPanel({
   const [showExitStored, setShowExit] = useState(false);
   const [showNewGameStored, setShowNewGame] = useState(false);
   const confirmPauseRef = useRef(false);
+  const onPauseChangeRef = useRef(onPauseChange);
   const freshGame = gameState.moveCount === 0;
   const showExit = showExitStored && !freshGame;
   const showNewGame = showNewGameStored && !freshGame;
@@ -170,20 +171,26 @@ export function PlayersPanel({
 
   // The panel owns only the pause caused by these confirmation sheets. When
   // round state invalidates one, release that pause in the parent as well.
+  // The parent callback is inline, so keep it fresh without treating every
+  // parent render as a new confirmation lifecycle.
+  useLayoutEffect(() => {
+    onPauseChangeRef.current = onPauseChange;
+  }, [onPauseChange]);
+
   useEffect(() => {
     if ((!isActive || freshGame) && confirmPauseRef.current) {
       confirmPauseRef.current = false;
-      onPauseChange?.(false);
+      onPauseChangeRef.current?.(false);
     }
 
     // The transport-error view can unmount this panel while the room stays mounted.
     return () => {
       if (confirmPauseRef.current) {
         confirmPauseRef.current = false;
-        onPauseChange?.(false);
+        onPauseChangeRef.current?.(false);
       }
     };
-  }, [freshGame, isActive, onPauseChange]);
+  }, [freshGame, isActive]);
 
   const activePlayer = gameState.players[gameState.currentPlayer];
   const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
@@ -227,7 +234,7 @@ export function PlayersPanel({
     }
     setShowNewGame(true);
     confirmPauseRef.current = true;
-    onPauseChange?.(true);
+    onPauseChangeRef.current?.(true);
   };
 
   const handleExitClick = () => {
@@ -237,7 +244,7 @@ export function PlayersPanel({
     }
     setShowExit(true);
     confirmPauseRef.current = true;
-    onPauseChange?.(true);
+    onPauseChangeRef.current?.(true);
   };
 
   return (
@@ -508,13 +515,13 @@ export function PlayersPanel({
         onConfirm={() => {
           setShowExit(false);
           confirmPauseRef.current = false;
-          onPauseChange?.(false);
+          onPauseChangeRef.current?.(false);
           onExit();
         }}
         onCancel={() => {
           setShowExit(false);
           confirmPauseRef.current = false;
-          onPauseChange?.(false);
+          onPauseChangeRef.current?.(false);
         }}
       />
       <Confirm
@@ -526,13 +533,13 @@ export function PlayersPanel({
         onConfirm={() => {
           setShowNewGame(false);
           confirmPauseRef.current = false;
-          onPauseChange?.(false);
+          onPauseChangeRef.current?.(false);
           onNewGame?.();
         }}
         onCancel={() => {
           setShowNewGame(false);
           confirmPauseRef.current = false;
-          onPauseChange?.(false);
+          onPauseChangeRef.current?.(false);
         }}
       />
     </div>

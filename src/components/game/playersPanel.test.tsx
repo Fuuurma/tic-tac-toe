@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PlayersPanel } from "./playersPanel";
 import { freshGameState, type GameState } from "@/game/logic";
@@ -200,24 +201,39 @@ describe("PlayersPanel confirmation lifecycle", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("releases an exit-confirmation pause when the panel unmounts", () => {
+  it("keeps an exit-confirmation pause across parent renders and releases it on unmount", () => {
     const onPauseChange = vi.fn();
-    const { unmount } = render(
-      <PlayersPanel
-        gameState={activeOnlineState()}
-        gameMode={GameModes.ONLINE}
-        message=""
-        onExit={vi.fn()}
-        onPauseChange={onPauseChange}
-      />,
-    );
+    const onExit = vi.fn();
+    function PauseHarness() {
+      const [paused, setPaused] = useState(false);
+      return (
+        <>
+          <output data-testid="pause-state">{paused ? "paused" : "running"}</output>
+          <PlayersPanel
+            gameState={activeOnlineState()}
+            gameMode={GameModes.ONLINE}
+            message=""
+            onExit={onExit}
+            onPauseChange={(panelPaused) => {
+              onPauseChange(panelPaused);
+              setPaused(panelPaused);
+            }}
+            paused={paused}
+          />
+        </>
+      );
+    }
+
+    const { unmount } = render(<PauseHarness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
     expect(onPauseChange).toHaveBeenLastCalledWith(true);
+    expect(onPauseChange).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("pause-state").textContent).toBe("paused");
 
     unmount();
 
-    expect(onPauseChange).toHaveBeenLastCalledWith(false);
+    expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
   });
 });
 
