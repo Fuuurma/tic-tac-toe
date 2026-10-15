@@ -343,6 +343,10 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       roomRef.current?.send({
         type: "state_snapshot",
         gameState: toWireGameState(stateRef.current),
+        symbol:
+          hostSymbolRef.current === null
+            ? undefined
+            : oppositeSymbol(hostSymbolRef.current),
       });
       return;
     }

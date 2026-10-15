@@ -31,7 +31,7 @@ export type PeerMessage =
   | { type: "rematchCancel" }
   | { type: "leave" }
   | { type: "sync_request" }
-  | { type: "state_snapshot"; gameState: GameState }
+  | { type: "state_snapshot"; gameState: GameState; symbol?: PlayerSymbol }
   /**
    * Host → guest: the host froze the clock (Settings/Help/confirm open).
    * Without this the guest's countdown drained to 0 against a clock that had
@@ -562,7 +562,10 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
     case "sync_request":
       return true;
     case "state_snapshot":
-      return isGameState(message.gameState);
+      return (
+        isGameState(message.gameState) &&
+        (message.symbol === undefined || isPlayerSymbol(message.symbol))
+      );
     case "pause":
       // Host→guest session signal, not game state. A guest cannot rewrite
       // the host's clock by sending this — the host only ever acts on its own

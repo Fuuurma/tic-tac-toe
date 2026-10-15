@@ -72,6 +72,20 @@ describe("isPeerMessage hostile frames", () => {
     expect(isPeerMessage(validMessage())).toBe(true);
   });
 
+  it("validates an optional state_snapshot symbol while accepting legacy frames", () => {
+    const gameState = baselineState();
+    expect(isPeerMessage({ type: "state_snapshot", gameState })).toBe(true);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState, symbol: PlayerSymbol.O }),
+    ).toBe(true);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState, symbol: "Z" }),
+    ).toBe(false);
+    expect(
+      isPeerMessage({ type: "state_snapshot", gameState, symbol: null }),
+    ).toBe(false);
+  });
+
   it("rejects join frames with strings that exceed safe bounds", () => {
     const hugeName = "X".repeat(PEER_MAX_NAME_LENGTH + 1);
     expect(

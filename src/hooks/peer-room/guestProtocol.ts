@@ -102,19 +102,17 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       const pending = pendingGuestStateRef.current;
       const moveRejected =
         pending !== null && pending.moveCount === message.gameState.moveCount;
+      const assignedSymbol = "symbol" in message ? message.symbol : undefined;
       stateRef.current = gameState;
       // An authoritative state update supersedes any pending optimistic
       // move, so clear the rollback snapshot. This is the ONLY place we
       // clear it — the ref-sync effect does NOT clear it because that
       // effect also fires on the guest's own optimistic move.
       pendingGuestStateRef.current = null;
-      if (message.type === "joined" && message.symbol) {
-        guestSymbolRef.current = message.symbol;
-      }
-      // On gameStart (including rematch with symbol swap), update the
-      // guest's symbol from the host's authoritative assignment.
-      if (message.type === "gameStart" && message.symbol) {
-        guestSymbolRef.current = message.symbol;
+      // joined/gameStart assign the guest's symbol; snapshots carry it when
+      // available, while legacy snapshots preserve the previous assignment.
+      if (assignedSymbol) {
+        guestSymbolRef.current = assignedSymbol;
       }
       // A new game supersedes any request of ours that is still out: the
       // host answering it IS the accept. Leaving the flag set would make the
@@ -125,12 +123,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
         clearRematchTimeout();
       }
       setState((prev) => {
-        const localSymbol =
-          message.type === "joined" && message.symbol
-            ? message.symbol
-            : message.type === "gameStart" && message.symbol
-              ? message.symbol
-              : prev.guestSymbol;
+        const localSymbol = assignedSymbol ?? prev.guestSymbol;
         return {
           ...prev,
           status: "connected",

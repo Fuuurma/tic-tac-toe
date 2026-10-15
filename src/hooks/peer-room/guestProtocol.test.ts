@@ -139,7 +139,7 @@ describe("handleGuestMessage state_snapshot", () => {
     expect(deps.pendingGuestStateRef.current).toBeNull();
   });
 
-  it("preserves the guest symbol — snapshots carry no symbol field", () => {
+  it("preserves the guest symbol for legacy snapshots without one", () => {
     const { deps, getRoom } = makeDeps(baseGame(), {
       guestSymbol: PlayerSymbol.O,
     });
@@ -150,6 +150,23 @@ describe("handleGuestMessage state_snapshot", () => {
 
     expect(deps.guestSymbolRef.current).toBe(PlayerSymbol.O);
     expect(getRoom().guestSymbol).toBe(PlayerSymbol.O);
+  });
+
+  it("refreshes the guest symbol when a snapshot carries a rematch assignment (F428)", () => {
+    const { deps, getRoom } = makeDeps(baseGame(), {
+      guestSymbol: PlayerSymbol.O,
+    });
+    armSync(deps);
+    deps.guestSymbolRef.current = PlayerSymbol.O;
+
+    handleGuestMessage(deps, {
+      type: "state_snapshot",
+      symbol: PlayerSymbol.X,
+      gameState: wireGame({ moveCount: 5 }),
+    });
+
+    expect(deps.guestSymbolRef.current).toBe(PlayerSymbol.X);
+    expect(getRoom().guestSymbol).toBe(PlayerSymbol.X);
   });
 
   it("keeps a live rematch prompt on a terminal snapshot", () => {

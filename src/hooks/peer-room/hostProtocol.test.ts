@@ -82,8 +82,13 @@ describe("handleHostMessage sync_request (DST-04 reconnect contract)", () => {
 
     expect(deps.roomRef.current!.send).toHaveBeenCalledTimes(1);
     const frame = (deps.roomRef.current!.send as ReturnType<typeof vi.fn>)
-      .mock.calls[0][0] as { type: string; gameState: GameState };
+      .mock.calls[0][0] as {
+      type: string;
+      gameState: GameState;
+      symbol?: PlayerSymbol;
+    };
     expect(frame.type).toBe("state_snapshot");
+    expect(frame.symbol).toBe(PlayerSymbol.O);
     expect(frame.gameState.turnDeadlineAt).toBeUndefined();
     expect(frame.gameState.turnTimeRemaining).toBeGreaterThanOrEqual(0);
     // Read-only contract: host state is untouched by the request.
