@@ -254,12 +254,13 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await openOpponentSettings(page);
   await page.getByRole("button", { name: /Difficulty/ }).click();
   const difficultyGroup = page.getByRole("radiogroup", { name: "AI difficulty" });
-  await expect(difficultyGroup.getByRole("radio")).toHaveCount(3);
-  await expect(page.getByRole("radio", { name: "Insane", exact: true })).toHaveCount(0);
-  await page.getByRole("radio", { name: "Normal", exact: true }).click();
+  const hardDifficulty = difficultyGroup.getByRole("radio", { name: "Hard", exact: true });
+  await hardDifficulty.click();
+  await expect(hardDifficulty).toHaveAttribute("aria-checked", "true");
   await closeOpponentSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
+  await expect(page.getByText("(Hard)", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Help", exact: true })).toBeVisible();
 
   // Wait for the human's turn — who starts is now random, so the AI
