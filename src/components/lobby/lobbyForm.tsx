@@ -19,39 +19,25 @@ import {
   MATCHMAKING_CONFIGURED,
   MATCHMAKING_UNAVAILABLE_MESSAGE,
 } from "@/lib/matchmaking";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
-import { GameModeSelector } from "./gameModeSelector";
+import { Card, CardHeader } from "@/components/ui/card";
 import { GameMark } from "./gameMark";
 import {
   SettingsSheet,
   type SettingsTab,
-  PlayerSummaryCard,
-  OpponentSummaryCard,
   type PlayerSettings,
   type OpponentSettings,
 } from "./playerSettingsSheet";
-import {
-  Check,
-  CircleHelp,
-  Play,
-  KeyRound,
-  Plus,
-  LogIn,
-  Hash,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CircleHelp } from "lucide-react";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
 import { loadPreferences, savePreferences } from "@/lib/preferences";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
-import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
-import { usePlayerCount, type PlayerCount } from "@/hooks/usePlayerCount";
+import { usePlayerCount } from "@/hooks/usePlayerCount";
+import {
+  LobbyContent,
+  LobbyStartFooter,
+  type OnlineAction,
+} from "./lobbyFormLayout";
 
 export interface LobbyFormPayload {
   displayName: string;
@@ -64,7 +50,7 @@ export interface LobbyFormPayload {
   opponentName: string;
   opponentType: PlayerType;
   onlineRoomId: string;
-  onlineAction: "create" | "join" | "quick";
+  onlineAction: OnlineAction;
 }
 
 interface LobbyFormProps {
@@ -145,7 +131,7 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
   );
   const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
   const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
-  const [onlineAction, setOnlineAction] = useState<"create" | "join" | "quick">(
+  const [onlineAction, setOnlineAction] = useState<OnlineAction>(
     initialRoomId ? "join" : "quick",
   );
   const [error, setError] = useState<string | null>(null);
@@ -217,6 +203,14 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
     : validationError !== roomFieldError
       ? validationError
       : null;
+  const startLabel =
+    gameMode === GameModes.ONLINE
+      ? onlineAction === "quick"
+        ? "Quick Match"
+        : onlineAction === "create"
+          ? "Create Room"
+          : "Join Room"
+      : "Start Game";
 
   const playerSettings: PlayerSettings = useMemo(
     () => ({ displayName, color, playerShape }),
@@ -350,179 +344,53 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
             <CircleHelp className="size-4.5" aria-hidden="true" />
           </button>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-0 sm:px-6">
-          <div className="flex flex-col gap-3 sm:gap-3.5">
-          {error && (
-            <div
-              role="alert"
-              className="glass-cell rounded-lg border-destructive/30 px-3.5 py-2.5 text-sm text-destructive sm:text-xs"
-            >
-              {error}
-            </div>
-          )}
-
-          <PlayerSummaryCard
-            settings={playerSettings}
-            onEdit={() => {
+        <LobbyContent
+          error={error}
+          player={{
+            settings: playerSettings,
+            onEdit: () => {
               setSettingsTab("player");
               setSettingsOpen(true);
-            }}
-          />
-
-          {gameMode !== GameModes.ONLINE && (
-            <OpponentSummaryCard
-              opponentName={payload.opponentName}
-              opponentColor={opponentColor}
-              opponentShape={opponentShape}
-              opponentType={opponentType}
-              aiDifficultyLabel={aiDifficultyLabel}
-              onEdit={() => {
-                setSettingsTab("opponent");
-                setSettingsOpen(true);
-              }}
-            />
-          )}
-
-          <GameModeSelector selectedMode={gameMode} onModeChange={handleGameModeChange} />
-
-          {gameMode === GameModes.ONLINE && (
-            <div className="flex flex-col gap-3">
-              <OnlinePopulation count={playerCount} />
-              <div
-                role="radiogroup"
-                aria-label="Online match type"
-                className="flex flex-col gap-2 sm:grid sm:grid-cols-3"
-                onKeyDown={handleRadioGroupKeyDown}
-              >
-                <OnlineOption
-                  active={onlineAction === "quick"}
-                  icon={<Play className="size-4 shrink-0" aria-hidden="true" />}
-                  label="Quick"
-                  description="Auto-match"
-                  onClick={() => setOnlineAction("quick")}
-                />
-                <OnlineOption
-                  active={onlineAction === "create"}
-                  icon={<Plus className="size-4 shrink-0" aria-hidden="true" />}
-                  label="Create"
-                  description="New room"
-                  onClick={() => setOnlineAction("create")}
-                />
-                <OnlineOption
-                  active={onlineAction === "join"}
-                  icon={<LogIn className="size-4 shrink-0" aria-hidden="true" />}
-                  label="Join"
-                  description="Enter code"
-                  onClick={() => setOnlineAction("join")}
-                />
-              </div>
-              {onlineAction === "create" && (
-                <Field
-                  id="room"
-                  label="Custom room code (optional)"
-                  inputMode="text"
-                  autoCapitalize="none"
-                  enterKeyHint="go"
-                  icon={<Hash className="h-3.5 w-3.5" />}
-                  value={onlineRoomId}
-                  placeholder="Leave empty to generate one"
-                  maxLength={64}
-                  hint="4-64 letters, numbers, hyphens, or underscores."
-                  error={roomFieldError ?? undefined}
-                  onChange={setOnlineRoomId}
-                />
-              )}
-              {onlineAction === "join" && (
-                <Field
-                  id="room"
-                  label="Room code"
-                  inputMode="text"
-                  autoCapitalize="none"
-                  enterKeyHint="go"
-                  icon={<Hash className="h-3.5 w-3.5" />}
-                  value={onlineRoomId}
-                  placeholder="e.g. friday-game"
-                  maxLength={64}
-                  hint="Use the code your friend shared with you."
-                  error={roomFieldError ?? undefined}
-                  onChange={setOnlineRoomId}
-                />
-              )}
-            </div>
-          )}
-          </div>
-        </CardContent>
-        <CardFooter
-          className={cn(
-            // Phones: the CTA sits in thumb reach above the home indicator.
-            "flex flex-col gap-2 px-4 pb-[max(1rem,var(--inset-bottom))] pt-2 sm:px-6 sm:pb-6 sm:pt-1",
-            // A wide-but-short window (a rotated tablet, or any desktop
-            // window under 560px tall) is past the `sm:h-auto` breakpoint,
-            // so the card sizes to its content and outgrows the scrollport
-            // instead of stretching. Pinning the footer to the bottom of
-            // that scrollport keeps Start in thumb reach while the settings
-            // above scroll underneath. `overflow-clip` on the Card is what
-            // allows this: `overflow-hidden` would establish a scroll
-            // container and the footer would stick to a box that never
-            // scrolls. On phones this is inert — the footer simply sits
-            // below the scrolling content already.
-            "landscape-short:sticky landscape-short:bottom-0",
-            "landscape-short:border-t landscape-short:border-border/60",
-            "landscape-short:bg-background/80 landscape-short:backdrop-blur-md",
-            "landscape-short:pb-[max(1.25rem,var(--inset-bottom))]",
-          )}
-        >
-          <Button
-            type="submit"
-            size="lg"
-            variant="glass"
-            disabled={startDisabled}
-            title={startTitle}
-            aria-describedby={startReason ? startReasonId : undefined}
-            className={cn(
-              "h-12 w-full text-base font-bold sm:h-14",
-              startDisabled && "cursor-not-allowed opacity-50",
-            )}
-            style={{
-              "--glass-sweep-color": COLOR_RGB[color],
-              "--glass-tint": COLOR_RGB[color],
-              "--glass-alpha": "0.15",
-              "--glass-sheen": COLOR_RGB[color],
-              "--glass-sheen-alpha": "0.25",
-            } as React.CSSProperties}
-          >
-            {gameMode === GameModes.ONLINE ? (
-              <>
-                <KeyRound className="h-5 w-5" aria-hidden="true" />
-                {onlineAction === "quick"
-                  ? "Quick Match"
-                  : onlineAction === "create"
-                    ? "Create Room"
-                    : "Join Room"}
-              </>
-            ) : (
-              <>
-                <Play className="h-5 w-5" aria-hidden="true" />
-                Start Game
-              </>
-            )}
-          </Button>
-          {/* Says why Start is disabled. On desktop the text stays out of the
-              layout (sr-only) so the 1280x800 view is unchanged, but it is still
-              the button's accessible description. */}
-          {startReason && (
-            <p
-              id={startReasonId}
-              role={quickMatchUnavailable ? "status" : undefined}
-              className={cn(
-                "text-center text-sm text-muted-foreground",
-                quickMatchUnavailable ? "sm:text-xs sm:text-white/60" : "sm:sr-only",
-              )}
-            >
-              {startReason}
-            </p>
-          )}
-        </CardFooter>
+            },
+          }}
+          opponent={
+            gameMode === GameModes.ONLINE
+              ? null
+              : {
+                  settings: opponentSettings,
+                  aiDifficultyLabel,
+                  onEdit: () => {
+                    setSettingsTab("opponent");
+                    setSettingsOpen(true);
+                  },
+                }
+          }
+          mode={{ selected: gameMode, onChange: handleGameModeChange }}
+          online={
+            gameMode === GameModes.ONLINE
+              ? {
+                  count: playerCount,
+                  action: onlineAction,
+                  roomId: onlineRoomId,
+                  fieldError: roomFieldError,
+                  onActionChange: setOnlineAction,
+                  onRoomIdChange: setOnlineRoomId,
+                }
+              : null
+          }
+        />
+        <LobbyStartFooter
+          start={{
+            mode: gameMode,
+            label: startLabel,
+            color,
+            disabled: startDisabled,
+            title: startTitle,
+            reason: startReason,
+            reasonId: startReasonId,
+            quickMatchUnavailable,
+          }}
+        />
       </Card>
 
       <SettingsSheet
@@ -538,178 +406,11 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
         onStart={() => {
           if (startGame()) setSettingsOpen(false);
         }}
-        startLabel={
-          gameMode === GameModes.ONLINE
-            ? onlineAction === "quick"
-              ? "Quick Match"
-              : onlineAction === "create"
-                ? "Create Room"
-                : "Join Room"
-            : "Start Game"
-        }
+        startLabel={startLabel}
         startDisabled={startDisabled}
       />
 
       <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </form>
-  );
-}
-
-/**
- * Live population readout for Online mode.
- *
- * Renders nothing until the first successful read: a confident "0 players"
- * while the request is still in flight is worse than no line at all, since
- * it reads as "nobody is playing" and talks people out of pressing Quick
- * Match. Once known, the queue depth is called out separately from the
- * total, because only the queued players are the ones you can actually be
- * matched with.
- */
-function OnlinePopulation({ count }: { count: PlayerCount | null }) {
-  if (!count) return null;
-  const { players, waiting } = count;
-  return (
-    <p
-      role="status"
-      aria-live="polite"
-      className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground sm:text-[11px] sm:leading-[normal]"
-    >
-      <span aria-hidden="true" className="relative flex size-1.5 shrink-0">
-        <span className="animate-pulse-slow absolute inline-flex size-full rounded-full bg-[rgb(var(--player-color))] opacity-60" />
-        <span className="relative inline-flex size-1.5 rounded-full bg-[rgb(var(--player-color))]" />
-      </span>
-      {players === 0
-        ? "No players online right now"
-        : `${players} ${players === 1 ? "player" : "players"} online` +
-          (waiting > 0 ? ` · ${waiting} looking` : "")}
-    </p>
-  );
-}
-
-function OnlineOption({
-  active,
-  icon,
-  label,
-  description,
-  onClick,
-}: {
-  active: boolean;
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  onClick: () => void;
-}) {
-  const descId = useId();
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      aria-label={label}
-      aria-describedby={descId}
-      data-state={active ? "active" : "inactive"}
-      tabIndex={active ? 0 : -1}
-      onClick={onClick}
-      className={cn(
-        // Phones: one full-width row (icon, label, hint, check). From sm up,
-        // the original three-up tile with label above description.
-        "group relative flex min-h-14 flex-row items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-stretch sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
-        active
-          ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-          : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-2 sm:gap-1.5">
-        {icon}
-        <span className="text-sm font-semibold sm:truncate sm:text-xs">{label}</span>
-      </span>
-      <span
-        id={descId}
-        className="text-sm leading-tight text-muted-foreground max-sm:ml-auto sm:text-[11px]"
-      >
-        {description}
-      </span>
-      {/* Phones: the check sits at the row end. From sm up it is taken out of
-          flow so a three-up tile keeps its full label width at 640px. */}
-      {active && (
-        <Check
-          className="size-4 shrink-0 text-[rgb(var(--player-color))] sm:absolute sm:right-1.5 sm:top-1.5 sm:size-3.5"
-          aria-hidden="true"
-        />
-      )}
-    </button>
-  );
-}
-
-interface FieldProps {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  value: string;
-  placeholder: string;
-  maxLength?: number;
-  hint?: string;
-  error?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-  autoCapitalize?: "characters" | "none";
-  enterKeyHint?: "go" | "done";
-  onChange: (value: string) => void;
-}
-
-function Field({
-  id,
-  label,
-  icon,
-  value,
-  placeholder,
-  maxLength = 20,
-  hint,
-  error,
-  inputMode,
-  autoCapitalize,
-  enterKeyHint,
-  onChange,
-}: FieldProps) {
-  const hintId = hint ? `${id}-hint` : undefined;
-  const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
-
-  return (
-    <label htmlFor={id} className="block" data-invalid={error ? "true" : undefined}>
-      <span className="mb-1.5 flex items-center gap-1 text-sm font-semibold tracking-normal text-muted-foreground sm:text-[11px] sm:leading-[normal]">
-        {icon}
-        {label}
-      </span>
-      <input
-        id={id}
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        maxLength={maxLength}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-        inputMode={inputMode}
-        autoCapitalize={autoCapitalize}
-        enterKeyHint={enterKeyHint}
-        className={cn(
-          "h-11 w-full rounded-lg border border-input bg-background/60 px-3 text-field outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary",
-          error && "border-destructive focus-visible:ring-destructive",
-        )}
-      />
-      {hint && !error && (
-        <span id={hintId} className="mt-1.5 block text-sm leading-tight text-muted-foreground sm:text-xs">
-          {hint}
-        </span>
-      )}
-      {error && (
-        <span id={errorId} role="alert" className="mt-1.5 block text-sm leading-tight text-destructive sm:text-xs">
-          {error}
-        </span>
-      )}
-    </label>
   );
 }
