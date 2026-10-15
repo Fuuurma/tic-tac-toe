@@ -64,6 +64,23 @@ function armSync(deps: GuestProtocolDeps) {
   deps.syncPendingRef.current = true;
 }
 
+describe("handleGuestMessage rematchRequested", () => {
+  it("ignores a rematch request while the game is active (F191)", () => {
+    const game = liveGame();
+    const { deps, getRoom } = makeDeps(game, { rematchIncoming: false, message: "" });
+
+    handleGuestMessage(deps, {
+      type: "rematchRequested",
+      requesterSymbol: PlayerSymbol.X,
+    });
+
+    expect(deps.stateRef.current).toBe(game);
+    expect(getRoom().gameState).toBe(game);
+    expect(getRoom().rematchIncoming).toBe(false);
+    expect(getRoom().message).toBe("");
+  });
+});
+
 /** A live mid-game board: one move each, turn still open. */
 function liveGame(overrides: Partial<GameState> = {}): GameState {
   return baseGame({
