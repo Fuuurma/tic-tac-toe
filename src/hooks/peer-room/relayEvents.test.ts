@@ -508,6 +508,49 @@ describe("F712 guest host-absent deadline", () => {
     expect(HOST_ABSENT_TIMEOUT_MS).toBeGreaterThan(30_000);
   });
 
+  it("F726: quick-match host with an absent guest settles disconnected at the deadline", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "host", {
+        status: "waiting",
+        message: "Waiting for opponent",
+      });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "host", opponent: null });
+      expect(getRoom().status).toBe("waiting");
+
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
+      expect(deps.roomRef.current).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("F726: host reconnect with the opponent seated never arms the deadline", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.ACTIVE });
+      const { deps, getRoom } = makeDeps(game, "host", { status: "connected" });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "host", opponent: { id: "g-1" } });
+
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
+      expect(getRoom().status).toBe("connected");
+      expect(room.close).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("guest welcome with opponent:null settles disconnected + leaves the room at the deadline", () => {
     vi.useFakeTimers();
     try {

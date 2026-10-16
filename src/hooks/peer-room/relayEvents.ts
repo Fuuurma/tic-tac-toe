@@ -81,16 +81,27 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
     // synchronous "You left" loses to the disconnected-message guard —
     // the same ordering the peer-left terminal branch relies on
     // (needs-work 10-02 P1).
-    deps.setState((prev) =>
-      prev.role === "guest" && prev.status === "connecting"
-        ? {
-            ...prev,
-            status: "disconnected",
-            message:
-              "The host never connected. Try again, or go back to setup.",
-          }
-        : prev,
-    );
+    deps.setState((prev) => {
+      if (prev.role === "guest" && prev.status === "connecting") {
+        return {
+          ...prev,
+          status: "disconnected",
+          message:
+            "The host never connected. Try again, or go back to setup.",
+        };
+      }
+      // F726: the quick-match host is the symmetric case — its welcome
+      // wrote status "waiting" and no guest ever seated.
+      if (prev.role === "host" && prev.status === "waiting") {
+        return {
+          ...prev,
+          status: "disconnected",
+          message:
+            "Your opponent never connected. Try quick-match again, or share the room code.",
+        };
+      }
+      return prev;
+    });
     // Only sever a live seated socket: while the guest's own reconnect is
     // in flight the armed deadline is stale (the fresh welcome re-arms
     // it), and closing here would kill a recovery the relay still owns.
@@ -126,6 +137,15 @@ export function handleRelayEvent(
     if (role === "host") {
       // Host wakes up (initial or reconnect). If opponent present, they're
       // already back; if not, wait for peer-joined.
+      // F726: a waiting host is the symmetric case of F712's guest — the
+      // allocated guest may never seat, and without a deadline the host
+      // waits until manual leave. peer-joined clears the deadline the
+      // moment the guest's socket seats.
+      if (opponent) {
+        clearWaitingForHostDeadline(deps);
+      } else {
+        armWaitingForHostDeadline(deps);
+      }
       if (opponent) {
         // Host reconnects with opponent present — restart the turn
         // timer. Without this the timer stays stopped from the
