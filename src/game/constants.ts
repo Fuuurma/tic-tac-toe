@@ -91,6 +91,10 @@ export const GAME_RULES = {
 } as const;
 export const TURN_DURATION_MS = 10_000;
 export const REMATCH_TIMEOUT_MS = 30_000;
+// F712: bound on a guest's "Waiting for host…" wait. Must exceed the relay's
+// 30s reconnect grace so a dropped-but-seated host resolves through the DO's
+// own peer-left signal before this deadline fires for a never-seated one.
+export const HOST_ABSENT_TIMEOUT_MS = 45_000;
 export const AI_MOVE_DELAY_MS = 700;
 export const AI_MOVE_DELAY_JITTER_MS = 600;
 export const GAME_ID = "tictactoe";

@@ -96,6 +96,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       reconnectResetsRef: { current: { moveCount: -1 } },
       pendingGuestStateRef: { current: null as GameState | null },
       syncPendingRef: { current: false },
+      waitingForHostTimeoutRef: { current: null },
     };
     return { deps, guestSymbolRef };
   }
@@ -240,6 +241,7 @@ describe("joinAsGuest rematch-flag reset", () => {
           startTimer: vi.fn(),
           stopTimer: vi.fn(),
           clearRematchTimeout: vi.fn(),
+          waitingForHostTimeoutRef: { current: null },
         },
         event,
       );

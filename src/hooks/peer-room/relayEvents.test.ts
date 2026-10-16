@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   Color,
   GameStatus,
+  HOST_ABSENT_TIMEOUT_MS,
   PlayerSymbol,
   TURN_DURATION_MS,
 } from "@/game/constants";
@@ -10,6 +11,7 @@ import type { GameState } from "@/game/logic";
 import { peerLeftUserMessage } from "@/lib/peer";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
+import type { RoomClient } from "@/lib/room";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
 import { buildRoomClient } from "./roomLifecycle";
 
@@ -42,6 +44,7 @@ function makeDeps(
     guestSymbolRef: { current: PlayerSymbol.O },
     rematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
+    waitingForHostTimeoutRef: { current: null },
     pausedRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
@@ -480,5 +483,120 @@ describe("handleRelayEvent symbol fallbacks", () => {
 
     expect(getRoom().gameState.winner).toBe(PlayerSymbol.X);
     expect(getRoom().gameState.gameStatus).toBe(GameStatus.COMPLETED);
+  });
+});
+
+describe("F712 guest host-absent deadline", () => {
+  // The 89ba965 order defers the host's room socket to post-match, so a
+  // host first-connect failure leaves the allocated guest seated in a room
+  // whose expected host slot never fills — GameRoomDO only reaps slots
+  // carrying disconnectedAt, so no peer-left/expired ever arrives. The
+  // guest's "Waiting for host…" wait needs its own bound.
+
+  function seatedRoom() {
+    return {
+      send: vi.fn(() => true),
+      close: vi.fn(),
+      isConnected: () => true,
+    } as unknown as RoomClient;
+  }
+
+  it("outlives the relay's 30s reconnect grace (design bound)", () => {
+    // A code-join guest can legitimately wait out the DO's whole grace
+    // window for a dropped-but-seated host; the bound must exceed it or it
+    // would cut a recoverable wait short.
+    expect(HOST_ABSENT_TIMEOUT_MS).toBeGreaterThan(30_000);
+  });
+
+  it("guest welcome with opponent:null settles disconnected + leaves the room at the deadline", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", {
+        status: "connecting",
+        message: "Waiting for host…",
+      });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      expect(getRoom().status).toBe("connecting");
+
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(getRoom().message).not.toBe("You left");
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
+      expect(deps.roomRef.current).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("host seating (peer-joined) before the deadline keeps the guest waiting", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      handleRelayEvent(deps, { type: "peer-joined" });
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+
+      expect(getRoom().status).toBe("connecting");
+      expect(getRoom().message).toBe("Opponent connecting…");
+      expect(room.close).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("welcome with an opponent present never arms the deadline", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, {
+        type: "welcome",
+        role: "guest",
+        opponent: { guestId: "h", displayName: "Host" },
+      });
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+
+      expect(getRoom().status).toBe("connected");
+      expect(room.close).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("expiry while our own socket is mid-reconnect neither clobbers status nor kills the socket", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      const room = {
+        send: vi.fn(() => false),
+        close: vi.fn(),
+        isConnected: () => false, // ws down — reconnect in flight
+      } as unknown as RoomClient;
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      // Guest socket drops while still waiting: transport takes over status.
+      getRoom().status = "reconnecting";
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+
+      expect(getRoom().status).toBe("reconnecting");
+      expect(room.close).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

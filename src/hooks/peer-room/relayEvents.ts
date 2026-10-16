@@ -1,5 +1,6 @@
 import {
   GameStatus,
+  HOST_ABSENT_TIMEOUT_MS,
   TURN_DURATION_MS,
   PlayerSymbol,
   oppositeSymbol,
@@ -8,6 +9,7 @@ import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyForfeitIfActive, peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
 import type { RoomClient } from "@/lib/room";
+import { leaveRoom } from "./roomLifecycle";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
 
@@ -48,6 +50,54 @@ export interface RelayEventDeps {
   startTimer: () => void;
   stopTimer: () => void;
   clearRematchTimeout: () => void;
+  /** F712: guest-side bound on the "Waiting for host…" wait. Armed by a
+   *  welcome carrying no opponent, cleared when the host's socket seats
+   *  (peer-joined/peer-reconnected), on peer-left, and by the hook on
+   *  leave/unmount/room entry. Null while no deadline is armed. */
+  waitingForHostTimeoutRef: {
+    current: ReturnType<typeof setTimeout> | null;
+  };
+}
+
+/**
+ * F712: post-89ba965 the quick-match host's room socket connects only after
+ * the match lands, so a host first-connect failure strands an allocated
+ * guest in a room whose expected host seat never fills — GameRoomDO reaps
+ * slots by `disconnectedAt` and a never-seated host is no slot, so no
+ * peer-left/expired frame ever arrives. The wait has to end client-side.
+ */
+function clearWaitingForHostDeadline(deps: RelayEventDeps) {
+  if (deps.waitingForHostTimeoutRef.current !== null) {
+    clearTimeout(deps.waitingForHostTimeoutRef.current);
+    deps.waitingForHostTimeoutRef.current = null;
+  }
+}
+
+function armWaitingForHostDeadline(deps: RelayEventDeps) {
+  clearWaitingForHostDeadline(deps);
+  deps.waitingForHostTimeoutRef.current = setTimeout(() => {
+    deps.waitingForHostTimeoutRef.current = null;
+    // The terminal write rides ahead of close() so the socket teardown's
+    // synchronous "You left" loses to the disconnected-message guard —
+    // the same ordering the peer-left terminal branch relies on
+    // (needs-work 10-02 P1).
+    deps.setState((prev) =>
+      prev.role === "guest" && prev.status === "connecting"
+        ? {
+            ...prev,
+            status: "disconnected",
+            message:
+              "The host never connected. Try again, or go back to setup.",
+          }
+        : prev,
+    );
+    // Only sever a live seated socket: while the guest's own reconnect is
+    // in flight the armed deadline is stale (the fresh welcome re-arms
+    // it), and closing here would kill a recovery the relay still owns.
+    if (deps.roomRef.current?.isConnected()) {
+      leaveRoom(deps.roomRef);
+    }
+  }, HOST_ABSENT_TIMEOUT_MS);
 }
 
 /** Handles one relay lifecycle event (routed by type in buildRoomClient). */
@@ -157,6 +207,14 @@ export function handleRelayEvent(
         status: opponent ? "connected" : "connecting",
         message: opponent ? "" : "Waiting for host…",
       }));
+      // F712: with no host seated the wait is unbounded — arm the deadline.
+      // An opponent present means the host is already seated (or this is a
+      // reconnect back into a live room), so nothing is left to bound.
+      if (opponent) {
+        clearWaitingForHostDeadline(deps);
+      } else {
+        armWaitingForHostDeadline(deps);
+      }
       // Reconnect pull (uno-chess contract): a local game past WAITING
       // means this welcome is a REconnect, not a first join — ask the
       // host for an authoritative state_snapshot in case our re-sent
@@ -171,6 +229,9 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-reconnected") {
+    // F712: for a guest this means the host's socket is back — the
+    // host-absent wait is over either way.
+    clearWaitingForHostDeadline(deps);
     // Preserve rematchIncoming: a transient blip must not kill a live
     // rematch prompt — the host's pending request survives a socket
     // drop, and the terminal peer-left branch still clears the flag if
@@ -259,6 +320,9 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-joined") {
+    // F712: a peer's socket just seated — for a waiting guest that IS the
+    // host arriving, so the deadline is moot.
+    clearWaitingForHostDeadline(deps);
     // Host learns a new peer arrived at the relay. The guest will send
     // its real `join` message (with preferred color) immediately after
     // `welcome`, so we only update status here — do NOT synthesize a
@@ -276,6 +340,9 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-left") {
+    // F712: a peer-left proves the host was once seated — the
+    // never-seated wait no longer applies regardless of the reason.
+    clearWaitingForHostDeadline(deps);
     const reason = (event as { reason?: "disconnect" | "closed" | "expired" }).reason;
     if (reason === "disconnect") {
       // Don't override a deliberate leave/forfeit — the host/guest
