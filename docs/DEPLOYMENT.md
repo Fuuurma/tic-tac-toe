@@ -68,7 +68,7 @@ and falls back to `http://127.0.0.1:8787` in dev.
 
 ```bash
 VITE_MATCHMAKING_URL=http://127.0.0.1:8787 pnpm build
-pnpm preview     # serves dist/ on 127.0.0.1:4110
+pnpm preview     # serves dist/ on 127.0.0.1:3110
 ```
 
 The preview bundle bakes `VITE_MATCHMAKING_URL` at build time (no committed

@@ -11,7 +11,7 @@ export default defineConfig({
   },
   preview: {
     host: "127.0.0.1",
-    port: 4110,
+    port: 3110,
     strictPort: true,
   },
   plugins: [react(), tailwindcss()],

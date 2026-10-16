@@ -40,7 +40,7 @@ All commands run from the repository root unless noted:
 pnpm install                  # Use pnpm 10.30.2 unless stated otherwise
 pnpm dev                      # Vite dev server at http://127.0.0.1:3110
 pnpm build                    # tsc -b && vite build, output to dist/
-pnpm preview                  # vite preview at http://127.0.0.1:4110
+pnpm preview                  # vite preview at http://127.0.0.1:3110
 pnpm lint                     # ESLint over src, e2e, vite, vitest, playwright configs
 pnpm test                     # vitest run (unit)
 pnpm test:e2e                 # pnpm build && playwright test
