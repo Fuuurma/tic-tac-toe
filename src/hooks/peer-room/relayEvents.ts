@@ -26,6 +26,8 @@ export interface RelayEventDeps {
   roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
   roleRef: { current: PeerRole };
+  /** True only for a host allocated by quick-match, whose absent peer wait is bounded. */
+  quickMatchHostRef: { current: boolean };
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
   rematchPendingRef: { current: boolean };
@@ -50,9 +52,8 @@ export interface RelayEventDeps {
   startTimer: () => void;
   stopTimer: () => void;
   clearRematchTimeout: () => void;
-  /** F712: guest-side bound on the "Waiting for host…" wait. Armed by a
-   *  welcome carrying no opponent, cleared when the host's socket seats
-   *  (peer-joined/peer-reconnected), on peer-left, and by the hook on
+  /** F712/F726: absent-peer wait bound for quick-match guests and hosts.
+   *  Cleared when the peer seats, on peer-left, and by the hook on
    *  leave/unmount/room entry. Null while no deadline is armed. */
   waitingForHostTimeoutRef: {
     current: ReturnType<typeof setTimeout> | null;
@@ -96,8 +97,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
         return {
           ...prev,
           status: "disconnected",
-          message:
-            "Your opponent never connected. Try quick-match again, or share the room code.",
+          message: "Your opponent never connected. Try quick-match again.",
         };
       }
       return prev;
@@ -137,14 +137,18 @@ export function handleRelayEvent(
     if (role === "host") {
       // Host wakes up (initial or reconnect). If opponent present, they're
       // already back; if not, wait for peer-joined.
-      // F726: a waiting host is the symmetric case of F712's guest — the
+      // F726: a quick-match host is the symmetric case of F712's guest — the
       // allocated guest may never seat, and without a deadline the host
       // waits until manual leave. peer-joined clears the deadline the
       // moment the guest's socket seats.
       if (opponent) {
         clearWaitingForHostDeadline(deps);
-      } else {
+      } else if (deps.quickMatchHostRef.current) {
         armWaitingForHostDeadline(deps);
+      } else {
+        // Create rooms can wait as long as an invite needs; their code must
+        // remain usable after the host shares it with a friend.
+        clearWaitingForHostDeadline(deps);
       }
       if (opponent) {
         // Host reconnects with opponent present — restart the turn

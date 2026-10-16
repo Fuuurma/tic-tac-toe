@@ -33,6 +33,7 @@ function makeDeps(
   game: GameState,
   role: PeerRole,
   roomInit: Partial<PeerRoomState> = {},
+  quickMatchHost = false,
 ) {
   let roomState = { gameState: game, ...roomInit } as PeerRoomState;
   const calls = { committed: [] as GameState[], broadcasts: [] as GameState[] };
@@ -40,6 +41,7 @@ function makeDeps(
     roomRef: { current: null },
     stateRef: { current: game },
     roleRef: { current: role },
+    quickMatchHostRef: { current: quickMatchHost },
     hostSymbolRef: { current: PlayerSymbol.X },
     guestSymbolRef: { current: PlayerSymbol.O },
     rematchPendingRef: { current: false },
@@ -486,7 +488,7 @@ describe("handleRelayEvent symbol fallbacks", () => {
   });
 });
 
-describe("F712 guest host-absent deadline", () => {
+describe("bounded absent-peer waits", () => {
   // The 89ba965 order defers the host's room socket to post-match, so a
   // host first-connect failure leaves the allocated guest seated in a room
   // whose expected host slot never fills — GameRoomDO only reaps slots
@@ -515,7 +517,7 @@ describe("F712 guest host-absent deadline", () => {
       const { deps, getRoom } = makeDeps(game, "host", {
         status: "waiting",
         message: "Waiting for opponent",
-      });
+      }, true);
       const room = seatedRoom();
       deps.roomRef.current = room;
 
@@ -525,9 +527,34 @@ describe("F712 guest host-absent deadline", () => {
       vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
 
       expect(getRoom().status).toBe("disconnected");
+      expect(getRoom().message).toBe("Your opponent never connected. Try quick-match again.");
       expect(room.send).toHaveBeenCalledWith({ type: "leave" });
       expect(room.close).toHaveBeenCalledOnce();
       expect(deps.roomRef.current).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Create host keeps its room alive while waiting for an invited guest", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "host", {
+        status: "waiting",
+        message: "Waiting for opponent",
+      });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      // Create calls startAsHost without the quick-match slot token.
+      handleRelayEvent(deps, { type: "welcome", role: "host", opponent: null });
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
+
+      expect(getRoom().status).toBe("waiting");
+      expect(room.send).not.toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).not.toHaveBeenCalled();
+      expect(deps.roomRef.current).toBe(room);
     } finally {
       vi.useRealTimers();
     }
