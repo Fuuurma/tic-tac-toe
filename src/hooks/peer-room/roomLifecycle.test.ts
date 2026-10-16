@@ -96,7 +96,9 @@ describe("joinAsGuest rematch-flag reset", () => {
       reconnectResetsRef: { current: { moveCount: -1 } },
       pendingGuestStateRef: { current: null as GameState | null },
       syncPendingRef: { current: false },
-      waitingForHostTimeoutRef: { current: null },
+      matchmakingRoomRef: { current: false },
+      waitingForPeerTimeoutRef: { current: null },
+      waitingForPeerDeadlineAtRef: { current: null },
     };
     return { deps, guestSymbolRef };
   }
@@ -241,7 +243,9 @@ describe("joinAsGuest rematch-flag reset", () => {
           startTimer: vi.fn(),
           stopTimer: vi.fn(),
           clearRematchTimeout: vi.fn(),
-          waitingForHostTimeoutRef: { current: null },
+          matchmakingRoomRef: { current: false },
+          waitingForPeerTimeoutRef: { current: null },
+          waitingForPeerDeadlineAtRef: { current: null },
         },
         event,
       );
@@ -303,6 +307,19 @@ describe("joinAsGuest rematch-flag reset", () => {
     deps.reconnectResetsRef.current.moveCount = 7;
     joinAsGuest(deps, "ROOM43", "ws://127.0.0.1:1");
     expect(deps.reconnectResetsRef.current.moveCount).toBe(-1);
+  });
+
+  it("tags explicit matchmaking rooms even when the Worker omits a slot token", () => {
+    const { deps } = lifecycleDeps({ current: false });
+
+    startAsHost(deps, "ROOM42", "ws://127.0.0.1:1", undefined, true);
+    expect(deps.matchmakingRoomRef.current).toBe(true);
+
+    joinAsGuest(deps, "ROOM43", "ws://127.0.0.1:1");
+    expect(deps.matchmakingRoomRef.current).toBe(false);
+
+    joinAsGuest(deps, "ROOM44", "ws://127.0.0.1:1", undefined, true);
+    expect(deps.matchmakingRoomRef.current).toBe(true);
   });
 
   it("clears a stale pending-rematch flag on room entry", () => {

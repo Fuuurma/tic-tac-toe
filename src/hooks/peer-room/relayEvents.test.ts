@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   Color,
   GameStatus,
-  HOST_ABSENT_TIMEOUT_MS,
+  MATCHMADE_PEER_WAIT_TIMEOUT_MS,
   PlayerSymbol,
   TURN_DURATION_MS,
 } from "@/game/constants";
@@ -44,7 +44,9 @@ function makeDeps(
     guestSymbolRef: { current: PlayerSymbol.O },
     rematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
-    waitingForHostTimeoutRef: { current: null },
+    matchmakingRoomRef: { current: false },
+    waitingForPeerTimeoutRef: { current: null },
+    waitingForPeerDeadlineAtRef: { current: null },
     pausedRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
@@ -486,12 +488,9 @@ describe("handleRelayEvent symbol fallbacks", () => {
   });
 });
 
-describe("F712 guest host-absent deadline", () => {
-  // The 89ba965 order defers the host's room socket to post-match, so a
-  // host first-connect failure leaves the allocated guest seated in a room
-  // whose expected host slot never fills — GameRoomDO only reaps slots
-  // carrying disconnectedAt, so no peer-left/expired ever arrives. The
-  // guest's "Waiting for host…" wait needs its own bound.
+describe("F712 matchmade peer-wait deadline", () => {
+  // An allocated peer that never seats is not a relay slot, so the room
+  // never emits peer-left/expired. Both players need a client-side bound.
 
   function seatedRoom() {
     return {
@@ -502,13 +501,10 @@ describe("F712 guest host-absent deadline", () => {
   }
 
   it("outlives the relay's 30s reconnect grace (design bound)", () => {
-    // A code-join guest can legitimately wait out the DO's whole grace
-    // window for a dropped-but-seated host; the bound must exceed it or it
-    // would cut a recoverable wait short.
-    expect(HOST_ABSENT_TIMEOUT_MS).toBeGreaterThan(30_000);
+    expect(MATCHMADE_PEER_WAIT_TIMEOUT_MS).toBeGreaterThan(30_000);
   });
 
-  it("guest welcome with opponent:null settles disconnected + leaves the room at the deadline", () => {
+  it("matchmade guest welcome with opponent:null settles and leaves at the deadline", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
@@ -518,11 +514,12 @@ describe("F712 guest host-absent deadline", () => {
       });
       const room = seatedRoom();
       deps.roomRef.current = room;
+      deps.matchmakingRoomRef.current = true;
 
       handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
       expect(getRoom().status).toBe("connecting");
 
-      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS);
 
       expect(getRoom().status).toBe("disconnected");
       expect(getRoom().message).not.toBe("You left");
@@ -534,7 +531,7 @@ describe("F712 guest host-absent deadline", () => {
     }
   });
 
-  it("host seating (peer-joined) before the deadline keeps the guest waiting", () => {
+  it("invite guest with opponent:null is allowed to wait for its host", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
@@ -543,8 +540,52 @@ describe("F712 guest host-absent deadline", () => {
       deps.roomRef.current = room;
 
       handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS + 1_000);
+
+      expect(getRoom().status).toBe("connecting");
+      expect(deps.waitingForPeerTimeoutRef.current).toBeNull();
+      expect(room.send).not.toHaveBeenCalled();
+      expect(room.close).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("matchmade host welcome with opponent:null settles and leaves at the deadline", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "host", { status: "creating" });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+      deps.matchmakingRoomRef.current = true;
+
+      handleRelayEvent(deps, { type: "welcome", role: "host", opponent: null });
+      expect(getRoom().status).toBe("waiting");
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(getRoom().message).toBe("The opponent never joined. Try again, or go back to setup.");
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
+      expect(deps.roomRef.current).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("peer-joined before the deadline clears the guest wait", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+      deps.matchmakingRoomRef.current = true;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
       handleRelayEvent(deps, { type: "peer-joined" });
-      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS + 1_000);
 
       expect(getRoom().status).toBe("connecting");
       expect(getRoom().message).toBe("Opponent connecting…");
@@ -554,20 +595,21 @@ describe("F712 guest host-absent deadline", () => {
     }
   });
 
-  it("welcome with an opponent present never arms the deadline", () => {
+  it("welcome with an opponent present clears the deadline", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
       const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
       const room = seatedRoom();
       deps.roomRef.current = room;
+      deps.matchmakingRoomRef.current = true;
 
       handleRelayEvent(deps, {
         type: "welcome",
         role: "guest",
         opponent: { guestId: "h", displayName: "Host" },
       });
-      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS + 1_000);
 
       expect(getRoom().status).toBe("connected");
       expect(room.close).not.toHaveBeenCalled();
@@ -576,25 +618,58 @@ describe("F712 guest host-absent deadline", () => {
     }
   });
 
-  it("expiry while our own socket is mid-reconnect neither clobbers status nor kills the socket", () => {
+  it("keeps the original deadline across empty welcomes and reconnects", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
       const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      const connected = true;
       const room = {
         send: vi.fn(() => false),
         close: vi.fn(),
-        isConnected: () => false, // ws down — reconnect in flight
+        isConnected: () => connected,
       } as unknown as RoomClient;
       deps.roomRef.current = room;
+      deps.matchmakingRoomRef.current = true;
 
       handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
-      // Guest socket drops while still waiting: transport takes over status.
-      getRoom().status = "reconnecting";
-      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS - 5_000);
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      vi.advanceTimersByTime(5_000);
 
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.close).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves an expired deadline during socket reconnect and applies it on the next empty welcome", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      let connected = false;
+      const room = {
+        send: vi.fn(() => false),
+        close: vi.fn(),
+        isConnected: () => connected,
+      } as unknown as RoomClient;
+      deps.roomRef.current = room;
+      deps.matchmakingRoomRef.current = true;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      getRoom().status = "reconnecting";
+      vi.advanceTimersByTime(MATCHMADE_PEER_WAIT_TIMEOUT_MS);
       expect(getRoom().status).toBe("reconnecting");
       expect(room.close).not.toHaveBeenCalled();
+
+      connected = true;
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      vi.advanceTimersByTime(0);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.close).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }

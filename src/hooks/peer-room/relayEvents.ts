@@ -1,6 +1,6 @@
 import {
   GameStatus,
-  HOST_ABSENT_TIMEOUT_MS,
+  MATCHMADE_PEER_WAIT_TIMEOUT_MS,
   TURN_DURATION_MS,
   PlayerSymbol,
   oppositeSymbol,
@@ -50,54 +50,60 @@ export interface RelayEventDeps {
   startTimer: () => void;
   stopTimer: () => void;
   clearRematchTimeout: () => void;
-  /** F712: guest-side bound on the "Waiting for host…" wait. Armed by a
-   *  welcome carrying no opponent, cleared when the host's socket seats
-   *  (peer-joined/peer-reconnected), on peer-left, and by the hook on
-   *  leave/unmount/room entry. Null while no deadline is armed. */
-  waitingForHostTimeoutRef: {
+  /** True when this room belongs to a matchmaking allocation. */
+  matchmakingRoomRef: { current: boolean };
+  /** F712: timeout for waiting on the allocated peer. */
+  waitingForPeerTimeoutRef: {
     current: ReturnType<typeof setTimeout> | null;
   };
+  /** Absolute deadline survives reconnects while the allocated peer is absent. */
+  waitingForPeerDeadlineAtRef: { current: number | null };
 }
 
 /**
- * F712: post-89ba965 the quick-match host's room socket connects only after
- * the match lands, so a host first-connect failure strands an allocated
- * guest in a room whose expected host seat never fills — GameRoomDO reaps
- * slots by `disconnectedAt` and a never-seated host is no slot, so no
- * peer-left/expired frame ever arrives. The wait has to end client-side.
+ * F712: a matchmaking allocation can leave either player waiting forever if
+ * the allocated peer never seats. A never-seated peer is not a relay slot,
+ * so no peer-left/expired frame ever arrives.
  */
-function clearWaitingForHostDeadline(deps: RelayEventDeps) {
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
+function clearWaitingForPeerDeadline(deps: RelayEventDeps) {
+  if (deps.waitingForPeerTimeoutRef.current !== null) {
+    clearTimeout(deps.waitingForPeerTimeoutRef.current);
+    deps.waitingForPeerTimeoutRef.current = null;
   }
+  deps.waitingForPeerDeadlineAtRef.current = null;
 }
 
-function armWaitingForHostDeadline(deps: RelayEventDeps) {
-  clearWaitingForHostDeadline(deps);
-  deps.waitingForHostTimeoutRef.current = setTimeout(() => {
-    deps.waitingForHostTimeoutRef.current = null;
+function armWaitingForPeerDeadline(deps: RelayEventDeps) {
+  if (!deps.matchmakingRoomRef.current) return;
+  if (deps.waitingForPeerDeadlineAtRef.current === null) {
+    deps.waitingForPeerDeadlineAtRef.current = Date.now() + MATCHMADE_PEER_WAIT_TIMEOUT_MS;
+  }
+  if (deps.waitingForPeerTimeoutRef.current !== null) return;
+  const delay = Math.max(0, deps.waitingForPeerDeadlineAtRef.current - Date.now());
+  deps.waitingForPeerTimeoutRef.current = setTimeout(() => {
+    deps.waitingForPeerTimeoutRef.current = null;
+    // Keep the transport's reconnect alive, but preserve the absolute
+    // deadline so a later empty welcome cannot grant another full wait.
+    if (!deps.roomRef.current?.isConnected()) return;
+    deps.waitingForPeerDeadlineAtRef.current = null;
     // The terminal write rides ahead of close() so the socket teardown's
     // synchronous "You left" loses to the disconnected-message guard —
     // the same ordering the peer-left terminal branch relies on
     // (needs-work 10-02 P1).
     deps.setState((prev) =>
-      prev.role === "guest" && prev.status === "connecting"
+      (prev.role === "guest" && prev.status === "connecting") ||
+      (prev.role === "host" && prev.status === "waiting")
         ? {
             ...prev,
             status: "disconnected",
-            message:
-              "The host never connected. Try again, or go back to setup.",
+            message: prev.role === "guest"
+              ? "The host never connected. Try again, or go back to setup."
+              : "The opponent never joined. Try again, or go back to setup.",
           }
         : prev,
     );
-    // Only sever a live seated socket: while the guest's own reconnect is
-    // in flight the armed deadline is stale (the fresh welcome re-arms
-    // it), and closing here would kill a recovery the relay still owns.
-    if (deps.roomRef.current?.isConnected()) {
-      leaveRoom(deps.roomRef);
-    }
-  }, HOST_ABSENT_TIMEOUT_MS);
+    leaveRoom(deps.roomRef);
+  }, delay);
 }
 
 /** Handles one relay lifecycle event (routed by type in buildRoomClient). */
@@ -123,6 +129,7 @@ export function handleRelayEvent(
   if (event.type === "welcome") {
     const role = (event as { role?: string }).role;
     const opponent = (event as { opponent?: { guestId: string; displayName: string } | null }).opponent ?? null;
+    if (opponent) clearWaitingForPeerDeadline(deps);
     if (role === "host") {
       // Host wakes up (initial or reconnect). If opponent present, they're
       // already back; if not, wait for peer-joined.
@@ -192,6 +199,7 @@ export function handleRelayEvent(
           status: prev.status === "connected" ? "connected" : "waiting",
           message: prev.status === "connected" ? "" : `Room ${prev.roomId}. Waiting for opponent.`,
         }));
+        armWaitingForPeerDeadline(deps);
       }
     } else if (role === "guest") {
       // Guest received welcome from the relay. The host will follow with
@@ -207,14 +215,9 @@ export function handleRelayEvent(
         status: opponent ? "connected" : "connecting",
         message: opponent ? "" : "Waiting for host…",
       }));
-      // F712: with no host seated the wait is unbounded — arm the deadline.
-      // An opponent present means the host is already seated (or this is a
-      // reconnect back into a live room), so nothing is left to bound.
-      if (opponent) {
-        clearWaitingForHostDeadline(deps);
-      } else {
-        armWaitingForHostDeadline(deps);
-      }
+      // F712: invite guests can arrive before their host, so only matchmade
+      // rooms receive a bound while the allocated host has not seated.
+      if (!opponent) armWaitingForPeerDeadline(deps);
       // Reconnect pull (uno-chess contract): a local game past WAITING
       // means this welcome is a REconnect, not a first join — ask the
       // host for an authoritative state_snapshot in case our re-sent
@@ -229,9 +232,8 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-reconnected") {
-    // F712: for a guest this means the host's socket is back — the
-    // host-absent wait is over either way.
-    clearWaitingForHostDeadline(deps);
+    // F712: the allocated peer's socket is back — its wait is over.
+    clearWaitingForPeerDeadline(deps);
     // Preserve rematchIncoming: a transient blip must not kill a live
     // rematch prompt — the host's pending request survives a socket
     // drop, and the terminal peer-left branch still clears the flag if
@@ -320,9 +322,8 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-joined") {
-    // F712: a peer's socket just seated — for a waiting guest that IS the
-    // host arriving, so the deadline is moot.
-    clearWaitingForHostDeadline(deps);
+    // F712: a peer's socket just seated, so the deadline is moot.
+    clearWaitingForPeerDeadline(deps);
     // Host learns a new peer arrived at the relay. The guest will send
     // its real `join` message (with preferred color) immediately after
     // `welcome`, so we only update status here — do NOT synthesize a
@@ -340,9 +341,9 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-left") {
-    // F712: a peer-left proves the host was once seated — the
+    // F712: a peer-left proves the allocated peer was seated; the
     // never-seated wait no longer applies regardless of the reason.
-    clearWaitingForHostDeadline(deps);
+    clearWaitingForPeerDeadline(deps);
     const reason = (event as { reason?: "disconnect" | "closed" | "expired" }).reason;
     if (reason === "disconnect") {
       // Don't override a deliberate leave/forfeit — the host/guest

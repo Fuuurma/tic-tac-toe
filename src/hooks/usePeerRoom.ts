@@ -122,6 +122,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const roleRef = useRef<PeerRole>(null);
   const tickRef = useRef<number | null>(null);
   const matchmakingTicketRef = useRef<string | null>(null);
+  const matchmakingRoomRef = useRef(false);
   const hasStartedRef = useRef(false);
   // Host remembers when it has issued a rematch request. A guest `rematchAccept`
   // is only honored while a host request is pending and the game is terminal.
@@ -142,11 +143,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // who walked away mid-prompt. On expiry the host sends rematchCancel —
   // the guest's existing handler clears its prompt.
   const rematchTimeoutRef = useRef<number | null>(null);
-  // F712: guest-side bound on "Waiting for host…" — armed by a welcome with
-  // no opponent (the post-89ba965 quick-match order can seat a guest whose
-  // host's socket never connects), cleared when the host seats or the room
-  // ends. Room-scoped like the rest: cleared on room entry, leave, unmount.
-  const waitingForHostTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // F712: bound on a matchmade player's wait for its allocated peer. The
+  // absolute deadline survives socket retries, but room entry/leave clears it.
+  const waitingForPeerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waitingForPeerDeadlineAtRef = useRef<number | null>(null);
   // Host remembers player settings (name/color/shape) the user edited from
   // the in-game edit button. Those changes only apply on the next rematch so
   // the live game is never mutated while it's in progress.
@@ -367,7 +367,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
       startTimer,
       stopTimer,
       clearRematchTimeout,
-      waitingForHostTimeoutRef,
+      matchmakingRoomRef,
+      waitingForPeerTimeoutRef,
+      waitingForPeerDeadlineAtRef,
     }),
     [broadcastGameState, commitHostState, startTimer, stopTimer, clearRematchTimeout],
   );
@@ -418,20 +420,22 @@ export function usePeerRoom(options: PeerRoomOptions) {
       reconnectResetsRef,
       pendingGuestStateRef,
       syncPendingRef,
-      waitingForHostTimeoutRef,
+      matchmakingRoomRef,
+      waitingForPeerTimeoutRef,
+      waitingForPeerDeadlineAtRef,
     }),
     [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );
 
   const startAsHost = useCallback(
-    (providedRoomId?: string, wsUrl?: string, slotToken?: string) =>
-      startAsHostImpl(lifecycleDeps(), providedRoomId, wsUrl, slotToken),
+    (providedRoomId?: string, wsUrl?: string, slotToken?: string, matchmadeRoom = false) =>
+      startAsHostImpl(lifecycleDeps(), providedRoomId, wsUrl, slotToken, matchmadeRoom),
     [lifecycleDeps],
   );
 
   const joinAsGuest = useCallback(
-    (roomId: string, wsUrl?: string, slotToken?: string) =>
-      joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl, slotToken),
+    (roomId: string, wsUrl?: string, slotToken?: string, matchmadeRoom = false) =>
+      joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl, slotToken, matchmadeRoom),
     [lifecycleDeps],
   );
 
@@ -585,6 +589,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   const leave = useCallback(() => {
     leaveRoom(roomRef);
+    matchmakingRoomRef.current = false;
     stopTimer();
     pausedRef.current = false;
     setPausedState(false);
@@ -601,10 +606,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
     // into the next room's rematch.
     hostPendingSettingsRef.current = null;
     clearRematchTimeout();
-    if (waitingForHostTimeoutRef.current !== null) {
-      clearTimeout(waitingForHostTimeoutRef.current);
-      waitingForHostTimeoutRef.current = null;
+    if (waitingForPeerTimeoutRef.current !== null) {
+      clearTimeout(waitingForPeerTimeoutRef.current);
+      waitingForPeerTimeoutRef.current = null;
     }
+    waitingForPeerDeadlineAtRef.current = null;
     setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false, queuePosition: null }));
   }, [stopTimer, clearRematchTimeout]);
 
@@ -652,11 +658,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
       // would fire send() on a closed room and setState on a dead tree.
       rematchPendingRef.current = false;
       clearRematchTimeout();
-      // F712: an armed host-absent deadline must not fire on a dead tree.
-      if (waitingForHostTimeoutRef.current !== null) {
-        clearTimeout(waitingForHostTimeoutRef.current);
-        waitingForHostTimeoutRef.current = null;
+      // F712: an armed allocated-peer deadline must not fire on a dead tree.
+      if (waitingForPeerTimeoutRef.current !== null) {
+        clearTimeout(waitingForPeerTimeoutRef.current);
+        waitingForPeerTimeoutRef.current = null;
       }
+      waitingForPeerDeadlineAtRef.current = null;
+      matchmakingRoomRef.current = false;
       leaveRoom(roomRef);
       stopTimer();
     };

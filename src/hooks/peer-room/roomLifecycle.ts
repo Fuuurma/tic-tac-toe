@@ -67,12 +67,13 @@ export interface RoomLifecycleDeps {
   /** Guest snapshot gate (guestProtocol, F618) — room-scoped: a sync_request
    *  left unanswered in the previous room must not admit a snapshot here. */
   syncPendingRef: { current: boolean };
-  /** Guest host-absent deadline (relayEvents, F712) — room-scoped: a
-   *  timer armed on a previous room's welcome must never fire into this
-   *  one and close a live socket. */
-  waitingForHostTimeoutRef: {
+  /** True while this room came from a matchmaking allocation. */
+  matchmakingRoomRef: { current: boolean };
+  /** Matchmade peer wait deadline (relayEvents, F712), room-scoped. */
+  waitingForPeerTimeoutRef: {
     current: ReturnType<typeof setTimeout> | null;
   };
+  waitingForPeerDeadlineAtRef: { current: number | null };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -193,7 +194,13 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
   return client;
 }
 
-export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, wsUrl?: string, slotToken?: string) {
+export function startAsHost(
+  deps: RoomLifecycleDeps,
+  providedRoomId?: string,
+  wsUrl?: string,
+  slotToken?: string,
+  matchmadeRoom = false,
+) {
   const {
     roomRef,
     stateRef,
@@ -206,6 +213,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
+  deps.matchmakingRoomRef.current = matchmadeRoom;
   // A stale pending-rematch flag must not leak into the new room —
   // without this a stray rematchAccept arriving right after the room
   // swap is honored against a game that never asked for one
@@ -224,10 +232,11 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // never a valid rollback target in this one (F275).
   deps.pendingGuestStateRef.current = null;
   deps.syncPendingRef.current = false;
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
+  if (deps.waitingForPeerTimeoutRef.current !== null) {
+    clearTimeout(deps.waitingForPeerTimeoutRef.current);
+    deps.waitingForPeerTimeoutRef.current = null;
   }
+  deps.waitingForPeerDeadlineAtRef.current = null;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -268,7 +277,13 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   });
 }
 
-export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: string, slotToken?: string) {
+export function joinAsGuest(
+  deps: RoomLifecycleDeps,
+  roomId: string,
+  wsUrl?: string,
+  slotToken?: string,
+  matchmadeRoom = false,
+) {
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
@@ -278,15 +293,18 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
   deps.reconnectResetsRef.current.moveCount = -1;
   deps.syncPendingRef.current = false;
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
+  if (deps.waitingForPeerTimeoutRef.current !== null) {
+    clearTimeout(deps.waitingForPeerTimeoutRef.current);
+    deps.waitingForPeerTimeoutRef.current = null;
   }
+  deps.waitingForPeerDeadlineAtRef.current = null;
   const trimmed = roomId.trim();
   if (!trimmed) {
+    deps.matchmakingRoomRef.current = false;
     update({ status: "error", message: "Enter a room ID" });
     return;
   }
+  deps.matchmakingRoomRef.current = matchmadeRoom;
   // The guest's symbol is assigned by the host's `joined` message — clear
   // any symbol carried over from a previous room so a peer leaving before
   // `joined` arrives crowns nobody instead of a stale recorded symbol.
