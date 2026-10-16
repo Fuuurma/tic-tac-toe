@@ -98,7 +98,7 @@ describe("runQuickMatch", () => {
 
     await runQuickMatch(deps);
 
-    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", "guest-slot-tok");
+    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", "guest-slot-tok", true);
     expect(deps.startAsHost).not.toHaveBeenCalled();
     expect(mockedLeaveMatch).not.toHaveBeenCalled();
     expect(hasStartedRef.current).toBe(false);
@@ -125,7 +125,7 @@ describe("runQuickMatch", () => {
     await runQuickMatch(deps);
 
     expect(mockedFindMatch).toHaveBeenCalledTimes(1);
-    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", undefined);
+    expect(deps.joinAsGuest).toHaveBeenCalledWith("r2", "wss://relay.example/room/r2", undefined, true);
     expect(hasStartedRef.current).toBe(false);
   });
 

@@ -24,6 +24,9 @@ export interface RelayEventDeps {
   roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
   roleRef: { current: PeerRole };
+  quickMatchGuestRef: { current: boolean };
+  armQuickMatchGuestWait: () => void;
+  clearQuickMatchGuestWait: () => void;
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
   rematchPendingRef: { current: boolean };
@@ -151,6 +154,14 @@ export function handleRelayEvent(
       // is still derived from `joined`; welcome only confirms the relay
       // accepted us and tells us whether the host is already present.
       roleRef.current = "guest";
+      if (deps.quickMatchGuestRef.current) {
+        if (opponent) {
+          deps.clearQuickMatchGuestWait();
+          deps.quickMatchGuestRef.current = false;
+        } else {
+          deps.armQuickMatchGuestWait();
+        }
+      }
       setState((prev) => ({
         ...prev,
         role: "guest",
@@ -171,6 +182,10 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-reconnected") {
+    if (roleRef.current === "guest" && deps.quickMatchGuestRef.current) {
+      deps.clearQuickMatchGuestWait();
+      deps.quickMatchGuestRef.current = false;
+    }
     // Preserve rematchIncoming: a transient blip must not kill a live
     // rematch prompt — the host's pending request survives a socket
     // drop, and the terminal peer-left branch still clears the flag if
@@ -259,6 +274,10 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-joined") {
+    if (roleRef.current === "guest" && deps.quickMatchGuestRef.current) {
+      deps.clearQuickMatchGuestWait();
+      deps.quickMatchGuestRef.current = false;
+    }
     // Host learns a new peer arrived at the relay. The guest will send
     // its real `join` message (with preferred color) immediately after
     // `welcome`, so we only update status here — do NOT synthesize a

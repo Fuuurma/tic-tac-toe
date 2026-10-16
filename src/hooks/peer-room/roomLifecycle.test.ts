@@ -1,8 +1,17 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { RoomClient } from "@/lib/room";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState, type GameState } from "@/game/logic";
-import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import {
+  armQuickMatchGuestWait,
+  clearQuickMatchGuestWait,
+  QUICK_MATCH_HOST_WAIT_MS,
+  leaveRoom,
+  joinAsGuest,
+  startAsHost,
+  buildRoomClient,
+  type RoomLifecycleDeps,
+} from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
 import type { PendingPlayerSettings } from "../usePeerRoom";
@@ -58,6 +67,52 @@ describe("leaveRoom", () => {
   });
 });
 
+describe("quick-match guest host wait", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("leaves the relay room and reports an error when no host arrives", () => {
+    vi.useFakeTimers();
+    const { room, calls } = mockRoom();
+    const roomRef = refFor(room);
+    const quickMatchGuestRef = { current: true };
+    const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+    const update = vi.fn();
+
+    armQuickMatchGuestWait({ roomRef, quickMatchGuestRef, timeoutRef, update });
+    vi.advanceTimersByTime(QUICK_MATCH_HOST_WAIT_MS - 1);
+    expect(update).not.toHaveBeenCalled();
+    expect(calls).toEqual([]);
+
+    vi.advanceTimersByTime(1);
+
+    expect(calls).toEqual(["send:leave", "close"]);
+    expect(roomRef.current).toBeNull();
+    expect(timeoutRef.current).toBeNull();
+    expect(update).toHaveBeenCalledWith({
+      status: "error",
+      message: "Host did not connect in time. Try Quick Match again.",
+    });
+  });
+
+  it("cancels the deadline once host presence is confirmed", () => {
+    vi.useFakeTimers();
+    const { room, calls } = mockRoom();
+    const roomRef = refFor(room);
+    const quickMatchGuestRef = { current: true };
+    const timeoutRef = { current: null as ReturnType<typeof setTimeout> | null };
+    const update = vi.fn();
+
+    armQuickMatchGuestWait({ roomRef, quickMatchGuestRef, timeoutRef, update });
+    quickMatchGuestRef.current = false;
+    clearQuickMatchGuestWait({ timeoutRef });
+    vi.advanceTimersByTime(QUICK_MATCH_HOST_WAIT_MS);
+
+    expect(timeoutRef.current).toBeNull();
+    expect(calls).toEqual([]);
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
 describe("joinAsGuest rematch-flag reset", () => {
   // needs-work 2026-09-10 P2: rematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
@@ -69,6 +124,9 @@ describe("joinAsGuest rematch-flag reset", () => {
     const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
     const deps: RoomLifecycleDeps = {
       roomRef: { current: null },
+      quickMatchGuestRef: { current: false },
+      armQuickMatchGuestWait: vi.fn(),
+      clearQuickMatchGuestWait: vi.fn(),
       stateRef: {
         current: createInitialGameState({
           gameMode: GameModes.ONLINE,
@@ -100,6 +158,22 @@ describe("joinAsGuest rematch-flag reset", () => {
     return { deps, guestSymbolRef };
   }
 
+  it("keeps a quick-match host-timeout error when the closed socket reports disconnected", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured: {
+      status?: (status: "disconnected", detail?: string) => void;
+    } = {};
+    vi.spyOn(RoomClient.prototype, "setStatusHandler").mockImplementation((handler) => {
+      captured.status = handler as (status: "disconnected", detail?: string) => void;
+    });
+    deps.quickMatchGuestRef.current = true;
+
+    buildRoomClient(deps, "ws://relay.test/room", "guest");
+    captured.status?.("disconnected", "You left");
+
+    expect(deps.setState).not.toHaveBeenCalled();
+  });
+
   it("F241: clears stale pending identity settings on room entry", () => {
     const rematchPendingRef = { current: false };
     const hostPendingSettingsRef = {
@@ -111,6 +185,17 @@ describe("joinAsGuest rematch-flag reset", () => {
       "ws://127.0.0.1:1",
     );
     expect(hostPendingSettingsRef.current).toBeNull();
+  });
+
+  it("marks only quick-match guest rooms for a host wait deadline", () => {
+    const { deps } = lifecycleDeps({ current: false });
+
+    joinAsGuest(deps, "QUICK", "ws://127.0.0.1:1", undefined, true);
+    expect(deps.quickMatchGuestRef.current).toBe(true);
+    expect(deps.clearQuickMatchGuestWait).toHaveBeenCalledOnce();
+
+    joinAsGuest(deps, "PRIVATE", "ws://127.0.0.1:1");
+    expect(deps.quickMatchGuestRef.current).toBe(false);
   });
 
   it("F252: guest resends join when the host reconnects and the game is still WAITING", () => {
@@ -227,6 +312,9 @@ describe("joinAsGuest rematch-flag reset", () => {
           roomRef: deps.roomRef,
           stateRef: deps.stateRef,
           roleRef: deps.roleRef,
+          quickMatchGuestRef: deps.quickMatchGuestRef,
+          armQuickMatchGuestWait: deps.armQuickMatchGuestWait,
+          clearQuickMatchGuestWait: deps.clearQuickMatchGuestWait,
           hostSymbolRef: deps.hostSymbolRef,
           guestSymbolRef: deps.guestSymbolRef,
           rematchPendingRef: deps.rematchPendingRef,

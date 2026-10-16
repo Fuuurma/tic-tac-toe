@@ -35,6 +35,9 @@ export interface RoomLifecycleDeps {
   roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
   roleRef: { current: "host" | "guest" | null };
+  quickMatchGuestRef: { current: boolean };
+  armQuickMatchGuestWait: () => void;
+  clearQuickMatchGuestWait: () => void;
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
   hostDisplayName: string;
@@ -67,6 +70,39 @@ export interface RoomLifecycleDeps {
   /** Guest snapshot gate (guestProtocol, F618) — room-scoped: a sync_request
    *  left unanswered in the previous room must not admit a snapshot here. */
   syncPendingRef: { current: boolean };
+}
+
+export const QUICK_MATCH_HOST_WAIT_MS = 30_000;
+
+interface QuickMatchGuestWaitDeps {
+  roomRef: { current: RoomClient | null };
+  quickMatchGuestRef: { current: boolean };
+  timeoutRef: { current: ReturnType<typeof setTimeout> | null };
+  update: (patch: Partial<PeerRoomState>) => void;
+}
+
+export function clearQuickMatchGuestWait(
+  deps: Pick<QuickMatchGuestWaitDeps, "timeoutRef">,
+) {
+  if (deps.timeoutRef.current !== null) {
+    clearTimeout(deps.timeoutRef.current);
+    deps.timeoutRef.current = null;
+  }
+}
+
+export function armQuickMatchGuestWait(deps: QuickMatchGuestWaitDeps) {
+  if (!deps.quickMatchGuestRef.current || deps.timeoutRef.current !== null) return;
+  deps.timeoutRef.current = setTimeout(() => {
+    deps.timeoutRef.current = null;
+    if (!deps.quickMatchGuestRef.current) return;
+    // Preserve the quick-match marker until the next room/leave so the
+    // RoomClient's close event cannot replace this actionable error.
+    leaveRoom(deps.roomRef);
+    deps.update({
+      status: "error",
+      message: "Host did not connect in time. Try Quick Match again.",
+    });
+  }, QUICK_MATCH_HOST_WAIT_MS);
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -153,6 +189,10 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
         if (roleRef.current === "host") {
           handleHostData(msg);
         } else {
+          if (deps.quickMatchGuestRef.current) {
+            deps.clearQuickMatchGuestWait();
+            deps.quickMatchGuestRef.current = false;
+          }
           handleGuestData(msg);
         }
       }
@@ -170,6 +210,9 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
         return { ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." };
       });
     } else if (status === "disconnected") {
+      // A quick-match guest's unresolved-host deadline owns terminal status
+      // until a host arrives or the user starts/leaves another room.
+      if (deps.quickMatchGuestRef.current) return;
       setState((prev) => {
         // Terminal relay messages (peer-left reason lines) win over the
         // transport's generic "You left"/"Disconnected" — the relay frame
@@ -198,6 +241,8 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     update,
     stopTimer,
   } = deps;
+  deps.clearQuickMatchGuestWait();
+  deps.quickMatchGuestRef.current = false;
   stopTimer();
   closeExistingRoom(roomRef);
   // A stale pending-rematch flag must not leak into the new room —
@@ -258,8 +303,16 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   });
 }
 
-export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: string, slotToken?: string) {
+export function joinAsGuest(
+  deps: RoomLifecycleDeps,
+  roomId: string,
+  wsUrl?: string,
+  slotToken?: string,
+  quickMatch = false,
+) {
   const { roomRef, roleRef, update, stopTimer } = deps;
+  deps.clearQuickMatchGuestWait();
+  deps.quickMatchGuestRef.current = quickMatch;
   stopTimer();
   closeExistingRoom(roomRef);
   deps.rematchPendingRef.current = false;
@@ -270,6 +323,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   deps.syncPendingRef.current = false;
   const trimmed = roomId.trim();
   if (!trimmed) {
+    deps.quickMatchGuestRef.current = false;
     update({ status: "error", message: "Enter a room ID" });
     return;
   }

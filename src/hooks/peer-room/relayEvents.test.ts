@@ -31,6 +31,7 @@ function makeDeps(
   game: GameState,
   role: PeerRole,
   roomInit: Partial<PeerRoomState> = {},
+  quickMatchGuest = false,
 ) {
   let roomState = { gameState: game, ...roomInit } as PeerRoomState;
   const calls = { committed: [] as GameState[], broadcasts: [] as GameState[] };
@@ -38,6 +39,9 @@ function makeDeps(
     roomRef: { current: null },
     stateRef: { current: game },
     roleRef: { current: role },
+    quickMatchGuestRef: { current: quickMatchGuest },
+    armQuickMatchGuestWait: vi.fn(),
+    clearQuickMatchGuestWait: vi.fn(),
     hostSymbolRef: { current: PlayerSymbol.X },
     guestSymbolRef: { current: PlayerSymbol.O },
     rematchPendingRef: { current: false },
@@ -290,6 +294,54 @@ describe("handleRelayEvent peer-reconnected", () => {
 
     expect(deps.requestSync).not.toHaveBeenCalled();
   });
+
+  it("arms the quick-match guest wait when welcome has no host", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps } = makeDeps(game, "guest", {}, true);
+
+    handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+
+    expect(deps.armQuickMatchGuestWait).toHaveBeenCalledOnce();
+    expect(deps.clearQuickMatchGuestWait).not.toHaveBeenCalled();
+    expect(deps.quickMatchGuestRef.current).toBe(true);
+  });
+
+  it("cancels the quick-match guest wait when welcome already has a host", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps } = makeDeps(game, "guest", {}, true);
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "guest",
+      opponent: { guestId: "h", displayName: "Host" },
+    });
+
+    expect(deps.clearQuickMatchGuestWait).toHaveBeenCalledOnce();
+    expect(deps.armQuickMatchGuestWait).not.toHaveBeenCalled();
+    expect(deps.quickMatchGuestRef.current).toBe(false);
+  });
+
+  it("does not bound a private guest room that is waiting for its host", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps } = makeDeps(game, "guest");
+
+    handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+
+    expect(deps.armQuickMatchGuestWait).not.toHaveBeenCalled();
+  });
+
+  it.each(["peer-joined", "peer-reconnected"])(
+    "cancels the quick-match guest wait on %s",
+    (type) => {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps } = makeDeps(game, "guest", {}, true);
+
+      handleRelayEvent(deps, { type });
+
+      expect(deps.clearQuickMatchGuestWait).toHaveBeenCalledOnce();
+      expect(deps.quickMatchGuestRef.current).toBe(false);
+    },
+  );
 
   it("guest welcome while locally COMPLETED still pulls (missed rematch gameStart)", () => {
     // Same divergence as the peer-reconnected path: local terminal state

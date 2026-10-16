@@ -30,7 +30,7 @@ export interface MatchmakingDeps {
   patchStatus: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   hostDisplayName: string;
   startAsHost: (roomId?: string, wsUrl?: string, slotToken?: string) => void;
-  joinAsGuest: (roomId: string, wsUrl?: string, slotToken?: string) => void;
+  joinAsGuest: (roomId: string, wsUrl?: string, slotToken?: string, quickMatch?: boolean) => void;
   /** Test seam: shrink the 2-minute quick-match poll ceiling. */
   maxPollMs?: number;
 }
@@ -226,7 +226,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       liveAttempts.delete(matchmakingTicketRef);
       matchmakingTicketRef.current = null;
       hasStartedRef.current = false;
-      joinAsGuest(response.match.roomId, response.match.wsUrl, response.slotToken);
+      joinAsGuest(response.match.roomId, response.match.wsUrl, response.slotToken, true);
       return;
     }
   } catch (err) {

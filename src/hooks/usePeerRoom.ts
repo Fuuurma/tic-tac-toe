@@ -12,6 +12,8 @@ import {
 import { handleRelayEvent } from "./peer-room/relayEvents";
 import { abandonTicket, runQuickMatch } from "./peer-room/matchmaking";
 import {
+  armQuickMatchGuestWait as armQuickMatchGuestWaitImpl,
+  clearQuickMatchGuestWait as clearQuickMatchGuestWaitImpl,
   joinAsGuest as joinAsGuestImpl,
   leaveRoom,
   startAsHost as startAsHostImpl,
@@ -123,6 +125,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const tickRef = useRef<number | null>(null);
   const matchmakingTicketRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
+  const quickMatchGuestRef = useRef(false);
+  const quickMatchGuestTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Host remembers when it has issued a rematch request. A guest `rematchAccept`
   // is only honored while a host request is pending and the game is terminal.
   // Without this gate a hostile or buggy guest can reset the host mid-game.
@@ -180,6 +184,21 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const update = useCallback((patch: Partial<PeerRoomState>) => {
     setState((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  const clearQuickMatchGuestWait = useCallback(
+    () => clearQuickMatchGuestWaitImpl({ timeoutRef: quickMatchGuestTimeoutRef }),
+    [],
+  );
+  const armQuickMatchGuestWait = useCallback(
+    () =>
+      armQuickMatchGuestWaitImpl({
+        roomRef,
+        quickMatchGuestRef,
+        timeoutRef: quickMatchGuestTimeoutRef,
+        update,
+      }),
+    [update],
+  );
 
   const broadcastGameState = useCallback((gameState: GameState) => {
     roomRef.current?.send({ type: "gameUpdate", gameState: toWireGameState(gameState) });
@@ -342,6 +361,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
       roomRef,
       stateRef,
       roleRef,
+      quickMatchGuestRef,
+      armQuickMatchGuestWait,
+      clearQuickMatchGuestWait,
       hostSymbolRef,
       guestSymbolRef,
       rematchPendingRef,
@@ -363,7 +385,15 @@ export function usePeerRoom(options: PeerRoomOptions) {
       stopTimer,
       clearRematchTimeout,
     }),
-    [broadcastGameState, commitHostState, startTimer, stopTimer, clearRematchTimeout],
+    [
+      broadcastGameState,
+      commitHostState,
+      startTimer,
+      stopTimer,
+      clearRematchTimeout,
+      armQuickMatchGuestWait,
+      clearQuickMatchGuestWait,
+    ],
   );
   const handleWsEvent = useCallback(
     (event: { type: string; [k: string]: unknown }) => handleRelayEvent(relayDeps(), event),
@@ -394,6 +424,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
       roomRef,
       stateRef,
       roleRef,
+      quickMatchGuestRef,
+      armQuickMatchGuestWait,
+      clearQuickMatchGuestWait,
       hostSymbolRef,
       guestSymbolRef,
       hostDisplayName: options.hostDisplayName,
@@ -413,7 +446,18 @@ export function usePeerRoom(options: PeerRoomOptions) {
       pendingGuestStateRef,
       syncPendingRef,
     }),
-    [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
+    [
+      handleGuestData,
+      handleHostData,
+      handleWsEvent,
+      options.hostColor,
+      options.hostDisplayName,
+      options.hostShape,
+      stopTimer,
+      update,
+      armQuickMatchGuestWait,
+      clearQuickMatchGuestWait,
+    ],
   );
 
   const startAsHost = useCallback(
@@ -423,8 +467,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
 
   const joinAsGuest = useCallback(
-    (roomId: string, wsUrl?: string, slotToken?: string) =>
-      joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl, slotToken),
+    (roomId: string, wsUrl?: string, slotToken?: string, quickMatch = false) =>
+      joinAsGuestImpl(lifecycleDeps(), roomId, wsUrl, slotToken, quickMatch),
     [lifecycleDeps],
   );
 
@@ -577,6 +621,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [clearRematchTimeout]);
 
   const leave = useCallback(() => {
+    clearQuickMatchGuestWait();
+    quickMatchGuestRef.current = false;
     leaveRoom(roomRef);
     stopTimer();
     pausedRef.current = false;
@@ -595,7 +641,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     hostPendingSettingsRef.current = null;
     clearRematchTimeout();
     setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false, queuePosition: null }));
-  }, [stopTimer, clearRematchTimeout]);
+  }, [stopTimer, clearRematchTimeout, clearQuickMatchGuestWait]);
 
   useEffect(() => {
     // state.status gates the timer: while "reconnecting" the socket is down
@@ -641,10 +687,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
       // would fire send() on a closed room and setState on a dead tree.
       rematchPendingRef.current = false;
       clearRematchTimeout();
+      clearQuickMatchGuestWait();
+      quickMatchGuestRef.current = false;
       leaveRoom(roomRef);
       stopTimer();
     };
-  }, [stopTimer, clearRematchTimeout]);
+  }, [stopTimer, clearRematchTimeout, clearQuickMatchGuestWait]);
 
   const retryReconnect = useCallback(() => {
     roomRef.current?.reconnectNow();
