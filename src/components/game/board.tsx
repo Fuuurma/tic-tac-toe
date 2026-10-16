@@ -45,8 +45,6 @@ export const Board = memo(function Board({
 }: BoardProps) {
   const [hovered, setHovered] = useState<number | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
-  const onCellClickRef = useRef(onCellClick);
-  onCellClickRef.current = onCellClick;
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -83,12 +81,12 @@ export const Board = memo(function Board({
       if (disabled || board[index] !== null) return;
 
       event.preventDefault();
-      onCellClickRef.current(index);
+      onCellClick(index);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [board, disabled]);
+  }, [board, disabled, onCellClick]);
 
   return (
     // The phone gutter lives here, not in the shell, so the well's
