@@ -42,6 +42,33 @@ describe("Board accessibility semantics", () => {
     expect(onCellClick).toHaveBeenCalledWith(0);
   });
 
+  it("does not apply board shortcuts while a native dialog is focused", () => {
+    const onCellClick = vi.fn();
+    render(
+      <Board
+        board={Array(9).fill(null)}
+        colors={{ [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED }}
+        shapes={{ [PlayerSymbol.X]: SymbolShape.X, [PlayerSymbol.O]: SymbolShape.O }}
+        winningCombination={null}
+        nextToRemove={{ [PlayerSymbol.X]: null, [PlayerSymbol.O]: null }}
+        disabled={false}
+        onCellClick={onCellClick}
+      />,
+    );
+
+    const dialog = document.createElement("dialog");
+    dialog.open = true;
+    dialog.tabIndex = -1;
+    document.body.append(dialog);
+    try {
+      dialog.focus();
+      fireEvent.keyDown(dialog, { key: "2", bubbles: true });
+      expect(onCellClick).not.toHaveBeenCalled();
+    } finally {
+      dialog.remove();
+    }
+  });
+
   it("keeps occupied cells unavailable while retaining native button roles", () => {
     const board: (PlayerSymbolType | null)[] = Array(9).fill(null);
     board[0] = PlayerSymbol.X;

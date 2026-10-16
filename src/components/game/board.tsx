@@ -68,7 +68,7 @@ export const Board = memo(function Board({
         // restoration to a panel button must keep the shortcut working
         // (the "without hijacking dialogs" smoke; needs-work 10-02 P1-2).
         const isFocusedControl = target.closest(
-          'input, select, textarea, [contenteditable="true"], [role="dialog"]',
+          'input, select, textarea, dialog, [contenteditable="true"], [role="dialog"]',
         );
         if (!isInsideBoard && isFocusedControl) return;
       }
