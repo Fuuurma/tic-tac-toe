@@ -14,11 +14,14 @@ import type { PeerRoomState } from "../usePeerRoom";
  * Quick-match controller, extracted from usePeerRoom (god-hook
  * decomposition, slice 3).
  *
- * Owns the matchmaking ticket lifecycle: join → host room + poll loop
- * (bounded at 2 minutes) or direct join when the service returns an
- * instant match. `abandonTicket` is the shared cleanup for user-leave and
- * unmount; it also retires the live attempt so that any continuation still
- * awaiting a network call sees it is no longer current and writes nothing.
+ * Owns the matchmaking ticket lifecycle: join → poll the ticket until
+ * paired (bounded at 2 minutes) → `startAsHost` binds the room only after
+ * the service reports `matched`, or direct join when the service returns
+ * an instant match. Binding before pairing is what 89ba965 removed; the
+ * late bind is the invariant, not an oversight. `abandonTicket` is the
+ * shared cleanup for user-leave and unmount; it also retires the live
+ * attempt so that any continuation still awaiting a network call sees it
+ * is no longer current and writes nothing.
  */
 export interface MatchmakingDeps {
   matchmakingTicketRef: { current: string | null };
