@@ -35,6 +35,8 @@ export interface RoomLifecycleDeps {
   roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
   roleRef: { current: "host" | "guest" | null };
+  /** True while the current host room came from a quick-match allocation. */
+  quickMatchHostRef: { current: boolean };
   hostSymbolRef: { current: PlayerSymbol | null };
   guestSymbolRef: { current: PlayerSymbol | null };
   hostDisplayName: string;
@@ -67,9 +69,8 @@ export interface RoomLifecycleDeps {
   /** Guest snapshot gate (guestProtocol, F618) — room-scoped: a sync_request
    *  left unanswered in the previous room must not admit a snapshot here. */
   syncPendingRef: { current: boolean };
-  /** Guest host-absent deadline (relayEvents, F712) — room-scoped: a
-   *  timer armed on a previous room's welcome must never fire into this
-   *  one and close a live socket. */
+  /** Absent-peer deadline (relayEvents, F712/F726) — room-scoped: a timer
+   *  from a previous room's welcome must never fire into this one. */
   waitingForHostTimeoutRef: {
     current: ReturnType<typeof setTimeout> | null;
   };
@@ -206,6 +207,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
+  deps.quickMatchHostRef.current = Boolean(slotToken);
   // A stale pending-rematch flag must not leak into the new room —
   // without this a stray rematchAccept arriving right after the room
   // swap is honored against a game that never asked for one
@@ -272,6 +274,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
+  deps.quickMatchHostRef.current = false;
   deps.rematchPendingRef.current = false;
   deps.hostPendingSettingsRef.current = null;
   deps.guestJoinedRef.current = false;

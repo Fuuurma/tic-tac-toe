@@ -79,6 +79,7 @@ describe("joinAsGuest rematch-flag reset", () => {
         }),
       },
       roleRef: { current: null },
+      quickMatchHostRef: { current: false },
       hostSymbolRef: { current: null },
       guestSymbolRef,
       hostDisplayName: "Host",
@@ -228,6 +229,7 @@ describe("joinAsGuest rematch-flag reset", () => {
           roomRef: deps.roomRef,
           stateRef: deps.stateRef,
           roleRef: deps.roleRef,
+          quickMatchHostRef: deps.quickMatchHostRef,
           hostSymbolRef: deps.hostSymbolRef,
           guestSymbolRef: deps.guestSymbolRef,
           rematchPendingRef: deps.rematchPendingRef,
@@ -288,6 +290,19 @@ describe("joinAsGuest rematch-flag reset", () => {
     expect(performance.now() - deps.lastSyncReplyAtRef.current).toBeGreaterThanOrEqual(
       SYNC_REPLY_COOLDOWN_MS,
     );
+  });
+
+  it("bounds absent guests only for quick-match hosts", () => {
+    const { deps } = lifecycleDeps({ current: false });
+
+    startAsHost(deps, "CREATE42", "ws://127.0.0.1:1");
+    expect(deps.quickMatchHostRef.current).toBe(false);
+
+    startAsHost(deps, "MATCH42", "ws://127.0.0.1:1", "slot-token");
+    expect(deps.quickMatchHostRef.current).toBe(true);
+
+    joinAsGuest(deps, "JOIN42", "ws://127.0.0.1:1");
+    expect(deps.quickMatchHostRef.current).toBe(false);
   });
 
   it("F362: room entry re-arms the reconnect-reset budget alongside the other room-scoped refs", () => {
