@@ -14,9 +14,9 @@ import type { PeerRoomState } from "../usePeerRoom";
  * Quick-match controller, extracted from usePeerRoom (god-hook
  * decomposition, slice 3).
  *
- * Owns the matchmaking ticket lifecycle: join → host room + poll loop
- * (bounded at 2 minutes) or direct join when the service returns an
- * instant match. `abandonTicket` is the shared cleanup for user-leave and
+ * Owns the matchmaking ticket lifecycle: join → direct guest join on an
+ * instant match, or poll for up to 2 minutes → host the room when matched.
+ * `abandonTicket` is the shared cleanup for user-leave and
  * unmount; it also retires the live attempt so that any continuation still
  * awaiting a network call sees it is no longer current and writes nothing.
  */
