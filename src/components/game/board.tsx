@@ -67,8 +67,12 @@ export const Board = memo(function Board({
         // Plain buttons don't consume digit keys, so post-dialog focus
         // restoration to a panel button must keep the shortcut working
         // (the "without hijacking dialogs" smoke; needs-work 10-02 P1-2).
+        // `dialog` matches the NATIVE element too: Sheet renders one with an
+        // implicit ARIA role and no role attribute, so [role="dialog"] alone
+        // lets a digit aimed at the confirm sheet slip a move onto the board
+        // in the window before the pause flag lands (F364).
         const isFocusedControl = target.closest(
-          'input, select, textarea, [contenteditable="true"], [role="dialog"]',
+          'input, select, textarea, [contenteditable="true"], dialog, [role="dialog"]',
         );
         if (!isInsideBoard && isFocusedControl) return;
       }

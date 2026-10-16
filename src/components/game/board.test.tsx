@@ -142,3 +142,61 @@ describe("Board disabled reasons", () => {
     expect(screen.queryByText(/game is paused/)).toBeNull();
   });
 });
+
+describe("Board digit-keyboard gate (F364)", () => {
+  const base = {
+    board: Array(9).fill(null),
+    colors: { [PlayerSymbol.X]: Color.BLUE, [PlayerSymbol.O]: Color.RED },
+    shapes: {
+      [PlayerSymbol.X]: SymbolShape.X,
+      [PlayerSymbol.O]: SymbolShape.O,
+    },
+    winningCombination: null,
+    nextToRemove: { [PlayerSymbol.X]: null, [PlayerSymbol.O]: null },
+  };
+
+  it("ignores digit keys pressed inside a native <dialog> even while enabled", () => {
+    const onCellClick = vi.fn();
+    render(
+      <>
+        <Board {...base} disabled={false} onCellClick={onCellClick} />
+        {/* Sheet renders a native <dialog>: implicit ARIA role, no role
+            attribute — the gate must match the element, not the attribute. */}
+        <dialog open>
+          <button type="button">Cancel</button>
+        </dialog>
+      </>,
+    );
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    fireEvent.keyDown(cancel, { key: "2" });
+    expect(onCellClick).not.toHaveBeenCalled();
+  });
+
+  it("ignores digit keys pressed inside a [role=dialog] subtree", () => {
+    const onCellClick = vi.fn();
+    render(
+      <>
+        <Board {...base} disabled={false} onCellClick={onCellClick} />
+        <div role="dialog">
+          <button type="button">Cancel</button>
+        </div>
+      </>,
+    );
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    fireEvent.keyDown(cancel, { key: "2" });
+    expect(onCellClick).not.toHaveBeenCalled();
+  });
+
+  it("still places a move for digit keys outside entry controls and dialogs", () => {
+    const onCellClick = vi.fn();
+    render(
+      <>
+        <Board {...base} disabled={false} onCellClick={onCellClick} />
+        <button type="button">Elsewhere</button>
+      </>,
+    );
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" });
+    fireEvent.keyDown(elsewhere, { key: "2" });
+    expect(onCellClick).toHaveBeenCalledWith(1);
+  });
+});
