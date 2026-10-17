@@ -34,6 +34,12 @@ export interface MatchmakingDeps {
   hostDisplayName: string;
   startAsHost: (roomId?: string, wsUrl?: string, slotToken?: string) => void;
   joinAsGuest: (roomId: string, wsUrl?: string, slotToken?: string) => void;
+  /** F738 follow-up: the mode flag must come from the caller — a matched
+   *  response whose slotToken is absent (older Worker, race) would
+   *  otherwise derive quickMatchHostRef=false from Boolean(undefined) and
+   *  silently disarm the absent-peer deadline for a real quick-match
+   *  host. */
+  markQuickMatchHost: () => void;
   /** Test seam: shrink the 2-minute quick-match poll ceiling. */
   maxPollMs?: number;
 }
@@ -83,6 +89,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     hostDisplayName,
     startAsHost,
     joinAsGuest,
+    markQuickMatchHost,
     maxPollMs: maxPollMsArg,
   } = deps;
   if (hasStartedRef.current) return;
@@ -166,6 +173,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           consecutiveFailures = 0;
           if (pollResponse.status === "matched") {
             matched = true;
+            markQuickMatchHost();
             startAsHost(
               response.roomId,
               buildRoomWsUrl(response.roomId),

@@ -53,6 +53,7 @@ function makeDeps(overrides: Partial<MatchmakingDeps> = {}) {
       hostDisplayName: "Host",
       startAsHost: vi.fn(),
       joinAsGuest: vi.fn(),
+      markQuickMatchHost: vi.fn(),
       // Shrink the poll ceiling so the timeout path runs in ms, and
       // zero the backoff so the loop doesn't sleep between polls.
       maxPollMs: 25,
@@ -150,6 +151,8 @@ describe("runQuickMatch", () => {
     // for the just-consumed ticket.
     expect(mockedLeaveMatch).not.toHaveBeenCalled();
     expect(matchmakingTicketRef.current).toBeNull();
+    // F738 follow-up: the mode flag rides the caller, not the token.
+    expect(deps.markQuickMatchHost).toHaveBeenCalledTimes(1);
     expect(hasStartedRef.current).toBe(false);
     expect(deps.patchStatus).not.toHaveBeenCalled();
   });
@@ -469,5 +472,24 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
 
     livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2" }) });
     await attempt2;
+  });
+
+
+  it("marks the host quick-match even when the matched response carries no slotToken (F738 follow-up)", async () => {
+    // An older Worker or a race can omit the slot token; deriving the mode
+    // flag from Boolean(token) would silently disarm the absent-peer
+    // deadline for a real quick-match host — the F726 wait returns.
+    const startAsHost = vi.fn();
+    const { deps } = makeDeps({ startAsHost });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    mockedPollMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r1" }),
+    });
+
+    await runQuickMatch(deps);
+
+    expect(startAsHost).toHaveBeenCalledWith("r1", "wss://relay.example/room/r1", undefined);
+    expect(deps.markQuickMatchHost).toHaveBeenCalledTimes(1);
   });
 });

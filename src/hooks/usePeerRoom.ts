@@ -440,6 +440,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
 
 
+  // F738 follow-up: the absent-peer deadline's mode flag comes from the
+  // matchmaking caller, not from slotToken presence — a token-less matched
+  // response must not silently disarm the quick-match host's deadline.
+  const markQuickMatchHost = useCallback(() => {
+    quickMatchHostRef.current = true;
+  }, []);
+
   const startQuickMatch = useCallback(async () => {
     await runQuickMatch({
       matchmakingTicketRef,
@@ -450,8 +457,9 @@ export function usePeerRoom(options: PeerRoomOptions) {
       hostDisplayName: options.hostDisplayName,
       startAsHost,
       joinAsGuest,
+      markQuickMatchHost,
     });
-  }, [joinAsGuest, options.hostDisplayName, startAsHost, stopTimer, update]);
+  }, [joinAsGuest, markQuickMatchHost, options.hostDisplayName, startAsHost, stopTimer, update]);
 
   const sendMove = useCallback(
     (index: number) => {
