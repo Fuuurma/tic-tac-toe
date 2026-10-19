@@ -14,5 +14,8 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // Spike bound: default is one fork per core on a 16 GB Mac shared by
+    // many agents (software-factory research/mechanical/2026-10-19-mac-freeze.md).
+    maxWorkers: 3,
   },
 });
