@@ -479,8 +479,17 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     // An older Worker or a race can omit the slot token; deriving the mode
     // flag from Boolean(token) would silently disarm the absent-peer
     // deadline for a real quick-match host — the F726 wait returns.
-    const startAsHost = vi.fn();
-    const { deps } = makeDeps({ startAsHost });
+    // The two deps write the same ref exactly as the real ones do
+    // (roomLifecycle.startAsHost derives it from the token it is given), so
+    // the pin fails if the mark runs before startAsHost (F744).
+    const quickMatchHostRef = { current: false };
+    const startAsHost = vi.fn((_roomId: string, _wsUrl: string, slotToken?: string) => {
+      quickMatchHostRef.current = Boolean(slotToken);
+    });
+    const markQuickMatchHost = vi.fn(() => {
+      quickMatchHostRef.current = true;
+    });
+    const { deps } = makeDeps({ startAsHost, markQuickMatchHost });
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
     mockedPollMatch.mockResolvedValue({
       status: "matched",
@@ -490,6 +499,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     await runQuickMatch(deps);
 
     expect(startAsHost).toHaveBeenCalledWith("r1", "wss://relay.example/room/r1", undefined);
-    expect(deps.markQuickMatchHost).toHaveBeenCalledTimes(1);
+    expect(markQuickMatchHost).toHaveBeenCalledTimes(1);
+    expect(quickMatchHostRef.current).toBe(true);
   });
 });

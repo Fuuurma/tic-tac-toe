@@ -173,12 +173,14 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           consecutiveFailures = 0;
           if (pollResponse.status === "matched") {
             matched = true;
-            markQuickMatchHost();
             startAsHost(
               response.roomId,
               buildRoomWsUrl(response.roomId),
               pollResponse.slotToken,
             );
+            // F744: startAsHost rewrites quickMatchHostRef from the token it
+            // is given, so the caller's mark must land after it.
+            markQuickMatchHost();
             break;
           }
           setStatus({ queuePosition: pollResponse.position ?? null });
