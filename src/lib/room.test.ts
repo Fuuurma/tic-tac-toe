@@ -116,6 +116,57 @@ describe("RoomClient reconnect gating (F151)", () => {
     client.close();
   });
 
+  it("F746: re-arms the retry when a reconnect socket opens but hello cannot be sent", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "guest", type: "welcome" }),
+    });
+    await expect(pending).resolves.toMatchObject({ role: "guest" });
+
+    ws.close();
+    await vi.runOnlyPendingTimersAsync();
+    expect(FakeSocket.instances).toHaveLength(2);
+
+    // The retry socket opens, but its `hello` write throws: `sendRaw`
+    // reports false and the attempt must end in a scheduled retry, not a
+    // permanent "reconnecting" with no timer behind it.
+    const retry = FakeSocket.instances[1];
+    retry.send = () => {
+      throw new Error("send failed");
+    };
+    retry.emit("open");
+
+    expect(statuses.at(-1)).toBe("reconnecting");
+    await vi.runOnlyPendingTimersAsync();
+    expect(FakeSocket.instances).toHaveLength(3);
+    client.close();
+  });
+
+  it("F746: a hello send failure on the initial connect stays terminal", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const statuses: string[] = [];
+    const client = makeClient(statuses);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.send = () => {
+      throw new Error("send failed");
+    };
+    ws.emit("open");
+
+    await expect(pending).rejects.toThrow("hello send failed");
+    expect(statuses).not.toContain("reconnecting");
+    expect(statuses.at(-1)).toBe("disconnected");
+    expect(FakeSocket.instances).toHaveLength(1);
+  });
+
   it("auto-reconnects when an established session errors before close", async () => {
     vi.stubGlobal("WebSocket", FakeSocket);
     vi.useFakeTimers();

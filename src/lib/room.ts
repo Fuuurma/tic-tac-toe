@@ -413,8 +413,14 @@ export class RoomClient {
           settled = true;
           retireHandshakeTimer();
           supersede();
+          if (this.ws === ws) this.ws = null;
           settleWelcome(null, new Error("hello send failed"));
           ws.close();
+          // F746: the attempt is superseded above, so the `close` handler's
+          // F151 retry never runs for it — arm the retry here, like the
+          // handshake-timeout path. Only an ESTABLISHED session retries.
+          if (this.opts.autoReconnect && this.hadSession) this.scheduleReconnect();
+          else this.setStatus("disconnected", "Could not send hello");
         }
       });
 
