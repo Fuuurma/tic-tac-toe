@@ -64,7 +64,7 @@ describe("BackgroundPattern reduced-motion resize (F312)", () => {
     }
   });
 
-  it("rebuilds the canvas on window resize under prefers-reduced-motion", () => {
+  it("rebuilds the canvas on window resize under prefers-reduced-motion", async () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
       () => fake2dContext(),
     );
@@ -77,14 +77,17 @@ describe("BackgroundPattern reduced-motion resize (F312)", () => {
     setInnerWidth(640);
     window.dispatchEvent(new Event("resize"));
 
+    // The rebuild is coalesced through rAF, so it lands a frame later.
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    expect(canvas.width).toBe(Math.round(640 * dpr));
+    await vi.waitFor(() =>
+      expect(canvas.width).toBe(Math.round(640 * dpr)),
+    );
   });
 
   // The control half of the same contract: the listener must still fire
   // for users without the reduced-motion preference — if the test seam
   // itself were broken, this one would fail alongside the test above.
-  it("still rebuilds the canvas on resize when motion is allowed", () => {
+  it("still rebuilds the canvas on resize when motion is allowed", async () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
       () => fake2dContext(),
     );
@@ -97,7 +100,9 @@ describe("BackgroundPattern reduced-motion resize (F312)", () => {
     window.dispatchEvent(new Event("resize"));
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    expect(canvas.width).toBe(Math.round(640 * dpr));
+    await vi.waitFor(() =>
+      expect(canvas.width).toBe(Math.round(640 * dpr)),
+    );
   });
 
   // The other half of the contract: moving the pointer under reduced
@@ -199,6 +204,116 @@ describe("BackgroundPattern pointer repaint", () => {
     const drawIndex = frame.findIndex((c) => c.op === "drawImage");
     expect(clearIndex).toBeGreaterThanOrEqual(0);
     expect(drawIndex).toBeGreaterThan(clearIndex);
+  });
+});
+
+/**
+ * work:246 — resize used to rebuild the grid synchronously on every event
+ * and reseed it from Math.random() each time: dragging a window edge
+ * repainted ~1900 symbols per event AND shuffled the whole field under
+ * the cursor. The contract is: rebuild at most once per frame, keep the
+ * same seeded field, and skip events that changed nothing.
+ */
+describe("BackgroundPattern resize coalescing (work:246)", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    if (innerWidthDescriptor) {
+      Object.defineProperty(window, "innerWidth", innerWidthDescriptor);
+    }
+  });
+
+  const recordingContext = () => {
+    const calls: Array<{ op: string; args: unknown[] }> = [];
+    const target: Record<string, unknown> = {
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      canvas: null,
+    };
+    const ctx = new Proxy(target, {
+      get(t, prop) {
+        if (prop in t) return t[prop as string];
+        const value = (...args: unknown[]) => {
+          calls.push({ op: String(prop), args });
+        };
+        t[prop as string] = value;
+        return value;
+      },
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  };
+
+  const setup = () => {
+    const { ctx, calls } = recordingContext();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => ctx,
+    );
+    stubReducedMotion(false);
+    const queue: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      queue.push(cb);
+      return queue.length;
+    });
+    render(<BackgroundPattern />);
+    return { ctx, calls, queue };
+  };
+
+  const flush = (queue: FrameRequestCallback[]) => {
+    for (const cb of queue.splice(0)) cb(performance.now());
+  };
+
+  const drawImages = (calls: Array<{ op: string; args: unknown[] }>) =>
+    calls.filter((c) => c.op === "drawImage").length;
+
+  const translates = (calls: Array<{ op: string; args: unknown[] }>) =>
+    calls.filter((c) => c.op === "translate").map((c) => c.args);
+
+  it("rebuilds at most once per frame for a resize burst", () => {
+    const { calls, queue } = setup();
+    const before = drawImages(calls);
+
+    setInnerWidth(800);
+    window.dispatchEvent(new Event("resize"));
+    setInnerWidth(700);
+    window.dispatchEvent(new Event("resize"));
+    setInnerWidth(640);
+    window.dispatchEvent(new Event("resize"));
+    flush(queue);
+
+    // Three events, one frame: exactly one rebuild, not three.
+    expect(drawImages(calls) - before).toBe(1);
+    const canvas = document.querySelector("canvas");
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    expect(canvas?.width).toBe(Math.round(640 * dpr));
+  });
+
+  it("keeps the same symbol field across a resize", () => {
+    const { calls, queue } = setup();
+    const firstGrid = translates(calls);
+
+    // Paint 2 starts where paint 1 ended — slice on the call index,
+    // not on the filtered translate count.
+    const paintBoundary = calls.length;
+    setInnerWidth(640);
+    window.dispatchEvent(new Event("resize"));
+    flush(queue);
+
+    const secondGrid = translates(calls.slice(paintBoundary));
+    // The seed is fixed per mount: the first cells of the rebuilt field
+    // are the same symbols at the same jittered positions, not a new roll.
+    expect(secondGrid.length).toBeGreaterThanOrEqual(5);
+    expect(secondGrid.slice(0, 5)).toEqual(firstGrid.slice(0, 5));
+  });
+
+  it("does no work for a resize event that changed nothing", () => {
+    const { calls, queue } = setup();
+    const before = drawImages(calls);
+
+    window.dispatchEvent(new Event("resize"));
+    flush(queue);
+
+    expect(drawImages(calls)).toBe(before);
   });
 });
 

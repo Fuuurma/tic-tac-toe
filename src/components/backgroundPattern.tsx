@@ -61,16 +61,16 @@ interface GridSymbol {
   rotation: number;
 }
 
-const createRandom = () => {
-  let state = (Math.random() * 0x100000000) >>> 0;
+const createRandom = (seed: number) => {
+  let state = seed >>> 0;
   return () => {
     state = (state * 1664525 + 1013904223) >>> 0;
     return state / 0x100000000;
   };
 };
 
-function buildGrid(width: number, height: number): GridSymbol[] {
-  const random = createRandom();
+function buildGrid(width: number, height: number, seed: number): GridSymbol[] {
+  const random = createRandom(seed);
   const columns = Math.ceil(width / GRID_STEP);
   const rows = Math.ceil(height / GRID_STEP);
   const symbols: GridSymbol[] = [];
@@ -273,6 +273,11 @@ export function BackgroundPattern() {
     if (!baseCtx) return;
     let spotlight: CanvasGradient | null = null;
 
+    // The symbol field is decor, not data: the seed is fixed for the life
+    // of the effect so a resize reflows the SAME field. Re-rolling it on
+    // every event made the whole background shuffle under a window drag.
+    const gridSeed = (Math.random() * 0x100000000) >>> 0;
+
     const drawSymbol = (
       target: CanvasRenderingContext2D,
       symbol: GridSymbol,
@@ -411,6 +416,9 @@ export function BackgroundPattern() {
       height = window.innerHeight;
       const deviceW = Math.round(width * dpr);
       const deviceH = Math.round(height * dpr);
+      // A same-size resize (scroll chrome, spurious event) must not pay
+      // the full-grid repaint it used to trigger.
+      if (canvas.width === deviceW && canvas.height === deviceH) return;
       canvas.width = deviceW;
       canvas.height = deviceH;
       canvas.style.width = `${width}px`;
@@ -419,7 +427,7 @@ export function BackgroundPattern() {
       base.height = deviceH;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      symbols = buildGrid(width, height);
+      symbols = buildGrid(width, height, gridSeed);
 
       // Resting layer: every symbol once, no lighting.
       baseCtx.clearRect(0, 0, width, height);
@@ -511,11 +519,22 @@ export function BackgroundPattern() {
       else if (pointer.active || pointer.energy > 0.01) start();
     };
 
+    // The first paint is synchronous; later resize events are coalesced
+    // through rAF so a drag burst costs one rebuild per frame, not one
+    // per event (each rebuild re-strokes the whole resting grid).
     resize();
+    let resizeRaf: number | null = null;
+    const queueResize = () => {
+      if (resizeRaf !== null) return;
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = null;
+        resize();
+      });
+    };
     // F312: reduced motion gates the pointer-driven animation, never the
     // geometry — a reduced-motion user who rotates or resizes still needs
     // the canvas reflowed.
-    window.addEventListener("resize", resize);
+    window.addEventListener("resize", queueResize);
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!prefersReducedMotion) {
       window.addEventListener("pointermove", updatePointer, { passive: true });
@@ -528,8 +547,9 @@ export function BackgroundPattern() {
 
     return () => {
       stop();
+      if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
       if (touchRelease !== null) window.clearTimeout(touchRelease);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", queueResize);
       if (!prefersReducedMotion) {
         window.removeEventListener("pointermove", updatePointer);
         window.removeEventListener("pointerdown", updatePointer);

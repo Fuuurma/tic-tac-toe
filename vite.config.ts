@@ -3,6 +3,14 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 
+const VENDOR_CHUNKS: Record<string, string> = {
+  react: "react-vendor",
+  "react-dom": "react-vendor",
+  scheduler: "react-vendor",
+  "lucide-react": "icons",
+  "thinking-orbs": "thinking-orbs",
+};
+
 export default defineConfig({
   server: {
     host: "127.0.0.1",
@@ -26,17 +34,15 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("react") || id.includes("scheduler")) {
-              return "react-vendor";
-            }
-            if (id.includes("lucide-react")) {
-              return "icons";
-            }
-            if (id.includes("thinking-orbs")) {
-              return "thinking-orbs";
-            }
-          }
+          // Match the real package name after the last node_modules
+          // segment — a substring test on the path swallowed
+          // lucide-react into react-vendor and left the icons chunk
+          // unreachable. pnpm nests the package dir under
+          // node_modules/.pnpm/<pkg>@<ver>/node_modules/<pkg>/.
+          const match = /.*node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(id);
+          if (!match) return;
+          const vendor = VENDOR_CHUNKS[match[1]];
+          if (vendor) return vendor;
         },
       },
     },
