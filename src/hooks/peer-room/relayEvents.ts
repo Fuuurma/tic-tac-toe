@@ -43,7 +43,7 @@ export interface RelayEventDeps {
   commitHostState: (gameState: GameState) => void;
   broadcastGameState: (gameState: GameState) => void;
   /** Guest → host pull for an authoritative snapshot on reconnect
-   *  (uno-chess sync_request/state_snapshot contract, DST-04). A dropped
+   *  (gambit-deck sync_request/state_snapshot contract, DST-04). A dropped
    *  pull needs no retry — the join resync / next host gameUpdate still
    *  reconcile the guest, so callers deliberately ignore send()'s
    *  boolean (review 2026-10-03 repair: the unused return was interface
@@ -239,7 +239,7 @@ export function handleRelayEvent(
       } else {
         armWaitingForHostDeadline(deps);
       }
-      // Reconnect pull (uno-chess contract): a local game past WAITING
+      // Reconnect pull (gambit-deck contract): a local game past WAITING
       // means this welcome is a REconnect, not a first join — ask the
       // host for an authoritative state_snapshot in case our re-sent
       // `join` or the host's peer-reconnected push was dropped.

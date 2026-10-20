@@ -320,7 +320,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       return;
     }
     if (message.type === "sync_request") {
-      // Reconnect pull (uno-chess contract, DST-04): the guest asks for
+      // Reconnect pull (gambit-deck contract, DST-04): the guest asks for
       // an authoritative snapshot after reconnecting. The host answers
       // with the current wire state — deadline stripped so the guest
       // resynthesizes its own clock. Read-only: never mutates host

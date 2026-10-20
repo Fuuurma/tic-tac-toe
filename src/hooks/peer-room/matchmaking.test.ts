@@ -483,7 +483,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     // (roomLifecycle.startAsHost derives it from the token it is given), so
     // the pin fails if the mark runs before startAsHost (F744).
     const quickMatchHostRef = { current: false };
-    const startAsHost = vi.fn((_roomId: string, _wsUrl: string, slotToken?: string) => {
+    const startAsHost = vi.fn((_roomId?: string, _wsUrl?: string, slotToken?: string) => {
       quickMatchHostRef.current = Boolean(slotToken);
     });
     const markQuickMatchHost = vi.fn(() => {

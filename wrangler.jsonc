@@ -6,6 +6,7 @@
     "ip": "127.0.0.1",
     "port": 4410
   },
+  "limits": { "cpu_ms": 50 },
   "pages_build_output_dir": "dist",
   "observability": {
     "enabled": true
