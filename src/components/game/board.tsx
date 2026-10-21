@@ -46,7 +46,13 @@ export const Board = memo(function Board({
   const [hovered, setHovered] = useState<number | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const onCellClickRef = useRef(onCellClick);
-  onCellClickRef.current = onCellClick;
+  // The latest handler is assigned in the commit phase, not in the render
+  // body: a ref mutated during render can tear the handler identity
+  // mid-dispatch under a concurrent re-render (F760, the same fix as
+  // playerSettingsSheet.tsx).
+  useEffect(() => {
+    onCellClickRef.current = onCellClick;
+  }, [onCellClick]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
