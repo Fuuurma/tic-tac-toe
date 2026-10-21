@@ -130,17 +130,6 @@ export const WINNING_COMBINATIONS: ReadonlyArray<
   [2, 4, 6],
 ] as const;
 
-export const COLOR_RING_CLASSES: Record<Color, string> = {
-  [Color.BLUE]: "ring-blue-500",
-  [Color.GREEN]: "ring-green-500",
-  [Color.YELLOW]: "ring-yellow-500",
-  [Color.ORANGE]: "ring-orange-500",
-  [Color.RED]: "ring-red-500",
-  [Color.PINK]: "ring-pink-500",
-  [Color.PURPLE]: "ring-purple-500",
-  [Color.GRAY]: "ring-gray-500",
-};
-
 export const COLOR_BG_CLASSES: Record<Color, string> = {
   [Color.BLUE]: "bg-blue-500",
   [Color.GREEN]: "bg-green-500",

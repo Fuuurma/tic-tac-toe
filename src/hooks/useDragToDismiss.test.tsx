@@ -182,8 +182,8 @@ describe("useDragToDismiss disabled gesture (F666)", () => {
     });
     expect(panel.style.transform).toContain("50px");
 
-    // Sheet removes the handle handlers while dragDisabled, then restores
-    // them when the game stops; a captured old gesture must not resume.
+    // The handle handlers are removed while the drag is disabled, then
+    // restored when the game stops; a captured old gesture must not resume.
     rerender(<Harness open dragEnabled={false} onClose={onClose} />);
     expect(panel.style.transform).toBe("");
     rerender(<Harness open onClose={onClose} />);

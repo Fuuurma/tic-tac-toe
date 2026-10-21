@@ -15,10 +15,10 @@ import {
   oppositeSymbol,
 } from "./constants";
 
-export type CellValue = PlayerSymbol | null;
+type CellValue = PlayerSymbol | null;
 export type Board = CellValue[];
 
-export interface PlayerConfig {
+interface PlayerConfig {
   username: string;
   color: Color;
   symbol: PlayerSymbol;
@@ -87,7 +87,7 @@ export const freshGameState = (): GameState => ({
   gameStatus: GameStatus.WAITING,
 });
 
-export interface InitialGameStateInput {
+interface InitialGameStateInput {
   gameMode: GameMode;
   playerXName: string;
   playerOName: string;

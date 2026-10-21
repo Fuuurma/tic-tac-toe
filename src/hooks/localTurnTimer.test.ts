@@ -29,7 +29,6 @@ function activeGame(overrides: Partial<GameState> = {}): GameState {
 }
 
 function makeDeps(game: GameState) {
-  let message = "";
   const deps: LocalTurnTimerDeps = {
     stateRef: { current: game },
     tickRef: { current: null },
@@ -42,11 +41,8 @@ function makeDeps(game: GameState) {
           ? updater(deps.stateRef.current)
           : updater;
     },
-    setMessage: (updater) => {
-      message = typeof updater === "function" ? updater(message) : updater;
-    },
   };
-  return { deps, getGame: () => deps.stateRef.current, getMessage: () => message };
+  return { deps, getGame: () => deps.stateRef.current };
 }
 
 beforeEach(() => {

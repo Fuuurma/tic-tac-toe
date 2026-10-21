@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
 import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
 
-export type GameModeValue =
+type GameModeValue =
   | typeof GameModes.VS_COMPUTER
   | typeof GameModes.VS_FRIEND
   | typeof GameModes.ONLINE;

@@ -17,7 +17,7 @@ import { sanitizeDisplayName } from "@/lib/identity";
  * Every field is validated against its enum on read: a hand-edited or stale
  * localStorage blob degrades to defaults, never to a broken render.
  */
-export interface GamePreferences {
+interface GamePreferences {
   color?: Color;
   playerShape?: SymbolShape;
   opponentColor?: Color;

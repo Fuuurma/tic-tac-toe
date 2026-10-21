@@ -20,7 +20,7 @@ function envProductionMatchmakingUrl(): string | undefined {
   }
 }
 
-export const MATCHMAKING_URL =
+const MATCHMAKING_URL =
   process.env.VITE_MATCHMAKING_URL ??
   envProductionMatchmakingUrl() ??
   "http://127.0.0.1:8787";
@@ -31,7 +31,7 @@ export const MATCHMAKING_URL =
  * local sibling `wrangler dev` on :8787. HEAD-probe it so the specs skip cleanly
  * instead of failing on connection refused.
  */
-export async function matchmakingReachable(): Promise<boolean> {
+async function matchmakingReachable(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3_000);

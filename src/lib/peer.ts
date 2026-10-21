@@ -43,7 +43,7 @@ export type PeerMessage =
   | { type: "error"; message: string };
 
 /** Hard upper bound on inbound wire-message scalar string fields. */
-export const PEER_MAX_ID_LENGTH = 64;
+const PEER_MAX_ID_LENGTH = 64;
 /** Display names come from forms/sanitizers but a wire peer can spoof length. */
 export const PEER_MAX_NAME_LENGTH = 20;
 /** Allowed move indices are 0..BOARD_SIZE-1 — keep a numeric guard rail here too. */
@@ -122,7 +122,7 @@ export const applyForfeitIfActive = (
   };
 };
 
-export type HostGuestJoinResult = {
+type HostGuestJoinResult = {
   kind: "accepted" | "resync";
   /** The HOST's live state — always keeps its own turnDeadlineAt. */
   gameState: GameState;
@@ -529,7 +529,7 @@ const isGameState = (value: unknown): value is GameState => {
  * plausible NTP-disciplined skew and far below anything that would
  * break the timer display.
  */
-export const PEER_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
+const PEER_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
 export const isPeerMessage = (value: unknown): value is PeerMessage => {
   if (!value || typeof value !== "object" || !("type" in value)) return false;

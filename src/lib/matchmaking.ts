@@ -133,7 +133,7 @@ export const MATCH_POLL_INITIAL_DELAY_MS = 1_000;
 export const MATCH_POLL_MAX_DELAY_MS = 4_000;
 
 /** Hard fetch timeout — a hung connection must not stall the poll loop. */
-export const MATCHMAKING_TIMEOUT_MS = 10_000;
+const MATCHMAKING_TIMEOUT_MS = 10_000;
 const LEAVE_TIMEOUT_MS = 5_000;
 
 export function getMatchPollDelay(attempt: number): number {

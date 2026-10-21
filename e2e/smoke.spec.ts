@@ -555,7 +555,6 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
   const seconds = () => timer.getAttribute("aria-label");
 
   expect(await playState()).toBe("running");
-  const beforePause = await seconds();
 
   // Open the in-game settings sheet — this pauses the clock. Poll rather
   // than assert once: the sheet opening, the React effect, and the ring's
@@ -574,7 +573,11 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
     .not.toBe("still-ticking");
 
   const atPause = await seconds();
-  expect(atPause).toBe(beforePause);
+
+  // The freeze is proven by the poll above (two reads a second apart agree)
+  // and by the resume check below. It is NOT proven by comparing against a
+  // value read before the sheet opened: the clock keeps ticking until the
+  // pause takes effect, so that snapshot is a race, not a property.
 
   // Closing resumes: the ring runs again and the number moves on.
   await closeSettingsSheet(page);
