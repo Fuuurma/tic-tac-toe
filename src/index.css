@@ -311,26 +311,6 @@ a {
   }
 }
 
-@keyframes shimmer {
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-  25% {
-    transform: translate(-3px, 1.5px) rotate(-3deg) scale(0.96);
-    opacity: 0.55;
-  }
-  50% {
-    transform: translate(3px, -1.5px) rotate(3deg) scale(1.04);
-    opacity: 1;
-  }
-  75% {
-    transform: translate(-1.5px, -3px) rotate(-2deg) scale(0.97);
-    opacity: 0.65;
-  }
-}
-
 @keyframes pop-in {
   0% {
     transform: scale(0.88);
@@ -362,22 +342,6 @@ a {
   }
   50% {
     opacity: 0.7;
-  }
-}
-
-@keyframes timer-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow:
-      0 0 0 0 rgb(239 68 68 / 0),
-      0 0 0 1px rgb(239 68 68 / 0.45);
-  }
-  50% {
-    transform: scale(1.04);
-    box-shadow:
-      0 0 14px 1px rgb(239 68 68 / 0.45),
-      0 0 0 1px rgb(239 68 68 / 0.65);
   }
 }
 
@@ -441,9 +405,6 @@ a {
   100% { opacity: 1; }
 }
 
-.animate-shimmer {
-  animation: shimmer 1.4s ease-in-out infinite;
-}
 @utility animate-pop-in {
   animation: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
@@ -480,9 +441,6 @@ a {
 }
 .animate-pulse-slow {
   animation: pulse-slow 2.4s ease-in-out infinite;
-}
-.animate-timer-pulse {
-  animation: timer-pulse 0.6s ease-in-out infinite;
 }
 .animate-countdown-border {
   animation: countdown-border var(--timer-duration) linear forwards;

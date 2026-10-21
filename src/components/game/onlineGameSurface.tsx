@@ -25,7 +25,7 @@ import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide"
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
 
-export interface OnlineGameSurfaceProps {
+interface OnlineGameSurfaceProps {
   config: {
     displayName: string;
     color: Color;

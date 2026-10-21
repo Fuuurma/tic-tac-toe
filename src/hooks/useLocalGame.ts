@@ -59,7 +59,6 @@ export function useLocalGame(input: LocalGameInput) {
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
-  const [message, setMessage] = useState("");
   const [paused, setPausedState] = useState(false);
   const pausedRef = useRef(false);
   const tickRef = useRef<number | null>(null);
@@ -84,7 +83,6 @@ export function useLocalGame(input: LocalGameInput) {
       tickRef,
       pausedRef,
       setGameState,
-      setMessage,
     });
   }, []);
 
@@ -113,7 +111,6 @@ export function useLocalGame(input: LocalGameInput) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
-    setMessage("");
     // Generate the new symbol once and update both the symbol state and
     // the game state together. Without this, humanSymbol would stay stale
     // after a reset and recordWin/recordLoss would attribute the result to
@@ -133,7 +130,6 @@ export function useLocalGame(input: LocalGameInput) {
       window.clearTimeout(aiTimeoutRef.current);
       aiTimeoutRef.current = null;
     }
-    setMessage("");
     setGameState(freshGameState());
   }, [stopTimer]);
 
@@ -215,7 +211,7 @@ export function useLocalGame(input: LocalGameInput) {
         if (move === null) return;
         const next = makeMove(prev, move);
         if (!next) return;
-        commitLocalMove({ setGameState, setMessage }, prev, next, (cur) => {
+        commitLocalMove({ setGameState }, prev, next, (cur) => {
           // The turn clock ticks on the same 1s cadence the AI's move is
           // scheduled against, so `cur` is often the same game one tick
           // newer: same side, same turn, only the clock moved on. Re-derive
@@ -253,5 +249,5 @@ export function useLocalGame(input: LocalGameInput) {
     [stopTimer],
   );
 
-  return { gameState, humanSymbol, message, handleCellClick, handleReset, exit, setPaused, paused };
+  return { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused };
 }

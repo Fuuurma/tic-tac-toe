@@ -1,4 +1,4 @@
-export interface ErrorReportContext {
+interface ErrorReportContext {
   source?: string;
   componentStack?: string | null;
   [key: string]: unknown;

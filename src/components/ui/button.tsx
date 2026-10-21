@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 type ButtonVariant = "default" | "outline" | "ghost" | "destructive" | "secondary" | "glass";
 type ButtonSize = "default" | "sm" | "lg" | "icon";
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
 }

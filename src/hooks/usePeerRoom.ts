@@ -106,7 +106,7 @@ const initialState: PeerRoomState = {
   gameState: freshGameState(),
 };
 
-export interface PeerRoomOptions {
+interface PeerRoomOptions {
   hostDisplayName: string;
   hostColor: Color;
   hostShape?: SymbolShape;

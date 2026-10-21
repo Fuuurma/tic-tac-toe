@@ -22,7 +22,7 @@ export interface StatsBucket {
 export type StatsBreakdown = Record<string, StatsBucket>;
 
 /** Which game produced a result. Difficulty only applies to vs Computer. */
-export interface StatsContext {
+interface StatsContext {
   gameMode: GameMode;
   aiDifficulty?: AI_Difficulty;
 }
@@ -165,7 +165,7 @@ export function useGameStats() {
 }
 
 /** Bucket key + display label for a mode/difficulty pair. */
-export interface BreakdownRow {
+interface BreakdownRow {
   key: string;
   label: string;
   bucket: StatsBucket;

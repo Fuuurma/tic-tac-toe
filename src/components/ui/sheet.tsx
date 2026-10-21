@@ -30,12 +30,8 @@ interface SheetProps {
   children: ReactNode;
   /** Sticky action row under the scrolling body. */
   footer?: ReactNode;
-  /** Extra header content between the title and the close button. */
-  headerExtra?: ReactNode;
   size?: "full" | "auto";
   inline?: boolean;
-  /** Freeze swipe-to-dismiss (Esc and the close button still work). */
-  dragDisabled?: boolean;
   /** Visually hide the close button (a confirm answers with its footer). */
   hideClose?: boolean;
   style?: CSSProperties;
@@ -51,10 +47,8 @@ export function Sheet({
   closeLabel = "Close",
   children,
   footer,
-  headerExtra,
   size = "full",
   inline = false,
-  dragDisabled = false,
   hideClose = false,
   style,
   className,
@@ -67,7 +61,7 @@ export function Sheet({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = `${useId()}-title`;
   const onCloseRef = useRef(onClose);
-  const drag = useDragToDismiss({ onDismiss: onClose, enabled: open && !dragDisabled });
+  const drag = useDragToDismiss({ onDismiss: onClose, enabled: open });
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
@@ -151,8 +145,8 @@ export function Sheet({
           "flex shrink-0 select-none flex-col px-5 pb-3",
           full ? "pt-[max(0.5rem,var(--inset-top))] sm:pt-5" : "pt-2 sm:pt-5",
         )}
-        style={{ touchAction: dragDisabled ? undefined : DRAG_HANDLE_TOUCH_ACTION }}
-        {...(dragDisabled ? {} : drag.handleProps)}
+        style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
+        {...drag.handleProps}
       >
         <div
           aria-hidden="true"
@@ -163,7 +157,6 @@ export function Sheet({
             {title}
           </h2>
           <div className="flex shrink-0 items-center gap-2">
-            {headerExtra}
             {!hideClose && (
               <button
                 ref={closeRef}

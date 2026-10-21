@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 type CardVariant = "solid" | "glass";
 
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
 }
 

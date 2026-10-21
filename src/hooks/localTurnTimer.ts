@@ -26,15 +26,6 @@ export interface LocalTurnTimerDeps {
    */
   pausedRef: { current: boolean };
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  /**
-   * Status-line setter. Already supplied by every caller — `useLocalGame`
-   * passes its own `setMessage` into `startLocalTurnTimer` — and required by
-   * `commitLocalMove`, so it belongs on the contract rather than being
-   * reached for through a widened `Pick`. It was missing here, which is why
-   * `tsc -b` failed on a clean tree: the call sites were correct and the type
-   * was behind them.
-   */
-  setMessage: React.Dispatch<React.SetStateAction<string>>;
 }
 
 /** Stops the turn-clock interval (no-op when not running). */
@@ -48,8 +39,9 @@ export function stopLocalTurnTimer(deps: Pick<LocalTurnTimerDeps, "tickRef">) {
 /**
  * Applies a move precomputed off `prev` (the latest committed
  * snapshot). The guarded updater drops the commit when a concurrent
- * update landed first; clearing the notice is safe either way — a stale
- * snapshot means another commit already ran and owns the status line.
+ * update landed first; the notice the move clears lives on the game
+ * state, so a stale snapshot means another commit already ran and owns
+ * the status line.
  *
  * `rebase` handles the case where the concurrent update is *not* a rival
  * move. The turn clock rewrites `turnTimeRemaining` onto a fresh object
@@ -61,13 +53,12 @@ export function stopLocalTurnTimer(deps: Pick<LocalTurnTimerDeps, "tickRef">) {
  * state unchanged when another move genuinely owns the board.
  */
 export function commitLocalMove(
-  deps: Pick<LocalTurnTimerDeps, "setGameState" | "setMessage">,
+  deps: Pick<LocalTurnTimerDeps, "setGameState">,
   prev: GameState,
   next: GameState,
   rebase?: (cur: GameState) => GameState,
 ) {
   deps.setGameState((cur) => (cur === prev ? next : rebase ? rebase(cur) : cur));
-  deps.setMessage("");
 }
 
 /** Starts (or restarts) the 1s turn-clock tick. Call from effects or
