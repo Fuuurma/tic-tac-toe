@@ -550,3 +550,73 @@ describe("RoomClient reconnect credential (MM-01)", () => {
     await expect(pending).rejects.toThrow("closed");
   });
 });
+
+/**
+ * F748: the welcome envelope was cast, not validated. `parseEnvelope`
+ * proves only that the frame is an object with a string `type`, so a
+ * role that is neither host nor guest — or an opponent that is neither
+ * null nor a player profile — was adopted as a seat.
+ */
+describe("RoomClient welcome validation (F748)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    FakeSocket.instances = [];
+  });
+
+  it("rejects a welcome whose role is not a seat", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const client = makeClient([]);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({ opponent: null, role: "spectator", type: "welcome" }),
+    });
+
+    await expect(pending).rejects.toThrow("malformed welcome");
+    client.close();
+  });
+
+  it("rejects a welcome whose opponent is not a player profile", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const client = makeClient([]);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({
+        opponent: { displayName: "No id" },
+        role: "host",
+        type: "welcome",
+      }),
+    });
+
+    await expect(pending).rejects.toThrow("malformed welcome");
+    client.close();
+  });
+
+  it("adopts a welcome that carries a real seat and a real opponent", async () => {
+    vi.stubGlobal("WebSocket", FakeSocket);
+    const client = makeClient([]);
+
+    const pending = client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.emit("open");
+    ws.emit("message", {
+      data: JSON.stringify({
+        opponent: { displayName: "Rival", guestId: "guest:2" },
+        role: "host",
+        type: "welcome",
+      }),
+    });
+
+    await expect(pending).resolves.toMatchObject({
+      opponent: { displayName: "Rival", guestId: "guest:2" },
+      role: "host",
+    });
+    client.close();
+  });
+});

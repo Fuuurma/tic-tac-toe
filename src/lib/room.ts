@@ -445,10 +445,24 @@ export class RoomClient {
           // attempt must be ignored. Adopting it would report "connected" for
           // a socket we already closed and rejected on.
           if (!isCurrent() || settled) return;
+          // Validated BEFORE the handshake settles: a frame that is not a
+          // seat must not mark the session as welcomed, or the close that
+          // follows reads as an established session dropping.
+          const welcome = parseWelcome(parsed as unknown as Record<string, unknown>);
+          if (!welcome) {
+            // F748: the welcome envelope is VALIDATED before a seat is
+            // adopted. A frame whose role is not host/guest, or whose
+            // opponent is neither null nor a player profile, is not a
+            // seat: adopting it would put this client in a game it was
+            // never granted, with an opponent the renderer would read as
+            // a player.
+            this.preWelcomeError = new Error("malformed welcome frame");
+            ws.close();
+            return;
+          }
           settled = true;
           welcomed = true;
           retireHandshakeTimer();
-          const welcome = parsed as WelcomeMessage;
           this.role = welcome.role;
           this.opponent = welcome.opponent;
           if (typeof welcome.reconnectToken === "string" && welcome.reconnectToken) {
@@ -565,6 +579,39 @@ export class RoomClient {
     this.status = status;
     this.statusHandler?.(status, detail);
   }
+}
+
+/**
+ * The welcome envelope, validated field by field (F748).
+ *
+ * `parseEnvelope` only proves that the frame is an object with a string
+ * `type`; everything else in a welcome was adopted by a cast. The role
+ * must be a real seat and the opponent must be null or a player profile,
+ * because the board renderer reads the opponent's shape.
+ */
+function parseWelcome(frame: Record<string, unknown>): WelcomeMessage | null {
+  const role = frame.role;
+  if (role !== "host" && role !== "guest") return null;
+
+  const rawOpponent = frame.opponent;
+  let opponent: { guestId: string; displayName: string } | null = null;
+  if (rawOpponent !== null && rawOpponent !== undefined) {
+    if (typeof rawOpponent !== "object") return null;
+    const candidate = rawOpponent as Record<string, unknown>;
+    if (typeof candidate.guestId !== "string") return null;
+    if (typeof candidate.displayName !== "string") return null;
+    opponent = { guestId: candidate.guestId, displayName: candidate.displayName };
+  }
+
+  const reconnectToken = frame.reconnectToken;
+  if (reconnectToken !== undefined && typeof reconnectToken !== "string") return null;
+
+  return {
+    type: "welcome",
+    role,
+    opponent,
+    ...(typeof reconnectToken === "string" ? { reconnectToken } : {}),
+  };
 }
 
 function parseEnvelope(raw: string): RoomEnvelope | null {
