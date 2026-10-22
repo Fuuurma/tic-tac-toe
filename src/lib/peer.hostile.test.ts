@@ -244,6 +244,24 @@ describe("isPeerMessage hostile frames", () => {
       isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH) }),
     ).toBe(true);
   });
+
+  it("rejects payload-less frames that smuggle extra fields (F85)", () => {
+    // These frames define no payload: anything but the type is a field the
+    // protocol does not have, and a gate that accepts it lets a peer carry
+    // state the handlers never read.
+    for (const type of [
+      "rematchAccept",
+      "rematchDecline",
+      "rematchCancel",
+      "leave",
+      "sync_request",
+    ] as const) {
+      expect(isPeerMessage({ type })).toBe(true);
+      expect(isPeerMessage({ type, extra: 1 })).toBe(false);
+      expect(isPeerMessage({ type, gameState: baselineState() })).toBe(false);
+      expect(isPeerMessage({ type, index: 0 })).toBe(false);
+    }
+  });
 });
 
 describe("isPeerMessage hostile game-state frames", () => {
