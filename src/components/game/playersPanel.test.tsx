@@ -219,6 +219,36 @@ describe("PlayersPanel confirmation lifecycle", () => {
 
     expect(onPauseChange).toHaveBeenLastCalledWith(false);
   });
+
+  it("holds the exit-confirmation pause when the parent passes a new callback identity", () => {
+    const onPauseChange = vi.fn();
+    const { rerender } = render(
+      <PlayersPanel
+        gameState={activeOnlineState()}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={vi.fn()}
+        onPauseChange={onPauseChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
+    expect(onPauseChange).toHaveBeenLastCalledWith(true);
+
+    // A parent that passes a fresh inline callback each render (App.tsx does)
+    // must not release the pause the confirmation is holding.
+    rerender(
+      <PlayersPanel
+        gameState={activeOnlineState()}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={vi.fn()}
+        onPauseChange={vi.fn()}
+      />,
+    );
+
+    expect(onPauseChange).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("PlayersPanel room-code chip", () => {

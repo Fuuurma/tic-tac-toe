@@ -170,20 +170,29 @@ export function PlayersPanel({
 
   // The panel owns only the pause caused by these confirmation sheets. When
   // round state invalidates one, release that pause in the parent as well.
+  const onPauseChangeRef = useRef(onPauseChange);
+  // The latest handler is assigned in the commit phase, not in the render body
+  // (the same fix as board.tsx / F760): a parent that passes a fresh inline
+  // callback every render must not make this effect re-run, or its cleanup
+  // releases the pause the confirmation is holding.
+  useEffect(() => {
+    onPauseChangeRef.current = onPauseChange;
+  }, [onPauseChange]);
+
   useEffect(() => {
     if ((!isActive || freshGame) && confirmPauseRef.current) {
       confirmPauseRef.current = false;
-      onPauseChange?.(false);
+      onPauseChangeRef.current?.(false);
     }
 
     // The transport-error view can unmount this panel while the room stays mounted.
     return () => {
       if (confirmPauseRef.current) {
         confirmPauseRef.current = false;
-        onPauseChange?.(false);
+        onPauseChangeRef.current?.(false);
       }
     };
-  }, [freshGame, isActive, onPauseChange]);
+  }, [freshGame, isActive]);
 
   const activePlayer = gameState.players[gameState.currentPlayer];
   const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
