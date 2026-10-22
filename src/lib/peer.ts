@@ -531,6 +531,22 @@ const isGameState = (value: unknown): value is GameState => {
  */
 const PEER_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
+/**
+ * True when the frame carries nothing but its type.
+ *
+ * The payload-less frames (rematchAccept, rematchDecline, rematchCancel,
+ * leave, sync_request) have no defined fields, so a frame that carries more
+ * than `type` is not a frame this protocol defines. Accepting it would let
+ * a peer smuggle fields into the inbound gate that the handlers never read
+ * but a later version might (F85).
+ */
+const hasOnlyType = (message: Record<string, unknown>): boolean => {
+  for (const key of Object.keys(message)) {
+    if (key !== "type") return false;
+  }
+  return true;
+};
+
 export const isPeerMessage = (value: unknown): value is PeerMessage => {
   if (!value || typeof value !== "object" || !("type" in value)) return false;
   const message = value as Record<string, unknown>;
@@ -560,7 +576,11 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
     case "rematchCancel":
     case "leave":
     case "sync_request":
-      return true;
+      // These frames carry no payload: the protocol defines nothing but
+      // their type. A frame that smuggles extra fields is not a frame this
+      // protocol has, and letting it through widens the inbound gate for
+      // every field a future version might add (F85).
+      return hasOnlyType(message);
     case "state_snapshot":
       return (
         isGameState(message.gameState) &&
