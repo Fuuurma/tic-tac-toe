@@ -256,11 +256,16 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   const difficultyGroup = page.getByRole("radiogroup", { name: "AI difficulty" });
   await expect(difficultyGroup.getByRole("radio")).toHaveCount(3);
   await expect(page.getByRole("radio", { name: "Insane", exact: true })).toHaveCount(0);
-  await page.getByRole("radio", { name: "Normal", exact: true }).click();
+  // Pick a difficulty that is NOT the default: selecting "Normal" proved
+  // nothing, because a handler that always stored NORMAL passed this spec.
+  await page.getByRole("radio", { name: "Easy", exact: true }).click();
   await closeOpponentSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Help", exact: true })).toBeVisible();
+  // The chosen difficulty must reach the game, not just the lobby: the AI
+  // player card carries it in its accessible name.
+  await expect(page.getByRole("group", { name: /, Easy(,|$)/ })).toBeVisible();
 
   // Wait for the human's turn — who starts is now random, so the AI
   // might move first. An enabled empty cell means it's the human's turn.
