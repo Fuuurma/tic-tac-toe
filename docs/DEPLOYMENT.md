@@ -50,13 +50,21 @@ and falls back to `http://127.0.0.1:8787` in dev.
    The Worker pairs two `join` requests with the same `game` and
    returns a matched room.
 
-2. **Set the env var on the Pages project** (Settings →
-   Environment variables):
-   ```
-   VITE_MATCHMAKING_URL=https://your-matchmaking-worker.workers.dev
-   ```
+2. **Point the build at the Worker.** `.env.production` (tracked)
+   sets `VITE_MATCHMAKING_URL` to the production Worker, so a git-push
+   build is self-contained.
 
-   Without this, the Quick button falls back to
+   Do **not** rely on Pages project env vars for this: on a
+   wrangler-configured Pages project (`wrangler.jsonc` +
+   `pages_build_output_dir`), `plain_text` variables never reach the
+   build environment — the build log reads "Build environment
+   variables: (none found)" and the bundle bakes nothing (that was
+   incident F774). Only `secret_text` vars reach the build there; the
+   URL is public anyway, so the committed file is the honest place
+   for it. If the URL changes, edit `.env.production` and
+   `public/_headers` (connect-src) in the same commit.
+
+   Without the variable, the Quick button falls back to
    `http://127.0.0.1:8787` (dev only) and won't work in production.
 
 3. **Room ID URL pre-fill** (optional)
@@ -71,10 +79,10 @@ VITE_MATCHMAKING_URL=http://127.0.0.1:8787 pnpm build
 pnpm preview     # serves dist/ on 127.0.0.1:3110
 ```
 
-The preview bundle bakes `VITE_MATCHMAKING_URL` at build time (no committed
-default — `.env.production` is intentionally empty and git-ignored), so the
-build needs the variable exported. Point it at the sibling matchmaking Worker
-on `:8787` for local previews.
+The preview bundle bakes `VITE_MATCHMAKING_URL` at build time.
+`.env.production` already carries the production Worker, so export the
+variable only when the preview should talk to the sibling matchmaking
+Worker on `:8787` instead of production.
 
 The deploy command runs `deploy:check` (build + dist preflight) and then
 `wrangler pages deploy dist`. It requires
