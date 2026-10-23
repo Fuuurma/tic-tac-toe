@@ -1,7 +1,18 @@
-import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type AnimationEvent,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DRAG_HANDLE_TOUCH_ACTION, useDragToDismiss } from "@/hooks/useDragToDismiss";
+
+const EXIT_ANIMATION_FALLBACK_MS = 400;
 
 /**
  * The one overlay surface: settings, help, confirms.
@@ -61,28 +72,50 @@ export function Sheet({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = `${useId()}-title`;
   const onCloseRef = useRef(onClose);
-  const drag = useDragToDismiss({ onDismiss: onClose, enabled: open });
+  const [isPresent, setIsPresent] = useState(open);
+  const [previousOpen, setPreviousOpen] = useState(open);
+  if (open !== previousOpen) {
+    setPreviousOpen(open);
+    if (open) setIsPresent(true);
+  }
+  const isVisible = open || isPresent;
+  const isExiting = !open && isPresent;
+  const drag = useDragToDismiss({
+    onDismiss: onClose,
+    enabled: open,
+    preserveOffsetOnDisable: isExiting,
+  });
+
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
+    if (open || !isPresent) return;
+    const timeoutId = window.setTimeout(
+      () => setIsPresent(false),
+      EXIT_ANIMATION_FALLBACK_MS,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [open, isPresent]);
+
+  useLayoutEffect(() => {
     const dlg = dialogRef.current;
     if (!dlg || inline) return;
-    if (open && !dlg.open) {
+    if (isVisible && !dlg.open) {
       dlg.showModal();
       // The panel, not the first field: focusing an input on open pops the
       // phone keyboard over a sheet the player has not read yet.
       dlg.focus();
-    } else if (!open && dlg.open) {
+    } else if (!isVisible && dlg.open) {
       dlg.close();
     }
-  }, [open, inline]);
+  }, [isVisible, inline]);
 
   // Non-modal (inline) dialogs get no Esc, focus trap or focus restore from
   // the platform, so the inline path supplies them.
   useEffect(() => {
-    if (!open || !inline) return;
+    if (!isVisible || !inline) return;
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus();
@@ -115,17 +148,29 @@ export function Sheet({
       if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
       previousFocusRef.current = null;
     };
-  }, [open, inline]);
+  }, [isVisible, inline]);
+
+  const finishExitAnimation = (event: AnimationEvent<HTMLDialogElement>) => {
+    if (event.target !== event.currentTarget || !isExiting) return;
+    if (event.animationName === "sheet-down" || event.animationName === "pop-out") {
+      setIsPresent(false);
+    }
+  };
 
   const full = size === "full";
+  const panelStyle = {
+    ...style,
+    ...drag.panelStyle,
+    "--sheet-drag-offset": `${drag.offset}px`,
+  } as CSSProperties;
 
   const panelClass = cn(
-    // A closed <dialog> hides via the UA's `dialog:not([open])` rule, which
-    // any author `display` beats — so display follows `open` (F588).
-    open ? "flex" : "hidden",
+    // Keep a modal sheet visible and in the top layer until its exit motion
+    // completes; author display otherwise overrides the UA's dialog rule.
+    isVisible ? "flex" : "hidden",
     "glass sheet-surface flex-col overflow-hidden p-0 text-foreground shadow-2xl outline-none",
     // Phone geometry.
-    "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:m-0 max-sm:w-full max-sm:max-w-none max-sm:animate-sheet-up",
+    "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:m-0 max-sm:w-full max-sm:max-w-none",
     full
       ? "max-sm:top-0 max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none max-sm:border-0"
       : "max-sm:top-auto max-sm:max-h-[92dvh] max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0",
@@ -134,7 +179,7 @@ export function Sheet({
     inline
       ? "sm:static sm:m-0 sm:max-h-full sm:w-full sm:rounded-2xl"
       : "sm:inset-0 sm:m-auto sm:max-h-[85dvh] sm:w-full sm:max-w-md sm:rounded-2xl",
-    "sm:animate-pop-in",
+    isExiting ? "max-sm:animate-sheet-down sm:animate-pop-out" : "max-sm:animate-sheet-up sm:animate-pop-in",
     className,
   );
 
@@ -194,11 +239,14 @@ export function Sheet({
   );
 
   if (inline) {
-    if (!open) return null;
+    if (!isVisible) return null;
     return (
       <div
         ref={scrimRef}
-        className="fixed inset-0 z-50 flex justify-center bg-overlay-scrim sm:absolute"
+        className={cn(
+          "fixed inset-0 z-50 flex justify-center bg-overlay-scrim transition-opacity duration-[340ms] sm:absolute sm:duration-[220ms]",
+          isExiting && "opacity-0",
+        )}
         onClick={(e) => {
           if (e.target === scrimRef.current) onClose();
         }}
@@ -208,8 +256,9 @@ export function Sheet({
           open
           tabIndex={-1}
           aria-labelledby={titleId}
+          onAnimationEnd={finishExitAnimation}
           className={panelClass}
-          style={{ ...style, ...drag.panelStyle }}
+          style={panelStyle}
         >
           {panel}
         </dialog>
@@ -230,8 +279,9 @@ export function Sheet({
         // A modal dialog's backdrop click targets the dialog element itself.
         if (e.target === dialogRef.current) onClose();
       }}
-      className={cn(panelClass, "backdrop:bg-overlay-scrim")}
-      style={{ ...style, ...drag.panelStyle }}
+      onAnimationEnd={finishExitAnimation}
+      className={cn(panelClass, "backdrop:bg-overlay-scrim", isExiting && "sheet-exiting")}
+      style={panelStyle}
     >
       {panel}
     </dialog>

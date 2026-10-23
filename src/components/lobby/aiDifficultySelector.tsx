@@ -59,7 +59,7 @@ export function AI_DifficultySelector({
         }
         valueText={AI_DIFFICULTY_LABELS[selectedDifficulty]}
       />
-      <PickerPanel id={panelId} open={open}>
+      <PickerPanel id={panelId} open={open} alwaysOpenOnMobile>
         <div
           role="radiogroup"
           aria-label="AI difficulty"

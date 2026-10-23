@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PlayersPanel } from "./playersPanel";
 import { freshGameState, type GameState } from "@/game/logic";
 import { GameModes, GameStatus, PlayerSymbol, PlayerTypes, AI_Difficulty } from "@/game/constants";
@@ -32,7 +32,10 @@ if (!HTMLDialogElement.prototype.showModal) {
   };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const terminalState = (): GameState => {
   const state = freshGameState();
@@ -144,6 +147,7 @@ describe("PlayersPanel terminal rematch CTA", () => {
 
 describe("PlayersPanel confirmation lifecycle", () => {
   it("unpauses and discards an exit confirmation when the online game ends", () => {
+    vi.useFakeTimers();
     const onPauseChange = vi.fn();
     const onExit = vi.fn();
     const { rerender } = render(
@@ -172,6 +176,10 @@ describe("PlayersPanel confirmation lifecycle", () => {
         onPauseChange={onPauseChange}
       />,
     );
+    // The confirmation remains in the top layer while its desktop exit
+    // animation plays, then closes after the animation fallback.
+    expect(dialog.open).toBe(true);
+    act(() => vi.advanceTimersByTime(400));
     expect(dialog.open).toBe(false);
     expect(onPauseChange).toHaveBeenLastCalledWith(false);
 

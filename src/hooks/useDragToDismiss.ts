@@ -44,20 +44,25 @@ interface Options {
   /** Set false to freeze the sheet in place (e.g. mid-game, where the clock
    *  runs under the overlay). */
   enabled?: boolean;
+  /** Keep the last drag offset while a dismissed sheet plays its exit motion. */
+  preserveOffsetOnDisable?: boolean;
 }
 
-export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
+export function useDragToDismiss({
+  onDismiss,
+  enabled = true,
+  preserveOffsetOnDisable = false,
+}: Options) {
   const [offset, setOffset] = useState(0);
   const [settling, setSettling] = useState(false);
-  // F632: the modal sheet stays MOUNTED when closed, so a swipe-dismiss
-  // parks its travel in offset (the close animation uses it) and the
-  // parked value must never surface after the reopen. The documented
+  // Keep a swipe's travel parked while the sheet exits. Reset on reopen so
+  // the parked offset cannot surface in the next presentation. The documented
   // reset-on-prop-change pattern — adjust during render, no effect, no
   // cascading commit.
   const [prevEnabled, setPrevEnabled] = useState(enabled);
   if (prevEnabled !== enabled) {
     setPrevEnabled(enabled);
-    if (!enabled) {
+    if (enabled || !preserveOffsetOnDisable) {
       setOffset(0);
       setSettling(false);
     }
@@ -181,6 +186,7 @@ export function useDragToDismiss({ onDismiss, enabled = true }: Options) {
   );
 
   return {
+    offset,
     /** Put on the drag handle, alongside DRAG_HANDLE_TOUCH_ACTION. */
     handleProps: {
       onPointerDown,

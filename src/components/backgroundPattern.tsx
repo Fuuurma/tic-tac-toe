@@ -10,7 +10,8 @@ const COLORS = Object.values(Color);
 const GRID_STEP = 22;
 const SYMBOL_SIZE = 8;
 const SYMBOL_STROKE = 1;
-const SYMBOL_COLOR = "rgba(148,163,184,0.15)";
+const SYMBOL_COLOR_DARK = "rgba(148,163,184,0.15)";
+const SYMBOL_COLOR_LIGHT = "rgba(71,85,105,0.22)";
 const REVEAL_RADIUS = 240;
 const SPOTLIGHT_RADIUS = REVEAL_RADIUS * 1.15;
 // Symbols are stroked centred on their position and the lit ones carry an
@@ -271,6 +272,10 @@ export function BackgroundPattern() {
     const base = document.createElement("canvas");
     const baseCtx = base.getContext("2d");
     if (!baseCtx) return;
+    let restingSymbolColor =
+      document.documentElement.dataset.theme === "dark"
+        ? SYMBOL_COLOR_DARK
+        : SYMBOL_COLOR_LIGHT;
     let spotlight: CanvasGradient | null = null;
 
     // The symbol field is decor, not data: the seed is fixed for the life
@@ -292,7 +297,7 @@ export function BackgroundPattern() {
         target.save();
         target.translate(symbol.x, symbol.y);
         target.rotate(symbol.rotation);
-        target.strokeStyle = SYMBOL_COLOR;
+        target.strokeStyle = restingSymbolColor;
         drawShape(target, symbol.shape, size, stroke);
         target.restore();
         return;
@@ -410,7 +415,7 @@ export function BackgroundPattern() {
       }
     };
 
-    const resize = () => {
+    const resize = (force = false) => {
       dpr = Math.min(2, window.devicePixelRatio || 1);
       width = window.innerWidth;
       height = window.innerHeight;
@@ -418,7 +423,7 @@ export function BackgroundPattern() {
       const deviceH = Math.round(height * dpr);
       // A same-size resize (scroll chrome, spurious event) must not pay
       // the full-grid repaint it used to trigger.
-      if (canvas.width === deviceW && canvas.height === deviceH) return;
+      if (!force && canvas.width === deviceW && canvas.height === deviceH) return;
       canvas.width = deviceW;
       canvas.height = deviceH;
       canvas.style.width = `${width}px`;
@@ -535,6 +540,20 @@ export function BackgroundPattern() {
     // geometry — a reduced-motion user who rotates or resizes still needs
     // the canvas reflowed.
     window.addEventListener("resize", queueResize);
+    const themeObserver = new MutationObserver(() => {
+      const nextColor =
+        document.documentElement.dataset.theme === "dark"
+          ? SYMBOL_COLOR_DARK
+          : SYMBOL_COLOR_LIGHT;
+      if (nextColor === restingSymbolColor) return;
+      restingSymbolColor = nextColor;
+      resize(true);
+      if (pointer.active || pointer.energy > 0.01) start();
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!prefersReducedMotion) {
       window.addEventListener("pointermove", updatePointer, { passive: true });
@@ -550,6 +569,7 @@ export function BackgroundPattern() {
       if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
       if (touchRelease !== null) window.clearTimeout(touchRelease);
       window.removeEventListener("resize", queueResize);
+      themeObserver.disconnect();
       if (!prefersReducedMotion) {
         window.removeEventListener("pointermove", updatePointer);
         window.removeEventListener("pointerdown", updatePointer);

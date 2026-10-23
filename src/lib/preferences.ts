@@ -8,8 +8,10 @@ import {
 } from "@/game/constants";
 import { sanitizeDisplayName } from "@/lib/identity";
 
+export type AppTheme = "light" | "dark";
+
 /**
- * Appearance and opponent choices the player set in the Settings sheet,
+ * Theme, player appearance, and opponent choices from the Settings sheet,
  * persisted as one JSON blob so future sessions reopen with the same setup.
  * The display name lives under the identity key instead (saveDisplayName)
  * because the guest-identity seam already owns its validation and fallback.
@@ -18,6 +20,7 @@ import { sanitizeDisplayName } from "@/lib/identity";
  * localStorage blob degrades to defaults, never to a broken render.
  */
 interface GamePreferences {
+  theme?: AppTheme;
   color?: Color;
   playerShape?: SymbolShape;
   opponentColor?: Color;
@@ -47,6 +50,8 @@ const isDifficulty = (v: unknown): v is AI_DifficultyType =>
   typeof v === "string" &&
   (Object.values(AI_Difficulty) as string[]).includes(v);
 
+const isTheme = (v: unknown): v is AppTheme => v === "light" || v === "dark";
+
 export function loadPreferences(
   storage: Storage | null = getBrowserStorage(),
 ): GamePreferences {
@@ -60,6 +65,7 @@ export function loadPreferences(
   if (typeof raw !== "object" || raw === null) return {};
   const prefs = raw as Record<string, unknown>;
   const out: GamePreferences = {};
+  if (isTheme(prefs.theme)) out.theme = prefs.theme;
   if (isColor(prefs.color)) out.color = prefs.color;
   if (isShape(prefs.playerShape)) out.playerShape = prefs.playerShape;
   if (isColor(prefs.opponentColor)) out.opponentColor = prefs.opponentColor;

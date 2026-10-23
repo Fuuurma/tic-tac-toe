@@ -21,8 +21,14 @@
 
 2. **Deploy the existing Pages project**
    ```bash
-   pnpm deploy
+   VITE_MATCHMAKING_URL=https://fuurma-matchmaking.sergiformatjer1999.workers.dev pnpm deploy
    ```
+
+   `pnpm deploy` builds the static bundle locally, then uploads it with
+   Wrangler. The matchmaking URL must be present during that local build;
+   changing a variable in the Pages dashboard does not rewrite an uploaded
+   JavaScript bundle. The deploy script marks its preflight as a Pages build,
+   so it refuses to upload a bundle that still points at localhost.
 
    A Git push is not deployment proof. Confirm that Wrangler reports a new
    production deployment for the `tic-tac-toe` project:
@@ -50,14 +56,13 @@ and falls back to `http://127.0.0.1:8787` in dev.
    The Worker pairs two `join` requests with the same `game` and
    returns a matched room.
 
-2. **Set the env var on the Pages project** (Settings →
-   Environment variables):
+2. **Set the build variable when deploying the static Pages bundle**:
    ```
-   VITE_MATCHMAKING_URL=https://your-matchmaking-worker.workers.dev
+   VITE_MATCHMAKING_URL=https://fuurma-matchmaking.sergiformatjer1999.workers.dev pnpm deploy
    ```
 
-   Without this, the Quick button falls back to
-   `http://127.0.0.1:8787` (dev only) and won't work in production.
+   Without this, the production client has no Worker URL and online play will
+   not work. The local deploy preflight blocks that misconfigured upload.
 
 3. **Room ID URL pre-fill** (optional)
    The app reads `?room=<id>` from the URL and pre-fills the Join

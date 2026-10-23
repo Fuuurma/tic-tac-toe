@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/card";
 import { GameModeSelector } from "./gameModeSelector";
 import { GameMark } from "./gameMark";
+import { ThemeToggle } from "./themeToggle";
 import {
   SettingsSheet,
   type SettingsTab,
@@ -326,29 +327,43 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
           radius or shadow. */}
       <Card
         variant="glass"
-        className="flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0 max-sm:rounded-none max-sm:border-0 max-sm:shadow-none"
+        className="lobby-screen-glass flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0 max-sm:rounded-none max-sm:border-0 max-sm:shadow-none"
       >
         <CardHeader className="flex-row items-center gap-3 px-4 pb-3 pt-4 text-left sm:px-6 sm:pb-5 sm:pt-7">
           <GameMark />
           <div className="min-w-0 flex-1">
-            <h1 className="font-display leading-none">
-              <span className="block text-sm font-bold tracking-tight text-muted-foreground sm:text-base">
-                Tic Tac Toe
-              </span>{" "}
+            <h1 className="inline-flex w-fit max-w-full flex-col font-display leading-none">
+              <span
+                aria-hidden="true"
+                className="flex w-full items-center gap-1.5 text-lg font-bold tracking-[0.1em] text-muted-foreground sm:gap-2 sm:text-xl"
+              >
+                <span>Tic</span>
+                <span>Tac</span>
+                <span className="bg-linear-to-r from-muted-foreground from-45% to-muted-foreground/25 bg-clip-text text-transparent">
+                  Toe
+                </span>
+              </span>
               {/* The word does what it says: its tail fades toward the card. */}
-              <span className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/25 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent min-[400px]:text-[1.625rem] sm:text-[2rem]">
+              <span
+                aria-hidden="true"
+                className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/25 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[2rem]"
+              >
                 Disappear
               </span>
+              <span className="sr-only">Tic Tac Toe Disappear</span>
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setHelpOpen(true)}
-            aria-label="How to play"
-            className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
-          >
-            <CircleHelp className="size-4.5" aria-hidden="true" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              aria-label="How to play"
+              className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+            >
+              <CircleHelp className="size-4.5" aria-hidden="true" />
+            </button>
+          </div>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-0 sm:px-6">
           <div className="flex flex-col gap-3 sm:gap-3.5">

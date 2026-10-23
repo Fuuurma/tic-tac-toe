@@ -96,19 +96,27 @@ export function PickerTrigger({
 
 interface PickerPanelProps {
   id: string;
-  /** Desktop shows the panel only while open; phones always show it inline. */
+  /** Keep the panel visible on phones even when its desktop disclosure is closed. */
+  alwaysOpenOnMobile?: boolean;
   open: boolean;
   className?: string;
   children: React.ReactNode;
 }
 
-export function PickerPanel({ id, open, className, children }: PickerPanelProps) {
+export function PickerPanel({
+  id,
+  open,
+  alwaysOpenOnMobile = false,
+  className,
+  children,
+}: PickerPanelProps) {
   return (
     <div
       id={id}
       className={cn(
         "col-span-2 rounded-xl border border-border/60 bg-background/50 p-2",
-        "max-sm:flex max-sm:flex-col max-sm:gap-2 max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0",
+        alwaysOpenOnMobile &&
+          "max-sm:flex max-sm:flex-col max-sm:gap-2 max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:p-0",
         !open && "hidden",
         className,
       )}

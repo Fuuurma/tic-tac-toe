@@ -105,8 +105,9 @@ zone. Primary actions live at the bottom edge with
   header dismisses, the primary action sits in the sticky footer. Short
   decisions (confirms) use `size="auto"`, a bottom action sheet. Desktop
   renders the same Sheet as a centered dialog.
-- **Pickers on phones** are always-open grids (color, symbol, difficulty),
-  not dropdowns: the form owns the screen, so every choice is one tap.
+- **Appearance pickers on phones** keep Color and Symbol as a paired row of
+  compact controls; tapping one expands its full options below. AI difficulty
+  remains an always-open segmented choice.
 - **Game**: status + timer on top, player strip, the board as hero, then a
   bottom action bar of labelled buttons (Help, Edit, New game, Exit). The
   HUD box dissolves (`max-sm:contents`) and `order` stacks its rows around

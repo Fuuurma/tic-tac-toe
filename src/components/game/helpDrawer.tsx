@@ -43,18 +43,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
       inline={inline}
       title="How to play"
       closeLabel="Close help"
-      // Phones get a thumb-reach dismiss; desktop has Esc and the X.
-      footerClassName="sm:hidden"
       bodyClassName="sm:pb-5"
-      footer={
-        <button
-          type="button"
-          onClick={onClose}
-          className="glass-interactive flex h-12 w-full items-center justify-center rounded-lg text-base font-semibold"
-        >
-          Got it
-        </button>
-      }
     >
       <ul className="flex flex-col gap-5 pt-1">
         {TIPS.map(({ Icon, title, body }) => (

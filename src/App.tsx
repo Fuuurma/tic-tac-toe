@@ -86,10 +86,10 @@ export default function App() {
     <main id="main-content" className="relative isolate flex h-dvh w-full items-stretch justify-center overflow-y-auto bg-[image:var(--gradient-light)] dark:bg-[image:var(--gradient-dark)] sm:items-center">
       {/* Living symbol field: canvas layer above the gradient base */}
       <BackgroundPattern />
-      {/* Centered black mask keeps the board readable over the symbol texture */}
+      {/* Keep the dark scrim below the board; leave the light symbol field clear. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[1] bg-[image:var(--bg-mask-light)] dark:bg-[image:var(--bg-mask-dark)]"
+        className="pointer-events-none fixed inset-0 z-[1] dark:bg-[image:var(--bg-mask-dark)]"
       />
       {/* Below `sm` this wrapper stretches to the full scrollport so the
           phone game column can take the full height and centre the board in
