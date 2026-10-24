@@ -148,10 +148,10 @@ pnpm check
 - Every local move commits through `commitLocalMove` (`src/hooks/localTurnTimer.ts`) with a `cur === prev` identity guard, so a decision computed off the post-render `gameStateRef` snapshot can never clobber a newer commit
 - An identity mismatch does **not** mean a rival move landed: the turn clock rewrites `turnTimeRemaining` onto a fresh object every second. The AI's move is scheduled 700-1300ms after the turn starts against a 1000ms clock, so roughly half of all AI moves land in the same batch as a tick. `commitLocalMove` therefore takes an optional pure `rebase(cur)` that re-derives the move from whatever actually committed and drops only when a real move took the turn. Dropping there used to strand the AI until the turn expired
 
-## Text Color
+## Theme and Text Color
 
-- `color` is published once on `html/body/#root` in `src/index.css` and every themed color flips with `prefers-color-scheme`. Nothing else sets a document-level color, because that omission is invisible in review and brutal in dark mode: any element without its own `text-*` utility inherits the UA default black and disappears into the dark gradient. That is what made the Confirm titles, the help and settings headings, and the HUD player names invisible before. Add an explicit color when you add text, but never assume inheritance is neutral
-- `color-scheme: light dark` on `:root` keeps UA-drawn surfaces (the app-shell scrollbar, input chrome) on the same palette the `dark:` variants key off, so the two cannot disagree
+- The app theme is stored as `theme` in `tic-tac-toe:preferences`; `public/theme-init.js` applies it to `<html data-theme>` before the app paints, and `src/hooks/useAppTheme.ts` updates it from Settings. `src/index.css` uses that attribute for dark tokens and Tailwind `dark:` variants. Keep inherited text color on `html/body/#root` there; any element without its own `text-*` utility inherits the selected foreground
+- `color-scheme: light` on `:root` and `color-scheme: dark` on `:root[data-theme="dark"]` keep browser-drawn controls and scrollbars aligned with the selected palette
 
 ## Mobile Layout
 

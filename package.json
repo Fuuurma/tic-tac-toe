@@ -18,7 +18,7 @@
     "test:e2e": "VITE_MATCHMAKING_URL=http://127.0.0.1:8787 pnpm build && playwright test",
     "check": "pnpm lint && pnpm test && pnpm test:e2e",
     "deploy:check": "pnpm build && node scripts/deploy-check.mjs",
-    "deploy": "pnpm deploy:check && wrangler pages deploy dist"
+    "deploy": "CF_PAGES=1 pnpm deploy:check && wrangler pages deploy dist"
   },
   "dependencies": {
     "@fontsource-variable/source-sans-3": "^5.3.0",

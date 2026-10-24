@@ -1,5 +1,11 @@
 import { useId, useRef, useState } from "react";
-import { COLOR_BG_CLASSES, type Color, type SymbolShape } from "@/game/constants";
+import {
+  COLOR_BG_CLASSES,
+  COLOR_MARK_TEXT,
+  type Color,
+  type SymbolShape,
+} from "@/game/constants";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { ColorPicker } from "./colorPicker";
@@ -26,10 +32,10 @@ interface AppearancePickersProps {
 /**
  * Color and symbol pickers, one DOM structure for both layouts.
  *
- * Phone: each group is a labelled heading over a grid that is always open, so
- * every choice is one tap away. Desktop: the two triggers sit side by side and
- * the grid expands full-width below them; only one panel is open at a time.
- * The grid is `display: contents` on desktop so its panels stay grid items.
+ * The icon-led tiles sit side by side. The chosen color fills its tile with a
+ * contrast-safe check, and the chosen symbol is centered in its tile. Tapping
+ * one expands its full-width choices below; only one panel is open at a time.
+ * The groups use `display: contents` so triggers and panels share the grid.
  */
 export function AppearancePickers({
   colorLabel,
@@ -63,55 +69,55 @@ export function AppearancePickers({
       ref={rootRef}
       open={open !== null}
       onEscape={dismiss}
-      className="flex flex-col gap-6 sm:grid sm:grid-cols-2 sm:gap-2"
+      className="grid grid-cols-2 gap-3"
     >
-      <div role="group" aria-label="Color" className="flex flex-col gap-2 sm:contents">
-        <p className="text-sm font-semibold sm:hidden">Color</p>
+      <div role="group" aria-label="Color" className="contents">
         <PickerTrigger
           ref={colorTriggerRef}
           open={open === "color"}
           controls={colorPanelId}
           ariaLabel={colorLabel}
           label="Color"
-          className="max-sm:hidden"
+          presentation="tile"
           onToggle={() => setOpen(open === "color" ? null : "color")}
           preview={
             <span
-              aria-hidden="true"
               className={cn(
-                "size-5 shrink-0 rounded-full border border-black/10 shadow-sm",
+                "absolute inset-0 flex items-center justify-center rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-8px_14px_-10px_rgba(0,0,0,0.4)]",
                 COLOR_BG_CLASSES[color],
               )}
-            />
+            >
+              <Check
+                className={cn("size-8", COLOR_MARK_TEXT[color])}
+                strokeWidth={3}
+              />
+            </span>
           }
         />
         <PickerPanel
           id={colorPanelId}
           open={open === "color"}
-          className="sm:row-start-2"
+          className="row-start-2"
         >
           <ColorPicker label={colorLabel} value={color} onChange={onColorChange} />
         </PickerPanel>
       </div>
 
-      <div role="group" aria-label="Symbol" className="flex flex-col gap-2 sm:contents">
-        {/* A disabled symbol keeps its trigger on phones too, so the label
-            stays visible; the heading would repeat it. */}
-        {!shapeDisabled && <p className="text-sm font-semibold sm:hidden">Symbol</p>}
+      <div role="group" aria-label="Symbol" className="contents">
         <PickerTrigger
           ref={shapeTriggerRef}
           open={open === "shape"}
           controls={shapePanelId}
           ariaLabel={shapeLabel}
           label="Symbol"
+          presentation="tile"
           disabled={shapeDisabled}
-          className={cn(!shapeDisabled && "max-sm:hidden")}
           onToggle={() => setOpen(open === "shape" ? null : "shape")}
           preview={
             <SymbolShapeRenderer
               shape={shape}
               strokeWidth={10}
-              className="size-5 shrink-0 text-foreground"
+              className="size-11 text-[rgb(var(--player-color))]"
             />
           }
         />
@@ -119,7 +125,7 @@ export function AppearancePickers({
           <PickerPanel
             id={shapePanelId}
             open={open === "shape"}
-            className="sm:row-start-2"
+            className="row-start-2"
           >
             <SymbolShapePicker label={shapeLabel} value={shape} onChange={onShapeChange} />
           </PickerPanel>

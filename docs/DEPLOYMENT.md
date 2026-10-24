@@ -21,8 +21,14 @@
 
 2. **Deploy the existing Pages project**
    ```bash
-   pnpm deploy
+   VITE_MATCHMAKING_URL=https://fuurma-matchmaking.sergiformatjer1999.workers.dev pnpm deploy
    ```
+
+   `pnpm deploy` builds the static bundle locally, then uploads it with
+   Wrangler. The matchmaking URL must be present during that local build;
+   changing a variable in the Pages dashboard does not rewrite an uploaded
+   JavaScript bundle. The deploy script marks its preflight as a Pages build,
+   so it refuses to upload a bundle that still points at localhost.
 
    A Git push is not deployment proof. Confirm that Wrangler reports a new
    production deployment for the `tic-tac-toe` project:

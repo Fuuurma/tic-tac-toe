@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Animatable properties for the interactive glass border + specular sweep.
    Graceful fallback: if @property is unsupported, the angle stays at its
    initial value and the border renders statically (no rotation). */
@@ -46,12 +48,8 @@
   --glass-cell-sheen-alpha: 0.12;
   --player-color: 59 130 246;
 
-  /* Tell the UA which palette the app is drawing in. Without it the
-     browser assumes `normal` and paints its own surfaces — the scrollbar on
-     the scrolling app shell, and input chrome — for a light theme while the
-     app is dark. This is the same signal the `dark:` variants key off, so
-     the two can never disagree. */
-  color-scheme: light dark;
+  /* Native controls and scrollbars follow the saved app theme. */
+  color-scheme: light;
 
   /* Safe-area insets, read by #main-content below. Defined here rather than
      in @theme because env() belongs to the cascade, not the type scale. */
@@ -61,28 +59,26 @@
   --inset-right: env(safe-area-inset-right, 0px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --glass-tint: 30 30 38;
-    --glass-alpha: 0.28;
-    --glass-border: 255 255 255;
-    --glass-border-alpha: 0.18;
-    --glass-rim: 255 255 255;
-    --glass-rim-alpha: 0.22;
-    --glass-shadow: 0 8px 32px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
-    --glass-sheen: 255 255 255;
-    --glass-sheen-alpha: 0.08;
-    --glass-inset-dark: 0 0 0;
-    --glass-inset-dark-alpha: 0.3;
-    --glass-inset-light: 255 255 255;
-    --glass-inset-light-alpha: 0.12;
-    --glass-cell-tint: 255 255 255;
-    --glass-cell-alpha: 0.05;
-    --glass-cell-border: 255 255 255;
-    --glass-cell-border-alpha: 0.14;
-    --glass-cell-rim-alpha: 0.16;
-    --glass-cell-sheen-alpha: 0.05;
-  }
+:root[data-theme="dark"] {
+  --glass-tint: 30 30 38;
+  --glass-alpha: 0.28;
+  --glass-border: 255 255 255;
+  --glass-border-alpha: 0.18;
+  --glass-rim: 255 255 255;
+  --glass-rim-alpha: 0.22;
+  --glass-shadow: 0 8px 32px rgb(0 0 0 / 0.5), 0 1px 2px rgb(0 0 0 / 0.3);
+  --glass-sheen: 255 255 255;
+  --glass-sheen-alpha: 0.08;
+  --glass-inset-dark: 0 0 0;
+  --glass-inset-dark-alpha: 0.3;
+  --glass-inset-light: 255 255 255;
+  --glass-inset-light-alpha: 0.12;
+  --glass-cell-tint: 255 255 255;
+  --glass-cell-alpha: 0.05;
+  --glass-cell-border: 255 255 255;
+  --glass-cell-border-alpha: 0.14;
+  --glass-cell-rim-alpha: 0.16;
+  --glass-cell-sheen-alpha: 0.05;
 }
 
 @theme {
@@ -141,18 +137,14 @@
   --color-gray-500: oklch(0.55 0.01 220);
   --color-emerald-600: oklch(0.62 0.17 160);
   --color-emerald-400: oklch(0.76 0.16 160);
-  --gradient-light: linear-gradient(180deg, oklch(0.97 0.005 220) 0%, oklch(0.92 0.01 220) 100%);
+  --gradient-light:
+    radial-gradient(68% 42% at 100% 0%, oklch(0.98 0.035 88 / 0.6), transparent 100%),
+    radial-gradient(74% 48% at 0% 82%, oklch(0.9 0.055 210 / 0.3), transparent 100%),
+    linear-gradient(155deg, oklch(0.975 0.018 95) 0%, oklch(0.94 0.03 205) 58%, oklch(0.91 0.04 218) 100%);
   --gradient-dark: linear-gradient(180deg, oklch(0.16 0.02 220) 0%, oklch(0.10 0.01 220) 100%);
 
-  /* Dark center mask: keeps the board and its controls clear above the
-     repeated symbol texture. */
-  --bg-mask-light: radial-gradient(
-    58% 72% at 50% 48%,
-    rgb(0 0 0 / 0.76) 0%,
-    rgb(0 0 0 / 0.58) 60%,
-    rgb(0 0 0 / 0.24) 82%,
-    transparent 100%
-  );
+  /* The dark scrim preserves board contrast without covering the symbol
+     field; light mode keeps its canvas texture and pointer glow unobscured. */
   --bg-mask-dark: radial-gradient(
     58% 72% at 50% 48%,
     rgb(0 0 0 / 0.82) 0%,
@@ -175,20 +167,19 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: oklch(0.16 0.02 220);
-    --color-foreground: oklch(0.96 0.005 220);
-    --color-card: oklch(0.22 0.02 220);
-    --color-card-foreground: oklch(0.96 0.005 220);
-    --color-muted: oklch(0.24 0.02 220);
-    --color-muted-foreground: oklch(0.7 0.02 220);
-    --color-accent: oklch(0.28 0.02 220);
-    --color-accent-foreground: oklch(0.96 0.005 220);
-    --color-border: oklch(0.3 0.02 220);
-    --color-input: oklch(0.3 0.02 220);
-    --color-ring: oklch(0.7 0.12 205);
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: oklch(0.16 0.02 220);
+  --color-foreground: oklch(0.96 0.005 220);
+  --color-card: oklch(0.22 0.02 220);
+  --color-card-foreground: oklch(0.96 0.005 220);
+  --color-muted: oklch(0.24 0.02 220);
+  --color-muted-foreground: oklch(0.7 0.02 220);
+  --color-accent: oklch(0.28 0.02 220);
+  --color-accent-foreground: oklch(0.96 0.005 220);
+  --color-border: oklch(0.3 0.02 220);
+  --color-input: oklch(0.3 0.02 220);
+  --color-ring: oklch(0.7 0.12 205);
 }
 
 html,
@@ -199,14 +190,8 @@ body,
   overscroll-behavior: none;
   font-family: var(--font-sans);
   caret-color: var(--color-primary);
-  /* Every themed color in this file is a Tailwind token that flips with
-     prefers-color-scheme, but nothing ever published one to the document.
-     Anything without its own `text-*` utility therefore inherited the UA
-     default — black — and vanished into the dark gradient: the Confirm
-     titles ("Start a new game", "Exit game"), the help and settings sheet
-     headings, and the HUD player names all rendered near-invisible in dark
-     mode. One inherited value fixes every one of them and keeps the
-     explicit utilities winning, as they already do. */
+  /* Anything without its own `text-*` utility inherits the selected theme's
+     foreground instead of the UA default. */
   color: var(--color-foreground);
 }
 
@@ -278,6 +263,11 @@ a {
    copy of the screen behind it. The footer hairline separates the sticky
    action row from content scrolling under it. */
 @media (max-width: 639.98px) {
+  :root[data-theme="light"] .lobby-screen-glass {
+    --glass-blur: 0px;
+    --glass-saturate: 100%;
+  }
+
   .sheet-surface {
     --glass-alpha: 0.94;
   }
@@ -409,6 +399,21 @@ a {
   animation: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+@keyframes pop-out {
+  0% {
+    transform: translate3d(0, var(--sheet-drag-offset, 0px), 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, calc(var(--sheet-drag-offset, 0px) + 12px), 0) scale(0.96);
+    opacity: 0;
+  }
+}
+
+@utility animate-pop-out {
+  animation: pop-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
 /* Phone sheets rise from the bottom edge, the way a platform sheet does;
    desktop keeps the centered pop-in. */
 @keyframes sheet-up {
@@ -422,6 +427,36 @@ a {
 
 @utility animate-sheet-up {
   animation: sheet-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sheet-down {
+  0% {
+    transform: translate3d(0, var(--sheet-drag-offset, 0px), 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0.96;
+  }
+}
+
+@utility animate-sheet-down {
+  animation: sheet-down 0.34s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes sheet-scrim-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+dialog.sheet-exiting::backdrop {
+  animation: sheet-scrim-out 0.22s ease-out both;
+}
+
+@media (max-width: 639px) {
+  dialog.sheet-exiting::backdrop {
+    animation-duration: 0.34s;
+  }
 }
 
 /* Win-line craft moment: a one-shot emerald glow pulse that sweeps
