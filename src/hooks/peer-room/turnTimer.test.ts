@@ -39,6 +39,10 @@ function roomState(game: GameState, role: "host" | "guest"): PeerRoomState {
     guestSymbol: PlayerSymbol.O,
     message: "",
     pausedMessage: null,
+    pausedStash: null,
+    rematchIncoming: false,
+    rematchOutgoing: false,
+    queuePosition: null,
     gameState: game,
   } as PeerRoomState;
 }
@@ -48,7 +52,10 @@ function makeDeps(
   role: "host" | "guest",
   broadcast: (gameState: GameState) => void = () => {},
 ) {
-  const deps: TurnTimerDeps = {
+  const deps: TurnTimerDeps & {
+    setStateCalls: Array<Partial<PeerRoomState>>;
+    roomRef: { current: PeerRoomState };
+  } = {
     stateRef: { current: game },
     roleRef: { current: role },
     tickRef: { current: null },
@@ -62,7 +69,7 @@ function makeDeps(
       // Apply the gameState portion so stateRef/room stay coherent, the
       // way the hook's re-render + effect sync would.
       const applied = deps.setStateCalls[deps.setStateCalls.length - 1];
-      if (applied && "gameState" in applied) {
+      if (applied && "gameState" in applied && applied.gameState) {
         deps.stateRef.current = applied.gameState;
         deps.roomRef.current = {
           ...deps.roomRef.current,
@@ -75,9 +82,6 @@ function makeDeps(
     // Test plumbing (not part of TurnTimerDeps):
     setStateCalls: [] as Array<Partial<PeerRoomState>>,
     roomRef: { current: roomState(game, role) },
-  } as TurnTimerDeps & {
-    setStateCalls: Array<Partial<PeerRoomState>>;
-    roomRef: { current: PeerRoomState };
   };
   return deps;
 }
@@ -160,7 +164,7 @@ describe("peer-room turnTimer", () => {
   });
 
   it("stops when the game is no longer active", () => {
-    const game = activeGame({ gameStatus: GameStatus.DRAW });
+    const game = activeGame({ gameStatus: GameStatus.COMPLETED });
     const deps = makeDeps(game, "host");
     startTurnTimer(deps);
 

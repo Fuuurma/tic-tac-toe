@@ -13,7 +13,7 @@ import type { PeerRoomState } from "../usePeerRoom";
  * host, whose clock is the game's authority — fires the forced random
  * move when a turn expires. Ticking never creates wire traffic.
  */
-interface TurnTimerDeps {
+export interface TurnTimerDeps {
   /** Authoritative current game state (kept current by the hook). */
   stateRef: { current: GameState };
   /** Local peer role; only the host may force a move on expiry. */
