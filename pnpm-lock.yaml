@@ -18,6 +18,9 @@ importers:
       '@fontsource-variable/syne':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fuurma/online-client':
+        specifier: github:Fuuurma/fuurma-matchmaking#f6a163b&path:/client
+        version: https://codeload.github.com/Fuuurma/fuurma-matchmaking/tar.gz/f6a163b583cc4ad08d4897ae78096cac96a3d537#path:/client
       cn:
         specifier: ^0.4.0
         version: 0.4.0
@@ -487,6 +490,10 @@ packages:
 
   '@fontsource-variable/syne@5.3.0':
     resolution: {integrity: sha512-GUNH65fUfWHQcX7bO0BGgScE465gawpTId45aDfhHcVj/upbb6b+2d++5keKP128vK8+LtE4dvLkKTsxoh7TwA==}
+
+  '@fuurma/online-client@https://codeload.github.com/Fuuurma/fuurma-matchmaking/tar.gz/f6a163b583cc4ad08d4897ae78096cac96a3d537#path:/client':
+    resolution: {path: /client, tarball: https://codeload.github.com/Fuuurma/fuurma-matchmaking/tar.gz/f6a163b583cc4ad08d4897ae78096cac96a3d537}
+    version: 0.1.0
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2458,6 +2465,8 @@ snapshots:
   '@fontsource-variable/source-sans-3@5.3.0': {}
 
   '@fontsource-variable/syne@5.3.0': {}
+
+  '@fuurma/online-client@https://codeload.github.com/Fuuurma/fuurma-matchmaking/tar.gz/f6a163b583cc4ad08d4897ae78096cac96a3d537#path:/client': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
