@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildRoomWsUrl,
   getMatchPollDelay,
   MATCH_POLL_INITIAL_DELAY_MS,
   MATCH_POLL_MAX_DELAY_MS,
@@ -125,6 +126,45 @@ describe("module import safety without VITE_MATCHMAKING_URL", () => {
     // The call reached a real URL rather than exploding at module scope.
     expect(calls).toHaveLength(1);
     expect(calls[0]).toContain("/api/matchmaking/ttt/join");
+  });
+});
+
+// Create/Join build their socket URL from the same base as the HTTP calls.
+// buildRoomWsUrl used to fall back to the 127.0.0.1 dev default on its own, so
+// a production build with no backend dialled the visitor's own machine.
+describe("buildRoomWsUrl backend resolution", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function freshModule(env: { PROD: boolean; url: string }) {
+    vi.stubEnv("PROD", env.PROD);
+    vi.stubEnv("VITE_MATCHMAKING_URL", env.url);
+    vi.resetModules();
+    return import("@/lib/matchmaking");
+  }
+
+  it("refuses a production build with no backend instead of dialling localhost", async () => {
+    const mod = await freshModule({ PROD: true, url: "" });
+    expect(mod.ONLINE_UNAVAILABLE).toBe(true);
+    expect(() => mod.buildRoomWsUrl("abc")).toThrow(mod.MATCHMAKING_UNAVAILABLE_MESSAGE);
+  });
+
+  it("uses the configured backend in a production build", async () => {
+    const mod = await freshModule({ PROD: true, url: "https://relay.example" });
+    expect(mod.ONLINE_UNAVAILABLE).toBe(false);
+    expect(mod.buildRoomWsUrl("abc")).toBe("wss://relay.example/room/abc");
+  });
+
+  it("keeps the local-dev default when no backend is configured", async () => {
+    const mod = await freshModule({ PROD: false, url: "" });
+    expect(mod.ONLINE_UNAVAILABLE).toBe(false);
+    expect(mod.buildRoomWsUrl("abc")).toBe("ws://127.0.0.1:8787/room/abc");
+  });
+
+  it("still honours an explicit base URL", () => {
+    expect(buildRoomWsUrl("abc", "https://other.example")).toBe("wss://other.example/room/abc");
   });
 });
 

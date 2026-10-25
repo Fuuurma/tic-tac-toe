@@ -18,6 +18,7 @@ import {
 import {
   MATCHMAKING_CONFIGURED,
   MATCHMAKING_UNAVAILABLE_MESSAGE,
+  ONLINE_UNAVAILABLE,
 } from "@/lib/matchmaking";
 import { Button } from "@/components/ui/button";
 import {
@@ -195,16 +196,18 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
 
   const isValid = useMemo(() => validate(payload) === null, [payload]);
 
-  // Quick Match is the one entry point that cannot work without a backend:
-  // create/join only hand a room id to the WebSocket relay, but quick match
-  // must call the matchmaking service. In a build with no VITE_MATCHMAKING_URL
-  // the tap used to escalate to the app-wide ErrorBoundary and take the
-  // whole product down with it. Offer the mode, but say plainly that it is
-  // unavailable instead of failing after the click.
-  const quickMatchUnavailable =
-    gameMode === GameModes.ONLINE && onlineAction === "quick" && !MATCHMAKING_CONFIGURED;
-  const startDisabled = !isValid || quickMatchUnavailable;
-  const startTitle = quickMatchUnavailable ? MATCHMAKING_UNAVAILABLE_MESSAGE : undefined;
+  // No backend means no online play, and the lobby must say so before the
+  // click instead of failing after it. A production build with no
+  // VITE_MATCHMAKING_URL cannot reach the relay either, so Create and Join
+  // are blocked too (the tap used to escalate to the app-wide ErrorBoundary,
+  // or dial the visitor's own 127.0.0.1). Local dev still reaches a relay at
+  // its 127.0.0.1 default, so there only Quick Match, which needs the
+  // matchmaking service, is blocked.
+  const onlineUnavailable =
+    gameMode === GameModes.ONLINE &&
+    (ONLINE_UNAVAILABLE || (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
+  const startDisabled = !isValid || onlineUnavailable;
+  const startTitle = onlineUnavailable ? MATCHMAKING_UNAVAILABLE_MESSAGE : undefined;
   const startReasonId = useId();
   // The room-code field already shows its own error inline; repeating it
   // under the button would say the same thing twice on one screen.
@@ -213,8 +216,10 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
       ? getRoomCodeError(onlineAction, onlineRoomId.trim())
       : null;
   const validationError = startDisabled ? validate(payload) : null;
-  const startReason = quickMatchUnavailable
-    ? `${MATCHMAKING_UNAVAILABLE_MESSAGE} Create or join a room instead.`
+  const startReason = onlineUnavailable
+    ? ONLINE_UNAVAILABLE
+      ? MATCHMAKING_UNAVAILABLE_MESSAGE
+      : `${MATCHMAKING_UNAVAILABLE_MESSAGE} Create or join a room instead.`
     : validationError !== roomFieldError
       ? validationError
       : null;
@@ -528,10 +533,10 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
           {startReason && (
             <p
               id={startReasonId}
-              role={quickMatchUnavailable ? "status" : undefined}
+              role={onlineUnavailable ? "status" : undefined}
               className={cn(
                 "text-center text-sm text-muted-foreground",
-                quickMatchUnavailable ? "sm:text-xs sm:text-white/60" : "sm:sr-only",
+                onlineUnavailable ? "sm:text-xs sm:text-white/60" : "sm:sr-only",
               )}
             >
               {startReason}

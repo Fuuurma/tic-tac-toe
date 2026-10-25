@@ -115,17 +115,22 @@ const _matchmakingUrl = import.meta.env.VITE_MATCHMAKING_URL;
 export const MATCHMAKING_CONFIGURED = Boolean(_matchmakingUrl);
 
 const MATCHMAKING_BASE_URL =
-  _matchmakingUrl ?? "http://127.0.0.1:8787";
+  _matchmakingUrl || "http://127.0.0.1:8787";
 
 /** Thrown when online play is invoked in a build with no backend configured. */
 export const MATCHMAKING_UNAVAILABLE_MESSAGE =
   "Online play isn't available in this build.";
 
+/**
+ * A production build with no backend: every online entry point (quick,
+ * create, join) is unusable, and resolveBaseUrl refuses rather than let a
+ * visitor's browser dial its own 127.0.0.1. Local dev keeps the default.
+ */
+export const ONLINE_UNAVAILABLE = import.meta.env.PROD && !_matchmakingUrl;
+
 const resolveBaseUrl = (override?: string): string => {
   if (override) return override;
-  if (!_matchmakingUrl && import.meta.env.PROD) {
-    throw new Error(MATCHMAKING_UNAVAILABLE_MESSAGE);
-  }
+  if (ONLINE_UNAVAILABLE) throw new Error(MATCHMAKING_UNAVAILABLE_MESSAGE);
   return MATCHMAKING_BASE_URL;
 };
 
@@ -278,15 +283,12 @@ export async function leaveMatch(
  * Used as a fallback when the matchmaking response doesn't pre-include
  * `match.wsUrl` — typically the host (a "waiting" response from matchmaking).
  */
-export function buildRoomWsUrl(
-  roomId: string,
-  baseUrl: string = MATCHMAKING_BASE_URL,
-): string {
+export function buildRoomWsUrl(roomId: string, baseUrl?: string): string {
   // Note: the `game` query param is intentionally NOT set here —
   // RoomClient.openSocket owns it (single writer, devin 09-07 20:05
   // finding 6); a double-set silently overwrote whatever the caller's
   // wsUrl carried.
-  const httpUrl = new URL(`/room/${roomId}`, baseUrl);
+  const httpUrl = new URL(`/room/${roomId}`, resolveBaseUrl(baseUrl));
   const wsUrl = new URL(httpUrl.toString());
   wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
   return wsUrl.toString();
