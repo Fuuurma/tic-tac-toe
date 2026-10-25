@@ -117,7 +117,14 @@ export const generateGuestDisplayName = (locale?: Locale): string => {
 
 const isAllowedCharacter = (character: string): boolean => {
   const codePoint = character.codePointAt(0) ?? 0;
-  return codePoint > 31 && codePoint !== 127 && character !== "<" && character !== ">";
+  // F795: 0x7F–0x9F is one block — DEL plus the C1 controls — and none of it
+  // is `\s`, so the whitespace collapse cannot catch what this gate misses.
+  return (
+    codePoint > 31 &&
+    (codePoint < 0x7f || codePoint > 0x9f) &&
+    character !== "<" &&
+    character !== ">"
+  );
 };
 
 /**

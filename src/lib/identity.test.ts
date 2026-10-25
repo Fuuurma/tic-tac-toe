@@ -42,6 +42,19 @@ describe("sanitizeDisplayName", () => {
     expect(sanitizeDisplayName("x".repeat(50))).toHaveLength(20);
   });
 
+  // F795: the C1 block U+0080–U+009F is control characters too, but it sits
+  // above the `> 31` codepoint check and none of it is `\s`, so a name built
+  // from C1 controls survives the gate and the whitespace collapse both.
+  it("strips C1 control characters (U+0080–U+009F)", () => {
+    expect(sanitizeDisplayName("Al\u0085ice\u009F")).toBe("Alice");
+    // A name that is only C1 controls is empty, not a 20-character string.
+    expect(sanitizeDisplayName("\u0080\u0085\u0090\u009F")).toMatch(
+      /^[A-Z][a-z]+ [A-Z][a-z]+$/,
+    );
+    // Ordinary accented and non-Latin names still pass.
+    expect(sanitizeDisplayName("Zoë Sørën")).toBe("Zoë Sørën");
+  });
+
   it("trims and collapses internal whitespace to single spaces", () => {
     expect(sanitizeDisplayName("  Alice   Bob  ")).toBe("Alice Bob");
   });
@@ -100,6 +113,17 @@ describe("filterDisplayNameInput", () => {
   it("still strips control characters and angle brackets, and caps length", () => {
     expect(filterDisplayNameInput("Al\u0000ice<>")).toBe("Alice");
     expect(filterDisplayNameInput("x".repeat(50))).toHaveLength(20);
+  });
+
+  // F795: the per-keystroke filter shares the gate, so the same C1 blind
+  // spot lets a pasted name carry U+0080–U+009F into the field and storage.
+  it("strips every C1 control character as it is typed", () => {
+    expect(filterDisplayNameInput("Al\u0080ice\u009F")).toBe("Alice");
+    expect(filterDisplayNameInput("\u0080\u0085\u0090\u009F")).toBe("");
+    // Sweep the whole block so one missed endpoint cannot reopen the hole.
+    for (let cp = 0x80; cp <= 0x9f; cp++) {
+      expect(filterDisplayNameInput(String.fromCodePoint(cp))).toBe("");
+    }
   });
 
   // F121: the per-keystroke filter has the same blind spot as the sanitizer,
