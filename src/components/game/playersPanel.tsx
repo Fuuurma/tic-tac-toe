@@ -361,6 +361,11 @@ export function PlayersPanel({
               >
                 <span className="sr-only">Room code </span>
                 <span className="truncate">{roomCode}</span>
+                {copiedRoom && (
+                  <span role="status" aria-live="polite" className="sr-only">
+                    Room code copied to clipboard
+                  </span>
+                )}
                 <MorphIcon
                   icon={copiedRoom ? CheckIcon : CopyIcon}
                   className={`size-3 shrink-0 ${copiedRoom ? "text-emerald-500" : "text-muted-foreground"}`}

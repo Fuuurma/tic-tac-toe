@@ -283,6 +283,42 @@ describe("PlayersPanel room-code chip", () => {
     );
 
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("AB3XK9"));
+
+    // F785 — the copy result reaches assistive technology: a polite status
+    // announces the success (the button's accessible name never changes, so
+    // the icon swap alone was silent).
+    expect(
+      await screen.findByText("Room code copied to clipboard"),
+    ).toBeTruthy();
+  });
+
+  it("announces the copy to assistive technology (F785)", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const state = terminalState();
+    state.gameStatus = GameStatus.ACTIVE;
+    state.winner = null;
+    render(
+      <PlayersPanel
+        gameState={state}
+        message=""
+        roomCode="AB3XK9"
+        onExit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Room code AB3XK9, click to copy" }),
+    );
+
+    // The page carries another role="status" (the game state line); query
+    // by the announcement text and pin its live-role instead.
+    const announcement = await screen.findByText("Room code copied to clipboard");
+    expect(announcement.getAttribute("role")).toBe("status");
+    expect(announcement.getAttribute("aria-live")).toBe("polite");
   });
 });
 
