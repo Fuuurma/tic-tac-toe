@@ -348,10 +348,12 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                   Toe
                 </span>
               </span>
-              {/* The word does what it says: its tail fades toward the card. */}
+              {/* The word does what it says: its tail fades toward the card —
+                  but the floor stays legible (/60, not /25), otherwise the
+                  tail vanishes on light glass and reads as a clipped word. */}
               <span
                 aria-hidden="true"
-                className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/25 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[2rem]"
+                className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/60 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[2rem]"
               >
                 Disappear
               </span>
