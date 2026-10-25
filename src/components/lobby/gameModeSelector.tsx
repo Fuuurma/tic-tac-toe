@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { GameModes, type GameMode } from "@/game/constants";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
