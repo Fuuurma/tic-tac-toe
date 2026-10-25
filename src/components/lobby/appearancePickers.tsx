@@ -1,11 +1,9 @@
 import { useId, useRef, useState } from "react";
 import {
   COLOR_BG_CLASSES,
-  COLOR_MARK_TEXT,
   type Color,
   type SymbolShape,
 } from "@/game/constants";
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { ColorPicker } from "./colorPicker";
@@ -32,9 +30,10 @@ interface AppearancePickersProps {
 /**
  * Color and symbol pickers, one DOM structure for both layouts.
  *
- * The icon-led tiles sit side by side. The chosen color fills its tile with a
- * contrast-safe check, and the chosen symbol is centered in its tile. Tapping
- * one expands its full-width choices below; only one panel is open at a time.
+ * The icon-led tiles sit side by side. The chosen color fills its tile (no
+ * check mark — the filled tile plus its ring is the signal), and the chosen
+ * symbol is centered in its tile. Tapping one expands its full-width
+ * choices below; only one panel is open at a time.
  * The groups use `display: contents` so triggers and panels share the grid.
  */
 export function AppearancePickers({
@@ -83,15 +82,10 @@ export function AppearancePickers({
           preview={
             <span
               className={cn(
-                "absolute inset-0 flex items-center justify-center rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-8px_14px_-10px_rgba(0,0,0,0.4)]",
+                "absolute inset-0 rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-8px_14px_-10px_rgba(0,0,0,0.4)]",
                 COLOR_BG_CLASSES[color],
               )}
-            >
-              <Check
-                className={cn("size-8", COLOR_MARK_TEXT[color])}
-                strokeWidth={3}
-              />
-            </span>
+            />
           }
         />
         <PickerPanel

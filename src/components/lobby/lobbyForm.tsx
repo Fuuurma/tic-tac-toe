@@ -39,7 +39,6 @@ import {
   type OpponentSettings,
 } from "./playerSettingsSheet";
 import {
-  Check,
   CircleHelp,
   Play,
   KeyRound,
@@ -418,19 +417,19 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
               >
                 <OnlineOption
                   active={onlineAction === "quick"}
-                  icon={<Play className="size-4 shrink-0" aria-hidden="true" />}
+                  icon={<Play className="size-5 shrink-0" aria-hidden="true" />}
                   label="Quick"
                   onClick={() => setOnlineAction("quick")}
                 />
                 <OnlineOption
                   active={onlineAction === "create"}
-                  icon={<Plus className="size-4 shrink-0" aria-hidden="true" />}
+                  icon={<Plus className="size-5 shrink-0" aria-hidden="true" />}
                   label="Create"
                   onClick={() => setOnlineAction("create")}
                 />
                 <OnlineOption
                   active={onlineAction === "join"}
-                  icon={<LogIn className="size-4 shrink-0" aria-hidden="true" />}
+                  icon={<LogIn className="size-5 shrink-0" aria-hidden="true" />}
                   label="Join"
                   onClick={() => setOnlineAction("join")}
                 />
@@ -626,26 +625,23 @@ function OnlineOption({
       tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={cn(
-        // Phones: one full-width row (icon, label, hint, check). From sm up,
-        // the original three-up tile with label above description.
-        "group relative flex min-h-14 flex-row items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-stretch sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
+        // No check mark: the tile itself is the selection signal — contour
+        // (ring-2), highlight (tinted fill), player-color icon. Centered.
+        "group relative flex min-h-14 flex-row items-center justify-center gap-3 rounded-lg border px-3.5 py-3 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-center sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
         active
-          ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
+          ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-md ring-2 ring-[rgb(var(--player-color)/0.35)]"
           : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
       )}
     >
-      <span className="flex min-w-0 items-center gap-2 sm:gap-1.5">
+      <span
+        className={cn(
+          "flex min-w-0 items-center justify-center gap-2 transition-colors duration-200 sm:flex-col sm:gap-1.5",
+          active && "text-[rgb(var(--player-color))]",
+        )}
+      >
         {icon}
-        <span className="text-sm font-semibold sm:truncate sm:text-xs">{label}</span>
+        <span className="text-sm font-semibold sm:text-xs">{label}</span>
       </span>
-      {/* Phones: the check sits at the row end. From sm up it is taken out of
-          flow so a three-up tile keeps its full label width at 640px. */}
-      {active && (
-        <Check
-          className="size-4 shrink-0 text-[rgb(var(--player-color))] sm:absolute sm:right-1.5 sm:top-1.5 sm:size-3.5"
-          aria-hidden="true"
-        />
-      )}
     </button>
   );
 }
