@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StorageLike } from "@fuurma/online-client";
+import type { MessageDataEvent, StorageLike } from "@fuurma/online-client";
 import { RoomClient } from "./roomClient";
 
 /** S6: the SDK-backed RoomClient must keep the fork's method surface and
@@ -9,13 +9,13 @@ class FakeSocket {
   static instances: FakeSocket[] = [];
   readyState = 0;
   readonly sent: string[] = [];
-  private readonly handlers = new Map<string, Array<(event?: unknown) => void>>();
+  private readonly handlers = new Map<string, Array<(event: MessageDataEvent) => void>>();
 
   constructor(readonly url: string) {
     FakeSocket.instances.push(this);
   }
 
-  addEventListener(type: string, fn: (event?: unknown) => void): void {
+  addEventListener(type: string, fn: (event: MessageDataEvent) => void): void {
     const list = this.handlers.get(type) ?? [];
     list.push(fn);
     this.handlers.set(type, list);
@@ -30,9 +30,9 @@ class FakeSocket {
     this.emit("close");
   }
 
-  emit(type: string, event?: unknown): void {
+  emit(type: string, event: MessageDataEvent = {}): void {
     if (type === "open") this.readyState = 1;
-    for (const fn of this.handlers.get(type) ?? []) fn(event ?? {});
+    for (const fn of this.handlers.get(type) ?? []) fn(event);
   }
 }
 
