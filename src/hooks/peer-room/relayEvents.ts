@@ -134,6 +134,18 @@ export function handleRelayEvent(
   if (event.type === "welcome") {
     const role = (event as { role?: string }).role;
     const opponent = (event as { opponent?: { guestId: string; displayName: string } | null }).opponent ?? null;
+    if (role === "guest" && roleRef.current === "host") {
+      // Create flow: the relay seats a creator as guest when the code
+      // already has a host. Close first so close()'s own "You left" write
+      // lands before, and loses to, the error.
+      deps.roomRef.current?.close();
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        message: "That room code is already in use. Try another.",
+      }));
+      return;
+    }
     if (role === "host") {
       // Host wakes up (initial or reconnect). If opponent present, they're
       // already back; if not, wait for peer-joined.

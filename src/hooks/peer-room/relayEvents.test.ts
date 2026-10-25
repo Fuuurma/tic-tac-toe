@@ -670,3 +670,64 @@ describe("bounded absent-peer waits", () => {
     }
   });
 });
+
+describe("handleRelayEvent welcome role conflict", () => {
+  // The relay seats a creator as `guest` when the room code already has a
+  // waiting host. Adopting that role left the creator in a host UI that
+  // could never start.
+  function realClient(deps: RelayEventDeps, role: "host" | "guest") {
+    return buildRoomClient({
+      ...deps,
+      hostDisplayName: "Me",
+      hostColor: Color.BLUE,
+      update: vi.fn(),
+      handleWsEvent: (event) => handleRelayEvent(deps, event),
+      handleHostData: vi.fn(),
+      handleGuestData: vi.fn(),
+      lastSyncReplyAtRef: { current: 0 },
+      guestJoinedRef: { current: false },
+      hostPendingSettingsRef: { current: null },
+      pendingGuestStateRef: { current: null },
+      syncPendingRef: { current: false },
+    }, "ws://relay.test/room", role);
+  }
+
+  it("a creator seated as guest closes the socket and reports the code is in use", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps, getRoom } = makeDeps(game, "host", { role: "host", status: "creating" });
+    // Real client: its close() fires the status handler's "You left" write,
+    // which must not overwrite the error.
+    const client = realClient(deps, "host");
+    const close = vi.spyOn(client, "close");
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "guest",
+      opponent: { guestId: "g-host", displayName: "Their host" },
+    });
+
+    expect(close).toHaveBeenCalledOnce();
+    expect(getRoom().status).toBe("error");
+    expect(getRoom().message).toBe("That room code is already in use. Try another.");
+    expect(getRoom().role).toBe("host");
+    expect(deps.roleRef.current).toBe("host");
+    expect(deps.waitingForHostTimeoutRef.current).toBeNull();
+  });
+
+  it("a joiner seated as guest is unaffected", () => {
+    const game = activeGame({ gameStatus: GameStatus.WAITING });
+    const { deps, getRoom } = makeDeps(game, "guest", { role: "guest", status: "connecting" });
+    const client = realClient(deps, "guest");
+    const close = vi.spyOn(client, "close");
+
+    handleRelayEvent(deps, {
+      type: "welcome",
+      role: "guest",
+      opponent: { guestId: "g-host", displayName: "Their host" },
+    });
+
+    expect(close).not.toHaveBeenCalled();
+    expect(getRoom().status).toBe("connected");
+    expect(getRoom().role).toBe("guest");
+  });
+});
