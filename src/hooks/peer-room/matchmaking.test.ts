@@ -30,10 +30,10 @@ const mockedPollMatch = vi.mocked(pollMatch);
 const mockedLeaveMatch = vi.mocked(leaveMatch);
 const mockedBuildRoomWsUrl = vi.mocked(buildRoomWsUrl);
 
-function makeMatch(overrides: { roomId: string; wsUrl?: string }) {
+function makeMatch(overrides: { roomId: string; wsUrl?: string; role?: "host" | "guest" }) {
   return {
     roomId: overrides.roomId,
-    role: "guest" as const,
+    role: overrides.role ?? ("guest" as const),
     host: { peerId: "p1", displayName: "Host", guestId: "g1" },
     guest: { peerId: "p2", displayName: "Guest", guestId: "g2" },
     wsUrl: overrides.wsUrl,
@@ -136,7 +136,7 @@ describe("runQuickMatch", () => {
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
     mockedPollMatch.mockResolvedValue({
       status: "matched",
-      match: makeMatch({ roomId: "r1" }),
+      match: makeMatch({ roomId: "r1", role: "host" }),
       slotToken: "host-slot",
     });
 
@@ -157,6 +157,27 @@ describe("runQuickMatch", () => {
     expect(deps.patchStatus).not.toHaveBeenCalled();
   });
 
+  it("joins the opponent's room as guest when the poll reports role guest (deferred room bind)", async () => {
+    const { deps, matchmakingTicketRef, hasStartedRef } = makeDeps();
+    // The room bind failed at join time: the Worker answers `waiting` with
+    // the joiner's OWN room id, then later pairs it into the opponent's room.
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "roomA" });
+    mockedPollMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "roomB", role: "guest", wsUrl: "wss://relay.example/room/roomB" }),
+      slotToken: "guest-slot",
+    });
+
+    await runQuickMatch(deps);
+
+    expect(deps.joinAsGuest).toHaveBeenCalledWith("roomB", "wss://relay.example/room/roomB", "guest-slot");
+    expect(deps.startAsHost).not.toHaveBeenCalled();
+    expect(deps.markQuickMatchHost).not.toHaveBeenCalled();
+    expect(mockedLeaveMatch).not.toHaveBeenCalled();
+    expect(matchmakingTicketRef.current).toBeNull();
+    expect(hasStartedRef.current).toBe(false);
+  });
+
   it("publishes the FIFO queue position from join and poll responses", async () => {
     const { deps } = makeDeps();
     mockedFindMatch.mockResolvedValue({
@@ -167,7 +188,7 @@ describe("runQuickMatch", () => {
     });
     mockedPollMatch
       .mockResolvedValueOnce({ status: "waiting", ticket: "t1", roomId: "r1", position: 2 })
-      .mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1" }) });
+      .mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1", role: "host" }) });
 
     await runQuickMatch(deps);
 
@@ -279,7 +300,7 @@ describe("runQuickMatch", () => {
     mockedPollMatch
       .mockRejectedValueOnce(new Error("flash 502"))
       .mockRejectedValueOnce(new Error("flash 503"))
-      .mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1" }) });
+      .mockResolvedValue({ status: "matched", match: makeMatch({ roomId: "r1", role: "host" }) });
 
     await runQuickMatch(deps);
 
@@ -307,7 +328,7 @@ describe("runQuickMatch", () => {
     mockedBuildRoomWsUrl.mockReturnValueOnce("wss://relay.example/room/r9");
     mockedPollMatch.mockResolvedValue({
       status: "matched",
-      match: makeMatch({ roomId: "r9" }),
+      match: makeMatch({ roomId: "r9", role: "host" }),
       slotToken: "host-slot",
     });
 
@@ -437,7 +458,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     expect(mockedLeaveMatch).not.toHaveBeenCalledWith(expect.any(String), "t2");
     expect(matchmakingTicketRef.current).toBe("t2");
 
-    livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2" }) });
+    livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2", role: "host" }) });
     await attempt2;
     expect(mockedLeaveMatch).not.toHaveBeenCalledWith(expect.any(String), "t2");
   });
@@ -470,7 +491,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     expect(matchmakingTicketRef.current).toBe("t2");
     expect(deps.patchStatus).not.toHaveBeenCalled();
 
-    livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2" }) });
+    livePoll.resolve({ status: "matched", match: makeMatch({ roomId: "r2", role: "host" }) });
     await attempt2;
   });
 
@@ -493,7 +514,7 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
     mockedPollMatch.mockResolvedValue({
       status: "matched",
-      match: makeMatch({ roomId: "r1" }),
+      match: makeMatch({ roomId: "r1", role: "host" }),
     });
 
     await runQuickMatch(deps);

@@ -173,11 +173,15 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           consecutiveFailures = 0;
           if (pollResponse.status === "matched") {
             matched = true;
-            startAsHost(
-              response.roomId,
-              buildRoomWsUrl(response.roomId),
-              pollResponse.slotToken,
-            );
+            const { match, slotToken } = pollResponse;
+            if (match.role === "guest") {
+              // A failed room bind at join time parks the joiner on `waiting`
+              // with its own room id; the poll later pairs it into the
+              // opponent's room as guest.
+              joinAsGuest(match.roomId, match.wsUrl, slotToken);
+              break;
+            }
+            startAsHost(match.roomId, buildRoomWsUrl(match.roomId), slotToken);
             // F744: startAsHost rewrites quickMatchHostRef from the token it
             // is given, so the caller's mark must land after it.
             markQuickMatchHost();
