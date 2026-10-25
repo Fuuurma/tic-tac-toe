@@ -11,7 +11,7 @@ import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
 import { sanitizeDisplayName } from "@/lib/identity";
 import type { PeerMessage } from "@/lib/peer";
-import type { RoomClient } from "@/lib/room";
+import type { RoomClient } from "@/lib/roomClient";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
 
 /**

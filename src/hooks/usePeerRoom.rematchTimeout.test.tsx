@@ -11,7 +11,7 @@ import {
 } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import type { RoomClient } from "@/lib/room";
+import type { RoomClient } from "@/lib/roomClient";
 import type { RoomLifecycleDeps } from "./peer-room/roomLifecycle";
 import { usePeerRoom } from "./usePeerRoom";
 

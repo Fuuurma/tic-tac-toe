@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isPeerMessage } from "./peer";
-import { RoomClient } from "./room";
+import { RoomClient } from "./roomClient";
 
 /**
  * A frame must survive the whole path: RoomClient.send stamps it, the relay

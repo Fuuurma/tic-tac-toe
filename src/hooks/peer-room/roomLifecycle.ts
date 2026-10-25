@@ -21,7 +21,7 @@ import {
   buildRoomWsUrl,
 } from "@/lib/matchmaking";
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
-import { RoomClient } from "@/lib/room";
+import { RoomClient } from "@/lib/roomClient";
 import { disarmSyncReplyThrottle } from "./hostProtocol";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
 

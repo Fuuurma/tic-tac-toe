@@ -4,7 +4,7 @@ import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
-import { RoomClient } from "@/lib/room";
+import { RoomClient } from "@/lib/roomClient";
 import {
   startTurnTimer,
   stopTurnTimer,

@@ -8,7 +8,7 @@ import {
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyForfeitIfActive, peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
-import type { RoomClient } from "@/lib/room";
+import type { RoomClient } from "@/lib/roomClient";
 import { leaveRoom } from "./roomLifecycle";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";

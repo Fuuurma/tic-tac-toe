@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { RoomClient } from "@/lib/room";
+import { RoomClient } from "@/lib/roomClient";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState, type GameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
