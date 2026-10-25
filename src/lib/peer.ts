@@ -539,10 +539,14 @@ const PEER_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
  * than `type` is not a frame this protocol defines. Accepting it would let
  * a peer smuggle fields into the inbound gate that the handlers never read
  * but a later version might (F85).
+ *
+ * `protocol` is the one tolerated key: builds before this change stamped it
+ * on every outbound frame, and a peer still on one would otherwise have its
+ * rematch answers and leave frames refused. Nothing reads it.
  */
 const hasOnlyType = (message: Record<string, unknown>): boolean => {
   for (const key of Object.keys(message)) {
-    if (key !== "type") return false;
+    if (key !== "type" && key !== "protocol") return false;
   }
   return true;
 };

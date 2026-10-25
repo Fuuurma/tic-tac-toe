@@ -73,7 +73,6 @@ interface RoomClientOptions {
    * send none.
    */
   slotToken?: string;
-  protocol?: string;
   maxBackoffMs?: number;
   autoReconnect?: boolean;
   /** F460: bound on socket-open + `welcome` before the attempt is abandoned. */
@@ -127,9 +126,8 @@ export class RoomClient {
   // Matchmaking may refresh slotToken for later hello frames, so it stays
   // mutable outside this options mirror.
   private readonly opts: Required<
-    Omit<RoomClientOptions, "protocol" | "role" | "slotToken">
+    Omit<RoomClientOptions, "role" | "slotToken">
   > & {
-    protocol: string;
     maxBackoffMs: number;
     role: RoomRole | null;
     autoReconnect: boolean;
@@ -169,7 +167,6 @@ export class RoomClient {
       guestId: opts.guestId,
       displayName: opts.displayName,
       role: opts.role ?? null,
-      protocol: opts.protocol ?? "tictactoe:v1",
       maxBackoffMs: opts.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
       autoReconnect: opts.autoReconnect ?? true,
       handshakeTimeoutMs: opts.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
@@ -239,17 +236,6 @@ export class RoomClient {
   }
 
   send(message: RoomMessage): boolean {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
-    try {
-      this.ws.send(JSON.stringify({ ...message, protocol: this.opts.protocol }));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /** Send a wire message without the protocol envelope (used for `hello`). */
-  private sendRaw(message: RoomMessage): boolean {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
     try {
       this.ws.send(JSON.stringify(message));
@@ -389,7 +375,7 @@ export class RoomClient {
       }, this.opts.handshakeTimeoutMs);
 
       ws.addEventListener("open", () => {
-        // F460: a superseded socket must not send `hello` — `sendRaw` would
+        // F460: a superseded socket must not send `hello` — `send` would
         // write to the newer socket, giving the relay two handshakes.
         if (!isCurrent()) {
           try {
@@ -401,7 +387,7 @@ export class RoomClient {
         }
         // Once a new socket is open, every pending `connect()` call awaits a
         // fresh `welcome` from the server.
-        const sent = this.sendRaw({
+        const sent = this.send({
           type: "hello",
           guestId: this.opts.guestId,
           displayName: this.opts.displayName,

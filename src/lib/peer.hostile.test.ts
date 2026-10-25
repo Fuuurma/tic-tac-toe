@@ -262,6 +262,13 @@ describe("isPeerMessage hostile frames", () => {
       expect(isPeerMessage({ type, index: 0 })).toBe(false);
     }
   });
+
+  it("still accepts the `protocol` stamp that earlier builds put on every frame", () => {
+    // A peer on an older build stamps it; refusing it dropped rematch answers
+    // and leave frames. It is the only tolerated key.
+    expect(isPeerMessage({ type: "rematchAccept", protocol: "tictactoe:v1" })).toBe(true);
+    expect(isPeerMessage({ type: "rematchAccept", protocol: "x", extra: 1 })).toBe(false);
+  });
 });
 
 describe("isPeerMessage hostile game-state frames", () => {
