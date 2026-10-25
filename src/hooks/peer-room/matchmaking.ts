@@ -5,6 +5,7 @@ import {
   getMatchPollDelay,
   leaveMatch,
   pollMatch,
+  TicketExpiredError,
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
@@ -161,6 +162,9 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       let pollAttempt = 0;
       let consecutiveFailures = 0;
       let matched = false;
+      // The queue dropped our seat (ticket expiry). Set once, then the
+      // loop stops: another poll could never pair a dead ticket.
+      let ticketExpired = false;
       // A nil ref is also a cancel: leave() clears it directly on some paths.
       while (isCurrent() && matchmakingTicketRef.current && Date.now() - pollStart < maxPollMs) {
         try {
@@ -185,6 +189,14 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           }
         } catch (err) {
           if (!isCurrent()) break;
+          // A dead ticket is terminal, not transient: the queue dropped
+          // our seat (expiry), so no further poll can pair it. Stop
+          // immediately instead of burning retries on a 404 and showing
+          // the raw error body to the player.
+          if (err instanceof TicketExpiredError) {
+            ticketExpired = true;
+            break;
+          }
           // A transient network error must not abort the whole
           // quick-match attempt (fleet 2026-09-06): count consecutive
           // failures and keep backing off; bail only when the service
@@ -204,6 +216,18 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // Retired while polling (user leave/unmount): the cancel path already
       // released the ticket and owns the UI state. Nothing more to do here.
       if (!isCurrent()) return;
+      // The ticket died server-side (expiry): say so in plain words and
+      // stop. The raw 404 body means nothing to the player, and the
+      // timeout copy below would blame the lack of opponents instead.
+      if (ticketExpired) {
+        abandonTicket(deps, "after expiry");
+        hasStartedRef.current = false;
+        setStatus({
+          status: "error",
+          message: "Your search expired before an opponent was found. Start a new search to try again.",
+        });
+        return;
+      }
       const userCancelled = !matched && matchmakingTicketRef.current === null;
 
       if (matched) {

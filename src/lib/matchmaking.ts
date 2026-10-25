@@ -120,6 +120,21 @@ export const MATCH_POLL_MAX_DELAY_MS = 4_000;
 const MATCHMAKING_TIMEOUT_MS = 10_000;
 const LEAVE_TIMEOUT_MS = 5_000;
 
+/**
+ * The queue no longer knows this ticket: it expired (or was consumed) and
+ * no further poll can pair it. Terminal, unlike a 5xx or a hung fetch —
+ * callers stop polling on this error instead of burning retries and
+ * showing the raw 404 body to the player.
+ */
+export class TicketExpiredError extends Error {
+  readonly ticket: string;
+  constructor(ticket: string) {
+    super(`Matchmaking ticket expired: ${ticket}`);
+    this.name = "TicketExpiredError";
+    this.ticket = ticket;
+  }
+}
+
 export function getMatchPollDelay(attempt: number): number {
   if (!Number.isInteger(attempt) || attempt < 0) return MATCH_POLL_INITIAL_DELAY_MS;
   return Math.min(
@@ -228,7 +243,11 @@ export async function pollMatch(
   );
 
   if (!response.ok) {
-    throw new Error(`Matchmaking poll failed: ${response.status} ${await response.text()}`);
+    const body = await response.text();
+    if (response.status === 404 && body.includes("ticket not found")) {
+      throw new TicketExpiredError(ticket);
+    }
+    throw new Error(`Matchmaking poll failed: ${response.status} ${body}`);
   }
 
   return parseMatchmakingResponse(await response.json());

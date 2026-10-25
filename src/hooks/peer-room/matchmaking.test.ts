@@ -275,6 +275,26 @@ describe("runQuickMatch", () => {
     expect(hasStartedRef.current).toBe(false);
   });
 
+  it("treats a ticket-not-found 404 as terminal: polls once and shows the expired message", async () => {
+    const { deps, hasStartedRef } = makeDeps({ maxPollMs: 60_000 });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    const { TicketExpiredError } = await import("@/lib/matchmaking");
+    mockedPollMatch.mockRejectedValue(new TicketExpiredError("t1"));
+
+    await runQuickMatch(deps);
+
+    // One poll proves the ticket is gone; retrying could never pair it.
+    expect(mockedPollMatch).toHaveBeenCalledTimes(1);
+    expect(mockedLeaveMatch).toHaveBeenCalledWith("tictactoe", "t1");
+    const messages = vi
+      .mocked(deps.setStatus)
+      .mock.calls.map((call) => (call[0] as { message?: string }).message ?? "")
+      .join(" ");
+    expect(messages).toContain("expired");
+    expect(messages).not.toContain("404");
+    expect(hasStartedRef.current).toBe(false);
+  });
+
   it("recovers from transient poll failures when a match then arrives", async () => {
     const { deps } = makeDeps();
     mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });

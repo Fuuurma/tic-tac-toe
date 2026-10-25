@@ -196,3 +196,41 @@ describe("totalOnlinePlayers", () => {
     expect(totalOnlinePlayers({ game: "g", waiting: 1, matches: 0 })).toBe(1);
   });
 });
+
+// A dead ticket is terminal: the queue dropped our seat (expiry, not a
+// blip), so another poll can never pair it. The caller stops polling on
+// this error instead of burning retries and showing raw 404 JSON.
+describe("pollMatch ticket expiry", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(status: number, body: unknown) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: status >= 200 && status < 300,
+        status,
+        text: async () => JSON.stringify(body),
+        json: async () => body,
+      })),
+    );
+  }
+
+  it("throws TicketExpiredError when the ticket is gone (404)", async () => {
+    const mod = await import("@/lib/matchmaking");
+    expect(typeof mod.TicketExpiredError).toBe("function");
+    stubFetch(404, { error: "ticket not found" });
+    const err = await mod.pollMatch("tictactoe", "dead-ticket").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(mod.TicketExpiredError);
+  });
+
+  it("keeps throwing a plain error on transient poll failures", async () => {
+    const mod = await import("@/lib/matchmaking");
+    expect(typeof mod.TicketExpiredError).toBe("function");
+    stubFetch(503, { error: "queue full" });
+    const err = await mod.pollMatch("tictactoe", "t1").catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(mod.TicketExpiredError);
+    expect(err).toMatchObject({ message: expect.stringContaining("503") });
+  });
+});
