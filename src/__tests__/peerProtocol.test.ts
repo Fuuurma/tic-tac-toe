@@ -77,23 +77,6 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
     expect(pendingGuestStateRef.current).toBeNull();
     expect(patches[0]({} as never).message).toBe('');
   });
-
-  it('treats a relay error as display-only (no rollback, snapshot kept)', () => {
-    const stateRef = { current: gameState({}) };
-    const pendingGuestStateRef = { current: gameState({}) };
-    const patches: Array<(prev: never) => { message?: string }> = [];
-
-    handleGuestMessage(guestDeps(stateRef, pendingGuestStateRef, patches) as never, {
-      type: 'error',
-      message: 'reserved type: something',
-    });
-
-    // No rollback: board state untouched, snapshot kept.
-    const before = stateRef.current;
-    expect(stateRef.current).toBe(before);
-    expect(pendingGuestStateRef.current).not.toBeNull();
-    expect(patches[0]({} as never).message).toBe('reserved type: something');
-  });
 });
 
 // Either side may ask for a rematch, so the guest must honour the same

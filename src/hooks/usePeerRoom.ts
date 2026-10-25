@@ -73,12 +73,6 @@ export interface PeerRoomState {
    * mirrors rematchPendingRef as renderable state.
    */
   rematchOutgoing: boolean;
-  /**
-   * 1-based position in the matchmaking FIFO queue while a quick-match
-   * ticket is queued (reported by the Worker on join/poll). `null` when
-   * not searching or when the service doesn't report positions.
-   */
-  queuePosition: number | null;
   gameState: GameState;
 }
 
@@ -102,7 +96,6 @@ const initialState: PeerRoomState = {
   pausedStash: null,
   rematchIncoming: false,
   rematchOutgoing: false,
-  queuePosition: null,
   gameState: freshGameState(),
 };
 
@@ -154,8 +147,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // the live game is never mutated while it's in progress.
   const hostPendingSettingsRef = useRef<PendingPlayerSettings | null>(null);
   // Guest remembers the authoritative state right before applying an
-  // optimistic move. If the host rejects the move via `{type:"error", message:"Invalid move"}`,
-  // we roll back so the UI does not drift from the relay's source of truth.
+  // optimistic move. If the host's authoritative update does not count the
+  // move, we roll back so the UI does not drift from the host's state.
   const pendingGuestStateRef = useRef<GameState | null>(null);
   // Reconnect-grace bookkeeping (fleet 09-07 finding 2): the move the
   // last full timer reset was granted for.
@@ -618,7 +611,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       clearTimeout(waitingForHostTimeoutRef.current);
       waitingForHostTimeoutRef.current = null;
     }
-    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false, queuePosition: null }));
+    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {

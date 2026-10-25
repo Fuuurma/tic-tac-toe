@@ -42,15 +42,10 @@ describe("parseMatchmakingResponse", () => {
     });
   });
 
-  it("carries the FIFO queue position through when the Worker reports it", () => {
+  it("ignores fields the Worker contract does not define", () => {
     expect(
-      parseMatchmakingResponse({
-        status: "waiting",
-        ticket: "t1",
-        roomId: "r1",
-        position: 3,
-      }),
-    ).toEqual({ status: "waiting", ticket: "t1", roomId: "r1", position: 3 });
+      parseMatchmakingResponse({ status: "waiting", ticket: "t1", roomId: "r1", position: 3 }),
+    ).toEqual({ status: "waiting", ticket: "t1", roomId: "r1" });
   });
 
   it("rejects malformed bodies instead of casting them through", () => {
@@ -65,14 +60,6 @@ describe("parseMatchmakingResponse", () => {
       parseMatchmakingResponse({ status: "matched", match: { roomId: 5 } }),
     ).toThrow("Malformed");
     expect(() => parseMatchmakingResponse({ status: "unknown" })).toThrow("Malformed");
-    // A non-numeric or non-positive position must not flow through to
-    // the searching UI as "Position 0 in queue" or a raw cast.
-    expect(() =>
-      parseMatchmakingResponse({ status: "waiting", ticket: "t", roomId: "r", position: "3" }),
-    ).toThrow("Malformed");
-    expect(() =>
-      parseMatchmakingResponse({ status: "waiting", ticket: "t", roomId: "r", position: 0 }),
-    ).toThrow("Malformed");
   });
 });
 

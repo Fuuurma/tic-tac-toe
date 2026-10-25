@@ -17,7 +17,6 @@ describe("error reporting", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     // @ts-expect-error — cleaning up
     delete globalThis.window;
@@ -60,20 +59,17 @@ describe("error reporting", () => {
     });
   });
 
-  it("posts reports to VITE_ERROR_REPORT_URL when configured", async () => {
+  it("logs to the console, with the context only when there is one", async () => {
     const { reportError: report } =
       await vi.importActual<typeof import("@/lib/errorReporting")>(
         "@/lib/errorReporting",
       );
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null));
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VITE_ERROR_REPORT_URL", "https://errors.example/ingest");
+    const error = new Error("kaput");
 
-    report(new Error("kaput"), { source: "test" });
+    report(error, { source: "test" });
+    expect(console.error).toHaveBeenLastCalledWith(error, { source: "test" });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://errors.example/ingest",
-      expect.objectContaining({ method: "POST" }),
-    );
+    report(error);
+    expect(console.error).toHaveBeenLastCalledWith(error);
   });
 });

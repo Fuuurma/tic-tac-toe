@@ -231,20 +231,6 @@ describe("isPeerMessage hostile frames", () => {
     expect(isPeerMessage({ type: "welcome", role: "host" })).toBe(false);
   });
 
-  it("rejects error frames with non-string messages", () => {
-    expect(isPeerMessage({ type: "error", message: 42 })).toBe(false);
-    expect(isPeerMessage({ type: "error" })).toBe(false);
-  });
-
-  it("rejects error frames that exceed the wire length cap", () => {
-    expect(
-      isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH + 1) }),
-    ).toBe(false);
-    expect(
-      isPeerMessage({ type: "error", message: "x".repeat(PEER_MAX_ERROR_LENGTH) }),
-    ).toBe(true);
-  });
-
   it("rejects payload-less frames that smuggle extra fields (F85)", () => {
     // These frames define no payload: anything but the type is a field the
     // protocol does not have, and a gate that accepts it lets a peer carry

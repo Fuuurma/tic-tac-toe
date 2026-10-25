@@ -449,9 +449,5 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       });
       return;
     }
-    // NOTE: the host never receives {type:"error", message:"Invalid
-    // move"} — the host SENDS it. The rollback branch for that message
-    // lives in guestProtocol.ts (fleet critic 2026-09-06: it was
-    // misplaced here, making the guest rollback dead code).
   }
 }

@@ -21,18 +21,7 @@ type Match = {
 };
 
 export type MatchmakingResponse =
-  | {
-      status: "waiting";
-      ticket: string;
-      roomId: string;
-      /**
-       * 1-based position in the Worker's FIFO matchmaking queue, reported
-       * when the service runs the explicit-queue protocol. Absent on older
-       * Worker versions — the searching UI treats `undefined` as "position
-       * unknown" rather than zero.
-       */
-      position?: number;
-    }
+  | { status: "waiting"; ticket: string; roomId: string }
   | { status: "matched"; match: Match; slotToken?: string };
 
 function isParticipant(value: unknown): value is Match["host"] {
@@ -54,18 +43,8 @@ export function parseMatchmakingResponse(data: unknown): MatchmakingResponse {
     throw new Error("Malformed matchmaking response: not an object");
   }
   const d = data as Record<string, unknown>;
-  if (
-    d.status === "waiting" &&
-    typeof d.ticket === "string" &&
-    typeof d.roomId === "string" &&
-    (d.position === undefined ||
-      (typeof d.position === "number" &&
-        Number.isInteger(d.position) &&
-        d.position > 0))
-  ) {
-    return d.position === undefined
-      ? { status: "waiting", ticket: d.ticket, roomId: d.roomId }
-      : { status: "waiting", ticket: d.ticket, roomId: d.roomId, position: d.position };
+  if (d.status === "waiting" && typeof d.ticket === "string" && typeof d.roomId === "string") {
+    return { status: "waiting", ticket: d.ticket, roomId: d.roomId };
   }
   if (d.status === "matched" && typeof d.match === "object" && d.match !== null) {
     const m = d.match as Record<string, unknown>;

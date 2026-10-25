@@ -57,10 +57,9 @@ describe("isPeerMessage", () => {
     ).toBe(true);
   });
 
-  it("accepts the host's 'invalid move' error frame used to roll back a guest", () => {
-    expect(isPeerMessage({ type: "error", message: "Invalid move" })).toBe(true);
-    // Anything else the relay sends still validates through isPeerMessage.
-    expect(isPeerMessage({ type: "error", message: "Server overloaded" })).toBe(true);
+  it("rejects an `error` frame: the relay reserves that type, so no peer can send one", () => {
+    expect(isPeerMessage({ type: "error", message: "Invalid move" })).toBe(false);
+    expect(isPeerMessage({ type: "error", code: "invalid", message: "x" })).toBe(false);
   });
 
   it("round-trips the sync_request/state_snapshot reconnect contract (DST-04)", () => {

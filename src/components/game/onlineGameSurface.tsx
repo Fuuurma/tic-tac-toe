@@ -231,7 +231,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         {peer.state.status === "waiting" && config.onlineAction === "quick" && (
           <OnlineConnectionState
             message="Finding an opponent…"
-            detail={quickMatchDetail(playerCount?.waiting, peer.state.queuePosition)}
+            detail={quickMatchDetail(playerCount?.waiting)}
             hint="No room code needed. Just wait here and we'll start you."
             cancelLabel="Cancel search"
             onCancel={() => {
@@ -243,11 +243,6 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         {peer.state.status === "creating" && (
           <OnlineConnectionState
             message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
-            detail={
-              config.onlineAction === "quick" && peer.state.queuePosition != null
-                ? `Position ${peer.state.queuePosition} in queue`
-                : undefined
-            }
             onCancel={() => {
               peer.leave();
               onExit();
@@ -478,7 +473,7 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
  * of the queue, and say so plainly when you are first — which is a real,
  * reassuring state rather than a failure.
  */
-function quickMatchDetail(waiting: number | undefined, queuePosition: number | null): string {
+function quickMatchDetail(waiting: number | undefined): string {
   if (waiting === undefined) return "Checking the queue.";
   // The health read can also land before the join has registered, in which
   // case `waiting` undercounts by one — the same "you're first" copy is the
@@ -487,8 +482,7 @@ function quickMatchDetail(waiting: number | undefined, queuePosition: number | n
   if (others === 0) {
     return "You're first in the queue. We'll pair you as soon as someone else is looking.";
   }
-  const place = queuePosition != null ? ` You're number ${queuePosition}.` : "";
-  return `${others} other ${others === 1 ? "player is" : "players are"} looking.${place}`;
+  return `${others} other ${others === 1 ? "player is" : "players are"} looking.`;
 }
 
 function RoomIdShare({

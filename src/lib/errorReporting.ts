@@ -10,27 +10,6 @@ export function reportError(error: unknown, context?: ErrorReportContext): void 
   } else {
     console.error(error, context);
   }
-
-  const endpoint = import.meta.env.VITE_ERROR_REPORT_URL;
-  if (!endpoint) return;
-
-  try {
-    const payload = JSON.stringify({
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      context,
-      url: typeof window === "undefined" ? undefined : window.location?.href,
-      timestamp: new Date().toISOString(),
-    });
-    void fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: payload,
-      keepalive: true,
-    }).catch(() => undefined);
-  } catch {
-    // Reporting must never break the host application.
-  }
 }
 
 let installed = false;

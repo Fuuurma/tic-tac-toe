@@ -98,7 +98,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   liveAttempts.set(matchmakingTicketRef, attempt);
   const isCurrent = () => liveAttempts.get(matchmakingTicketRef) === attempt;
   stopTimer();
-  setStatus({ status: "creating", message: "Finding match…", queuePosition: null });
+  setStatus({ status: "creating", message: "Finding match…" });
 
   // Cancel-on-disconnect: if the tab closes mid-queue, a keepalive
   // leave drops the ticket on the Worker now instead of leaking it
@@ -114,7 +114,6 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     setStatus({
       status: "error",
       message: "Quick Match ended while this page was away. Try again or go back to setup.",
-      queuePosition: null,
     });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
@@ -153,9 +152,6 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
 
     if (response.status === "waiting") {
       matchmakingTicketRef.current = response.ticket;
-      // FIFO queue position, when the Worker reports it — the searching
-      // UI shows "position N" instead of a bare spinner.
-      setStatus({ queuePosition: response.position ?? null });
 
       // Poll the matchmaking service until the guest is paired.
       // Bounded by a max duration and the user's ability to cancel
@@ -187,7 +183,6 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
             markQuickMatchHost();
             break;
           }
-          setStatus({ queuePosition: pollResponse.position ?? null });
         } catch (err) {
           if (!isCurrent()) break;
           // A transient network error must not abort the whole
@@ -260,7 +255,6 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     setStatus({
       status: "error",
       message: `Matchmaking failed: ${(err as Error).message}`,
-      queuePosition: null,
     });
   } finally {
     if (canListen) window.removeEventListener("pagehide", cancelTicketOnUnload);

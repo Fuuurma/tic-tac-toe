@@ -20,7 +20,7 @@ the host-authoritative peer room and matchmaking client onto the external
 - src/game — pure engine: logic.ts rules, ai.ts (easy random / normal d4 / hard d8 alpha-beta; behavior + selfplay + bench suites), constants
 - src/hooks — usePeerRoom (online), useLocalGame, useGameStats
 - src/lib/peer.ts — peer-room transport with host-authoritative move validation (hostile-input test suite)
-- src/lib/matchmaking.ts — relay URL acquisition, FIFO queue position reporting
+- src/lib/matchmaking.ts — relay URL acquisition and the quick-match queue client
 - src/lib/room.ts + roomId.ts — room client wrapper and room id helpers
 - src/lib/identity.ts — generated guest identity, localStorage-backed
 - src/components — game board and lobby surfaces

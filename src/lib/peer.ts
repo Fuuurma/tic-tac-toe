@@ -39,8 +39,7 @@ export type PeerMessage =
    * optimistic mark just vanished. The guest stops its own clock and says
    * why, so a refusal is legible instead of mysterious.
    */
-  | { type: "pause"; paused: boolean }
-  | { type: "error"; message: string };
+  | { type: "pause"; paused: boolean };
 
 /** Hard upper bound on inbound wire-message scalar string fields. */
 const PEER_MAX_ID_LENGTH = 64;
@@ -596,15 +595,6 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
       // local pause — so accepting the frame on the guest side is safe, and
       // the strict boolean keeps a malformed value off the wire.
       return typeof message.paused === "boolean";
-    case "error":
-      return (
-        typeof message.message === "string" &&
-        message.message.length > 0 &&
-        message.message.length <= PEER_MAX_ERROR_LENGTH &&
-        // Rendered verbatim in the status line, so it gets the same
-        // lone-surrogate check as every other string that reaches the DOM.
-        isWellFormedUtf16(message.message)
-      );
     default:
       return false;
   }

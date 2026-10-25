@@ -231,21 +231,5 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       });
       return;
     }
-    if (message.type === "error") {
-      // Diagnostics only. The host can NEVER deliver a move rejection here:
-      // the relay reserves the `error` type and answers a client-sent one
-      // back to the sender, so the old rollback branch was unreachable and
-      // an optimistic-move rejection silently diverged the two boards.
-      // Rejection now arrives as an authoritative state whose moveCount still
-      // matches the rollback snapshot — detected in the branch above. What
-      // does reach this handler is the relay complaining about a frame THIS
-      // client sent, which is worth showing.
-      setState((prev) =>
-        prev.message === message.message
-          ? prev
-          : { ...prev, message: message.message },
-      );
-      return;
-    }
   }
 }
