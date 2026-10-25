@@ -679,6 +679,52 @@ describe("forfeit state survives the wire validator", () => {
     ).toBe(false);
   });
 
+  // F787: the forfeit flag used to skip the winner/board consistency check
+  // for EVERY line, so a flagged state could highlight a winning line whose
+  // cells do not hold the winner. The flag only excuses a missing line.
+  describe("F787: the forfeit flag does not excuse a winning line", () => {
+    const line = [...WINNING_COMBINATIONS[0]] as never;
+    const frame = (gameState: unknown) =>
+      [
+        { type: "gameUpdate", gameState },
+        { type: "state_snapshot", gameState },
+      ] as const;
+
+    it("rejects a flagged forfeit whose line the board does not contain", () => {
+      // Empty board, winner X, forfeited:true, canonical line: individually
+      // valid fields, collectively impossible.
+      const contradictory = { ...forfeited(), winningCombination: line };
+      for (const message of frame(contradictory)) {
+        expect(isPeerMessage(message)).toBe(false);
+      }
+    });
+
+    it("rejects a flagged forfeit that carries any line, even a consistent one", () => {
+      // A forfeit ends the game without a completed line; no producer writes
+      // both, so a flagged state with a line is not a shape to accept.
+      const board = baselineState().board.slice();
+      for (const i of WINNING_COMBINATIONS[0]) board[i] = PlayerSymbol.X;
+      const flaggedWin = { ...forfeited(), board, winningCombination: line };
+      for (const message of frame(flaggedWin)) {
+        expect(isPeerMessage(message)).toBe(false);
+      }
+    });
+
+    it("controls: a genuine win and a genuine forfeit still validate", () => {
+      const board = baselineState().board.slice();
+      for (const i of WINNING_COMBINATIONS[0]) board[i] = PlayerSymbol.X;
+      const { forfeited: _flag, ...forfeitState } = forfeited();
+      const win = {
+        ...forfeitState,
+        board,
+        winner: PlayerSymbol.X,
+        winningCombination: line,
+      };
+      for (const message of frame(win)) expect(isPeerMessage(message)).toBe(true);
+      for (const message of frame(forfeited())) expect(isPeerMessage(message)).toBe(true);
+    });
+  });
+
   it("rejects a stray forfeit flag that no state this code produces can carry", () => {
     // A flag on a live game, or on a game with no winner, is not a shape any
     // caller can build — reject rather than let it ride through to the UI.

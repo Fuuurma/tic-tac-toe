@@ -382,14 +382,15 @@ const isGameState = (value: unknown): value is GameState => {
   // fields together, so the only legitimate winner-without-a-line is a
   // forfeit (opponent disconnected), which must set `forfeited` or this
   // validator drops every resync of a finished game (F146 follow-up).
-  const winnerWithoutLine =
-    state.winner !== null &&
-    (state.winningCombination === null ||
-      !state.winningCombination.every(
-        (i) => (state.board as unknown[])[i] === state.winner,
-      ));
-  if (winnerWithoutLine && state.forfeited !== true) {
-    return false;
+  // F787: the flag excuses only a MISSING line. A forfeit never completes
+  // one, so a flagged state that carries a line is rejected outright.
+  if (state.winner !== null) {
+    const line = state.winningCombination;
+    const valid =
+      state.forfeited === true
+        ? line === null
+        : line !== null && line.every((i) => (state.board as unknown[])[i] === state.winner);
+    if (!valid) return false;
   }
   // Mirror of the F404 check (review 2026-10-03 repair P2): makeMove
   // always writes winner + winningCombination together, so a claimed
