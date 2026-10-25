@@ -7,27 +7,6 @@ import { LobbyForm } from "./lobbyForm";
 afterEach(cleanup);
 
 describe("LobbyForm online options", () => {
-  it("points aria-describedby at each option's visible description", () => {
-    render(<LobbyForm onStart={vi.fn()} />);
-    fireEvent.click(screen.getByRole("radio", { name: "Online" }));
-
-    for (const [name, description] of [
-      ["Quick", "Auto-match"],
-      ["Create", "New room"],
-      ["Join", "Enter code"],
-    ]) {
-      const radio = screen.getByRole("radio", { name });
-      const descId = radio.getAttribute("aria-describedby");
-      const descEl = descId ? document.getElementById(descId) : null;
-      expect(descEl?.textContent).toContain(description);
-    }
-  });
-});
-
-// Local dev has no VITE_MATCHMAKING_URL by default: the relay falls back to
-// 127.0.0.1:8787, so Create and Join stay usable. Only Quick Match, which
-// needs the matchmaking HTTP service, is disabled.
-describe("LobbyForm online entry points in local dev", () => {
   it("keeps Create Room enabled and sends Quick Match users there", () => {
     render(<LobbyForm onStart={vi.fn()} />);
     fireEvent.click(screen.getByRole("radio", { name: "Online" }));

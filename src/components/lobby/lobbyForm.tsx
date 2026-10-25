@@ -418,21 +418,18 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
                   active={onlineAction === "quick"}
                   icon={<Play className="size-4 shrink-0" aria-hidden="true" />}
                   label="Quick"
-                  description="Auto-match"
                   onClick={() => setOnlineAction("quick")}
                 />
                 <OnlineOption
                   active={onlineAction === "create"}
                   icon={<Plus className="size-4 shrink-0" aria-hidden="true" />}
                   label="Create"
-                  description="New room"
                   onClick={() => setOnlineAction("create")}
                 />
                 <OnlineOption
                   active={onlineAction === "join"}
                   icon={<LogIn className="size-4 shrink-0" aria-hidden="true" />}
                   label="Join"
-                  description="Enter code"
                   onClick={() => setOnlineAction("join")}
                 />
               </div>
@@ -610,23 +607,19 @@ function OnlineOption({
   active,
   icon,
   label,
-  description,
   onClick,
 }: {
   active: boolean;
   icon: React.ReactNode;
   label: string;
-  description: string;
   onClick: () => void;
 }) {
-  const descId = useId();
   return (
     <button
       type="button"
       role="radio"
       aria-checked={active}
       aria-label={label}
-      aria-describedby={descId}
       data-state={active ? "active" : "inactive"}
       tabIndex={active ? 0 : -1}
       onClick={onClick}
@@ -642,12 +635,6 @@ function OnlineOption({
       <span className="flex min-w-0 items-center gap-2 sm:gap-1.5">
         {icon}
         <span className="text-sm font-semibold sm:truncate sm:text-xs">{label}</span>
-      </span>
-      <span
-        id={descId}
-        className="text-sm leading-tight text-muted-foreground max-sm:ml-auto sm:text-[11px]"
-      >
-        {description}
       </span>
       {/* Phones: the check sits at the row end. From sm up it is taken out of
           flow so a three-up tile keeps its full label width at 640px. */}
