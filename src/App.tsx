@@ -58,7 +58,7 @@ export default function App() {
   });
   // Decided once, before anything below can create an identity. Someone
   // arriving on an invite link came to join a room, not to be walked through
-  // the game; they can replay the practice round from the lobby's help.
+  // the game; they can replay the tutorial from the lobby's help.
   const [view, setView] = useState<View>(() =>
     !initialRoomId && shouldShowOnboarding() ? "onboarding" : "lobby",
   );

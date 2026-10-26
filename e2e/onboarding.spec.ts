@@ -110,7 +110,7 @@ test("the practice round can be replayed from How to play without touching the s
   });
   await page.goto("/");
   await page.getByRole("button", { name: "How to play" }).click();
-  await page.getByRole("button", { name: "Replay the practice round" }).click();
+  await page.getByRole("button", { name: "Replay tutorial" }).click();
   await expect(page.getByRole("heading", { name: "Practice round" })).toBeVisible();
 
   await playToTheWin(page);

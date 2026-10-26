@@ -100,7 +100,7 @@ describe("replaying the practice round", () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "How to play" }));
-    fireEvent.click(screen.getByRole("button", { name: "Replay the practice round" }));
+    fireEvent.click(screen.getByRole("button", { name: "Replay tutorial" }));
 
     expect(screen.getByRole("group", { name: "Tic Tac Toe game board" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Get started" })).toBeNull();
@@ -117,6 +117,6 @@ describe("replaying the practice round", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start Game" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Help" }));
-    expect(screen.queryByRole("button", { name: "Replay the practice round" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Replay tutorial" })).toBeNull();
   });
 });

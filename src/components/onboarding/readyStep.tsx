@@ -24,7 +24,7 @@ const FACTS: { Icon: typeof Clock; title: string; body: string }[] = [
   {
     Icon: RotateCcw,
     title: "Practice any time",
-    body: "Replay the practice round from How to play.",
+    body: "Replay the tutorial from How to play.",
   },
 ];
 

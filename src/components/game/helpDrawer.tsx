@@ -43,9 +43,26 @@ export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }
       open={isOpen}
       onClose={onClose}
       inline={inline}
+      size="auto"
       title="How to play"
       closeLabel="Close help"
       bodyClassName="sm:pb-5"
+      // Phone: a 75%-height bottom sheet, never full-screen, so the game
+      // stays visible behind the rules. tailwind-merge keeps this cap over
+      // the auto size's own max-h.
+      className="max-sm:max-h-[75dvh]"
+      footer={
+        onReplayTutorial ? (
+          <button
+            type="button"
+            onClick={onReplayTutorial}
+            className="glass-interactive flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-semibold"
+          >
+            <RotateCcw className="size-4" aria-hidden="true" />
+            Replay tutorial
+          </button>
+        ) : undefined
+      }
     >
       <ul className="flex flex-col gap-5 pt-1">
         {TIPS.map(({ Icon, title, body }) => (
@@ -63,16 +80,6 @@ export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }
           </li>
         ))}
       </ul>
-      {onReplayTutorial && (
-        <button
-          type="button"
-          onClick={onReplayTutorial}
-          className="glass-interactive flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-semibold"
-        >
-          <RotateCcw className="size-4" aria-hidden="true" />
-          Replay the practice round
-        </button>
-      )}
     </Sheet>
   );
 }
