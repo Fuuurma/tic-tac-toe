@@ -43,8 +43,8 @@ export function GameModeSelector({
   disabledModes,
 }: GameModeSelectorProps) {
   const reasonId = useId();
-  // Which disabled tile the visitor tapped: its reason shows on demand
-  // instead of nagging under the group. Tapping another mode clears it.
+  // Which disabled tile the visitor tapped: its reason shows on demand,
+  // centered inside the tile itself. Tapping another mode clears it.
   const [explained, setExplained] = useState<GameMode | null>(null);
   return (
     <div className="flex flex-col gap-1.5">
@@ -110,18 +110,19 @@ export function GameModeSelector({
                 />
                 <span className="text-sm font-semibold sm:text-xs">{shortLabel}</span>
               </span>
+              {reason && explained === value && (
+                <span
+                  id={reasonId}
+                  role="status"
+                  className="px-1 text-center text-xs text-muted-foreground"
+                >
+                  {reason}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
-      {Object.entries(disabledModes ?? {}).map(
-        ([mode, reason]) =>
-          explained === mode && (
-            <p key={mode} id={reasonId} role="status" className="text-sm text-muted-foreground">
-              {reason}
-            </p>
-          ),
-      )}
     </div>
   );
 }
