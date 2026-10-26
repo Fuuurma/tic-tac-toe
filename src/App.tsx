@@ -1,12 +1,9 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
 import {
   Color,
   GameModes,
-  GameStatus,
-  PlayerSymbol,
-  PlayerTypes,
   SymbolShape,
   type AI_Difficulty as AI_DifficultyType,
   type PlayerType,
@@ -15,7 +12,7 @@ import {
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
 import { BackgroundPattern } from "@/components/backgroundPattern";
-import { Board } from "@/components/game/board";
+import { LocalBoard } from "@/components/game/localBoard";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { PlayersPanel } from "@/components/game/playersPanel";
 import {
@@ -26,6 +23,7 @@ import {
 } from "@/components/lobby/playerSettingsSheet";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
+import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { normalizeRoomId } from "@/lib/roomId";
 import { saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
@@ -227,90 +225,14 @@ function LocalGameSurface({
   // The local game's status line renders from `gameState.turnNotice` (see
   // the StatusLine below), so the hook returns no message of its own.
   const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
-  const { stats, recordWin, recordLoss } = useGameStats();
-  const recordedGameId = useRef<number>(-1);
+  const gameStats = useGameStats();
+  const { stats } = gameStats;
+  useRecordLocalResult(gameState, humanSymbol, gameStats);
   const [panelPaused, setPanelPaused] = useState(false);
 
   useEffect(() => {
     setPaused(settingsOpen || helpOpen || panelPaused);
   }, [settingsOpen, helpOpen, panelPaused, setPaused]);
-
-  useEffect(() => {
-    // Reset the recorded-game marker when a fresh game starts.
-    if (gameState.gameStatus === GameStatus.ACTIVE && gameState.moveCount === 0) {
-      recordedGameId.current = -1;
-    }
-    if (gameState.winner !== null) {
-      if (gameState.moveCount === recordedGameId.current) return;
-      recordedGameId.current = gameState.moveCount;
-      // Attribute the result to the mode and difficulty actually PLAYED.
-      // The difficulty is read off the committed game state, not the live
-      // settings: the in-game settings sheet can change the selection
-      // mid-game, but the running game keeps the difficulty it was created
-      // with (only a reset rebuilds it). Recording from the live setting
-      // filed the result under a difficulty the game was never played at.
-      const statsContext = {
-        gameMode: config.gameMode,
-        aiDifficulty:
-          config.gameMode === GameModes.VS_COMPUTER
-            ? gameState.aiDifficulty
-            : undefined,
-      };
-      if (gameState.winner === humanSymbol) recordWin(statsContext);
-      else recordLoss(statsContext);
-    }
-  }, [
-    gameState.winner,
-    gameState.gameStatus,
-    gameState.moveCount,
-    gameState.aiDifficulty,
-    humanSymbol,
-    config.gameMode,
-    recordWin,
-    recordLoss,
-  ]);
-
-  const previewPlayer =
-    gameState.players[gameState.currentPlayer].type === PlayerTypes.HUMAN
-      ? gameState.currentPlayer
-      : undefined;
-  const previewColor = previewPlayer
-    ? gameState.players[previewPlayer].color
-    : undefined;
-
-  // Stable across a turn-clock tick: the tick spread-copies the state, so
-  // both players keep the same identity objects. Rebuilding these as fresh
-  // object literals every render failed Board's memo (and BoardCell's) on
-  // every comparison, re-rendering all nine cells once a second for nothing.
-  const boardColors = useMemo(
-    () => ({
-      [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].color,
-      [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].color,
-    }),
-    [gameState.players],
-  );
-  const boardShapes = useMemo(
-    () => ({
-      [PlayerSymbol.X]: gameState.players[PlayerSymbol.X].shape,
-      [PlayerSymbol.O]: gameState.players[PlayerSymbol.O].shape,
-    }),
-    [gameState.players],
-  );
-
-  const isAITurn =
-    gameState.gameStatus === GameStatus.ACTIVE &&
-    gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
-  const isBoardDisabled =
-    paused || isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
-  // Why the board is unplayable, in words. Every empty cell announces
-  // "empty" alone, which reads as interactive and behaves as a dead end.
-  const boardDisabledReason = paused
-    ? t("app.boardPaused")
-    : isAITurn
-      ? t("app.boardWaitingComputer")
-      : gameState.gameStatus !== GameStatus.ACTIVE
-        ? t("app.boardGameOver")
-        : undefined;
 
   return (
     // Portrait stacks HUD above board. A short landscape phone (~667x375)
@@ -350,20 +272,7 @@ function LocalGameSurface({
         />
       </div>
       <div className="flex min-h-0 flex-1 flex-col justify-center max-sm:order-5 landscape-short:min-w-0 landscape-short:flex-1">
-        <Board
-          board={gameState.board}
-          colors={boardColors}
-          shapes={boardShapes}
-          winningCombination={gameState.winningCombination}
-          nextToRemove={gameState.nextToRemove}
-          previewPlayer={previewPlayer}
-          previewColor={previewColor}
-          previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
-          disabled={isBoardDisabled}
-          disabledReason={boardDisabledReason}
-          showVanish
-          onCellClick={handleCellClick}
-        />
+        <LocalBoard gameState={gameState} paused={paused} onCellClick={handleCellClick} />
       </div>
       <HelpDrawer
         inline
