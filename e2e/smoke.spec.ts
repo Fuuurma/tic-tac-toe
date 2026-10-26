@@ -228,6 +228,10 @@ test("record breakdown breaks the record down by mode and difficulty", async ({ 
 });
 
 test("sets up a private room with a custom code or a friend code", async ({ page }) => {
+  test.skip(
+    !(await onlineSmokeEnabled()),
+    "Room setup needs the Online tile, which is disabled without a reachable matchmaking Worker",
+  );
   await page.goto("/");
   await openPlayerSettings(page);
   await page.getByLabel("Your name", { exact: true }).fill("Alice");

@@ -45,6 +45,7 @@ import {
   Plus,
   LogIn,
   Hash,
+  TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
@@ -136,8 +137,11 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   const [opponentShape, setOpponentShape] = useState<SymbolShape>(
     initialPrefs.opponentShape ?? PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
   );
+  // An invite link (?room=) asks for Online, but a build with no backend
+  // cannot honour it: fall back to Computer with the reason showing under
+  // the mode selector instead of stranding the visitor on a dead mode.
   const [gameMode, setGameMode] = useState<GameMode>(
-    initialRoomId ? GameModes.ONLINE : GameModes.VS_COMPUTER,
+    initialRoomId && !ONLINE_UNAVAILABLE ? GameModes.ONLINE : GameModes.VS_COMPUTER,
   );
   const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(
     initialPrefs.aiDifficulty ?? AI_Difficulty.NORMAL,
@@ -147,18 +151,46 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   );
   const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
   const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
+  // Default to an action that can actually run: an invite opens Join,
+  // otherwise Quick, unless Quick itself is dead (dev without a
+  // matchmaking URL), in which case Create is the live default.
+  // Which dead match-type tile the visitor tapped: its reason shows on
+  // demand. Picking a live action clears it.
+  const [explainedAction, setExplainedAction] = useState<"create" | "join" | "quick" | null>(
+    null,
+  );
+  const actionDeadReason = (action: "create" | "join" | "quick"): string | null =>
+    action === "quick"
+      ? quickMatchReason
+      : ONLINE_UNAVAILABLE
+        ? MATCHMAKING_UNAVAILABLE_MESSAGE
+        : null;
+  const chooseOnlineAction = (action: "create" | "join" | "quick") => {
+    const dead = actionDeadReason(action);
+    if (dead) {
+      setExplainedAction((cur) => (cur === action ? null : action));
+    } else {
+      setExplainedAction(null);
+      setOnlineAction(action);
+    }
+  };
   const [onlineAction, setOnlineAction] = useState<"create" | "join" | "quick">(
-    initialRoomId ? "join" : "quick",
+    initialRoomId && !ONLINE_UNAVAILABLE
+      ? "join"
+      : !MATCHMAKING_CONFIGURED
+        ? "create"
+        : "quick",
   );
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Live Online population, polled only while Online is actually on screen.
-  // Answering "is anyone playing?" before the user presses Quick Match is the
-  // whole point — without it, pressing the button is a leap of faith.
-  const { count: playerCount } = usePlayerCount(gameMode === GameModes.ONLINE);
+  // Live Online population, plus reachability. Subscribed whenever the
+  // lobby is up (not only in Online mode): answering "is anyone playing?"
+  // before Quick Match is pressed is the whole point, and a missing relay
+  // must read as unreachable on arrival instead of silently enabled tiles.
+  const { count: playerCount, serverDown } = usePlayerCount(true, undefined, true);
 
   const payload: LobbyFormPayload = useMemo(
     () => ({
@@ -196,13 +228,32 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
 
   const isValid = useMemo(() => validate(payload) === null, [payload]);
 
-  // No backend means no online play, and the lobby must say so before the
-  // click instead of failing after it. A production build with no
-  // VITE_MATCHMAKING_URL cannot reach the relay either, so Create and Join
-  // are blocked too (the tap used to escalate to the app-wide ErrorBoundary,
-  // or dial the visitor's own 127.0.0.1). Local dev still reaches a relay at
-  // its 127.0.0.1 default, so there only Quick Match, which needs the
-  // matchmaking service, is blocked.
+  // Online availability is decided up front, on the selectors, never on
+  // Start. A production build with no VITE_MATCHMAKING_URL cannot reach
+  // the relay either, so Quick, Create, and Join are all dead: the Online
+  // tile itself is disabled and says why (the tap used to escalate to the
+  // app-wide ErrorBoundary, or dial the visitor's own 127.0.0.1). Local
+  // dev still reaches a relay at its 127.0.0.1 default, so there only
+  // Quick Match, which needs the matchmaking service, is blocked.
+  const onlineModeReason = ONLINE_UNAVAILABLE
+    ? "Online mode isn't available in this build."
+    : null;
+  const quickMatchReason =
+    !ONLINE_UNAVAILABLE && !MATCHMAKING_CONFIGURED
+      ? "Quick Match isn't available. Create or join a room instead."
+      : null;
+  // Proven-unreachable relay (never had a successful read) disables
+  // Online the same way a missing backend does. The build flag wins when
+  // both apply; unknown (poll in flight) stays enabled, never flickering.
+  const serverDownReason =
+    serverDown && !ONLINE_UNAVAILABLE
+      ? "Online mode isn't available. Try again later."
+      : null;
+  const onlineDisabledReason = onlineModeReason ?? serverDownReason;
+  const disabledModes = onlineDisabledReason
+    ? ({ [GameModes.ONLINE]: onlineDisabledReason } as Partial<Record<GameMode, string>>)
+    : undefined;
+
   const onlineUnavailable =
     gameMode === GameModes.ONLINE &&
     (ONLINE_UNAVAILABLE || (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
@@ -217,9 +268,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
       : null;
   const validationError = startDisabled ? validate(payload) : null;
   const startReason = onlineUnavailable
-    ? ONLINE_UNAVAILABLE
-      ? MATCHMAKING_UNAVAILABLE_MESSAGE
-      : `${MATCHMAKING_UNAVAILABLE_MESSAGE} Create or join a room instead.`
+    ? (ONLINE_UNAVAILABLE ? MATCHMAKING_UNAVAILABLE_MESSAGE : quickMatchReason)
     : validationError !== roomFieldError
       ? validationError
       : null;
@@ -295,6 +344,18 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     [color],
   );
 
+  // A picked Online that proves unreachable falls back to Computer with
+  // the reason showing, instead of stranding a dead mode. Render-phase
+  // adjustment, not an effect: the condition is false on the re-render, so
+  // there is no cascade (the set-state-in-effect lint rule bans the
+  // effect form of exactly this). Mirrors handleGameModeChange's Computer
+  // branch: opponent returns to the AI trio.
+  if (serverDown && !ONLINE_UNAVAILABLE && gameMode === GameModes.ONLINE) {
+    setGameMode(GameModes.VS_COMPUTER);
+    setOpponentColor(oppositeColor(color));
+    setOpponentName("AI");
+    setOpponentType(PlayerTypes.COMPUTER);
+  }
   const startGame = useCallback(() => {
     const err = validate(payload);
     if (err) {
@@ -405,7 +466,11 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
             />
           )}
 
-          <GameModeSelector selectedMode={gameMode} onModeChange={handleGameModeChange} />
+          <GameModeSelector
+            selectedMode={gameMode}
+            onModeChange={handleGameModeChange}
+            disabledModes={disabledModes}
+          />
 
           {gameMode === GameModes.ONLINE && (
             <div className="flex flex-col gap-3">
@@ -420,19 +485,25 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
                   active={onlineAction === "quick"}
                   icon={<Play className="size-5 shrink-0" aria-hidden="true" />}
                   label="Quick"
-                  onClick={() => setOnlineAction("quick")}
+                  onClick={() => chooseOnlineAction("quick")}
+                  disabledReason={actionDeadReason("quick") ?? undefined}
+                  explained={explainedAction === "quick"}
                 />
                 <OnlineOption
                   active={onlineAction === "create"}
                   icon={<Plus className="size-5 shrink-0" aria-hidden="true" />}
                   label="Create"
-                  onClick={() => setOnlineAction("create")}
+                  onClick={() => chooseOnlineAction("create")}
+                  disabledReason={actionDeadReason("create") ?? undefined}
+                  explained={explainedAction === "create"}
                 />
                 <OnlineOption
                   active={onlineAction === "join"}
                   icon={<LogIn className="size-5 shrink-0" aria-hidden="true" />}
                   label="Join"
-                  onClick={() => setOnlineAction("join")}
+                  onClick={() => chooseOnlineAction("join")}
+                  disabledReason={actionDeadReason("join") ?? undefined}
+                  explained={explainedAction === "join"}
                 />
               </div>
               {onlineAction === "create" && (
@@ -614,28 +685,42 @@ function OnlineOption({
   icon,
   label,
   onClick,
+  disabledReason,
+  explained = false,
 }: {
   active: boolean;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  /** When set, the option cannot be picked. Tapping it (or hovering,
+      or focusing it and pressing Enter) reveals the reason below instead;
+      nothing is shown until asked. */
+  disabledReason?: string;
+  /** Whether this option's reason is currently revealed. */
+  explained?: boolean;
 }) {
+  const reasonId = useId();
   return (
-    <button
+    <span title={disabledReason} className="contents">
+      <button
       type="button"
       role="radio"
       aria-checked={active}
       aria-label={label}
       data-state={active ? "active" : "inactive"}
-      tabIndex={active ? 0 : -1}
+      tabIndex={disabledReason ? 0 : active ? 0 : -1}
+      aria-disabled={disabledReason ? true : undefined}
+      aria-describedby={disabledReason && explained ? reasonId : undefined}
       onClick={onClick}
       className={cn(
         // No check mark: the tile itself is the selection signal — contour
         // (ring-2), highlight (tinted fill), player-color icon. Centered.
-        "group relative flex min-h-14 flex-row items-center justify-center gap-3 rounded-lg border px-3.5 py-3 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-center sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
-        active
-          ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-md ring-2 ring-[rgb(var(--player-color)/0.35)]"
-          : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+        "group relative flex min-h-14 w-full flex-row items-center justify-center gap-3 rounded-lg border px-3.5 py-3 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-center sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
+        disabledReason
+          ? "cursor-not-allowed border-border/50 bg-background/30 text-muted-foreground/60 opacity-70"
+          : active
+            ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-md ring-2 ring-[rgb(var(--player-color)/0.35)]"
+            : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
       )}
     >
       <span
@@ -647,7 +732,19 @@ function OnlineOption({
         {icon}
         <span className="text-sm font-semibold sm:text-xs">{label}</span>
       </span>
-    </button>
+      {disabledReason && (
+        <TriangleAlert
+          className="absolute top-1.5 right-1.5 size-4 text-amber-500 dark:text-amber-400"
+          aria-hidden="true"
+        />
+      )}
+      </button>
+      {disabledReason && explained && (
+        <p id={reasonId} role="status" className="text-sm text-muted-foreground sm:col-span-full">
+          {disabledReason}
+        </p>
+      )}
+    </span>
   );
 }
 

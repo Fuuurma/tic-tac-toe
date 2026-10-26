@@ -36,6 +36,22 @@ const ERROR_BACKOFF_MS = 30_000;
  */
 
 let snapshot: PlayerCount | null = null;
+/**
+ * Reachability, separate from the count. True only once a poll has failed
+ * with no successful read ever (this session): "proven down", never
+ * "unknown". A mid-session blip keeps the last good number and never
+ * flips this, so the UI cannot flicker between live and dead. A later
+ * success clears it, so a worker started after the lobby re-enables
+ * online play without a reload.
+ */
+let everSucceeded = false;
+let down = false;
+const downListeners = new Set<() => void>();
+function setDown(next: boolean) {
+  if (next === down) return;
+  down = next;
+  for (const listener of [...downListeners]) listener();
+}
 let timer: number | null = null;
 let subscribers = 0;
 let inFlight = false;
@@ -56,9 +72,12 @@ async function poll(game: string): Promise<void> {
   try {
     const health = await fetchMatchmakingHealth(game);
     publish({ players: totalOnlinePlayers(health), waiting: health.waiting });
+    everSucceeded = true;
+    setDown(false);
     nextDelayMs = POLL_INTERVAL_MS;
   } catch {
     // Unknown, not zero. Keep whatever we last knew and back off.
+    if (!everSucceeded) setDown(true);
     nextDelayMs = ERROR_BACKOFF_MS;
   } finally {
     inFlight = false;
@@ -116,11 +135,25 @@ const subscribe = (listener: () => void) => {
 
 const getSnapshot = () => snapshot;
 
+const subscribeDown = (listener: () => void) => {
+  downListeners.add(listener);
+  return () => {
+    downListeners.delete(listener);
+  };
+};
+const getDownSnapshot = () => down;
+
 export function usePlayerCount(
   enabled: boolean,
   game: string = GAME_ID,
-): { count: PlayerCount | null; refresh: () => void } {
-  const live = enabled && MATCHMAKING_CONFIGURED;
+  /**
+   * Poll even when no URL is configured, against the localhost default.
+   * The lobby passes true so a missing local relay reads as unreachable
+   * instead of silently enabled; every other caller keeps the default.
+   */
+  probeUnconfigured = false,
+): { count: PlayerCount | null; refresh: () => void; serverDown: boolean } {
+  const live = enabled && (MATCHMAKING_CONFIGURED || probeUnconfigured);
 
   useEffect(() => {
     if (!live) return;
@@ -129,9 +162,10 @@ export function usePlayerCount(
   }, [live, game]);
 
   const count = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const downSnapshot = useSyncExternalStore(subscribeDown, getDownSnapshot, getDownSnapshot);
   const refresh = useCallback(() => {
     if (live) void poll(game);
   }, [live, game]);
 
-  return { count: live ? count : null, refresh };
+  return { count: live ? count : null, refresh, serverDown: live ? downSnapshot : false };
 }
