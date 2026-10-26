@@ -211,6 +211,13 @@ export function BackgroundPattern() {
     let width = 0;
     let height = 0;
     let dpr = 1;
+    // Set once the resting layer has been built in THIS effect run. The
+    // same-size early return below is a repaint optimisation, never an
+    // initialisation skip: a remount (StrictMode double effects, HMR)
+    // reuses an already-sized canvas with empty closure state, and
+    // skipping the build leaves the spotlight permanently dead until the
+    // next forced rebuild (theme toggle).
+    let built = false;
     let symbols: GridSymbol[] = [];
     let raf: number | null = null;
     let lastT = 0;
@@ -422,8 +429,9 @@ export function BackgroundPattern() {
       const deviceW = Math.round(width * dpr);
       const deviceH = Math.round(height * dpr);
       // A same-size resize (scroll chrome, spurious event) must not pay
-      // the full-grid repaint it used to trigger.
-      if (!force && canvas.width === deviceW && canvas.height === deviceH) return;
+      // the full-grid repaint it used to trigger — but only once this run
+      // has built the layer at least once (see `built` above).
+      if (!force && built && canvas.width === deviceW && canvas.height === deviceH) return;
       canvas.width = deviceW;
       canvas.height = deviceH;
       canvas.style.width = `${width}px`;
@@ -446,9 +454,10 @@ export function BackgroundPattern() {
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, deviceW, deviceH);
-      ctx.drawImage(base, 0, 0);
+      ctx.drawImage(base, 0, 0, deviceW, deviceH);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       litRegion = null;
+      built = true;
     };
 
     const step = (time: number) => {

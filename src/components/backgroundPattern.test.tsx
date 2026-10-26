@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { BackgroundPattern } from "./backgroundPattern";
@@ -469,5 +470,76 @@ describe("BackgroundPattern gesture trail", () => {
       .slice(before)
       .filter((c) => c.op === "lineTo").length;
     expect(strokesAfter).toBe(0);
+  });
+});
+
+/**
+ * Fresh-load spotlight regression: the same-size early return in `resize`
+ * used to skip the resting-layer build when the effect re-ran on an
+ * already-sized canvas (StrictMode double effects in dev, HMR remounts),
+ * leaving the live closure with no symbols and no spotlight gradient — the
+ * pointer moved with no visible effect until a forced rebuild (theme
+ * toggle). The guard may only skip rebuilds once the run has built.
+ */
+describe("BackgroundPattern remount init", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const recordingContext = () => {
+    const calls: Array<{ op: string; args: unknown[] }> = [];
+    const target: Record<string, unknown> = {
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      canvas: null,
+    };
+    const ctx = new Proxy(target, {
+      get(t, prop) {
+        if (prop in t) return t[prop as string];
+        const value = (...args: unknown[]) => {
+          calls.push({ op: String(prop), args });
+        };
+        t[prop as string] = value;
+        return value;
+      },
+      set: () => true,
+    }) as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  };
+
+  it("lights symbols after a double-mount on a same-size canvas", () => {
+    const { ctx, calls } = recordingContext();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      () => ctx,
+    );
+    stubReducedMotion(false);
+    const queue: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      queue.push(cb);
+      return queue.length;
+    });
+    // StrictMode re-runs the effect on the same canvas node, which keeps
+    // the size the first pass set — the exact shape that skipped the build.
+    render(
+      <StrictMode>
+        <BackgroundPattern />
+      </StrictMode>,
+    );
+    const before = calls.length;
+
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 400, clientY: 320 }),
+    );
+    const cb = queue.shift();
+    if (cb) cb(16);
+
+    // Lit symbols are re-stroked onto the live canvas; with the skipped
+    // build there is no symbol field, so nothing is ever stroked.
+    const strokesAfter = calls
+      .slice(before)
+      .filter((c) => c.op === "lineTo").length;
+    expect(strokesAfter).toBeGreaterThan(0);
+    void ctx;
   });
 });
