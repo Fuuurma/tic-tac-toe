@@ -126,6 +126,13 @@ never starts on a screen the player is still looking at.
   game on the board is never taken away
 - Copy must survive a longer translation: the CTA's height is a floor, so
   Spanish wraps to two lines at 320px instead of clipping
+- A created room gets the same offer in its own card under the room code, so
+  the code and Copy link stay on screen; the card says the room stays open.
+  Its strip carries Share (phone) or Copy link beside Close room, because the
+  friend may not have the link yet, and the copy confirmation borrows the
+  strip's detail line instead of adding a second live region
+- The handoff overlay is announced as "Opponent joined" for a room and
+  "Opponent found" for a search; the freeze behaves identically
 
 ## Mobile (below `sm`, 640px)
 

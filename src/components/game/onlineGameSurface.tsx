@@ -22,7 +22,8 @@ import {
   type PlayerSettings,
 } from "@/components/lobby/playerSettingsSheet";
 import { HelpDrawer } from "@/components/game/helpDrawer";
-import { QueueStrip, QueueWarmup, WarmupInvite, type StripPhase } from "./queuePlay";
+import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
+import { waitPhase } from "./waitPhase";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
@@ -50,6 +51,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     gameMode: GameModes.ONLINE,
   });
   const isQuick = config.onlineAction === "quick";
+  const isCreate = config.onlineAction === "create";
   // Only the searching state needs the live count, and only Quick Match has
   // a searching state worth watching. `queue` says "still in line"; `status`
   // cannot, since a paired host building its room holds `creating` too.
@@ -149,26 +151,28 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     }),
     [peer.state.gameState.players],
   );
-  const showGame = ["connected", "reconnecting", "disconnected"].includes(peer.state.status);
+  const gameStatusShowsGame = ["connected", "reconnecting", "disconnected"].includes(
+    peer.state.status,
+  );
 
-  // Quick Match before the online game exists: in line, paired and being
-  // connected, or over. The search card, the strip and the handoff all key on
-  // this, never on message copy.
-  const quickPhase: StripPhase | null =
-    !isQuick || showGame
-      ? null
-      : peer.state.status === "error"
-        ? "ended"
-        : peer.state.queue === "searching"
-          ? "searching"
-          : peer.state.queue === "matched"
-            ? "matched"
-            : null;
+  // The wait before the online game exists: in the Quick Match queue or in an
+  // open room, paired and being connected, or over. The cards, the strip and
+  // the handoff all key on this, never on message copy.
+  const phase = waitPhase({
+    action: config.onlineAction,
+    role: peer.state.role,
+    status: peer.state.status,
+    queue: peer.state.queue,
+    gameStatus: peer.state.gameState.gameStatus,
+  });
   // The player's choice to fill the wait with a game against the computer.
-  // The game lives while the search does, and goes the moment the real board
-  // replaces it (quickPhase turns null once the match connects).
+  // The game lives while the wait does, and goes the moment the real board
+  // replaces it (phase turns null once the match connects).
   const [warmupOpen, setWarmupOpen] = useState(false);
-  const warmupVisible = warmupOpen && quickPhase !== null;
+  const warmupVisible = warmupOpen && phase !== null;
+  // A host's room can blip into `reconnecting` while the warm-up is on
+  // screen; the empty online board must not appear beside it.
+  const showGame = gameStatusShowsGame && !warmupVisible;
   const [warmupDifficulty, setWarmupDifficulty] = useState<AI_DifficultyType>(
     () => loadPreferences().aiDifficulty ?? AI_Difficulty.NORMAL,
   );
@@ -176,6 +180,21 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     peer.leave();
     onExit();
   };
+  const shareUrl = roomShareUrl(
+    typeof window !== "undefined" ? window.location.origin : "",
+    peer.state.roomId,
+  );
+  const warmupInvite = (
+    <WarmupInvite
+      difficulty={warmupDifficulty}
+      color={config.color}
+      onDifficultyChange={(next) => {
+        setWarmupDifficulty(next);
+        savePreferences({ aiDifficulty: next });
+      }}
+      onStart={() => setWarmupOpen(true)}
+    />
+  );
 
   const message = onlineMessage(peer.state.status, peer.state.message);
 
@@ -248,17 +267,22 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             belongs to "create a room" only. Quick match is paired by the
             service; surfacing its internal room id would hand out a join key
             for a match nobody asked to be in. */}
-        {peer.state.status === "waiting" && config.onlineAction === "create" && (
-          <RoomIdShare
-            roomId={peer.state.roomId}
-            origin={typeof window !== "undefined" ? window.location.origin : ""}
-            onCancel={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
+        {peer.state.status === "waiting" && isCreate && !warmupVisible && (
+          <>
+            <RoomIdShare
+              roomId={peer.state.roomId}
+              shareUrl={shareUrl}
+              onCancel={leaveAndExit}
+            />
+            <div className="glass flex flex-col items-center gap-2 p-3 max-sm:gap-3 max-sm:p-5">
+              {warmupInvite}
+              <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-center max-sm:text-sm">
+                {t("queue.roomKept")}
+              </p>
+            </div>
+          </>
         )}
-        {quickPhase === "searching" && !warmupVisible && (
+        {isQuick && phase === "searching" && !warmupVisible && (
           <OnlineConnectionState
             message={t("online.finding")}
             detail={quickMatchDetail(playerCount?.waiting)}
@@ -266,18 +290,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             cancelLabel={t("online.cancelSearch")}
             onCancel={leaveAndExit}
           >
-            <WarmupInvite
-              difficulty={warmupDifficulty}
-              color={config.color}
-              onDifficultyChange={(next) => {
-                setWarmupDifficulty(next);
-                savePreferences({ aiDifficulty: next });
-              }}
-              onStart={() => setWarmupOpen(true)}
-            />
+            {warmupInvite}
           </OnlineConnectionState>
         )}
-        {quickPhase === "matched" && !warmupVisible && (
+        {isQuick && phase === "matched" && !warmupVisible && (
           <OnlineConnectionState
             message={t("queue.matchedTitle")}
             hint={t("queue.matchedBody")}
@@ -285,15 +301,31 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             onCancel={leaveAndExit}
           />
         )}
-        {warmupVisible && quickPhase !== null && (
+        {warmupVisible && phase !== null && (
           <QueueStrip
-            phase={quickPhase}
-            detail={quickStripDetail(playerCount?.waiting)}
+            phase={phase}
+            detail={isQuick ? quickStripDetail(playerCount?.waiting) : undefined}
             message={peer.state.message || t("online.connectFail")}
+            title={isQuick ? undefined : t("queue.roomWaiting")}
+            leaveLabel={isQuick ? undefined : t("queue.closeRoom")}
+            invite={
+              isQuick
+                ? undefined
+                : {
+                    url: shareUrl,
+                    shareTitle: t("online.shareTitle"),
+                    shareText: t("online.shareText", { code: peer.state.roomId }),
+                  }
+            }
             onLeave={leaveAndExit}
-            onSearchAgain={() => {
-              void peer.startQuickMatch();
-            }}
+            // Only a search can be run again; a closed room is made from setup.
+            onSearchAgain={
+              isQuick
+                ? () => {
+                    void peer.startQuickMatch();
+                  }
+                : undefined
+            }
           />
         )}
         {peer.state.status === "creating" && !isQuick && (
@@ -302,7 +334,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             onCancel={leaveAndExit}
           />
         )}
-        {peer.state.status === "connecting" && quickPhase === null && (
+        {peer.state.status === "connecting" && !warmupVisible && (!isQuick || phase === null) && (
           <OnlineConnectionState
             // relayEvents already writes the accurate reason here ("Waiting
             // for host…", a relay rejection, a room-not-found). A hardcoded
@@ -371,7 +403,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             </div>
           </div>
         )}
-        {peer.state.status === "disconnected" && peer.state.message && (
+        {peer.state.status === "disconnected" && peer.state.message && !warmupVisible && (
           <div
             role="status"
             aria-live="polite"
@@ -401,7 +433,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             playerShape: config.playerShape,
           }}
           difficulty={warmupDifficulty}
-          handoff={quickPhase === "matched"}
+          handoff={phase === "matched"}
+          handoffTitle={isQuick ? undefined : t("queue.joinedTitle")}
           onStop={() => setWarmupOpen(false)}
         />
       )}
@@ -564,18 +597,22 @@ function quickStripDetail(waiting: number | undefined): string {
     : t("queue.stripMany", { count: others });
 }
 
+/** The link that opens the lobby straight into this room. */
+function roomShareUrl(origin: string, roomId: string): string {
+  return origin ? `${origin}/?room=${roomId}` : roomId;
+}
+
 function RoomIdShare({
   roomId,
-  origin,
+  shareUrl,
   onCancel,
 }: {
   roomId: string;
-  origin: string;
+  shareUrl: string;
   onCancel: () => void;
 }) {
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [copyError, setCopyError] = useState(false);
-  const shareUrl = origin ? `${origin}/?room=${roomId}` : roomId;
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   const onCopy = async (kind: "code" | "link", text: string) => {

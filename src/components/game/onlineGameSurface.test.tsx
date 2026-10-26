@@ -399,14 +399,7 @@ describe("OnlineGameSurface play while you wait", () => {
     ]);
   });
 
-  it("never offers it for a room the user created or joined", () => {
-    mocks.usePeerRoom.mockReturnValue(makePeer("host", { status: "waiting", roomId: "FRIDAY-9" }));
-    const created = render(
-      <OnlineGameSurface config={{ ...config, onlineAction: "create" }} onExit={vi.fn()} />,
-    );
-    expect(screen.queryByRole("button", { name: "Play the computer while you wait" })).toBeNull();
-    created.unmount();
-
+  it("never offers it to someone joining a room", () => {
     mocks.usePeerRoom.mockReturnValue(makePeer("guest", { status: "connecting", roomId: "ABC" }));
     render(<OnlineGameSurface config={{ ...config, onlineAction: "join" }} onExit={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Play the computer while you wait" })).toBeNull();
@@ -515,5 +508,198 @@ describe("OnlineGameSurface play while you wait", () => {
     mocks.playerCount = { players: 5, waiting: 3 };
     startWarmup();
     screen.getByText("2 other players looking");
+  });
+});
+
+describe("OnlineGameSurface play while you wait (created room)", () => {
+  const openRoom = (overrides: Partial<PeerRoomState> = {}) =>
+    makePeer("host", {
+      status: "waiting",
+      roomId: "FRIDAY-9",
+      gameState: freshGameState(),
+      ...overrides,
+    });
+  const createConfig = { ...config, onlineAction: "create" as const };
+  const play = "Play the computer while you wait";
+
+  const startWarmup = (peer = openRoom(), onExit = vi.fn()) => {
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const view = render(<OnlineGameSurface config={createConfig} onExit={onExit} />);
+    fireEvent.click(screen.getByRole("button", { name: play }));
+    return { ...view, peer, onExit };
+  };
+  const moveTo = (view: ReturnType<typeof startWarmup>, state: Partial<PeerRoomState>) => {
+    mocks.usePeerRoom.mockReturnValue({ ...view.peer, state: { ...view.peer.state, ...state } });
+    view.rerender(<OnlineGameSurface config={createConfig} onExit={view.onExit} />);
+  };
+  const stubClipboard = () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    return writeText;
+  };
+
+  it("offers the computer to a host whose room is open, code still in reach", () => {
+    mocks.usePeerRoom.mockReturnValue(openRoom());
+    render(<OnlineGameSurface config={createConfig} onExit={vi.fn()} />);
+
+    screen.getByText("FRIDAY-9");
+    screen.getByRole("button", { name: /Copy code/ });
+    screen.getByRole("button", { name: play });
+    screen.getByText("Your room stays open while you play.");
+    const levels = within(screen.getByRole("radiogroup", { name: "Computer difficulty" }));
+    expect(levels.getAllByRole("radio")).toHaveLength(3);
+  });
+
+  it("does not offer it while the room is still being built", () => {
+    mocks.usePeerRoom.mockReturnValue(openRoom({ status: "creating" }));
+    render(<OnlineGameSurface config={createConfig} onExit={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: play })).toBeNull();
+  });
+
+  it("speaks the player's language", () => {
+    setLocale("es");
+    mocks.usePeerRoom.mockReturnValue(openRoom());
+    render(<OnlineGameSurface config={createConfig} onExit={vi.fn()} />);
+    screen.getByRole("button", { name: "Juega contra el ordenador mientras esperas" });
+    screen.getByText("Tu sala sigue abierta mientras juegas.");
+  });
+
+  it("starts a game without closing the room", () => {
+    const { peer } = startWarmup();
+
+    screen.getByRole("button", { name: /Row 1 column 1/ });
+    screen.getByText("vs Computer");
+    screen.getByText("Waiting for an opponent");
+    expect(screen.queryByRole("button", { name: play })).toBeNull();
+    expect(peer.leave).not.toHaveBeenCalled();
+    // The room is a quiet strip now, not a card that owns the screen.
+    expect(screen.queryByText("Room ready")).toBeNull();
+  });
+
+  it("keeps the invitation one tap away while playing", async () => {
+    const writeText = stubClipboard();
+    startWarmup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    await vi.waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?room=FRIDAY-9`),
+    );
+    await screen.findByText("Copied");
+  });
+
+  it("prefers the phone's share sheet when there is one", () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    try {
+      startWarmup();
+      expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Share" }));
+      expect(share).toHaveBeenCalledWith(
+        expect.objectContaining({ url: `${window.location.origin}/?room=FRIDAY-9` }),
+      );
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+    }
+  });
+
+  it("says so when the link cannot be copied", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+      configurable: true,
+    });
+    startWarmup();
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    await screen.findByText("Couldn't copy the link.");
+  });
+
+  it("closes the room and the screen from the strip", () => {
+    const { peer, onExit } = startWarmup();
+    fireEvent.click(screen.getByRole("button", { name: "Close room" }));
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("ending the computer game brings the room card back, still open", () => {
+    const { peer, onExit } = startWarmup();
+    fireEvent.click(screen.getByRole("button", { name: "Exit game" }));
+
+    screen.getByText("FRIDAY-9");
+    screen.getByRole("button", { name: play });
+    expect(peer.leave).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("freezes the board the moment an opponent is seated", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "connecting", message: "Opponent connecting…" });
+
+    screen.getByText("Opponent joined");
+    screen.getByText("Starting your match…");
+    const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
+    expect((cell as HTMLButtonElement).disabled).toBe(true);
+    expect(cell.getAttribute("aria-label")).toMatch(/paused/i);
+    expect(screen.queryByText("Waiting for an opponent")).toBeNull();
+    // The room's own "connecting" banner would be a second voice for the same fact.
+    expect(screen.queryByText("Opponent connecting…")).toBeNull();
+  });
+
+  it("hands over to the online board once the game starts", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "connecting" });
+    moveTo(view, {
+      status: "connected",
+      gameState: { ...freshGameState(), gameMode: GameModes.ONLINE, gameStatus: GameStatus.ACTIVE },
+    });
+
+    expect(screen.queryByText("Opponent joined")).toBeNull();
+    expect(screen.queryByText("vs Computer")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close room" })).toBeNull();
+    screen.getByText("Online");
+  });
+
+  it("returns to the open room when the opponent drops before the game starts", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "connecting" });
+    moveTo(view, { status: "waiting" });
+
+    expect(screen.queryByText("Opponent joined")).toBeNull();
+    screen.getByText("Waiting for an opponent");
+    // Not frozen any more. (Whether the cell is tappable also depends on whose
+    // turn the random draw gave the game, so read the reason, not `disabled`.)
+    const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
+    expect(cell.getAttribute("aria-label")).not.toMatch(/paused/i);
+  });
+
+  it("keeps the computer game through a connection blip", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "reconnecting", message: "Reconnecting…" });
+
+    screen.getByText("vs Computer");
+    screen.getByText("Waiting for an opponent");
+    // No empty online board sneaks in beside the game being played.
+    expect(screen.queryByText("Online")).toBeNull();
+  });
+
+  it("keeps the computer game when the room closes, and says why once", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "disconnected", message: "Your opponent left the room." });
+
+    screen.getByRole("button", { name: /Row 1 column 1/ });
+    expect(screen.getAllByText("Your opponent left the room.")).toHaveLength(1);
+    screen.getByRole("button", { name: "Back to setup" });
+    // There is no queue to rejoin: a closed room is a new room, made from setup.
+    expect(screen.queryByRole("button", { name: "Search again" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close room" })).toBeNull();
+  });
+
+  it("keeps the computer game when the room fails to open, with a way out", () => {
+    const onExit = vi.fn();
+    const view = startWarmup(openRoom(), onExit);
+    moveTo(view, { status: "error", message: "Room connect failed: offline" });
+
+    screen.getByRole("button", { name: /Row 1 column 1/ });
+    expect(screen.getAllByText("Room connect failed: offline")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(onExit).toHaveBeenCalled();
   });
 });

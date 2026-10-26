@@ -24,7 +24,8 @@ the host-authoritative peer room and matchmaking client onto the external
 - src/lib/room.ts + roomId.ts — room client wrapper and room id helpers
 - src/lib/identity.ts — generated guest identity, localStorage-backed
 - src/components — game board and lobby surfaces
-- src/components/game/queuePlay.tsx — play the computer while a quick-match search runs (invite, queue strip, warm-up game, match-found handoff); keys on `PeerRoomState.queue`, shares `LocalBoard` and `useRecordLocalResult` with the local surface
+- src/components/game/queuePlay.tsx — play the computer while a quick-match search runs or a created room waits (invite, wait strip, warm-up game, opponent-found handoff); shares `LocalBoard` and `useRecordLocalResult` with the local surface
+- src/components/game/waitPhase.ts — pure derivation of the wait phase (`searching | matched | ended | null`) for Quick (from `PeerRoomState.queue`) and a created room (from its connection states)
 - e2e/ — Playwright smoke tests
 - deploy — `wrangler pages deploy dist` (Cloudflare Pages)
 - fuurma-matchmaking (separate Worker) — pairing + GameRoomDO relay; not in this repo

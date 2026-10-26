@@ -286,6 +286,13 @@ export const en = {
   "queue.matchedBody": "Starting your match…",
   "queue.matchedPaused": "Your game with the computer is paused.",
   "queue.searchAgain": "Search again",
+  "queue.roomWaiting": "Waiting for an opponent",
+  "queue.roomKept": "Your room stays open while you play.",
+  "queue.closeRoom": "Close room",
+  "queue.joinedTitle": "Opponent joined",
+  "queue.copyShort": "Copy link",
+  "queue.copiedShort": "Copied",
+  "queue.copyFailed": "Couldn't copy the link.",
 
   "peer.rematchWithdrawn": "Rematch request withdrawn",
   "peer.rematchDeclined": "Rematch declined",

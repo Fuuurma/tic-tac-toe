@@ -207,3 +207,117 @@ test("when the search expires mid-game the game stays and another search is one 
   await expect.poll(() => queue.joins()).toBe(2);
   await expect(page.locator("button[aria-label*='occupied']").first()).toBeVisible();
 });
+
+/**
+ * The same offer, made to someone who created a room. There is no queue to
+ * script: the relay is the only thing that moves, so it is scripted by hand.
+ */
+async function openRoom(page: Page) {
+  await page.route(`${MATCHMAKING}/**`, async (route) => {
+    const request = route.request();
+    if (request.method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: CORS });
+    } else if (new URL(request.url()).pathname.endsWith("/health")) {
+      await route.fulfill({
+        status: 200,
+        headers: { ...CORS, "content-type": "application/json" },
+        body: JSON.stringify({ ok: true, game: "tictactoe", waiting: 0, matches: 0 }),
+      });
+    } else {
+      await route.fulfill({ status: 404, headers: CORS });
+    }
+  });
+  let relay: WebSocketRoute | null = null;
+  await page.routeWebSocket(/\/room\//, (ws) => {
+    relay = ws;
+  });
+
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Online", exact: true }).click();
+  await page.getByRole("radio", { name: "Create", exact: true }).click();
+  await page.getByRole("button", { name: "Create Room" }).click();
+  await expect.poll(() => relay).not.toBeNull();
+  const send = (frame: object) => relay!.send(JSON.stringify(frame));
+  send({ type: "welcome", role: "host", opponent: null });
+  await expect(page.getByText("Room ready")).toBeVisible();
+  return { send };
+}
+
+test("a host can play the computer while the room waits, then the friend takes over", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const room = await openRoom(page);
+
+  // The room card keeps the code; the offer sits right under it.
+  await expect(page.getByText("Your room stays open while you play.")).toBeVisible();
+  await playWhileWaiting(page).click();
+
+  await expect(page.getByText("vs Computer")).toBeVisible();
+  await expect(page.getByText("Waiting for an opponent")).toBeVisible();
+  await expect(page.getByText("Room ready")).toBeHidden();
+  await makeAMove(page);
+
+  // Someone is seated: the old board stops taking taps.
+  room.send({ type: "peer-joined", opponent: { guestId: "g-guest", displayName: "Rival" } });
+  await expect(page.getByText("Opponent joined")).toBeVisible();
+  await expect(page.locator("button[aria-label^='Row']:not([disabled])")).toHaveCount(0);
+
+  // Only their introduction starts the real game.
+  room.send({ type: "join", displayName: "Rival", guestId: "g-guest", preferredColor: "red" });
+  await expect(page.getByText("Opponent joined")).toBeHidden();
+  await expect(page.getByText("vs Computer")).toBeHidden();
+  await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: /^Rival,/ })).toBeVisible();
+});
+
+test("the invitation stays one tap away while the host plays", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await openRoom(page);
+  const code = (await page.locator("span.font-mono").first().innerText()).replace(/^\s*Room code\s*/i, "").trim();
+  await playWhileWaiting(page).click();
+
+  await page.getByRole("button", { name: "Copy link" }).click();
+  await expect(page.getByRole("button", { name: "Copied" })).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toMatch(/\/\?room=/);
+  expect(copied.endsWith(`room=${code}`)).toBe(true);
+});
+
+test("ending the computer game brings the room card back, still open", async ({ page }) => {
+  await openRoom(page);
+  await playWhileWaiting(page).click();
+  await page.getByRole("button", { name: "Exit game" }).click();
+
+  await expect(page.getByText("Room ready")).toBeVisible();
+  await expect(playWhileWaiting(page)).toBeVisible();
+});
+
+test("closing the room from the strip returns to the lobby", async ({ page }) => {
+  await openRoom(page);
+  await playWhileWaiting(page).click();
+  await makeAMove(page);
+
+  await page.getByRole("button", { name: "Close room" }).click();
+  await expect(page.getByRole("radio", { name: "Online", exact: true })).toBeVisible();
+  await expect(page.getByText("Waiting for an opponent")).toBeHidden();
+});
+
+test("if the room closes first, the computer game stays and the reason is shown once", async ({
+  page,
+}) => {
+  const room = await openRoom(page);
+  await playWhileWaiting(page).click();
+  await makeAMove(page);
+
+  room.send({ type: "peer-joined", opponent: { guestId: "g-guest", displayName: "Rival" } });
+  await expect(page.getByText("Opponent joined")).toBeVisible();
+  room.send({ type: "peer-left", reason: "closed", opponent: { guestId: "g-guest" } });
+
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(1);
+  await expect(page.locator("button[aria-label*='occupied']").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search again" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to setup" }).click();
+  await expect(page.getByRole("radio", { name: "Online", exact: true })).toBeVisible();
+});

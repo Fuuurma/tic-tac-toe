@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bot, Loader2, UserCheck } from "lucide-react";
+import { Bot, Check, Link2, Loader2, Share2, UserCheck } from "lucide-react";
 import {
   AI_Difficulty,
   GameModes,
@@ -23,15 +23,17 @@ import { ctaStyle } from "@/components/onboarding/ctaStyle";
 import { HelpDrawer } from "./helpDrawer";
 import { LocalBoard } from "./localBoard";
 import { PlayersPanel } from "./playersPanel";
+import type { WaitPhase } from "./waitPhase";
 
 /**
- * Play the computer while a Quick Match search is still running.
+ * Play the computer while an online game is still being found.
  *
- * The queue is the hook's business (usePeerRoom keeps polling the ticket the
- * whole time); everything here is a local game laid on top of it. Three
- * pieces: the invite on the search card, the one-line strip that keeps the
- * search visible during play, and the warm-up game itself with its
- * match-found handoff.
+ * The wait is the hook's business (usePeerRoom keeps polling the ticket, or
+ * holding the room open, the whole time); everything here is a local game laid
+ * on top of it. Three pieces: the invite on the waiting card, the one-line
+ * strip that keeps the wait visible during play, and the warm-up game itself
+ * with its opponent-found handoff. Quick Match and a created room share all
+ * three; they differ only in the strip's words and actions.
  */
 
 const DIFFICULTIES: AI_DifficultyType[] = Object.values(AI_Difficulty);
@@ -96,29 +98,99 @@ export function WarmupInvite({
   );
 }
 
-export type StripPhase = "searching" | "matched" | "ended";
+/** What a host needs to hand the room to someone while a game is on screen. */
+export interface StripInvite {
+  url: string;
+  shareTitle: string;
+  shareText: string;
+}
+
+/** How long a copy confirmation stays on screen. */
+const FLASH_MS = 1800;
 
 /**
- * The search, reduced to one line, for as long as a game is on screen.
+ * Share on a phone, copy anywhere else. Its result is the strip's detail
+ * line for a moment, so the confirmation is announced without a second live
+ * region and the layout never shifts.
+ */
+function InviteAction({
+  invite,
+  onFlash,
+}: {
+  invite: StripInvite;
+  onFlash: (flash: "copied" | "failed" | null) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const run = async () => {
+    if (canShare) {
+      try {
+        await navigator.share({ title: invite.shareTitle, text: invite.shareText, url: invite.url });
+      } catch {
+        // Dismissing the native share sheet is not an error.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(invite.url);
+      setCopied(true);
+      onFlash("copied");
+    } catch {
+      onFlash("failed");
+    }
+    window.setTimeout(() => {
+      setCopied(false);
+      onFlash(null);
+    }, FLASH_MS);
+  };
+
+  const Icon = canShare ? Share2 : copied ? Check : Link2;
+  return (
+    <Button size="sm" variant="glass" onClick={run} className="shrink-0 max-sm:h-12">
+      <Icon
+        className={cn("size-3.5", copied && "text-emerald-500")}
+        aria-hidden="true"
+      />
+      {canShare ? t("online.share") : copied ? t("queue.copiedShort") : t("queue.copyShort")}
+    </Button>
+  );
+}
+
+/**
+ * The wait, reduced to one line, for as long as a game is on screen.
  *
- * It outranks nothing: the board stays the hero. It only keeps the three
- * things a waiting player needs in reach: the search is alive, how crowded
- * the queue is, and a way out. When the search ends without a game, it turns
- * into the reason plus the next step instead of vanishing under the board.
+ * It outranks nothing: the board stays the hero. It only keeps the things a
+ * waiting player needs in reach: the wait is alive, how crowded it is, and a
+ * way out. A host also gets the invitation, because their friend may not have
+ * the link yet. When the wait ends without a game, it turns into the reason
+ * plus the next step instead of vanishing under the board.
  */
 export function QueueStrip({
   phase,
   detail,
   message,
+  title,
+  leaveLabel,
+  invite,
   onLeave,
   onSearchAgain,
 }: {
-  phase: StripPhase;
+  phase: WaitPhase;
   detail?: string;
   message?: string;
+  /** Overrides the Quick Match wording ("Searching for an opponent"). */
+  title?: string;
+  /** Overrides "Leave queue". */
+  leaveLabel?: string;
+  /** Present for a room: puts Share or Copy link beside the way out. */
+  invite?: StripInvite;
   onLeave: () => void;
-  onSearchAgain: () => void;
+  /** Only a search can be started again; a closed room is made from setup. */
+  onSearchAgain?: () => void;
 }) {
+  const [flash, setFlash] = useState<"copied" | "failed" | null>(null);
+
   if (phase === "ended") {
     return (
       <div
@@ -127,9 +199,11 @@ export function QueueStrip({
       >
         <span className="text-xs text-destructive max-sm:text-sm">{message}</span>
         <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row">
-          <Button size="sm" variant="glass" onClick={onSearchAgain} className="w-full sm:w-auto max-sm:h-12">
-            {t("queue.searchAgain")}
-          </Button>
+          {onSearchAgain && (
+            <Button size="sm" variant="glass" onClick={onSearchAgain} className="w-full sm:w-auto max-sm:h-12">
+              {t("queue.searchAgain")}
+            </Button>
+          )}
           <Button size="sm" variant="glass" onClick={onLeave} className="w-full sm:w-auto max-sm:h-12">
             {t("online.backSetup")}
           </Button>
@@ -139,23 +213,29 @@ export function QueueStrip({
   }
 
   const matched = phase === "matched";
+  const shownInvite = invite && !matched ? invite : undefined;
+  const line =
+    flash === "copied" ? t("online.linkCopied") : flash === "failed" ? t("queue.copyFailed") : detail;
   return (
-    <div className="glass flex w-full items-center gap-3 px-3 py-2 max-sm:px-4 max-sm:py-3">
+    <div className="glass flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 max-sm:px-4 max-sm:py-3">
       <Loader2
         className="size-4 shrink-0 animate-spin text-[rgb(var(--player-color))]"
         aria-hidden="true"
       />
-      <div role="status" aria-live="polite" className="min-w-0 flex-1">
+      <div role="status" aria-live="polite" className="min-w-0 flex-1 basis-32">
         <p className="text-sm font-medium leading-tight text-foreground">
-          {matched ? t("queue.matchedBody") : t("queue.searching")}
+          {matched ? t("queue.matchedBody") : (title ?? t("queue.searching"))}
         </p>
-        {detail && !matched && (
-          <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-xs">{detail}</p>
+        {line && !matched && (
+          <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-xs">{line}</p>
         )}
       </div>
-      <Button size="sm" variant="glass" onClick={onLeave} className="shrink-0 max-sm:h-12">
-        {matched ? t("queue.cancel") : t("queue.leave")}
-      </Button>
+      <div className={cn("flex shrink-0 gap-2", shownInvite && "max-sm:w-full max-sm:[&>*]:flex-1")}>
+        {shownInvite && <InviteAction invite={shownInvite} onFlash={setFlash} />}
+        <Button size="sm" variant="glass" onClick={onLeave} className="shrink-0 max-sm:h-12">
+          {matched ? t("queue.cancel") : (leaveLabel ?? t("queue.leave"))}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -178,9 +258,9 @@ function warmupOpponent(playerColor: Color) {
 }
 
 /**
- * A vs Computer game that lives exactly as long as the search lets it.
+ * A vs Computer game that lives exactly as long as the wait lets it.
  *
- * `handoff` is the moment a human opponent is found: the game freezes
+ * `handoff` is the moment a human opponent is found or seated: the game freezes
  * under an overlay that blocks the board, so a tap meant for the warm-up
  * cannot land on the real match that replaces it. The overlay stays until
  * the surface swaps this out for the online board, which only happens once
@@ -194,11 +274,14 @@ export function QueueWarmup({
   player,
   difficulty,
   handoff,
+  handoffTitle,
   onStop,
 }: {
   player: { displayName: string; color: Color; playerShape: SymbolShape };
   difficulty: AI_DifficultyType;
   handoff: boolean;
+  /** What the overlay announces; Quick Match finds an opponent, a room's is joined. */
+  handoffTitle?: string;
   onStop: () => void;
 }) {
   const [opponent] = useState(() => warmupOpponent(player.color));
@@ -256,7 +339,9 @@ export function QueueWarmup({
               className="glass animate-pop-in mx-4 flex flex-col items-center gap-1.5 px-6 py-5 text-center"
             >
               <UserCheck className="size-6 text-[rgb(var(--player-color))]" aria-hidden="true" />
-              <p className="text-base font-semibold text-foreground">{t("queue.matchedTitle")}</p>
+              <p className="text-base font-semibold text-foreground">
+                {handoffTitle ?? t("queue.matchedTitle")}
+              </p>
               <p className="text-sm text-muted-foreground">{t("queue.matchedPaused")}</p>
             </div>
           </div>

@@ -287,6 +287,13 @@ export const es: Record<StringKey, string> = {
   "queue.matchedBody": "Empezando tu partida…",
   "queue.matchedPaused": "Tu partida contra el ordenador está en pausa.",
   "queue.searchAgain": "Buscar de nuevo",
+  "queue.roomWaiting": "Esperando a un rival",
+  "queue.roomKept": "Tu sala sigue abierta mientras juegas.",
+  "queue.closeRoom": "Cerrar sala",
+  "queue.joinedTitle": "Un rival se ha unido",
+  "queue.copyShort": "Copiar enlace",
+  "queue.copiedShort": "Copiado",
+  "queue.copyFailed": "No se pudo copiar el enlace.",
 
   "peer.rematchWithdrawn": "Petición de revancha retirada",
   "peer.rematchDeclined": "Revancha rechazada",
