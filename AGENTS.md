@@ -133,6 +133,14 @@ pnpm check
 - Create expects the `host` seat. The relay seats a creator as `guest` when the code already has a host, and `welcome.role !== "host"` on a host client is reported as "That room code is already in use" with the socket closed
 - The Worker's queue already matched pairs FIFO on a `waiting` response that carries the room id, so the client still hosts a relay room while searching. That is transport, not a feature — suppressing the code is a UI decision, not a protocol one
 
+## Play While You Wait (Quick Match)
+
+- `PeerRoomState.queue` (`none | searching | matched`) is the one signal for where a Quick Match is. `status` cannot say it: a searcher polling the queue and a paired host building its room both hold `creating`, and the queue-depth copy used to hang off `waiting`, so it never showed during a real search. `runQuickMatch` sets `searching` first, `matched` before it calls `startAsHost`/`joinAsGuest`, and `none` on every way out (timeout, expired ticket, failure, pagehide, `leave()`). A new exit path that forgets `queue: "none"` strands the search UI
+- A searching player may fill the wait with a vs Computer game (`src/components/game/queuePlay.tsx`). It is opt-in, Quick only (a created room's host must keep the invite code in view), and purely local: the ticket keeps polling in `usePeerRoom` the whole time, so playing never costs the place in line. Difficulty defaults to the saved preference and is saved when changed
+- The surface derives one phase for Quick: `searching`, `matched`, `ended` (any `error`), or none once the online game exists. The search card, the one-line `QueueStrip`, the `Opponent found` handoff and the warm-up all key on it. The warm-up lives while the phase does, so a search that expires or fails mid-game keeps the board and offers "Search again"; the online board replaces it only when the match is `connected`
+- The handoff is a freeze, never a timer. On `matched` the warm-up pauses under an overlay that blocks the board, so a tap meant for the old game cannot land on the real one, and it stays until the connection is up. The real game's turn clock starts at `connected`, so nobody loses seconds to the swap, and no artificial delay is added to it
+- Warm-up results are recorded like any vs Computer game (`useRecordLocalResult`, shared with `LocalGameSurface`); an abandoned or frozen game records nothing. The board wiring is `LocalBoard`, shared for the same reason, so the two screens cannot drift on when a cell is dead or what it says
+
 ## WebSocket Relay Model
 
 - Default transport is the shared `fuurma-matchmaking` Cloudflare Durable Object WebSocket relay

@@ -103,6 +103,25 @@ PlayersPanel is HUD, not a second hero. Sentence-case mode label. The
 board well dominates the column. Help is a sheet, not a new page.
 Online status banners sit above the board so connection state is first.
 
+### Play while you wait
+
+References: Apple Music's mini player (a persistent one-line status that never
+owns the screen), League of Legends' queue pop (a hard interrupt you cannot
+miss or mis-tap through), Lichess's lobby (you can play while a seek is open).
+Craft move: the interrupt is a freeze, not a countdown. The match-found
+overlay lasts exactly as long as connecting does, so the real game's clock
+never starts on a screen the player is still looking at.
+
+- The search card offers the computer as its one primary action: difficulty
+  chips, then the tinted CTA, then the reassurance that the place in line is
+  kept. Cancel stays last and quiet
+- During play the search shrinks to a single glass strip above the board:
+  spinner, who is looking, Leave queue. It never competes with the board
+- When the search ends the strip becomes the reason plus Search again; the
+  game on the board is never taken away
+- Copy must survive a longer translation: the CTA's height is a floor, so
+  Spanish wraps to two lines at 320px instead of clipping
+
 ## Mobile (below `sm`, 640px)
 
 A phone is not a small desktop. Desktop keeps the floating glass column;

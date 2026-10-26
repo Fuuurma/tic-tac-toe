@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AI_Difficulty,
+  type AI_Difficulty as AI_DifficultyType,
   Color,
   GameModes,
   PlayerSymbol,
@@ -15,12 +16,13 @@ import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
 import { useGameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
-import { savePreferences } from "@/lib/preferences";
+import { loadPreferences, savePreferences } from "@/lib/preferences";
 import {
   SettingsSheet,
   type PlayerSettings,
 } from "@/components/lobby/playerSettingsSheet";
 import { HelpDrawer } from "@/components/game/helpDrawer";
+import { QueueStrip, QueueWarmup, WarmupInvite, type StripPhase } from "./queuePlay";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
@@ -47,12 +49,11 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     hostShape: config.playerShape,
     gameMode: GameModes.ONLINE,
   });
+  const isQuick = config.onlineAction === "quick";
   // Only the searching state needs the live count, and only Quick Match has
-  // a searching state worth watching.
-  const { count: playerCount } = usePlayerCount(
-    config.onlineAction === "quick" &&
-      (peer.state.status === "waiting" || peer.state.status === "creating"),
-  );
+  // a searching state worth watching. `queue` says "still in line"; `status`
+  // cannot, since a paired host building its room holds `creating` too.
+  const { count: playerCount } = usePlayerCount(isQuick && peer.state.queue === "searching");
 
   // Connection effect: runs when the action or room ID changes.
   // The cleanup leaves the room before re-connecting, so changing the action
@@ -150,6 +151,32 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   );
   const showGame = ["connected", "reconnecting", "disconnected"].includes(peer.state.status);
 
+  // Quick Match before the online game exists: in line, paired and being
+  // connected, or over. The search card, the strip and the handoff all key on
+  // this, never on message copy.
+  const quickPhase: StripPhase | null =
+    !isQuick || showGame
+      ? null
+      : peer.state.status === "error"
+        ? "ended"
+        : peer.state.queue === "searching"
+          ? "searching"
+          : peer.state.queue === "matched"
+            ? "matched"
+            : null;
+  // The player's choice to fill the wait with a game against the computer.
+  // The game lives while the search does, and goes the moment the real board
+  // replaces it (quickPhase turns null once the match connects).
+  const [warmupOpen, setWarmupOpen] = useState(false);
+  const warmupVisible = warmupOpen && quickPhase !== null;
+  const [warmupDifficulty, setWarmupDifficulty] = useState<AI_DifficultyType>(
+    () => loadPreferences().aiDifficulty ?? AI_Difficulty.NORMAL,
+  );
+  const leaveAndExit = () => {
+    peer.leave();
+    onExit();
+  };
+
   const message = onlineMessage(peer.state.status, peer.state.message);
 
   // Online rematch is terminal-only: requestRematch no-ops mid-game for both
@@ -231,28 +258,51 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             }}
           />
         )}
-        {peer.state.status === "waiting" && config.onlineAction === "quick" && (
+        {quickPhase === "searching" && !warmupVisible && (
           <OnlineConnectionState
             message={t("online.finding")}
             detail={quickMatchDetail(playerCount?.waiting)}
-            hint={t("online.noCodeHint")}
+            hint={t("queue.keepSpot")}
             cancelLabel={t("online.cancelSearch")}
-            onCancel={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
+            onCancel={leaveAndExit}
+          >
+            <WarmupInvite
+              difficulty={warmupDifficulty}
+              color={config.color}
+              onDifficultyChange={(next) => {
+                setWarmupDifficulty(next);
+                savePreferences({ aiDifficulty: next });
+              }}
+              onStart={() => setWarmupOpen(true)}
+            />
+          </OnlineConnectionState>
         )}
-        {peer.state.status === "creating" && (
+        {quickPhase === "matched" && !warmupVisible && (
           <OnlineConnectionState
-            message={config.onlineAction === "quick" ? t("online.finding") : t("online.creating")}
-            onCancel={() => {
-              peer.leave();
-              onExit();
+            message={t("queue.matchedTitle")}
+            hint={t("queue.matchedBody")}
+            cancelLabel={t("queue.cancel")}
+            onCancel={leaveAndExit}
+          />
+        )}
+        {warmupVisible && quickPhase !== null && (
+          <QueueStrip
+            phase={quickPhase}
+            detail={quickStripDetail(playerCount?.waiting)}
+            message={peer.state.message || t("online.connectFail")}
+            onLeave={leaveAndExit}
+            onSearchAgain={() => {
+              void peer.startQuickMatch();
             }}
           />
         )}
-        {peer.state.status === "connecting" && (
+        {peer.state.status === "creating" && !isQuick && (
+          <OnlineConnectionState
+            message={t("online.creating")}
+            onCancel={leaveAndExit}
+          />
+        )}
+        {peer.state.status === "connecting" && quickPhase === null && (
           <OnlineConnectionState
             // relayEvents already writes the accurate reason here ("Waiting
             // for host…", a relay rejection, a room-not-found). A hardcoded
@@ -289,7 +339,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             </Button>
           </div>
         )}
-        {peer.state.status === "error" && (
+        {peer.state.status === "error" && !warmupVisible && (
           <div
             role="alert"
             className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
@@ -342,6 +392,19 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         )}
 
       </div>
+
+      {warmupVisible && (
+        <QueueWarmup
+          player={{
+            displayName: config.displayName,
+            color: config.color,
+            playerShape: config.playerShape,
+          }}
+          difficulty={warmupDifficulty}
+          handoff={quickPhase === "matched"}
+          onStop={() => setWarmupOpen(false)}
+        />
+      )}
 
       {/* Game area — below the status banners */}
       {showGame && (
@@ -491,6 +554,16 @@ function quickMatchDetail(waiting: number | undefined): string {
     : t("online.queueMany", { count: others });
 }
 
+/** The same queue read as `quickMatchDetail`, short enough for the strip. */
+function quickStripDetail(waiting: number | undefined): string {
+  if (waiting === undefined) return t("queue.stripCheck");
+  const others = Math.max(0, waiting - 1);
+  if (others === 0) return t("queue.stripFirst");
+  return others === 1
+    ? t("queue.stripOne", { count: others })
+    : t("queue.stripMany", { count: others });
+}
+
 function RoomIdShare({
   roomId,
   origin,
@@ -612,9 +685,12 @@ function OnlineConnectionState({
   hint,
   cancelLabel,
   onCancel,
+  children,
 }: {
   message: string;
   detail?: string;
+  /** An offer to make the wait useful, shown between the status and the exit. */
+  children?: ReactNode;
   /** Overrides the room-flavoured default. A Quick Match has no room to change. */
   hint?: string;
   cancelLabel?: string;
@@ -635,6 +711,7 @@ function OnlineConnectionState({
           {detail}
         </p>
       )}
+      {children}
       <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-center max-sm:text-sm">
         {hint ?? t("online.setupHint")}
       </p>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { OnlineGameSurface } from "./onlineGameSurface";
 import { freshGameState, type GameState } from "@/game/logic";
 import {
@@ -12,6 +12,7 @@ import {
   SymbolShape,
 } from "@/game/constants";
 import type { PeerRoomState } from "@/hooks/usePeerRoom";
+import { setLocale } from "@/i18n/language";
 
 // The surface's transport lives in usePeerRoom — that hook is the seam
 // boundary, so tests mock it and drive the exact renderable state a real
@@ -55,6 +56,7 @@ vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
 afterEach(() => {
   mocks.playerCount = null;
+  setLocale("en");
   cleanup();
 });
 
@@ -76,6 +78,7 @@ function makePeer(
     state: {
       role,
       status: "connected",
+      queue: "none",
       roomId: "ROOM42",
       hostSymbol: PlayerSymbol.X,
       guestSymbol: PlayerSymbol.O,
@@ -257,7 +260,7 @@ describe("OnlineGameSurface room-code disclosure", () => {
   // searching and as a copyable chip in the HUD once play started.
   it("shows no room code while a quick match is searching", () => {
     mocks.usePeerRoom.mockReturnValue(
-      makePeer("host", { status: "waiting", roomId: "QM-7731" }),
+      makePeer("host", { status: "creating", queue: "searching", roomId: "QM-7731" }),
     );
     render(
       <OnlineGameSurface config={{ ...config, onlineAction: "quick" }} onExit={vi.fn()} />,
@@ -300,8 +303,11 @@ describe("OnlineGameSurface room-code disclosure", () => {
 describe("OnlineGameSurface quick-match queue copy", () => {
   const searching = (count: { players: number; waiting: number } | null) => {
     mocks.playerCount = count;
+    // The real search holds `creating`; only a PAIRED host sits in
+    // `waiting`. The queue copy used to hang off `waiting`, so it never
+    // appeared during an actual search.
     mocks.usePeerRoom.mockReturnValue(
-      makePeer("host", { status: "waiting", roomId: "QM-9001" }),
+      makePeer("host", { status: "creating", queue: "searching", roomId: "QM-9001" }),
     );
     render(
       <OnlineGameSurface config={{ ...config, onlineAction: "quick" }} onExit={vi.fn()} />,
@@ -331,5 +337,183 @@ describe("OnlineGameSurface quick-match queue copy", () => {
   it("says nothing about the queue until the first read lands", () => {
     searching(null);
     screen.getByText("Checking the queue.");
+  });
+});
+
+describe("OnlineGameSurface play while you wait", () => {
+  const searchingPeer = (overrides: Partial<PeerRoomState> = {}) =>
+    makePeer("host", {
+      status: "creating",
+      queue: "searching",
+      roomId: "QM-5150",
+      gameState: freshGameState(),
+      ...overrides,
+    });
+  const quickConfig = { ...config, onlineAction: "quick" as const };
+
+  const startWarmup = (peer = searchingPeer(), onExit = vi.fn()) => {
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const view = render(<OnlineGameSurface config={quickConfig} onExit={onExit} />);
+    // The mount effect starts the search once; count only what happens next.
+    peer.startQuickMatch.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Play the computer while you wait" }));
+    return { ...view, peer, onExit };
+  };
+  // Moves the SAME hook instance to a new state. The real hook's actions are
+  // referentially stable; swapping in fresh mocks would re-fire the surface's
+  // connection effect, which no real transition does.
+  const moveTo = (
+    view: ReturnType<typeof startWarmup>,
+    state: Partial<PeerRoomState>,
+  ) => {
+    mocks.usePeerRoom.mockReturnValue({ ...view.peer, state: { ...view.peer.state, ...state } });
+    view.rerender(<OnlineGameSurface config={quickConfig} onExit={view.onExit} />);
+  };
+
+  it("offers the computer to a quick-match searcher, with the queue kept", () => {
+    mocks.usePeerRoom.mockReturnValue(searchingPeer());
+    render(<OnlineGameSurface config={quickConfig} onExit={vi.fn()} />);
+
+    screen.getByRole("button", { name: "Play the computer while you wait" });
+    screen.getByText("Your place in line is kept while you play.");
+    const levels = within(screen.getByRole("radiogroup", { name: "Computer difficulty" }));
+    expect(levels.getAllByRole("radio").map((r) => r.getAttribute("aria-label"))).toEqual([
+      "Easy",
+      "Normal",
+      "Hard",
+    ]);
+    expect(levels.getByRole("radio", { name: "Normal" }).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("speaks the player's language, difficulty names included", () => {
+    setLocale("es");
+    mocks.usePeerRoom.mockReturnValue(searchingPeer());
+    render(<OnlineGameSurface config={quickConfig} onExit={vi.fn()} />);
+
+    screen.getByRole("button", { name: "Juega contra el ordenador mientras esperas" });
+    const levels = within(screen.getByRole("radiogroup", { name: "Dificultad del ordenador" }));
+    expect(levels.getAllByRole("radio").map((r) => r.getAttribute("aria-label"))).toEqual([
+      "Fácil",
+      "Normal",
+      "Difícil",
+    ]);
+  });
+
+  it("never offers it for a room the user created or joined", () => {
+    mocks.usePeerRoom.mockReturnValue(makePeer("host", { status: "waiting", roomId: "FRIDAY-9" }));
+    const created = render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "create" }} onExit={vi.fn()} />,
+    );
+    expect(screen.queryByRole("button", { name: "Play the computer while you wait" })).toBeNull();
+    created.unmount();
+
+    mocks.usePeerRoom.mockReturnValue(makePeer("guest", { status: "connecting", roomId: "ABC" }));
+    render(<OnlineGameSurface config={{ ...config, onlineAction: "join" }} onExit={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Play the computer while you wait" })).toBeNull();
+  });
+
+  it("starts a game against the computer without leaving the queue", () => {
+    const { peer } = startWarmup();
+
+    // A playable board, the HUD says who the opponent is, and the search is
+    // still live as a one-line strip rather than a card that owns the screen.
+    screen.getByRole("button", { name: /Row 1 column 1/ });
+    screen.getByText("vs Computer");
+    screen.getByText("Searching for an opponent");
+    screen.getByRole("button", { name: "Leave queue" });
+    expect(screen.queryByRole("button", { name: "Play the computer while you wait" })).toBeNull();
+    expect(peer.leave).not.toHaveBeenCalled();
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the room code out of the warm-up too", () => {
+    startWarmup();
+    expect(screen.queryByText("QM-5150")).toBeNull();
+    expect(screen.queryByLabelText(/Room code/)).toBeNull();
+  });
+
+  it("leaves the queue and the screen from the strip", () => {
+    const { peer, onExit } = startWarmup();
+    fireEvent.click(screen.getByRole("button", { name: "Leave queue" }));
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("ending the computer game returns to the search card, still queued", () => {
+    const { peer, onExit } = startWarmup();
+    fireEvent.click(screen.getByRole("button", { name: "Exit game" }));
+
+    screen.getByRole("button", { name: "Play the computer while you wait" });
+    expect(screen.queryByRole("button", { name: "Leave queue" })).toBeNull();
+    expect(peer.leave).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("tells a mid-game player the opponent was found and freezes their board", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "creating", queue: "matched" });
+
+    screen.getByText("Opponent found");
+    screen.getByText("Starting your match…");
+    // The overlay is the guard against a stray tap landing on the next board.
+    const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
+    expect((cell as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText("Searching for an opponent")).toBeNull();
+  });
+
+  it("hands over to the online board once the match connects", () => {
+    const view = startWarmup();
+    moveTo(view, { status: "creating", queue: "matched" });
+    moveTo(view, {
+      status: "connected",
+      queue: "matched",
+      gameState: {
+        ...freshGameState(),
+        gameMode: GameModes.ONLINE,
+        gameStatus: GameStatus.ACTIVE,
+      },
+    });
+
+    expect(screen.queryByText("Opponent found")).toBeNull();
+    expect(screen.queryByText("Leave queue")).toBeNull();
+    expect(screen.queryByText("vs Computer")).toBeNull();
+    screen.getByText("Online");
+  });
+
+  it("keeps the computer game when the search ends, and offers another search", () => {
+    const view = startWarmup();
+    moveTo(view, {
+      status: "error",
+      queue: "none",
+      message: "Your search expired before an opponent was found. Start a new search to try again.",
+    });
+
+    screen.getByRole("button", { name: /Row 1 column 1/ });
+    screen.getByText(/search expired/);
+    // The queue is over, so the way out is "Back to setup", not "Leave queue".
+    screen.getByRole("button", { name: "Back to setup" });
+    expect(screen.queryByRole("button", { name: "Leave queue" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Search again" }));
+    expect(view.peer.startQuickMatch).toHaveBeenCalledTimes(1);
+
+    // The new search is a new queue stage on the same hook; the game never left.
+    moveTo(view, { status: "creating", queue: "searching" });
+    screen.getByRole("button", { name: "Leave queue" });
+    screen.getByRole("button", { name: /Row 1 column 1/ });
+  });
+
+  it("says an opponent was found even when no game is being played", () => {
+    mocks.usePeerRoom.mockReturnValue(searchingPeer({ status: "creating", queue: "matched" }));
+    render(<OnlineGameSurface config={quickConfig} onExit={vi.fn()} />);
+
+    screen.getByText("Opponent found");
+    expect(screen.queryByRole("button", { name: "Play the computer while you wait" })).toBeNull();
+    expect(screen.queryByText("QM-5150")).toBeNull();
+  });
+
+  it("shows how many others are looking, in the strip, while playing", () => {
+    mocks.playerCount = { players: 5, waiting: 3 };
+    startWarmup();
+    screen.getByText("2 other players looking");
   });
 });
