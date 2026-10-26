@@ -14,7 +14,13 @@ on:
         type: string
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # F797: two manual dispatches from the same workflow ref that test
+  # DIFFERENT target refs used to share this group and cancel each
+  # other — one requested ref got no CI result at all. The group keys
+  # on the checkout target (inputs.ref, required with default main),
+  # so the same target still supersede-cancels its own stale runs while
+  # different targets run to completion side by side.
+  group: ci-${{ github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
 
 jobs:
