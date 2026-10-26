@@ -135,3 +135,71 @@ describe("useGameStats breakdown recording", () => {
     });
   });
 });
+
+// F791 — the hook used to load one aggregate snapshot per mount, update
+// it in React state, and write the whole object back. A second tab
+// (same guest identity — it lives in localStorage) did the same, so
+// whichever tab recorded last overwrote the other's games. The contract
+// now: every record merges into the FRESH stored snapshot, and a newer
+// snapshot from another tab is adopted via the storage event.
+describe("useGameStats cross-tab integrity (F791)", () => {
+  const rivalSnapshot = {
+    totalGames: 3,
+    wins: 2,
+    losses: 1,
+    currentWinStreak: 1,
+    bestWinStreak: 2,
+    breakdown: {
+      "VS_COMPUTER:HARD": { wins: 2, losses: 1 },
+    },
+  };
+
+  it("merges a record into the fresh stored snapshot, not a stale local copy", () => {
+    const { result } = renderHook(() => useGameStats());
+
+    // Tab B records games behind this tab's back — a direct storage
+    // write this hook's React state never sees.
+    act(() => {
+      window.localStorage.setItem(
+        `tic-tac-toe:stats:${guestId()}`,
+        JSON.stringify(rivalSnapshot),
+      );
+    });
+
+    // This tab records one more win. It must land ON TOP of the
+    // rival's three games, not overwrite them with a stale snapshot.
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+    });
+
+    const after = stored();
+    expect(after?.totalGames).toBe(4);
+    expect(after?.wins).toBe(3);
+    expect(after?.breakdown["VS_FRIEND"]).toEqual({ wins: 1, losses: 0 });
+    // The rival's bucket survives too.
+    expect(after?.breakdown["VS_COMPUTER:HARD"]).toEqual({ wins: 2, losses: 1 });
+  });
+
+  it("adopts another tab's newer snapshot via the storage event", () => {
+    const { result } = renderHook(() => useGameStats());
+
+    act(() => {
+      window.localStorage.setItem(
+        `tic-tac-toe:stats:${guestId()}`,
+        JSON.stringify(rivalSnapshot),
+      );
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: `tic-tac-toe:stats:${guestId()}`,
+          newValue: JSON.stringify(rivalSnapshot),
+        }),
+      );
+    });
+
+    expect(result.current.stats.totalGames).toBe(3);
+    expect(result.current.stats.breakdown["VS_COMPUTER:HARD"]).toEqual({
+      wins: 2,
+      losses: 1,
+    });
+  });
+});
