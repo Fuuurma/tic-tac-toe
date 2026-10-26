@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { skipOnboarding } from "./skipOnboarding";
 import { onlineSmokeEnabled } from "./matchmaking";
 
 async function openPlayerSettings(page: import("@playwright/test").Page) {
@@ -614,6 +615,8 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
 
   const host = await browser.newContext();
   const guest = await browser.newContext();
+  await skipOnboarding(host);
+  await skipOnboarding(guest);
   // Exercise the randomized host=O branch deterministically. The game must
   // still identify the host correctly while X remains the first mover.
   await host.addInitScript(() => {
@@ -757,6 +760,8 @@ test("quick-match places both clients into a shared room", async ({ browser }) =
 
   const first = await browser.newContext();
   const second = await browser.newContext();
+  await skipOnboarding(first);
+  await skipOnboarding(second);
   await first.addInitScript(() => {
     Math.random = () => 0.25;
   });

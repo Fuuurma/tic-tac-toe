@@ -71,6 +71,7 @@ export interface LobbyFormPayload {
 interface LobbyFormProps {
   initialRoomId?: string;
   onStart: (payload: LobbyFormPayload) => void;
+  onReplayTutorial?: () => void;
 }
 
 const getRoomCodeError = (
@@ -114,7 +115,7 @@ const validate = (payload: LobbyFormPayload): string | null => {
   return null;
 };
 
-export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
+export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: LobbyFormProps) {
   const [displayName, setDisplayName] = useState<string>(
     () => getOrCreateGuestIdentity().displayName,
   );
@@ -568,7 +569,11 @@ export function LobbyForm({ initialRoomId = "", onStart }: LobbyFormProps) {
         startDisabled={startDisabled}
       />
 
-      <HelpDrawer isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpDrawer
+        isOpen={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        onReplayTutorial={onReplayTutorial}
+      />
     </form>
   );
 }

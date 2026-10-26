@@ -1,10 +1,12 @@
-import { Clock, Grid3x3, Keyboard, MoveRight, Trophy } from "lucide-react";
+import { Clock, Grid3x3, Keyboard, MoveRight, RotateCcw, Trophy } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 
 interface HelpDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   inline?: boolean;
+  /** Offered where leaving the screen costs nothing (the lobby), never mid-game. */
+  onReplayTutorial?: () => void;
 }
 
 const TIPS: { Icon: typeof Clock; title: string; body: string }[] = [
@@ -35,7 +37,7 @@ const TIPS: { Icon: typeof Clock; title: string; body: string }[] = [
   },
 ];
 
-export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps) {
+export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }: HelpDrawerProps) {
   return (
     <Sheet
       open={isOpen}
@@ -61,6 +63,16 @@ export function HelpDrawer({ isOpen, onClose, inline = false }: HelpDrawerProps)
           </li>
         ))}
       </ul>
+      {onReplayTutorial && (
+        <button
+          type="button"
+          onClick={onReplayTutorial}
+          className="glass-interactive flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-semibold"
+        >
+          <RotateCcw className="size-4" aria-hidden="true" />
+          Replay the practice round
+        </button>
+      )}
     </Sheet>
   );
 }

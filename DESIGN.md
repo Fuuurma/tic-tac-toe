@@ -78,6 +78,25 @@ No literal mini-board: it read as clip art.
 No uppercase eyebrow. Modes are a 3-up radio, not three equal glass
 marketing cards. Start CTA tints to the player's color.
 
+## Onboarding
+
+First run only: welcome, profile, practice round, ready. Same card, header and
+pinned thumb-zone action as the lobby, so the handoff into it is invisible.
+
+References: Apple Setup Assistant (one decision per screen, every default
+already usable, "set up later" always present), Duolingo's first lesson (you
+learn by doing inside the first minute, progress is always visible), Chess.com
+lessons (the board is the lesson; the guide sits above it and never competes
+with it). Craft move: the piece teaches, not the paragraph. The oldest mark
+blinks, then fades out as a ghost; each coach line only names what just
+happened, one idea at a time.
+
+- The profile preview tile is the feedback loop: it remounts and pops on every
+  pick. The mark meter shows the three-mark limit as three pips
+- Syne stays on the wordmark only. Step titles are Source Sans
+- Skip is always one tap away and is never styled as a failure
+- The practice opponent is never gray, and never shares the player's symbol
+
 ## Operate (in-game)
 
 PlayersPanel is HUD, not a second hero. Sentence-case mode label. The

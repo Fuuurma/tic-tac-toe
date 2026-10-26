@@ -16,6 +16,10 @@ interface BoardProps {
    *  other player, game over). Surfaced in every empty cell's accessible
    *  name so "empty" is not the whole story. */
   disabledReason?: string;
+  /** Cell to point at, for guided play. Plain games leave it unset. */
+  hintIndex?: number | null;
+  /** Fade retired marks out instead of removing them in a single frame. */
+  showVanish?: boolean;
   onCellClick: (index: number) => void;
 }
 
@@ -41,6 +45,8 @@ export const Board = memo(function Board({
   previewShape,
   disabled,
   disabledReason,
+  hintIndex,
+  showVanish,
   onCellClick,
 }: BoardProps) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -144,6 +150,8 @@ export const Board = memo(function Board({
                     previewPlayer={previewPlayer}
                     previewColor={previewColor}
                     previewShape={previewShape}
+                    isHint={hintIndex === index}
+                    showVanish={showVanish}
                     onClick={onCellClick}
                     onHover={setHovered}
                   />

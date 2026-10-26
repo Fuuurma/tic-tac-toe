@@ -13,6 +13,7 @@ import {
 } from "@/game/constants";
 
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
+import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
 import { BackgroundPattern } from "@/components/backgroundPattern";
 import { Board } from "@/components/game/board";
 import { HelpDrawer } from "@/components/game/helpDrawer";
@@ -27,13 +28,14 @@ import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { normalizeRoomId } from "@/lib/roomId";
 import { saveDisplayName } from "@/lib/identity";
+import { shouldShowOnboarding } from "@/lib/onboarding";
 import { savePreferences } from "@/lib/preferences";
 
 const OnlineGameSurface = lazy(() =>
   import("./components/game/onlineGameSurface").then((m) => ({ default: m.OnlineGameSurface })),
 );
 
-type View = "lobby" | "game";
+type View = "onboarding" | "lobby" | "game";
 
 interface GameConfig {
   displayName: string;
@@ -50,12 +52,18 @@ interface GameConfig {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>("lobby");
-  const [config, setConfig] = useState<GameConfig | null>(null);
   const [initialRoomId] = useState(() => {
     if (typeof window === "undefined") return "";
     return normalizeRoomId(new URLSearchParams(window.location.search).get("room"));
   });
+  // Decided once, before anything below can create an identity. Someone
+  // arriving on an invite link came to join a room, not to be walked through
+  // the game; they can replay the practice round from the lobby's help.
+  const [view, setView] = useState<View>(() =>
+    !initialRoomId && shouldShowOnboarding() ? "onboarding" : "lobby",
+  );
+  const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
+  const [config, setConfig] = useState<GameConfig | null>(null);
 
   const handleStart = (payload: LobbyFormPayload) => {
     setConfig({
@@ -96,8 +104,18 @@ export default function App() {
           what remains. From `sm` up, auto margins restore content-height
           centring for desktop. */}
       <div className="relative z-10 flex w-full justify-center sm:my-auto">
+        {view === "onboarding" && (
+          <OnboardingFlow mode={onboardingMode} onExit={() => setView("lobby")} />
+        )}
         {view === "lobby" && (
-          <LobbyForm initialRoomId={initialRoomId} onStart={handleStart} />
+          <LobbyForm
+            initialRoomId={initialRoomId}
+            onStart={handleStart}
+            onReplayTutorial={() => {
+              setOnboardingMode("replay");
+              setView("onboarding");
+            }}
+          />
         )}
         {view === "game" && config && (
           <ErrorBoundary>

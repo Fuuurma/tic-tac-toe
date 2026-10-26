@@ -2,7 +2,8 @@
 // not see. It needs the REAL relay to be proven: `pause` must not be one of
 // the relay's RESERVED_TYPES (or the frame is swallowed and the guest never
 // learns), and the guest must stop counting down against a stopped clock.
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { skipOnboarding } from "./skipOnboarding";
 import { onlineSmokeEnabled } from "./matchmaking";
 
 async function fillLobby(
@@ -36,6 +37,8 @@ test("a host pause reaches the guest across the relay", async ({ browser }) => {
 
   const hostCtx = await browser.newContext();
   const guestCtx = await browser.newContext();
+  await skipOnboarding(hostCtx);
+  await skipOnboarding(guestCtx);
   const hostPage = await hostCtx.newPage();
   const guestPage = await guestCtx.newPage();
 

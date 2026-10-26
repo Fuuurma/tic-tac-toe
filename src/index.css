@@ -399,6 +399,41 @@ a {
   animation: pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* A retired mark: shrinks and blurs away so the vanish reads as an event. */
+@keyframes vanish {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(0.6);
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@utility animate-vanish {
+  animation: vanish 0.55s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* Onboarding steps ease in from just below instead of scaling, which would
+   read as a zoom on a full-screen phone page. */
+@keyframes step-in {
+  0% {
+    transform: translate3d(0, 10px, 0);
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@utility animate-step-in {
+  animation: step-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes pop-out {
   0% {
     transform: translate3d(0, var(--sheet-drag-offset, 0px), 0) scale(1);

@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { skipOnboarding } from "./skipOnboarding";
 import { onlineSmokeEnabled } from "./matchmaking";
 
 async function configureQuickPlayer(
@@ -19,6 +20,8 @@ test("quick match pairs two players", async ({ browser }) => {
 
   const host = await browser.newContext();
   const guest = await browser.newContext();
+  await skipOnboarding(host);
+  await skipOnboarding(guest);
   await host.addInitScript(() => {
     Math.random = () => 0.25;
   });

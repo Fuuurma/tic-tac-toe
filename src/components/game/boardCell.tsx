@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Color, PlayerSymbol, SHAPE_LABELS, SymbolShape } from "@/game/constants";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
@@ -18,9 +18,16 @@ interface BoardCellProps {
   previewPlayer?: PlayerSymbol;
   previewColor?: Color;
   previewShape?: SymbolShape;
+  /** The cell a guide wants the player to notice. Teaching surfaces only. */
+  isHint?: boolean;
+  /** Let a retired mark fade out instead of vanishing in one frame. */
+  showVanish?: boolean;
   onClick: (index: number) => void;
   onHover?: (index: number | null) => void;
 }
+
+/** Matches the `vanish` keyframe; the ghost is removed once it has played. */
+const VANISH_MS = 600;
 
 const SYMBOL_COLOR: Record<Color, string> = {
   [Color.BLUE]: "text-blue-500",
@@ -56,12 +63,13 @@ const OCCUPIED_TINT_CLASSES: Record<Color, string> = {
 };
 
 export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
-  const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, onClick, onHover } = props;
+  const ghost = useVanishGhost(props.showVanish ?? false, props.value, props.valueShape, props.valueColor);
+  const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, isHint, onClick, onHover } = props;
 
   return (
     <button
       type="button"
-      aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove, disabledReason)}
+      aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove, disabledReason, isHint)}
       aria-keyshortcuts={String(index + 1)}
       aria-disabled={isDisabled || value !== null}
       disabled={isDisabled}
@@ -75,27 +83,78 @@ export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
       onBlur={() => onHover?.(null)}
       className={getBoardCellClassName(props)}
     >
-      {renderBoardCellContents(props)}
+      {renderBoardCellContents(props, ghost)}
     </button>
   );
 });
 
-function renderBoardCellContents({
-  value,
-  valueColor,
-  valueShape,
-  isNextToRemove,
-  isWinningCell,
-  isDisabled,
-  isHovered,
-  previewPlayer,
-  previewColor,
-  previewShape,
-}: BoardCellProps) {
+/**
+ * The mark that was just here, kept alive long enough to fade. The engine
+ * clears a retired cell in the same commit that places the new mark, so
+ * without this the vanish is one frame, easy to miss on the very rule the
+ * game is named for.
+ */
+interface VanishGhost {
+  shape: SymbolShape;
+  color: Color;
+}
+
+function useVanishGhost(
+  enabled: boolean,
+  value: PlayerSymbol | null,
+  shape: SymbolShape | undefined,
+  color: Color | undefined,
+): VanishGhost | null {
+  const [last, setLast] = useState({ value, shape, color });
+  const [ghost, setGhost] = useState<VanishGhost | null>(null);
+
+  // Derived from props during render (the pattern Sheet uses for `open`), not
+  // from an effect, so the ghost exists in the same commit the mark leaves.
+  if (last.value !== value) {
+    setLast({ value, shape, color });
+    if (value) setGhost(null);
+    else if (enabled && last.shape && last.color) setGhost({ shape: last.shape, color: last.color });
+  }
+
+  useEffect(() => {
+    if (!ghost) return;
+    const id = window.setTimeout(() => setGhost(null), VANISH_MS);
+    return () => window.clearTimeout(id);
+  }, [ghost]);
+
+  return ghost;
+}
+
+function renderBoardCellContents(props: BoardCellProps, ghost: VanishGhost | null) {
+  const {
+    value,
+    valueColor,
+    valueShape,
+    isNextToRemove,
+    isWinningCell,
+    isDisabled,
+    isHovered,
+    previewPlayer,
+    previewColor,
+    previewShape,
+  } = props;
   const showPreview = !value && !isDisabled && isHovered && previewPlayer;
 
   return (
     <>
+      {ghost && (
+        <span
+          aria-hidden="true"
+          data-vanishing="true"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center animate-vanish"
+        >
+          <SymbolShapeRenderer
+            shape={ghost.shape}
+            strokeWidth={7}
+            className={cn("h-3/5 w-3/5", SYMBOL_COLOR[ghost.color])}
+          />
+        </span>
+      )}
       {value && valueShape && (
         <SymbolShapeRenderer
           shape={valueShape}
@@ -128,6 +187,7 @@ function getBoardCellClassName({
   isNextToRemove,
   isWinningCell,
   isDisabled,
+  isHint,
 }: BoardCellProps): string {
   return cn(
     "relative flex aspect-square items-center justify-center rounded-xl transition-all duration-200",
@@ -137,6 +197,7 @@ function getBoardCellClassName({
     !isDisabled && !value && "hover:border-[rgb(var(--player-color)/0.5)] hover:bg-[rgb(var(--player-color)/0.1)]",
     !isDisabled && value && "hover:shadow-sm",
     isDisabled && !value && "cursor-not-allowed opacity-50",
+    isHint && !value && !isDisabled && "animate-pulse-slow border-[rgb(var(--player-color)/0.7)] bg-[rgb(var(--player-color)/0.14)] ring-2 ring-[rgb(var(--player-color)/0.45)]",
     isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30 animate-win-glow",
     !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
     !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],
@@ -150,6 +211,7 @@ const buildAriaLabel = (
   valueShape: SymbolShape | undefined,
   isNextToRemove: boolean,
   disabledReason?: string,
+  isHint?: boolean,
 ): string => {
   const row = Math.floor(index / 3) + 1;
   const col = (index % 3) + 1;
@@ -161,5 +223,5 @@ const buildAriaLabel = (
   // An unplayable cell used to announce as plain "empty", which tells a
   // screen-reader user nothing about why it cannot be played — the board
   // looked interactive and behaved like a dead end. Say it outright.
-  return `${position}, empty${disabledReason ? `, ${disabledReason}` : ""}`;
+  return `${position}, empty${disabledReason ? `, ${disabledReason}` : ""}${isHint ? ", suggested move" : ""}`;
 };

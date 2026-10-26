@@ -92,6 +92,7 @@ pnpm check
   - `src/game/` — pure game domain (rules, AI, constants)
   - `src/hooks/` — React hooks (usePeerRoom, useLocalGame, useGameStats)
   - `src/components/` — UI (board, lobby, panels, selectors, confirm dialog)
+  - `src/components/onboarding/` — first-run flow: welcome, profile, practice round, ready
   - `src/lib/` — utilities (identity helper, WebSocket protocol, cn())
 - `e2e/` — Playwright smoke tests
 - `public/` — static assets and `_headers` (CF Pages)
@@ -150,6 +151,15 @@ pnpm check
 
 - Every local move commits through `commitLocalMove` (`src/hooks/localTurnTimer.ts`) with a `cur === prev` identity guard, so a decision computed off the post-render `gameStateRef` snapshot can never clobber a newer commit
 - An identity mismatch does **not** mean a rival move landed: the turn clock rewrites `turnTimeRemaining` onto a fresh object every second. The AI's move is scheduled 700-1300ms after the turn starts against a 1000ms clock, so roughly half of all AI moves land in the same batch as a tick. `commitLocalMove` therefore takes an optional pure `rebase(cur)` that re-derives the move from whatever actually committed and drops only when a real move took the turn. Dropping there used to strand the AI until the turn expired
+
+## Onboarding
+
+- A new visitor is one with no `tic-tac-toe:*` key in storage at all (`shouldShowOnboarding`, `src/lib/onboarding.ts`). `App` decides this once, in its initial state, because `getOrCreateGuestIdentity` writes a guest id the moment the lobby mounts and would turn every newcomer into a returning player. Unavailable storage and a `?room=` invite link both skip it: the first could never remember the outcome, the second came to join a room
+- Flow: welcome, profile (name, color, symbol), a practice round on the real board, ready. Every screen can be left; `tic-tac-toe:onboarding` records `done` or `skipped` and is never asked twice. The profile is saved when confirmed, not at the end, so skipping the practice keeps what was chosen. Skipping earlier saves nothing
+- Replay runs only the practice round (`mode="replay"`), is offered from the lobby's How to play (never mid-game), and leaves the saved profile and the first-run record alone
+- The practice round runs on the real engine (`src/game/tutorial.ts`); it decides who the player faces and what to say, never what a move does. The AI blocks the player's winning cell until their 4th mark, so the first vanish is always seen before any win, then looks away. It never wins, and is never gray (gray all but disappears on the board's dark well). `findWinningMove` asks the engine, so a line that needs the mark about to vanish is not offered as a win. The lesson stage is derived from the game, never stored
+- `Board`'s `hintIndex` and `showVanish` are opt-in and only the practice round sets them. `showVanish` keeps a retired mark alive as a fading ghost; the real game still removes it in one frame
+- e2e: `e2e/fixtures.ts` seeds the onboarding key so lobby and game specs keep starting at the lobby. A spec that calls `browser.newContext()` must call `skipOnboarding` on it; only `onboarding.spec.ts` uses the bare Playwright `test`
 
 ## Theme and Text Color
 
