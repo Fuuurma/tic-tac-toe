@@ -93,8 +93,9 @@ const getTimerBorderPath = (width: number, height: number): string => {
 };
 
 /** HUD actions: 44px icon squares on desktop; on phones, equal-width
- *  labelled buttons in the bottom bar. The label is visual only, the
- *  aria-label (which contains it) stays the accessible name. */
+ *  buttons in the bottom bar. While the game runs the icon alone carries
+ *  the action (bigger, no words); the words return when the game ends.
+ *  The label is visual only either way, the aria-label stays the name. */
 const HUD_ACTION =
   "size-11 p-0 text-muted-foreground max-sm:h-14 max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:flex-col max-sm:gap-1";
 const HUD_ACTION_LABEL = "text-sm font-medium leading-none sm:hidden";
@@ -349,7 +350,7 @@ export function PlayersPanel({
             isActive && "sm:max-w-[calc(50%-2rem)] max-sm:pr-22",
           )}
         >
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:text-sm">
             <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
             {roomCode && (
               <button
@@ -412,13 +413,21 @@ export function PlayersPanel({
                 message
                   ? "font-medium text-amber-600 dark:text-amber-400"
                   : "text-muted-foreground",
+                // Phones: the highlighted player card already says whose
+                // turn it is, so the default label is screen-reader-only.
+                // An explicit message always stays visible.
+                !message && "max-sm:sr-only max-sm:mt-0",
               )}
             >
               {message || activeLabel}
             </div>
           )}
         </div>
-        <div className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]">
+        <div
+          role="toolbar"
+          aria-label="Game actions"
+          className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]"
+        >
           {onHelp && (
             <Button
               variant="glass"
@@ -427,8 +436,11 @@ export function PlayersPanel({
               aria-label="Help"
               className={HUD_ACTION}
             >
-              <CircleHelp className="size-4 max-sm:size-5" aria-hidden="true" />
-              <span className={HUD_ACTION_LABEL}>Help</span>
+              <CircleHelp
+                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
+                aria-hidden="true"
+              />
+              {isGameOver && <span className={HUD_ACTION_LABEL}>Help</span>}
             </Button>
           )}
           {onEditSettings && (
@@ -439,8 +451,11 @@ export function PlayersPanel({
               aria-label="Edit player settings"
               className={HUD_ACTION}
             >
-              <Pencil className="size-4 max-sm:size-5" aria-hidden="true" />
-              <span className={HUD_ACTION_LABEL}>Edit</span>
+              <Pencil
+                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
+                aria-hidden="true"
+              />
+              {isGameOver && <span className={HUD_ACTION_LABEL}>Edit</span>}
             </Button>
           )}
           {onNewGame && (
@@ -454,8 +469,11 @@ export function PlayersPanel({
               // wants, so it takes the emerald win tint in the bar.
               style={isGameOver ? ({ "--glass-tint": "16 185 129", "--glass-alpha": "0.22" } as React.CSSProperties) : undefined}
             >
-              <RotateCcw className="size-4 max-sm:size-5" aria-hidden="true" />
-              <span className={HUD_ACTION_LABEL}>{isGameOver ? "Play again" : "New game"}</span>
+              <RotateCcw
+                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
+                aria-hidden="true"
+              />
+              {isGameOver && <span className={HUD_ACTION_LABEL}>Play again</span>}
             </Button>
           )}
           <Button
@@ -466,8 +484,11 @@ export function PlayersPanel({
             className={cn(HUD_ACTION, "hover:text-red-500")}
             style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
           >
-            <LogOut className="size-4 max-sm:size-5" aria-hidden="true" />
-            <span className={HUD_ACTION_LABEL}>{isOnline ? "Leave" : "Exit"}</span>
+            <LogOut
+              className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
+              aria-hidden="true"
+            />
+            {isGameOver && <span className={HUD_ACTION_LABEL}>{isOnline ? "Leave" : "Exit"}</span>}
           </Button>
         </div>
       </div>

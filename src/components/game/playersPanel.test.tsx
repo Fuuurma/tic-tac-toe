@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { PlayersPanel } from "./playersPanel";
 import { freshGameState, type GameState } from "@/game/logic";
 import { GameModes, GameStatus, PlayerSymbol, PlayerTypes, AI_Difficulty } from "@/game/constants";
@@ -57,6 +64,62 @@ const activeOnlineState = (): GameState => {
   state.players[PlayerSymbol.O].username = "Guest";
   return state;
 };
+
+describe("PlayersPanel in-play HUD economy", () => {
+  const renderPanel = (state: GameState, message = "") =>
+    render(
+      <PlayersPanel
+        gameState={state}
+        gameMode={GameModes.ONLINE}
+        message={message}
+        onExit={vi.fn()}
+        onNewGame={vi.fn()}
+        onHelp={vi.fn()}
+        onEditSettings={vi.fn()}
+      />,
+    );
+  const bar = () => screen.getByRole("toolbar", { name: "Game actions" });
+
+  it("hides action words while playing; icons keep their accessible names", () => {
+    renderPanel(activeOnlineState());
+
+    expect(within(bar()).queryByText("Help")).toBeNull();
+    expect(within(bar()).queryByText("Edit")).toBeNull();
+    expect(within(bar()).queryByText("New game")).toBeNull();
+    expect(within(bar()).queryByText("Leave")).toBeNull();
+    expect(
+      within(bar()).getByRole("button", { name: "Help" }),
+    ).toBeTruthy();
+    expect(
+      within(bar()).getByRole("button", { name: "Edit player settings" }),
+    ).toBeTruthy();
+    expect(
+      within(bar()).getByRole("button", { name: "Start a new game" }),
+    ).toBeTruthy();
+    expect(
+      within(bar()).getByRole("button", { name: "Leave game" }),
+    ).toBeTruthy();
+  });
+
+  it("brings the words back when the game ends", () => {
+    renderPanel(terminalState());
+
+    expect(within(bar()).getByText("Help")).toBeTruthy();
+    expect(within(bar()).getByText("Play again")).toBeTruthy();
+  });
+
+  it("keeps the turn line screen-reader-only unless a message shows", () => {
+    renderPanel(activeOnlineState());
+
+    const turn = screen.getByText("Host's turn");
+    expect(turn.className).toMatch(/max-sm:sr-only/);
+
+    cleanup();
+    renderPanel(activeOnlineState(), "Waiting for opponent to accept rematch");
+    const notice = screen.getByText("Waiting for opponent to accept rematch");
+    expect(notice.className).not.toMatch(/sr-only/);
+  });
+});
 
 describe("PlayersPanel terminal rematch CTA", () => {
   it("renders a labeled Rematch button that fires onRequestRematch (host)", () => {
