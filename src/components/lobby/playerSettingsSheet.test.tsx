@@ -75,6 +75,13 @@ describe("SettingsSheet", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("offers no Done action; in-game edits apply live and phones dismiss by gesture", () => {
+    renderSheet();
+
+    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    expect(within(dialog).queryByRole("button", { name: "Done" })).toBeNull();
+  });
+
   it("exposes the You and Opponent tabs in a named tablist", () => {
     renderSheet();
 

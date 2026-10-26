@@ -44,6 +44,7 @@ export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }
       onClose={onClose}
       inline={inline}
       size="auto"
+      compactMobile
       title="How to play"
       closeLabel="Close help"
       bodyClassName="sm:pb-5"

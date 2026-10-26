@@ -94,9 +94,13 @@ export function SettingsSheet({
       // name + pickers), so a full-height page left a dead middle. Auto
       // pins the sheet to the content with the game visible behind it.
       size="auto"
+      compactMobile
       bodyClassName="max-sm:gap-6"
       style={{ "--player-color": COLOR_RGB[activeColor] } as CSSProperties}
       footer={
+        // In-game edits apply live, so there is nothing to submit: phones
+        // dismiss with a swipe, Esc, or a backdrop tap, and the header
+        // chrome is stripped (compactMobile), so no Done action is offered.
         isOpen && onStart ? (
           <Button
             type="button"
@@ -121,15 +125,8 @@ export function SettingsSheet({
             <Play className="h-5 w-5" aria-hidden="true" />
             {startLabel ?? "Start Game"}
           </Button>
-        ) : isOpen ? (
-          // In-game edits apply live, so there is nothing to submit; phones
-          // still get a dismiss in thumb reach instead of only the top-corner X.
-          <Button type="button" size="lg" variant="glass" onClick={onClose} className="h-12 w-full text-base font-semibold sm:hidden">
-            Done
-          </Button>
         ) : undefined
       }
-      footerClassName={onStart ? undefined : "sm:hidden"}
     >
       {isOpen && (
         <>

@@ -31,6 +31,12 @@ const EXIT_ANIMATION_FALLBACK_MS = 400;
  * desktop (the online surface keeps its board visible beside the rules); on
  * a phone an inline sheet still covers the screen, because there is no
  * "beside" at 375px.
+ *
+ * `compactMobile` strips the phone header chrome for sheets whose body is
+ * self-describing (tabs and content already say what it is): the title
+ * goes sr-only (the dialog keeps its accessible name), the X hides, and
+ * the row collapses, leaving the drag handle as the swipe affordance.
+ * Dismissal stays via swipe, Esc, and backdrop tap. Desktop is untouched.
  */
 interface SheetProps {
   open: boolean;
@@ -43,6 +49,7 @@ interface SheetProps {
   footer?: ReactNode;
   size?: "full" | "auto";
   inline?: boolean;
+  compactMobile?: boolean;
   /** Visually hide the close button (a confirm answers with its footer). */
   hideClose?: boolean;
   style?: CSSProperties;
@@ -60,6 +67,7 @@ export function Sheet({
   footer,
   size = "full",
   inline = false,
+  compactMobile = false,
   hideClose = false,
   style,
   className,
@@ -197,11 +205,27 @@ export function Sheet({
           aria-hidden="true"
           className="mx-auto mb-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"
         />
-        <div className="flex min-h-11 items-center justify-between gap-3">
-          <h2 id={titleId} className="min-w-0 truncate text-lg font-bold tracking-tight">
+        <div
+          className={cn(
+            "flex min-h-11 items-center justify-between gap-3",
+            compactMobile && "max-sm:min-h-0",
+          )}
+        >
+          <h2
+            id={titleId}
+            className={cn(
+              "min-w-0 truncate text-lg font-bold tracking-tight",
+              compactMobile && "max-sm:sr-only",
+            )}
+          >
             {title}
           </h2>
-          <div className="flex shrink-0 items-center gap-2">
+          <div
+            className={cn(
+              "flex shrink-0 items-center gap-2",
+              compactMobile && "max-sm:hidden",
+            )}
+          >
             {!hideClose && (
               <button
                 ref={closeRef}
