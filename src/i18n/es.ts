@@ -334,6 +334,7 @@ export const es: Record<StringKey, string> = {
   "err.reload": "Recargar página",
 
   "lang.label": "Idioma",
+  "lang.toggle": "Cambiar idioma",
   "lang.english": "English",
   "lang.spanish": "Español",
 };

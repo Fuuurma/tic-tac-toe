@@ -81,6 +81,20 @@ describe("locale state", () => {
   });
 });
 
+describe("one-button toggle", () => {
+  it("flips the language and shows the current code", async () => {
+    const { LanguageToggle } = await import("@/components/lobby/languageSwitcher");
+    window.localStorage.clear();
+    setLocale("en");
+    render(<LanguageToggle />);
+    expect(screen.getByRole("button", { name: "Switch language" }).textContent).toMatch(/EN/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch language" }));
+    expect(screen.getByRole("button", { name: "Cambiar idioma" }).textContent).toMatch(/ES/);
+    expect(loadLanguage()).toBe("es");
+  });
+});
+
 describe("live switch", () => {
   it("re-renders the welcome step in Spanish and back", () => {
     window.localStorage.clear();

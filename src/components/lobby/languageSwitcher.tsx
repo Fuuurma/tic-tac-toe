@@ -1,13 +1,36 @@
+import { Languages } from "lucide-react";
 import { t, useStrings } from "@/i18n/language";
 import type { StringKey } from "@/i18n/en";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/preferences";
 
 /**
+ * One-button language toggle: globe + the current language code, tap to
+ * flip. Lives beside the theme toggle in the player form. The welcome step
+ * keeps the segmented control below, where a first-run visitor picks from
+ * both options explicitly.
+ */
+export function LanguageToggle() {
+  const { locale, setLocale } = useStrings();
+  const next: Locale = locale === "en" ? "es" : "en";
+  return (
+    <button
+      type="button"
+      onClick={() => setLocale(next)}
+      aria-label={t("lang.toggle")}
+      title={t("lang.toggle")}
+      className="glass-interactive flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-bold text-muted-foreground"
+    >
+      <Languages className="size-4.5" aria-hidden="true" />
+      {locale.toUpperCase()}
+    </button>
+  );
+}
+
+/**
  * EN | ES segmented control. Labels stay in their own language either way
  * ("English" / "Español"), so the control is usable before you can read
- * anything else. One component serves the welcome step and the settings
- * sheet; `size` only changes its footprint.
+ * anything else. Serves the welcome step; `size` only changes its footprint.
  */
 export function LanguageSwitcher({ size = "md" }: { size?: "sm" | "md" }) {
   const { locale, setLocale } = useStrings();

@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { AppearancePickers } from "./appearancePickers";
-import { LanguageSwitcher } from "./languageSwitcher";
+import { LanguageToggle } from "./languageSwitcher";
+import { ThemeToggle } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
@@ -181,11 +182,6 @@ export function SettingsSheet({
               </button>
             )}
           </div>
-          {/* Language is global, not per-tab: one centered row under the tabs. */}
-          <div className="flex shrink-0 justify-center">
-            <LanguageSwitcher size="sm" />
-          </div>
-
           {tab === "player" && (
             <div role="tabpanel" id={playerPanelId} className="flex flex-col gap-5 max-sm:gap-6">
               <PlayerTab isOnline={isOnline} value={player} onChange={onPlayerChange} />
@@ -259,6 +255,11 @@ function PlayerTab({
 }) {
   return (
     <>
+      {/* One-button toggles for the two global prefs, side by side. */}
+      <div className="grid grid-cols-2 gap-2">
+        <ThemeToggle className="h-12 w-full" />
+        <LanguageToggle />
+      </div>
       <NameField
         id="sheet-name"
         label={t("settings.name")}

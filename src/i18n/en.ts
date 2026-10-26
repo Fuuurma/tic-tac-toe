@@ -332,6 +332,7 @@ export const en = {
   "err.reload": "Reload page",
 
   "lang.label": "Language",
+  "lang.toggle": "Switch language",
   "lang.english": "English",
   "lang.spanish": "Español",
 } as const;
