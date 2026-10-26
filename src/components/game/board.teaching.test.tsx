@@ -72,7 +72,7 @@ describe("Board teaching aids", () => {
     expect(vanishing(container)).toHaveLength(0);
   });
 
-  it("does not animate a vanish unless asked, so the real game is unchanged", () => {
+  it("does not animate a vanish unless asked (opt-in prop stays off by default)", () => {
     const { container, update } = renderBoard(withMark(0));
     update({ board: empty() });
     expect(vanishing(container)).toHaveLength(0);

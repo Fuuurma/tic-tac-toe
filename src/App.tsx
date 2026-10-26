@@ -360,6 +360,7 @@ function LocalGameSurface({
           previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
           disabled={isBoardDisabled}
           disabledReason={boardDisabledReason}
+          showVanish
           onCellClick={handleCellClick}
         />
       </div>

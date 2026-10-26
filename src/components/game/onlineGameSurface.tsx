@@ -411,6 +411,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
                         ? "game is over"
                         : undefined
               }
+              showVanish
               onCellClick={peer.sendMove}
             />
           </div>
