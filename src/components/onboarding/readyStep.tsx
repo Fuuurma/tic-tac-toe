@@ -1,38 +1,24 @@
 import { Clock, Keyboard, Play, RotateCcw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useStrings } from "@/i18n/language";
 import { PlayerSummaryCard } from "@/components/lobby/playerSettingsSheet";
 import type { Profile } from "./profileStep";
 import { ctaStyle } from "./ctaStyle";
 import { StepShell } from "./stepShell";
 
-const FACTS: { Icon: typeof Clock; title: string; body: string }[] = [
-  {
-    Icon: Clock,
-    title: "10 seconds per turn",
-    body: "Run out and a random move is played for you.",
-  },
-  {
-    Icon: Keyboard,
-    title: "Keys 1 to 9",
-    body: "On a keyboard, 1 is the top left square and 9 is the bottom right.",
-  },
-  {
-    Icon: Users,
-    title: "Three ways to play",
-    body: "Face the AI, a friend on this device, or someone online.",
-  },
-  {
-    Icon: RotateCcw,
-    title: "Practice any time",
-    body: "Replay the tutorial from How to play.",
-  },
+const FACTS: { Icon: typeof Clock; titleKey: "ob.ready.fact1.title" | "ob.ready.fact2.title" | "ob.ready.fact3.title" | "ob.ready.fact4.title"; bodyKey: "ob.ready.fact1.body" | "ob.ready.fact2.body" | "ob.ready.fact3.body" | "ob.ready.fact4.body" }[] = [
+  { Icon: Clock, titleKey: "ob.ready.fact1.title", bodyKey: "ob.ready.fact1.body" },
+  { Icon: Keyboard, titleKey: "ob.ready.fact2.title", bodyKey: "ob.ready.fact2.body" },
+  { Icon: Users, titleKey: "ob.ready.fact3.title", bodyKey: "ob.ready.fact3.body" },
+  { Icon: RotateCcw, titleKey: "ob.ready.fact4.title", bodyKey: "ob.ready.fact4.body" },
 ];
 
 export function ReadyStep({ profile, onStart }: { profile: Profile; onStart: () => void }) {
+  const { t } = useStrings();
   return (
     <StepShell
       color={profile.color}
-      title={`You're all set, ${profile.displayName}`}
+      title={t("ob.ready.title", { name: profile.displayName })}
       progress={{ current: 3, total: 3 }}
       focusTitle
       contentClassName="gap-5"
@@ -46,7 +32,7 @@ export function ReadyStep({ profile, onStart }: { profile: Profile; onStart: () 
           style={ctaStyle(profile.color)}
         >
           <Play className="h-5 w-5" aria-hidden="true" />
-          Start playing
+          {t("ob.ready.start")}
         </Button>
       }
     >
@@ -58,8 +44,8 @@ export function ReadyStep({ profile, onStart }: { profile: Profile; onStart: () 
         }}
       />
       <ul className="flex flex-col gap-4">
-        {FACTS.map(({ Icon, title, body }) => (
-          <li key={title} className="flex gap-3.5">
+        {FACTS.map(({ Icon, titleKey, bodyKey }) => (
+          <li key={titleKey} className="flex gap-3.5">
             <span
               aria-hidden="true"
               className="glass-cell flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground"
@@ -67,8 +53,8 @@ export function ReadyStep({ profile, onStart }: { profile: Profile; onStart: () 
               <Icon className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-foreground">{title}</p>
-              <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              <p className="text-base font-bold text-foreground">{t(titleKey)}</p>
+              <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{t(bodyKey)}</p>
             </div>
           </li>
         ))}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { t } from "@/i18n/language";
 
 interface ConfirmProps {
   isOpen: boolean;
@@ -20,8 +21,8 @@ export function Confirm({
   isOpen,
   title,
   description,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
+  confirmText = t("confirm.confirm"),
+  cancelText = t("confirm.cancel"),
   destructive = false,
   playerColor = "255 255 255",
   onConfirm,

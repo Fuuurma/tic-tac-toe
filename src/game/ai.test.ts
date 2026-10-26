@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AI_Difficulty,
-  AI_DIFFICULTY_LABELS,
   GameModes,
   Color,
   PlayerSymbol,
 } from "@/game/constants";
+import { getDifficultyLabel } from "@/i18n/language";
 import { evaluateNonTerminal, getAIMove } from "@/game/ai";
 import {
   createInitialGameState,
@@ -37,7 +37,7 @@ describe("getAIMove", () => {
 
   it("exposes one canonical label per difficulty level", () => {
     expect(
-      Object.values(AI_Difficulty).map((d) => AI_DIFFICULTY_LABELS[d]),
+      Object.values(AI_Difficulty).map((d) => getDifficultyLabel(d)),
     ).toEqual(["Easy", "Normal", "Hard"]);
   });
 

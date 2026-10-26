@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { GameModes, type GameMode } from "@/game/constants";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
+import { getModeLabel, getModeShortLabel, t, useStrings } from "@/i18n/language";
 import { Bot, TriangleAlert, Users, Wifi } from "lucide-react";
 
 interface GameModeSelectorProps {
@@ -15,23 +16,11 @@ interface GameModeSelectorProps {
 
 const MODES: {
   value: GameMode;
-  label: string;
-  shortLabel: string;
   Icon: typeof Bot;
 }[] = [
-  {
-    value: GameModes.VS_COMPUTER,
-    label: "vs Computer",
-    shortLabel: "Computer",
-    Icon: Bot,
-  },
-  {
-    value: GameModes.VS_FRIEND,
-    label: "vs Friend",
-    shortLabel: "Friend",
-    Icon: Users,
-  },
-  { value: GameModes.ONLINE, label: "Online", shortLabel: "Online", Icon: Wifi },
+  { value: GameModes.VS_COMPUTER, Icon: Bot },
+  { value: GameModes.VS_FRIEND, Icon: Users },
+  { value: GameModes.ONLINE, Icon: Wifi },
 ];
 
 // Phones get a full-width radio-row list: three 3-up tiles left a 320px
@@ -45,16 +34,20 @@ export function GameModeSelector({
   const reasonId = useId();
   // Which disabled tile the visitor tapped: its reason shows on demand,
   // centered inside the tile itself. Tapping another mode clears it.
+  // Subscribes so a language switch re-renders the tiles.
+  useStrings();
   const [explained, setExplained] = useState<GameMode | null>(null);
   return (
     <div className="flex flex-col gap-1.5">
       <div
         role="radiogroup"
-        aria-label="Game mode"
+        aria-label={t("mode.group")}
         className="flex flex-col gap-2 sm:grid sm:grid-cols-3"
         onKeyDown={handleRadioGroupKeyDown}
       >
-        {MODES.map(({ value, label, shortLabel, Icon }) => {
+        {MODES.map(({ value, Icon }) => {
+          const label = getModeLabel(value);
+          const shortLabel = getModeShortLabel(value);
           const active = selectedMode === value;
           const reason = disabledModes?.[value];
           // aria-disabled (not disabled) keeps the tile perceivable: hover

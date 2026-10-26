@@ -4,6 +4,7 @@ import {
   type Color,
 } from "@/game/constants";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
+import { getColorLabel } from "@/i18n/language";
 import { cn } from "@/lib/utils";
 
 interface ColorPickerProps {
@@ -13,7 +14,7 @@ interface ColorPickerProps {
   onChange: (color: Color) => void;
 }
 
-const formatColorName = (color: Color) => color.charAt(0).toUpperCase() + color.slice(1);
+const formatColorName = (color: Color) => getColorLabel(color);
 
 export function ColorPicker({ label, value, onChange }: ColorPickerProps) {
   return (

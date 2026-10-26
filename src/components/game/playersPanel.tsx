@@ -3,7 +3,6 @@ import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
   TURN_DURATION_MS,
-  AI_DIFFICULTY_LABELS,
   type AI_Difficulty as AI_DifficultyType,
   GameMode,
   GameModes,
@@ -19,6 +18,7 @@ import { Confirm } from "./confirm";
 import { RecordBreakdown } from "./recordBreakdown";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
+import { getDifficultyLabel, getModeLabel, t, useStrings } from "@/i18n/language";
 import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
 import { CircleHelp, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
@@ -60,9 +60,9 @@ const getTimerColor = (seconds: number): string => {
 };
 
 const getGameModeLabel = (mode: string): string => {
-  if (mode === GameModes.VS_COMPUTER) return "vs Computer";
-  if (mode === GameModes.VS_FRIEND) return "vs Friend";
-  if (mode === GameModes.ONLINE) return "Online";
+  if (mode === GameModes.VS_COMPUTER) return getModeLabel(GameModes.VS_COMPUTER);
+  if (mode === GameModes.VS_FRIEND) return getModeLabel(GameModes.VS_FRIEND);
+  if (mode === GameModes.ONLINE) return getModeLabel(GameModes.ONLINE);
   return mode.replace("_", " ");
 };
 
@@ -142,13 +142,15 @@ export function PlayersPanel({
     }
   };
 
+  // Subscribes so a language switch re-renders the HUD.
+  useStrings();
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
     gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isOnline = gameMode === GameModes.ONLINE;
-  const exitLabel = isOnline ? "Leave game" : "Exit game";
+  const exitLabel = isOnline ? t("game.leave") : t("game.exit");
 
   // Confirmations belong to the active round. A host terminal frame can make
   // Confirm close through isActive without calling onCancel, so discard both
@@ -198,8 +200,8 @@ export function PlayersPanel({
   const activePlayer = gameState.players[gameState.currentPlayer];
   const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
   const activeLabel = isAITurn
-    ? `${activePlayer.username || "AI"} thinking`
-    : `${activePlayer.username || "Player"}'s turn`;
+    ? t("game.thinking", { name: activePlayer.username || t("settings.aiFallback") })
+    : t("game.turn", { name: activePlayer.username || t("game.playerFallback") });
 
   const humanPlayer = Object.values(gameState.players).find(
     (p) => p.type !== PlayerTypes.COMPUTER,
@@ -325,7 +327,7 @@ export function PlayersPanel({
           )}
           <div
             role="timer"
-            aria-label={`Time remaining: ${seconds} seconds`}
+            aria-label={t("game.timer", { seconds })}
             className={cn(
               "pointer-events-none absolute left-1/2 top-3 z-[3] flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
               // On phones the clock is an inline chip above the header, not a
@@ -357,14 +359,14 @@ export function PlayersPanel({
                 type="button"
                 onClick={copyRoomCode}
                 className="glass-cell inline-flex max-w-40 min-h-11 min-w-0 items-center gap-1 rounded-md px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide text-foreground max-sm:text-xs transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                title={`Room code: ${roomCode}, click to copy`}
-                aria-label={`Room code ${roomCode}, click to copy`}
+                title={t("game.copyRoomTitle", { code: roomCode })}
+                aria-label={t("game.copyRoomAria", { code: roomCode })}
               >
-                <span className="sr-only">Room code </span>
+                <span className="sr-only">{t("game.roomCodeSr")}</span>
                 <span className="truncate">{roomCode}</span>
                 {copiedRoom && (
                   <span role="status" aria-live="polite" className="sr-only">
-                    Room code copied to clipboard
+                    {t("game.copied")}
                   </span>
                 )}
                 <MorphIcon
@@ -378,12 +380,12 @@ export function PlayersPanel({
               <span className="inline-flex items-center gap-0.5">
                 <span
                   role="status"
-                  aria-label={`Record: ${stats.wins} wins, ${stats.losses} losses`}
+                  aria-label={t("game.record", { wins: stats.wins, losses: stats.losses })}
                   className="font-medium normal-case tracking-normal text-muted-foreground"
                 >
-                  <span className="text-emerald-600 dark:text-emerald-400">{stats.wins} wins</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">{t("game.wins", { count: stats.wins })}</span>
                   <span className="mx-0.5 text-muted-foreground/50">·</span>
-                  <span className="text-red-500">{stats.losses} losses</span>
+                  <span className="text-red-500">{t("game.losses", { count: stats.losses })}</span>
                   {stats.currentWinStreak > 1 && (
                     <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
                       · <Flame className="size-3" aria-hidden="true" />
@@ -425,7 +427,7 @@ export function PlayersPanel({
         </div>
         <div
           role="toolbar"
-          aria-label="Game actions"
+          aria-label={t("game.actions")}
           className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]"
         >
           {onHelp && (
@@ -433,14 +435,14 @@ export function PlayersPanel({
               variant="glass"
               size="sm"
               onClick={onHelp}
-              aria-label="Help"
+              aria-label={t("game.help")}
               className={HUD_ACTION}
             >
               <CircleHelp
                 className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
                 aria-hidden="true"
               />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>Help</span>}
+              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.help")}</span>}
             </Button>
           )}
           {onEditSettings && (
@@ -448,14 +450,14 @@ export function PlayersPanel({
               variant="glass"
               size="sm"
               onClick={onEditSettings}
-              aria-label="Edit player settings"
+              aria-label={t("game.editSettings")}
               className={HUD_ACTION}
             >
               <Pencil
                 className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
                 aria-hidden="true"
               />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>Edit</span>}
+              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.edit")}</span>}
             </Button>
           )}
           {onNewGame && (
@@ -463,7 +465,7 @@ export function PlayersPanel({
               variant="glass"
               size="sm"
               onClick={handleNewGameClick}
-              aria-label={isGameOver ? "Play again" : "Start a new game"}
+              aria-label={isGameOver ? t("game.again") : t("game.restartTitle")}
               className={cn(HUD_ACTION, isGameOver && "max-sm:font-semibold max-sm:text-foreground")}
               // Game over: the restart is the next thing a phone player
               // wants, so it takes the emerald win tint in the bar.
@@ -473,7 +475,7 @@ export function PlayersPanel({
                 className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
                 aria-hidden="true"
               />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>Play again</span>}
+              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.again")}</span>}
             </Button>
           )}
           <Button
@@ -488,7 +490,7 @@ export function PlayersPanel({
               className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
               aria-hidden="true"
             />
-            {isGameOver && <span className={HUD_ACTION_LABEL}>{isOnline ? "Leave" : "Exit"}</span>}
+            {isGameOver && <span className={HUD_ACTION_LABEL}>{isOnline ? t("game.leaveConfirm") : t("game.exitConfirm")}</span>}
           </Button>
         </div>
       </div>
@@ -502,7 +504,7 @@ export function PlayersPanel({
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
           aiDifficultyLabel={
             gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? AI_DIFFICULTY_LABELS[aiDifficulty]
+              ? getDifficultyLabel(aiDifficulty)
               : undefined
           }
         />
@@ -514,7 +516,7 @@ export function PlayersPanel({
           isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
           aiDifficultyLabel={
             gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? AI_DIFFICULTY_LABELS[aiDifficulty]
+              ? getDifficultyLabel(aiDifficulty)
               : undefined
           }
         />
@@ -523,7 +525,7 @@ export function PlayersPanel({
       {!isActive && gameState.winner && (
         <div className="relative z-10 mt-3 max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3">
           <GameEndActions
-            headline={`${gameState.players[gameState.winner].username || "Player"} wins!`}
+            headline={t("game.winsHeadline", { name: gameState.players[gameState.winner].username || t("game.playerFallback") })}
             message={message}
             onAcceptRematch={onAcceptRematch}
             onDeclineRematch={onDeclineRematch}
@@ -536,8 +538,8 @@ export function PlayersPanel({
       <Confirm
         isOpen={showExit && isActive}
         title={exitLabel}
-        description={isOnline ? "Your opponent will be notified." : "Current progress will be lost."}
-        confirmText={isOnline ? "Leave" : "Exit"}
+        description={isOnline ? t("game.exitOnlineDesc") : t("game.exitLocalDesc")}
+        confirmText={isOnline ? t("game.leaveConfirm") : t("game.exitConfirm")}
         destructive
         playerColor={humanColor}
         onConfirm={() => {
@@ -554,8 +556,8 @@ export function PlayersPanel({
       />
       <Confirm
         isOpen={showNewGame && isActive}
-        title={isActive ? "Start a new game" : "Play again"}
-        confirmText={isActive ? "Restart" : "Play again"}
+        title={isActive ? t("game.restartTitle") : t("game.againTitle")}
+        confirmText={isActive ? t("game.restart") : t("game.again")}
         playerColor={humanColor}
         onConfirm={() => {
           setShowNewGame(false);
@@ -588,11 +590,13 @@ const PlayerCard = memo(function PlayerCard({
   isAITurn: boolean;
   aiDifficultyLabel?: string;
 }) {
-  const displayName = player.username || `Player ${playerSymbol}`;
+  // Own subscription: memo would otherwise hold the old language.
+  useStrings();
+  const displayName = player.username || t("game.cardPlayer", { symbol: playerSymbol });
   return (
     <div
       role="group"
-      aria-label={`${displayName}, ${playerSymbol}${aiDifficultyLabel ? `, ${aiDifficultyLabel}` : ""}${isCurrent ? ", current turn" : ""}`}
+      aria-label={`${displayName}, ${playerSymbol}${aiDifficultyLabel ? `, ${aiDifficultyLabel}` : ""}${isCurrent ? t("game.currentTurn") : ""}`}
       className={cn(
         "flex min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors sm:px-3.5 sm:py-3",
         isCurrent && "border-[rgb(var(--player-color)/0.4)] bg-[rgb(var(--player-color)/0.1)] shadow-sm",
@@ -625,7 +629,7 @@ const PlayerCard = memo(function PlayerCard({
         <ThinkingOrb
           state={isAITurn ? "solving" : "listening"}
           size={20}
-          aria-label={isAITurn ? "AI is thinking" : "Waiting for your move"}
+          aria-label={isAITurn ? t("game.aiThinking") : t("game.waitingMove")}
           className="shrink-0"
         />
       )}
@@ -677,7 +681,7 @@ function GameEndActions({
               size="sm"
               onClick={onCancelRematch}
             >
-              Cancel rematch
+              {t("game.cancelRematch")}
             </Button>
           )}
           {onDeclineRematch && (
@@ -687,7 +691,7 @@ function GameEndActions({
               size="sm"
               onClick={onDeclineRematch}
             >
-              Decline rematch
+              {t("game.declineRematch")}
             </Button>
           )}
           {onRequestRematch && (
@@ -696,7 +700,7 @@ function GameEndActions({
               size="sm"
               onClick={onRequestRematch}
             >
-              Rematch
+              {t("game.rematch")}
             </Button>
           )}
           {onAcceptRematch && (
@@ -705,7 +709,7 @@ function GameEndActions({
               size="sm"
               onClick={onAcceptRematch}
             >
-              Accept rematch
+              {t("game.acceptRematch")}
             </Button>
           )}
         </div>

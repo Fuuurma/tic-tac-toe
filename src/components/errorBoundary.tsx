@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { reportError } from "@/lib/errorReporting";
+import { t } from "@/i18n/language";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -40,22 +41,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           >
             <div className="space-y-2">
               <h1 className="text-base font-semibold text-foreground">
-                Something went wrong
+                {t("err.title")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                An unexpected error occurred. Try reloading the page.
+                {t("err.body")}
               </p>
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="glass" onClick={this.handleReset}>
-                Try again
+                {t("err.retry")}
               </Button>
               <Button
                 type="button"
                 variant="glass"
                 onClick={() => window.location.reload()}
               >
-                Reload page
+                {t("err.reload")}
               </Button>
             </div>
           </div>

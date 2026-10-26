@@ -11,6 +11,7 @@ import { ColorPicker } from "@/components/lobby/colorPicker";
 import { SymbolShapePicker } from "@/components/lobby/symbolShapePicker";
 import { SymbolShapeRenderer } from "@/components/game/symbolShapeRenderer";
 import { filterDisplayNameInput, generateGuestDisplayName, sanitizeDisplayName } from "@/lib/identity";
+import { useStrings } from "@/i18n/language";
 import { cn } from "@/lib/utils";
 import { ctaStyle } from "./ctaStyle";
 import { StepShell } from "./stepShell";
@@ -32,6 +33,7 @@ export function ProfileStep({
 }) {
   const nameId = useId();
   const hintId = useId();
+  const { t } = useStrings();
   const [name, setName] = useState(initial.displayName);
   const [color, setColor] = useState(initial.color);
   const [shape, setShape] = useState(initial.shape);
@@ -42,7 +44,7 @@ export function ProfileStep({
   return (
     <StepShell
       color={color}
-      title="Set up your player"
+      title={t("ob.profile.title")}
       progress={{ current: 1, total: 3 }}
       onSkip={onSkip}
       focusTitle
@@ -60,12 +62,12 @@ export function ProfileStep({
           )}
           style={ctaStyle(color)}
         >
-          Continue
+          {t("ob.profile.continue")}
         </Button>
       }
     >
       <p className="text-sm leading-relaxed text-muted-foreground">
-        This is how you will look on the board. You can change it any time in settings.
+        {t("ob.profile.body")}
       </p>
 
       <div className="flex items-end gap-3">
@@ -84,7 +86,7 @@ export function ProfileStep({
         </span>
         <div className="min-w-0 flex-1">
           <label htmlFor={nameId} className="mb-1.5 block text-sm font-semibold text-muted-foreground">
-            Your name
+            {t("ob.profile.name")}
           </label>
           <div className="relative">
             <User
@@ -111,8 +113,8 @@ export function ProfileStep({
             />
             <button
               type="button"
-              aria-label="Suggest another name"
-              title="Suggest another name"
+              aria-label={t("ob.profile.suggestName")}
+              title={t("ob.profile.suggestName")}
               onClick={() => setName(generateGuestDisplayName())}
               className="glass-interactive absolute right-1 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground"
             >
@@ -121,7 +123,7 @@ export function ProfileStep({
           </div>
           {!valid && (
             <p id={hintId} role="alert" className="mt-1.5 text-sm leading-tight text-destructive">
-              Use at least 2 characters.
+              {t("ob.profile.nameHint")}
             </p>
           )}
         </div>
@@ -129,16 +131,16 @@ export function ProfileStep({
 
       <section aria-labelledby={`${nameId}-color`} className="flex flex-col gap-2">
         <h2 id={`${nameId}-color`} className="text-sm font-semibold text-muted-foreground">
-          Color
+          {t("ob.profile.color")}
         </h2>
-        <ColorPicker label="Your color" value={color} onChange={setColor} />
+        <ColorPicker label={t("ob.profile.yourColor")} value={color} onChange={setColor} />
       </section>
 
       <section aria-labelledby={`${nameId}-symbol`} className="flex flex-col gap-2">
         <h2 id={`${nameId}-symbol`} className="text-sm font-semibold text-muted-foreground">
-          Symbol
+          {t("ob.profile.symbol")}
         </h2>
-        <SymbolShapePicker label="Your symbol" value={shape} onChange={setShape} />
+        <SymbolShapePicker label={t("ob.profile.yourSymbol")} value={shape} onChange={setShape} />
       </section>
     </StepShell>
   );

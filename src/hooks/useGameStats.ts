@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  AI_DIFFICULTY_LABELS,
   AI_Difficulty,
   GameModes,
   type GameMode,
 } from "@/game/constants";
+import { getDifficultyLabel, getModeLabel } from "@/i18n/language";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
 
 /** One win/loss tally for a single mode+difficulty bucket. */
@@ -207,10 +207,10 @@ interface BreakdownRow {
   bucket: StatsBucket;
 }
 
-const MODE_LABELS: Record<GameMode, string> = {
-  [GameModes.VS_COMPUTER]: "vs Computer",
-  [GameModes.VS_FRIEND]: "vs Friend",
-  [GameModes.ONLINE]: "Online",
+const MODE_LABELS = (gameMode: GameMode): string => {
+  if (gameMode === GameModes.VS_COMPUTER) return getModeLabel(GameModes.VS_COMPUTER);
+  if (gameMode === GameModes.VS_FRIEND) return getModeLabel(GameModes.VS_FRIEND);
+  return getModeLabel(GameModes.ONLINE);
 };
 
 /**
@@ -230,8 +230,8 @@ export const breakdownRows = (
       key,
       label:
         gameMode === GameModes.VS_COMPUTER && difficulty
-          ? AI_DIFFICULTY_LABELS[difficulty]
-          : MODE_LABELS[gameMode],
+          ? getDifficultyLabel(difficulty)
+          : MODE_LABELS(gameMode),
       bucket: breakdown[key] ?? DEFAULT_BUCKET,
     });
   };

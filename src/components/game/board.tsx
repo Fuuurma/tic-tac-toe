@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { COLOR_RGB, Color, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { BoardCell } from "./boardCell";
+import { t, useStrings } from "@/i18n/language";
 
 interface BoardProps {
   board: (PlayerSymbol | null)[];
@@ -49,6 +50,8 @@ export const Board = memo(function Board({
   showVanish,
   onCellClick,
 }: BoardProps) {
+  // Own subscription: memo would otherwise hold the old group label.
+  useStrings();
   const [hovered, setHovered] = useState<number | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const onCellClickRef = useRef(onCellClick);
@@ -119,7 +122,7 @@ export const Board = memo(function Board({
       >
         <div
           role="group"
-          aria-label="Tic Tac Toe game board"
+          aria-label={t("board.name")}
           aria-keyshortcuts="1 2 3 4 5 6 7 8 9"
           className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2"
           style={

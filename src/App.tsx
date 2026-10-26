@@ -30,6 +30,7 @@ import { normalizeRoomId } from "@/lib/roomId";
 import { saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
 import { savePreferences } from "@/lib/preferences";
+import { t } from "@/i18n/language";
 
 const OnlineGameSurface = lazy(() =>
   import("./components/game/onlineGameSurface").then((m) => ({ default: m.OnlineGameSurface })),
@@ -304,11 +305,11 @@ function LocalGameSurface({
   // Why the board is unplayable, in words. Every empty cell announces
   // "empty" alone, which reads as interactive and behaves as a dead end.
   const boardDisabledReason = paused
-    ? "game is paused"
+    ? t("app.boardPaused")
     : isAITurn
-      ? "waiting for the computer to move"
+      ? t("app.boardWaitingComputer")
       : gameState.gameStatus !== GameStatus.ACTIVE
-        ? "game is over"
+        ? t("app.boardGameOver")
         : undefined;
 
   return (
@@ -440,7 +441,7 @@ function GameSurfaceFallback() {
               className="size-4 animate-spin text-[rgb(var(--player-color))]"
               aria-hidden="true"
             />
-            Loading game…
+            {t("app.loading")}
           </span>
         </div>
       </div>

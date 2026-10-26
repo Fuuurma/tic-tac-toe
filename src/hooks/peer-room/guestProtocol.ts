@@ -1,11 +1,14 @@
 import { GameStatus, TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
+import { t } from "@/i18n/language";
 import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
 import type { PeerRoomState } from "../usePeerRoom";
 
 /** Guest-facing notice while the host's clock is frozen (5b76d7b). */
-const PAUSE_MESSAGE = "Your host paused the game";
+// Localised at each use site (never stored): the pause notice must read
+// the same value everywhere it is compared and set. A language switch
+// mid-pause leaves the old notice up until the next frame — harmless.
 
 /**
  * Guest-side game protocol, extracted from usePeerRoom (god-hook
@@ -129,7 +132,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           status: "connected",
           gameState,
           guestSymbol: localSymbol,
-          message: moveRejected ? "Move was rejected by host" : "",
+          message: moveRejected ? t("peer.moveRejected") : "",
           rematchOutgoing: message.type === "gameStart" ? false : prev.rematchOutgoing,
           // A terminal frame (state_snapshot/joined resync on a finished
           // game) does not supersede a live rematch prompt — only a new
@@ -157,7 +160,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           ? prev
           : {
               ...prev,
-              message: `${state.players[message.requesterSymbol].username} wants a rematch. Accept or decline below.`,
+              message: t("peer.wantsRematch", { name: state.players[message.requesterSymbol].username }),
               rematchIncoming: true,
             },
       );
@@ -170,7 +173,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       // user-facing message copy.
       setState((prev) =>
         prev.rematchIncoming
-          ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false }
+          ? { ...prev, message: t("peer.rematchWithdrawn"), rematchIncoming: false }
           : prev,
       );
       return;
@@ -188,10 +191,10 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           // rematch prompt or error text outlives the pause and comes
           // back on resume. An empty/already-paused message stashes
           // nothing (and a repeated pause frame keeps the stash).
-          const live = prev.message !== "" && prev.message !== PAUSE_MESSAGE;
+          const live = prev.message !== "" && prev.message !== t("peer.hostPaused");
           return {
             ...prev,
-            message: PAUSE_MESSAGE,
+            message: t("peer.hostPaused"),
             pausedStash: live ? prev.message : prev.pausedStash,
           };
         }
@@ -201,7 +204,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
         return {
           ...prev,
           message:
-            prev.message === PAUSE_MESSAGE
+            prev.message === t("peer.hostPaused")
               ? (prev.pausedStash ?? "")
               : prev.message,
           pausedStash: null,
@@ -225,7 +228,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           ...prev,
           status: "disconnected" as const,
           gameState,
-          message: "Host left the game",
+          message: t("peer.hostLeft"),
           rematchIncoming: false,
         };
       });

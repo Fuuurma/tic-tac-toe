@@ -10,6 +10,14 @@ import { sanitizeDisplayName } from "@/lib/identity";
 
 export type AppTheme = "light" | "dark";
 
+/** BCP 47 primary-language subtag the UI renders in. Only what ships a
+ * dictionary is accepted; anything else falls back to English.
+ *
+ * Stored under its own key (see i18n/language), NOT in this blob: the
+ * onboarding gate treats any tic-tac-toe:* key as "returning visitor", and
+ * merely picking a language must not end a first run. */
+export type Locale = "en" | "es";
+
 /**
  * Theme, player appearance, and opponent choices from the Settings sheet,
  * persisted as one JSON blob so future sessions reopen with the same setup.
@@ -51,6 +59,7 @@ const isDifficulty = (v: unknown): v is AI_DifficultyType =>
   (Object.values(AI_Difficulty) as string[]).includes(v);
 
 const isTheme = (v: unknown): v is AppTheme => v === "light" || v === "dark";
+
 
 export function loadPreferences(
   storage: Storage | null = getBrowserStorage(),

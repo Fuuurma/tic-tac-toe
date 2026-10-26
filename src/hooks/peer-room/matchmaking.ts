@@ -9,6 +9,7 @@ import {
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
+import { t } from "@/i18n/language";
 import type { PeerRoomState } from "../usePeerRoom";
 
 /**
@@ -99,7 +100,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   liveAttempts.set(matchmakingTicketRef, attempt);
   const isCurrent = () => liveAttempts.get(matchmakingTicketRef) === attempt;
   stopTimer();
-  setStatus({ status: "creating", message: "Finding match…" });
+  setStatus({ status: "creating", message: t("online.findingMatch") });
 
   // Cancel-on-disconnect: if the tab closes mid-queue, a keepalive
   // leave drops the ticket on the Worker now instead of leaking it
@@ -114,7 +115,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     hasStartedRef.current = false;
     setStatus({
       status: "error",
-      message: "Quick Match ended while this page was away. Try again or go back to setup.",
+      message: t("mm.quickEndedAway"),
     });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
@@ -224,7 +225,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
         hasStartedRef.current = false;
         setStatus({
           status: "error",
-          message: "Your search expired before an opponent was found. Start a new search to try again.",
+          message: t("mm.searchExpired"),
         });
         return;
       }
@@ -250,7 +251,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
             ? {
                 ...prev,
                 status: "error",
-                message: "No opponent found after 2 minutes. Try again, or create a room to invite someone.",
+                message: t("mm.noOpponentRetry"),
               }
             : prev,
         );
@@ -278,7 +279,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     hasStartedRef.current = false;
     setStatus({
       status: "error",
-      message: `Matchmaking failed: ${(err as Error).message}`,
+      message: t("mm.failedErr", { detail: (err as Error).message }),
     });
   } finally {
     if (canListen) window.removeEventListener("pagehide", cancelTicketOnUnload);

@@ -1,6 +1,7 @@
 import { isGameActive, makeMove, makeRandomMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { TURN_DURATION_MS } from "@/game/constants";
+import { t } from "@/i18n/language";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
 
@@ -78,7 +79,9 @@ export function startTurnTimer(deps: TurnTimerDeps) {
       setState((prev) => ({
         ...prev,
         gameState,
-        message: `${current.players[current.currentPlayer].username || "Player"} ran out of time`,
+        message: t("peer.timeout", {
+          name: current.players[current.currentPlayer].username || t("game.playerFallback"),
+        }),
       }));
       broadcastGameState(gameState);
       return;

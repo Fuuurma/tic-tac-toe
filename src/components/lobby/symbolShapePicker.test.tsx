@@ -3,7 +3,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { SymbolShapePicker } from "./symbolShapePicker";
-import { AVAILABLE_SHAPES, SHAPE_LABELS, SymbolShape } from "@/game/constants";
+import { AVAILABLE_SHAPES, SymbolShape } from "@/game/constants";
+import { getShapeLabel } from "@/i18n/language";
 
 // Tiles are icon-only by owner direction: the glyph is self-describing, so the
 // name lives on aria-label (assistive tech) and title (hover tooltip) instead
@@ -42,7 +43,7 @@ describe("SymbolShapePicker tiles", () => {
 
     for (const shape of AVAILABLE_SHAPES) {
       // getByRole throws if the name is missing or not unique.
-      expect(screen.getByRole("radio", { name: SHAPE_LABELS[shape] })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: getShapeLabel(shape) })).toBeTruthy();
     }
   });
 
@@ -60,7 +61,7 @@ describe("SymbolShapePicker tiles", () => {
   it("keeps the selected tile marked for assistive tech", () => {
     renderPicker();
     const selected = screen.getByRole("radio", {
-      name: SHAPE_LABELS[SymbolShape.STAR],
+      name: getShapeLabel(SymbolShape.STAR),
     });
 
     expect(selected.getAttribute("aria-checked")).toBe("true");

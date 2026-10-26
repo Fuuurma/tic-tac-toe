@@ -7,6 +7,7 @@ import {
   type StatsBucket,
 } from "@/hooks/useGameStats";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n/language";
 
 /**
  * Hover- or tap-to-open breakdown of the win/loss record.
@@ -58,7 +59,7 @@ export function RecordBreakdown({ stats, gameMode }: RecordBreakdownProps) {
     >
       <button
         type="button"
-        aria-label="Show record breakdown"
+        aria-label={t("game.breakdown")}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setPinned((value) => !value)}
@@ -79,7 +80,7 @@ export function RecordBreakdown({ stats, gameMode }: RecordBreakdownProps) {
         <div
           id={panelId}
           role="group"
-          aria-label="Record by mode and difficulty"
+          aria-label={t("game.breakdownGroup")}
           className="glass absolute left-0 top-[calc(100%+0.375rem)] z-30 w-max min-w-44 max-w-[min(14rem,calc(100vw-2rem))] rounded-xl p-2.5 text-left shadow-lg"
           // `glass` is tuned for large surfaces over the gradient (0.35
           // tint). This panel is small, dense, and lands on top of the
@@ -109,15 +110,15 @@ export function RecordBreakdown({ stats, gameMode }: RecordBreakdownProps) {
 function BucketTally({ bucket }: { bucket: StatsBucket }) {
   const played = bucket.wins + bucket.losses;
   if (played === 0) {
-    return <span className="text-muted-foreground/70">No games</span>;
+    return <span className="text-muted-foreground/70">{t("game.noGames")}</span>;
   }
   return (
     <span className="tabular-nums">
       <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-        {bucket.wins}W
+        {t("game.tallyWins", { count: bucket.wins })}
       </span>
       <span className="mx-1 text-muted-foreground/50">·</span>
-      <span className="font-semibold text-red-500">{bucket.losses}L</span>
+      <span className="font-semibold text-red-500">{t("game.tallyLosses", { count: bucket.losses })}</span>
     </span>
   );
 }

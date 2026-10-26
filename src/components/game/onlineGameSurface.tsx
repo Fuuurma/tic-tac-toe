@@ -24,6 +24,7 @@ import { HelpDrawer } from "@/components/game/helpDrawer";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
+import { t, useStrings } from "@/i18n/language";
 
 interface OnlineGameSurfaceProps {
   config: {
@@ -38,6 +39,8 @@ interface OnlineGameSurfaceProps {
 }
 
 export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
+  // Subscribes so a language switch re-renders banners and panels.
+  useStrings();
   const peer = usePeerRoom({
     hostDisplayName: config.displayName,
     hostColor: config.color,
@@ -230,10 +233,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         )}
         {peer.state.status === "waiting" && config.onlineAction === "quick" && (
           <OnlineConnectionState
-            message="Finding an opponent…"
+            message={t("online.finding")}
             detail={quickMatchDetail(playerCount?.waiting)}
-            hint="No room code needed. Just wait here and we'll start you."
-            cancelLabel="Cancel search"
+            hint={t("online.noCodeHint")}
+            cancelLabel={t("online.cancelSearch")}
             onCancel={() => {
               peer.leave();
               onExit();
@@ -242,7 +245,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         )}
         {peer.state.status === "creating" && (
           <OnlineConnectionState
-            message={config.onlineAction === "quick" ? "Finding an opponent…" : "Creating your room…"}
+            message={config.onlineAction === "quick" ? t("online.finding") : t("online.creating")}
             onCancel={() => {
               peer.leave();
               onExit();
@@ -256,7 +259,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             // string threw it away, so a join that fails for a knowable
             // reason spun on "Joining room…" indefinitely with no way to tell
             // a slow host from a dead room.
-            message={peer.state.message || "Joining room…"}
+            message={peer.state.message || t("online.joining")}
             onCancel={() => {
               peer.leave();
               onExit();
@@ -271,10 +274,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           >
             <span className="inline-flex items-center gap-1.5 text-xs font-medium">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {peer.state.message || "Reconnecting…"}
+              {peer.state.message || t("online.reconnecting")}
             </span>
             <span className="text-[11px] text-muted-foreground max-sm:text-xs">
-              Room stays open ~30s while the connection restores.
+              {t("online.roomOpen")}
             </span>
             <Button
               size="sm"
@@ -282,7 +285,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               onClick={() => peer.retryReconnect()}
               className="w-full sm:w-auto max-sm:h-12"
             >
-              Retry now
+              {t("online.retry")}
             </Button>
           </div>
         )}
@@ -292,7 +295,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
           >
             <span className="text-xs text-destructive">
-              {peer.state.message || "We could not connect to this room."}
+              {peer.state.message || t("online.connectFail")}
             </span>
             <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
               {config.onlineAction === "quick" && (
@@ -304,7 +307,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
                   }}
                   className="w-full sm:w-auto max-sm:h-12"
                 >
-                  Try again
+                  {t("online.tryAgain")}
                 </Button>
               )}
               <Button
@@ -313,7 +316,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
                 onClick={onExit}
                 className="w-full sm:w-auto max-sm:h-12"
               >
-                Back to setup
+                {t("online.backSetup")}
               </Button>
             </div>
           </div>
@@ -333,7 +336,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               onClick={onExit}
               className="w-full sm:w-auto max-sm:h-12"
             >
-              Back to setup
+              {t("online.backSetup")}
             </Button>
           </div>
         )}
@@ -402,13 +405,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               }
               disabledReason={
                 peer.paused || peer.hostPaused
-                  ? "game is paused"
+                  ? t("app.boardPaused")
                   : peer.state.status !== "connected"
-                    ? "not connected to your opponent"
+                    ? t("game.notConnected")
                     : peer.state.gameState.currentPlayer !== localSymbol
-                      ? "waiting for your opponent to move"
+                      ? t("game.waitingOpponent")
                       : peer.state.gameState.gameStatus !== "ACTIVE"
-                        ? "game is over"
+                        ? t("app.boardGameOver")
                         : undefined
               }
               showVanish
@@ -424,7 +427,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         onTabChange={() => undefined}
         player={pendingPlayerSettings}
         opponent={{
-          opponentName: "Opponent",
+          opponentName: t("settings.opponentFallback"),
           opponentColor: Color.GRAY,
           opponentShape: SymbolShape.O,
           opponentType: PlayerTypes.HUMAN,
@@ -456,10 +459,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 }
 
 function onlineMessage(status: PeerStatus, fallback: string): string {
-  if (status === "creating") return "Finding match…";
-  if (status === "waiting") return "Waiting for opponent…";
-  if (status === "connecting") return "Connecting…";
-  if (status === "reconnecting") return fallback || "Reconnecting…";
+  if (status === "creating") return t("online.findingMatch");
+  if (status === "waiting") return t("online.waitingOpponent");
+  if (status === "connecting") return t("online.connecting");
+  if (status === "reconnecting") return fallback || t("online.reconnecting");
   if (status === "error") return fallback;
   return fallback;
 }
@@ -475,15 +478,17 @@ function onlineMessage(status: PeerStatus, fallback: string): string {
  * reassuring state rather than a failure.
  */
 function quickMatchDetail(waiting: number | undefined): string {
-  if (waiting === undefined) return "Checking the queue.";
+  if (waiting === undefined) return t("online.queueCheck");
   // The health read can also land before the join has registered, in which
   // case `waiting` undercounts by one — the same "you're first" copy is the
   // right answer either way, and the next poll corrects it.
   const others = Math.max(0, waiting - 1);
   if (others === 0) {
-    return "You're first in the queue. We'll pair you as soon as someone else is looking.";
+    return t("online.queueFirst");
   }
-  return `${others} other ${others === 1 ? "player is" : "players are"} looking.`;
+  return others === 1
+    ? t("online.queueOne", { count: others })
+    : t("online.queueMany", { count: others });
 }
 
 function RoomIdShare({
@@ -515,8 +520,8 @@ function RoomIdShare({
     if (!canShare) return;
     try {
       await navigator.share({
-        title: "Tic Tac Toe Disappear room",
-        text: `Join my Tic Tac Toe Disappear room with code ${roomId}`,
+        title: t("online.shareTitle"),
+        text: t("online.shareText", { code: roomId }),
         url: shareUrl,
       });
     } catch {
@@ -532,15 +537,15 @@ function RoomIdShare({
         className="flex items-center gap-1.5 text-xs font-semibold text-foreground max-sm:text-lg"
       >
         <Wifi className="size-3.5 text-[rgb(var(--player-color))] max-sm:size-5" aria-hidden="true" />
-        Room ready
+        {t("online.roomReady")}
       </div>
       <p className="text-xs leading-tight text-muted-foreground max-sm:text-center max-sm:text-sm">
-        Send this code to your opponent; you start when they join.
+        {t("online.sendCode")}
       </p>
       <span
         className="glass-cell max-w-full break-all rounded-lg px-3 py-2 font-mono text-sm font-bold tracking-wide text-foreground sm:text-base"
       >
-        <span className="sr-only">Room code </span>
+        <span className="sr-only">{t("online.roomCodeSr")}</span>
         {roomId}
       </span>
       <div className="grid w-full gap-1.5 max-sm:gap-2 sm:flex sm:w-auto">
@@ -555,7 +560,7 @@ function RoomIdShare({
             className={`size-3.5 ${copied === "code" ? "text-emerald-500" : ""}`}
             aria-hidden="true"
           />
-          Copy code
+          {t("online.copyCode")}
         </Button>
         <Button
           size="sm"
@@ -568,14 +573,14 @@ function RoomIdShare({
             className={`size-3.5 ${copied === "link" ? "text-emerald-500" : ""}`}
             aria-hidden="true"
           />
-          Copy invite link
+          {t("online.copyLink")}
         </Button>
         {canShare && (
           // A phone's own share sheet (Messages, WhatsApp…) is the natural
           // way to invite someone, so it leads the list there.
           <Button size="sm" variant="glass" onClick={onShare} className="w-full max-sm:order-first max-sm:h-12 max-sm:text-base max-sm:font-semibold sm:w-auto">
             <Share2 className="size-3.5" aria-hidden="true" />
-            Share
+            {t("online.share")}
           </Button>
         )}
         <Button
@@ -584,17 +589,17 @@ function RoomIdShare({
           onClick={onCancel}
           className="w-full sm:w-auto max-sm:h-12"
         >
-          Back to setup
+          {t("online.backSetup")}
         </Button>
       </div>
       {copied && (
         <span role="status" aria-live="polite" className="text-xs text-emerald-600 dark:text-emerald-400">
-          {copied === "code" ? "Room code copied." : "Invite link copied."}
+          {copied === "code" ? t("online.codeCopied") : t("online.linkCopied")}
         </span>
       )}
       {copyError && (
         <span role="status" aria-live="polite" className="text-xs text-destructive">
-          Copy was unavailable. Select the code manually.
+          {t("online.copyFail")}
         </span>
       )}
     </div>
@@ -631,10 +636,10 @@ function OnlineConnectionState({
         </p>
       )}
       <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-center max-sm:text-sm">
-        {hint ?? "You can return to setup if you want to choose a different room."}
+        {hint ?? t("online.setupHint")}
       </p>
       <Button size="sm" variant="glass" onClick={onCancel} className="w-full sm:w-auto max-sm:h-12">
-        {cancelLabel ?? "Back to setup"}
+        {cancelLabel ?? t("online.backSetup")}
       </Button>
     </div>
   );

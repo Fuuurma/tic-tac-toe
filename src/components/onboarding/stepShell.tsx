@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { COLOR_RGB, type Color } from "@/game/constants";
 import { Card } from "@/components/ui/card";
+import { t, useStrings } from "@/i18n/language";
 import { cn } from "@/lib/utils";
 
 interface StepShellProps {
@@ -34,6 +35,9 @@ export function StepShell({
   contentClassName,
   children,
 }: StepShellProps) {
+  // Subscribes so a language switch re-renders; the static Skip label
+  // reads the live locale through the module translator.
+  useStrings();
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -65,14 +69,14 @@ export function StepShell({
                   onClick={onSkip}
                   className="glass-interactive flex h-11 shrink-0 items-center rounded-lg px-4 text-sm font-semibold text-muted-foreground"
                 >
-                  Skip
+                  {t("ob.shell.skip")}
                 </button>
               )}
             </div>
             {progress && (
               <>
                 <p className="sr-only">
-                  Step {progress.current} of {progress.total}
+                  {t("ob.shell.step", { current: progress.current, total: progress.total })}
                 </p>
                 <div aria-hidden="true" className="flex gap-1.5">
                   {Array.from({ length: progress.total }, (_, i) => (

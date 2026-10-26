@@ -18,6 +18,7 @@ import {
 } from "@/game/constants";
 import { isGameActive, isValidMove, makeMove, type GameState } from "@/game/logic";
 import { sanitizeDisplayName } from "@/lib/identity";
+import { t } from "@/i18n/language";
 
 export type PeerMessage =
   | { type: "join"; displayName: string; guestId: string; preferredColor?: Color }
@@ -83,16 +84,12 @@ export const peerLeftUserMessage = (
   reason: "disconnect" | "closed" | "expired",
 ): string => {
   if (reason === "disconnect") {
-    return role === "guest"
-      ? "Host disconnected. Reconnecting…"
-      : "Opponent disconnected. Reconnecting…";
+    return role === "guest" ? t("peer.hostReconnecting") : t("peer.opponentReconnecting");
   }
   if (reason === "expired") {
-    return role === "guest"
-      ? "Host did not reconnect in time"
-      : "Opponent did not reconnect in time";
+    return role === "guest" ? t("peer.hostGone") : t("peer.opponentGone");
   }
-  return role === "guest" ? "Host left the room" : "Opponent left the room";
+  return role === "guest" ? t("peer.hostLeftRoom") : t("peer.opponentLeftRoom");
 };
 
 /**
@@ -177,7 +174,7 @@ export const applyHostGuestJoin = (
   }
 
   const guestColor = chooseGuestColor(join.preferredColor, state.players[hostSymbol].color);
-  const guestName = sanitizeDisplayName(join.displayName, "Guest");
+  const guestName = sanitizeDisplayName(join.displayName, t("peer.guestFallback"));
   const gameState: GameState = {
     ...state,
     gameStatus: GameStatus.ACTIVE,

@@ -1,3 +1,5 @@
+import { LANGUAGE_STORAGE_KEY } from "@/i18n/language";
+
 export const ONBOARDING_STORAGE_KEY = "tic-tac-toe:onboarding";
 
 /** How a first run ended. Either value means "do not ask again". */
@@ -33,7 +35,12 @@ export function shouldShowOnboarding(
   if (!storage) return false;
   try {
     for (let i = 0; i < storage.length; i += 1) {
-      if (storage.key(i)?.startsWith(EXISTING_DATA_PREFIX)) return false;
+      const key = storage.key(i);
+      // The language choice is not visitor history: picking Español on the
+      // welcome screen must not turn a first run into a returning one.
+      if (key && key !== LANGUAGE_STORAGE_KEY && key.startsWith(EXISTING_DATA_PREFIX)) {
+        return false;
+      }
     }
     return true;
   } catch {

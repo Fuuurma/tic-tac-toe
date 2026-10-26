@@ -1,7 +1,6 @@
 import { useCallback, useId, useMemo, useState } from "react";
 import {
   AI_Difficulty,
-  AI_DIFFICULTY_LABELS,
   AVAILABLE_COLORS,
   COLOR_RGB,
   Color,
@@ -17,9 +16,9 @@ import {
 } from "@/game/constants";
 import {
   MATCHMAKING_CONFIGURED,
-  MATCHMAKING_UNAVAILABLE_MESSAGE,
   ONLINE_UNAVAILABLE,
 } from "@/lib/matchmaking";
+import { t, getDifficultyLabel, useStrings } from "@/i18n/language";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -80,35 +79,35 @@ const getRoomCodeError = (
   roomId: string,
 ): string | null => {
   if (action === "join") {
-    if (!roomId) return "Enter a room code to join.";
+    if (!roomId) return t("lobby.v.joinEmpty");
     if (!normalizeRoomId(roomId)) {
-      return "Room code must be 4-64 letters, digits, hyphens, or underscores.";
+      return t("lobby.v.joinInvalid");
     }
   }
   // Check the RAW value: normalizeRoomId zeroes invalid codes, so
   // `roomId &&` swallowed every invalid non-empty code (e2e regression,
   // needs-work 10-02 P1 follow-through).
   if (action === "create" && roomId.trim() && !ROOM_ID_PATTERN.test(roomId.trim())) {
-    return "Custom room code must be 4–64 letters, digits, hyphens, or underscores.";
+    return t("lobby.v.createInvalid");
   }
   return null;
 };
 
 const validate = (payload: LobbyFormPayload): string | null => {
   if (sanitizeDisplayName(payload.displayName) !== payload.displayName) {
-    return "Enter a valid name (2-20 characters, no control characters).";
+    return t("lobby.v.name");
   }
   if (payload.gameMode === GameModes.VS_FRIEND && sanitizeDisplayName(payload.opponentName) !== payload.opponentName) {
-    return "Enter a valid opponent name (2-20 characters, no control characters).";
+    return t("lobby.v.opponentName");
   }
   if (!AVAILABLE_COLORS.includes(payload.color)) {
-    return "Pick a color.";
+    return t("lobby.v.color");
   }
   if (!AVAILABLE_COLORS.includes(payload.opponentColor)) {
-    return "Pick an opponent color.";
+    return t("lobby.v.opponentColor");
   }
   if (payload.gameMode === GameModes.VS_FRIEND && payload.color === payload.opponentColor) {
-    return "Choose different colors for both players.";
+    return t("lobby.v.distinct");
   }
   if (payload.gameMode === GameModes.ONLINE) {
     return getRoomCodeError(payload.onlineAction, payload.onlineRoomId.trim());
@@ -117,6 +116,8 @@ const validate = (payload: LobbyFormPayload): string | null => {
 };
 
 export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: LobbyFormProps) {
+  // Subscribes so a language switch re-renders the whole form.
+  useStrings();
   const [displayName, setDisplayName] = useState<string>(
     () => getOrCreateGuestIdentity().displayName,
   );
@@ -147,7 +148,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     initialPrefs.aiDifficulty ?? AI_Difficulty.NORMAL,
   );
   const [opponentName, setOpponentName] = useState<string>(
-    initialPrefs.opponentName ?? "AI",
+    initialPrefs.opponentName ?? t("lobby.defaultAI"),
   );
   const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
   const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
@@ -163,7 +164,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     action === "quick"
       ? quickMatchReason
       : ONLINE_UNAVAILABLE
-        ? MATCHMAKING_UNAVAILABLE_MESSAGE
+        ? t("lobby.backendMissing")
         : null;
   const chooseOnlineAction = (action: "create" | "join" | "quick") => {
     const dead = actionDeadReason(action);
@@ -235,20 +236,14 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   // app-wide ErrorBoundary, or dial the visitor's own 127.0.0.1). Local
   // dev still reaches a relay at its 127.0.0.1 default, so there only
   // Quick Match, which needs the matchmaking service, is blocked.
-  const onlineModeReason = ONLINE_UNAVAILABLE
-    ? "Online mode isn't available in this build."
-    : null;
+  const onlineModeReason = ONLINE_UNAVAILABLE ? t("lobby.onlineModeUnavailable") : null;
   const quickMatchReason =
-    !ONLINE_UNAVAILABLE && !MATCHMAKING_CONFIGURED
-      ? "Quick Match isn't available. Create or join a room instead."
-      : null;
+    !ONLINE_UNAVAILABLE && !MATCHMAKING_CONFIGURED ? t("lobby.quickUnavailable") : null;
   // Proven-unreachable relay (never had a successful read) disables
   // Online the same way a missing backend does. The build flag wins when
   // both apply; unknown (poll in flight) stays enabled, never flickering.
   const serverDownReason =
-    serverDown && !ONLINE_UNAVAILABLE
-      ? "Online mode isn't available. Try again later."
-      : null;
+    serverDown && !ONLINE_UNAVAILABLE ? t("lobby.onlineDown") : null;
   const onlineDisabledReason = onlineModeReason ?? serverDownReason;
   const disabledModes = onlineDisabledReason
     ? ({ [GameModes.ONLINE]: onlineDisabledReason } as Partial<Record<GameMode, string>>)
@@ -258,7 +253,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     gameMode === GameModes.ONLINE &&
     (ONLINE_UNAVAILABLE || (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
   const startDisabled = !isValid || onlineUnavailable;
-  const startTitle = onlineUnavailable ? MATCHMAKING_UNAVAILABLE_MESSAGE : undefined;
+  const startTitle = onlineUnavailable ? t("lobby.backendMissing") : undefined;
   const startReasonId = useId();
   // The room-code field already shows its own error inline; repeating it
   // under the button would say the same thing twice on one screen.
@@ -268,7 +263,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
       : null;
   const validationError = startDisabled ? validate(payload) : null;
   const startReason = onlineUnavailable
-    ? (ONLINE_UNAVAILABLE ? MATCHMAKING_UNAVAILABLE_MESSAGE : quickMatchReason)
+    ? (ONLINE_UNAVAILABLE ? t("lobby.backendMissing") : quickMatchReason)
     : validationError !== roomFieldError
       ? validationError
       : null;
@@ -330,14 +325,14 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
       setGameMode(nextMode);
       if (nextMode === GameModes.VS_COMPUTER) {
         setOpponentColor(oppositeColor(color));
-        setOpponentName("AI");
+        setOpponentName(t("lobby.defaultAI"));
         setOpponentType(PlayerTypes.COMPUTER);
       } else if (nextMode === GameModes.VS_FRIEND) {
         // Hydrate the last saved opponent name so Friend mode reopens with it.
         // An empty or invalid saved name used to leave Start permanently
         // disabled with no visible reason, so fall back to a valid default.
         const saved = loadPreferences().opponentName;
-        setOpponentName(saved && sanitizeDisplayName(saved) === saved ? saved : "Player 2");
+        setOpponentName(saved && sanitizeDisplayName(saved) === saved ? saved : t("lobby.defaultPlayer2"));
         setOpponentType(PlayerTypes.HUMAN);
       }
     },
@@ -353,7 +348,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   if (serverDown && !ONLINE_UNAVAILABLE && gameMode === GameModes.ONLINE) {
     setGameMode(GameModes.VS_COMPUTER);
     setOpponentColor(oppositeColor(color));
-    setOpponentName("AI");
+    setOpponentName(t("lobby.defaultAI"));
     setOpponentType(PlayerTypes.COMPUTER);
   }
   const startGame = useCallback(() => {
@@ -376,7 +371,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     [startGame],
   );
 
-  const aiDifficultyLabel = AI_DIFFICULTY_LABELS[aiDifficulty];
+  const aiDifficultyLabel = getDifficultyLabel(aiDifficulty);
 
   return (
     <form
@@ -426,7 +421,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
             <button
               type="button"
               onClick={() => setHelpOpen(true)}
-              aria-label="How to play"
+              aria-label={t("lobby.help")}
               className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
             >
               <CircleHelp className="size-4.5" aria-hidden="true" />
@@ -477,14 +472,14 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
               <OnlinePopulation count={playerCount} />
               <div
                 role="radiogroup"
-                aria-label="Online match type"
+                aria-label={t("lobby.matchType")}
                 className="flex flex-col gap-2 sm:grid sm:grid-cols-3"
                 onKeyDown={handleRadioGroupKeyDown}
               >
                 <OnlineOption
                   active={onlineAction === "quick"}
                   icon={<Play className="size-5 shrink-0" aria-hidden="true" />}
-                  label="Quick"
+                  label={t("lobby.action.quick")}
                   onClick={() => chooseOnlineAction("quick")}
                   disabledReason={actionDeadReason("quick") ?? undefined}
                   explained={explainedAction === "quick"}
@@ -492,7 +487,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
                 <OnlineOption
                   active={onlineAction === "create"}
                   icon={<Plus className="size-5 shrink-0" aria-hidden="true" />}
-                  label="Create"
+                  label={t("lobby.action.create")}
                   onClick={() => chooseOnlineAction("create")}
                   disabledReason={actionDeadReason("create") ?? undefined}
                   explained={explainedAction === "create"}
@@ -500,7 +495,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
                 <OnlineOption
                   active={onlineAction === "join"}
                   icon={<LogIn className="size-5 shrink-0" aria-hidden="true" />}
-                  label="Join"
+                  label={t("lobby.action.join")}
                   onClick={() => chooseOnlineAction("join")}
                   disabledReason={actionDeadReason("join") ?? undefined}
                   explained={explainedAction === "join"}
@@ -509,15 +504,15 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
               {onlineAction === "create" && (
                 <Field
                   id="room"
-                  label="Custom room code (optional)"
+                  label={t("lobby.roomCustom")}
                   inputMode="text"
                   autoCapitalize="none"
                   enterKeyHint="go"
                   icon={<Hash className="h-3.5 w-3.5" />}
                   value={onlineRoomId}
-                  placeholder="Leave empty to generate one"
+                  placeholder={t("lobby.roomCustomPlaceholder")}
                   maxLength={64}
-                  hint="4-64 letters, numbers, hyphens, or underscores."
+                  hint={t("lobby.roomCustomHint")}
                   error={roomFieldError ?? undefined}
                   onChange={setOnlineRoomId}
                 />
@@ -525,15 +520,15 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
               {onlineAction === "join" && (
                 <Field
                   id="room"
-                  label="Room code"
+                  label={t("lobby.roomCode")}
                   inputMode="text"
                   autoCapitalize="none"
                   enterKeyHint="go"
                   icon={<Hash className="h-3.5 w-3.5" />}
                   value={onlineRoomId}
-                  placeholder="e.g. friday-game"
+                  placeholder={t("lobby.roomCodePlaceholder")}
                   maxLength={64}
-                  hint="Use the code your friend shared with you."
+                  hint={t("lobby.roomJoinHint")}
                   error={roomFieldError ?? undefined}
                   onChange={setOnlineRoomId}
                 />
@@ -585,15 +580,15 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
               <>
                 <KeyRound className="h-5 w-5" aria-hidden="true" />
                 {onlineAction === "quick"
-                  ? "Quick Match"
+                  ? t("lobby.quickMatch")
                   : onlineAction === "create"
-                    ? "Create Room"
-                    : "Join Room"}
+                    ? t("lobby.createRoom")
+                    : t("lobby.joinRoom")}
               </>
             ) : (
               <>
                 <Play className="h-5 w-5" aria-hidden="true" />
-                Start Game
+                {t("lobby.start")}
               </>
             )}
           </Button>
@@ -631,11 +626,11 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
         startLabel={
           gameMode === GameModes.ONLINE
             ? onlineAction === "quick"
-              ? "Quick Match"
+              ? t("lobby.quickMatch")
               : onlineAction === "create"
-                ? "Create Room"
-                : "Join Room"
-            : "Start Game"
+                ? t("lobby.createRoom")
+                : t("lobby.joinRoom")
+            : t("lobby.start")
         }
         startDisabled={startDisabled}
       />
@@ -673,9 +668,11 @@ function OnlinePopulation({ count }: { count: PlayerCount | null }) {
         <span className="relative inline-flex size-1.5 rounded-full bg-[rgb(var(--player-color))]" />
       </span>
       {players === 0
-        ? "No players online right now"
-        : `${players} ${players === 1 ? "player" : "players"} online` +
-          (waiting > 0 ? ` · ${waiting} looking` : "")}
+        ? t("lobby.population.empty")
+        : (players === 1
+            ? t("lobby.population.one", { count: players })
+            : t("lobby.population.many", { count: players })) +
+          (waiting > 0 ? t("lobby.population.looking", { count: waiting }) : "")}
     </p>
   );
 }

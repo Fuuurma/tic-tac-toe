@@ -24,6 +24,7 @@ import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName
 import { RoomClient } from "@/lib/roomClient";
 import { disarmSyncReplyThrottle } from "./hostProtocol";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
+import { t } from "@/i18n/language";
 
 /**
  * Room lifecycle controller, extracted from usePeerRoom (god-hook
@@ -163,7 +164,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
       // ("Host disconnected. Reconnecting…" / peer-left reason lines).
       setState((prev) => {
         if (prev.status === "reconnecting" && !detail) return prev;
-        return { ...prev, status: "reconnecting", message: detail ?? "Reconnecting..." };
+        return { ...prev, status: "reconnecting", message: detail ?? t("mm.reconnecting") };
       });
     } else if (status === "disconnected") {
       setState((prev) => {
@@ -173,10 +174,10 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
         if (prev.status === "disconnected" && prev.message && prev.message !== "You left") {
           return prev;
         }
-        return { ...prev, status: "disconnected", message: detail ?? "Disconnected" };
+        return { ...prev, status: "disconnected", message: detail ?? t("mm.disconnected") };
       });
     } else if (status === "error") {
-      setState((prev) => ({ ...prev, status: "error", message: detail ?? "Connection error" }));
+      setState((prev) => ({ ...prev, status: "error", message: detail ?? t("mm.connectionError") }));
     }
   });
   deps.roomRef.current = client;
@@ -276,7 +277,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   }
   const trimmed = roomId.trim();
   if (!trimmed) {
-    update({ status: "error", message: "Enter a room ID" });
+    update({ status: "error", message: t("mm.enterRoom") });
     return;
   }
   // The guest's symbol is assigned by the host's `joined` message — clear

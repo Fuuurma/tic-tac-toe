@@ -1,3 +1,6 @@
+import { getLocale } from "@/i18n/language";
+import type { Locale } from "@/lib/preferences";
+
 export const IDENTITY_STORAGE_KEYS = {
   guestId: "tic-tac-toe:guestId",
   displayName: "tic-tac-toe:displayName",
@@ -60,6 +63,20 @@ const GUEST_NAME_ADJECTIVES = [
   "Frost", "Mystic", "Electric", "Magnetic", "Radiant",
 ] as const;
 
+/**
+ * Spanish handles. Every adjective is gender-invariable (veloz, audaz…),
+ * so any pairing with a masculine noun below agrees. Thirty pairs to
+ * match the English pool size.
+ */
+const GUEST_NAME_ADJECTIVES_ES = [
+  "Veloz", "Audaz", "Fugaz", "Brillante", "Valiente",
+  "Salvaje", "Gigante", "Libre", "Fuerte", "Feliz",
+  "Sagaz", "Voraz", "Tenaz", "Sereno", "Fiero",
+  "Bravo", "Sigiloso", "Luminoso", "Nocturno", "Eterno",
+  "Firme", "Leal", "Noble", "Sabio", "Hábil",
+  "Astuto", "Intrépido", "Velado", "Ígneo", "Austero",
+] as const;
+
 const GUEST_NAME_NOUNS = [
   "Fox", "Wolf", "Raven", "Falcon", "Tiger",
   "Dragon", "Phoenix", "Cipher", "Echo", "Nova",
@@ -67,6 +84,16 @@ const GUEST_NAME_NOUNS = [
   "Ghost", "Prism", "Atlas", "Orion", "Vega",
   "Lyra", "Bolt", "Flint", "Sage", "Hawk",
   "Lynx", "Crow", "Koi", "Panther", "Sparrow",
+] as const;
+
+/** All masculine, so every adjective above pairs correctly. */
+const GUEST_NAME_NOUNS_ES = [
+  "Rayo", "Trueno", "Lobo", "Halcón", "Tigre",
+  "Dragón", "Fénix", "Eco", "Pulso", "Destello",
+  "Cometa", "Fantasma", "Prisma", "Relámpago", "Vendaval",
+  "Colmillo", "Centella", "Lince", "Búho", "Cuervo",
+  "Zorro", "Vértigo", "Sendero", "Volcán", "Océano",
+  "Juglar", "Corsario", "Trovador", "Forastero", "Nómada",
 ] as const;
 
 const getBrowserStorage = (): Storage | null => {
@@ -85,11 +112,14 @@ const generateGuestId = (): string => {
   return `guest:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-export const generateGuestDisplayName = (): string => {
-  const adjective =
-    GUEST_NAME_ADJECTIVES[Math.floor(Math.random() * GUEST_NAME_ADJECTIVES.length)];
-  const noun =
-    GUEST_NAME_NOUNS[Math.floor(Math.random() * GUEST_NAME_NOUNS.length)];
+export const generateGuestDisplayName = (locale?: Locale): string => {
+  // A Spanish handle for Spanish visitors; already-assigned names never
+  // change. Defaults to the live locale so callers stay untouched.
+  const resolved = locale ?? getLocale();
+  const adjectives = resolved === "es" ? GUEST_NAME_ADJECTIVES_ES : GUEST_NAME_ADJECTIVES;
+  const nouns = resolved === "es" ? GUEST_NAME_NOUNS_ES : GUEST_NAME_NOUNS;
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
   return `${adjective} ${noun}`;
 };
 

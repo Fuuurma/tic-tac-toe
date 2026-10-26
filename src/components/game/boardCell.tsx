@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
-import { Color, PlayerSymbol, SHAPE_LABELS, SymbolShape } from "@/game/constants";
+import { Color, PlayerSymbol, SymbolShape } from "@/game/constants";
+import { getShapeLabel, t, useStrings } from "@/i18n/language";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 
@@ -63,6 +64,9 @@ const OCCUPIED_TINT_CLASSES: Record<Color, string> = {
 };
 
 export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
+  // Subscribes so a language switch rebuilds the aria label even though no
+  // prop changed (the memo would otherwise hold the old language).
+  useStrings();
   const ghost = useVanishGhost(props.showVanish ?? false, props.value, props.valueShape, props.valueColor);
   const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, isHint, onClick, onHover } = props;
 
@@ -215,13 +219,17 @@ const buildAriaLabel = (
 ): string => {
   const row = Math.floor(index / 3) + 1;
   const col = (index % 3) + 1;
-  const position = `Row ${row} column ${col}`;
   if (value) {
-    const mark = valueShape ? SHAPE_LABELS[valueShape] : value;
-    return `${position}, occupied by ${mark}${isNextToRemove ? ", next to be removed" : ""}`;
+    const mark = valueShape ? getShapeLabel(valueShape) : value;
+    return isNextToRemove
+      ? t("board.occupiedCellRemoving", { row, col, mark })
+      : t("board.occupiedCell", { row, col, mark });
   }
   // An unplayable cell used to announce as plain "empty", which tells a
   // screen-reader user nothing about why it cannot be played — the board
   // looked interactive and behaved like a dead end. Say it outright.
-  return `${position}, empty${disabledReason ? `, ${disabledReason}` : ""}${isHint ? ", suggested move" : ""}`;
+  if (disabledReason && isHint) return t("board.emptyCellReasonHint", { row, col, reason: disabledReason });
+  if (disabledReason) return t("board.emptyCellReason", { row, col, reason: disabledReason });
+  if (isHint) return t("board.emptyCellHint", { row, col });
+  return t("board.emptyCell", { row, col });
 };

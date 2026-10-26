@@ -8,6 +8,7 @@ import {
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyForfeitIfActive, peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
+import { t } from "@/i18n/language";
 import type { RoomClient } from "@/lib/roomClient";
 import { leaveRoom } from "./roomLifecycle";
 import type { PeerRole } from "../usePeerRoom";
@@ -88,7 +89,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
           ...prev,
           status: "disconnected",
           message:
-            "The host never connected. Try again, or go back to setup.",
+            t("mm.hostNever"),
         };
       }
       // F726: the quick-match host is the symmetric case — its welcome
@@ -97,7 +98,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
         return {
           ...prev,
           status: "disconnected",
-          message: "Your opponent never connected. Try quick-match again.",
+          message: t("mm.opponentNever"),
         };
       }
       return prev;
@@ -142,7 +143,7 @@ export function handleRelayEvent(
       setState((prev) => ({
         ...prev,
         status: "error",
-        message: "That room code is already in use. Try another.",
+        message: t("mm.codeInUse"),
       }));
       return;
     }
@@ -241,7 +242,7 @@ export function handleRelayEvent(
         ...prev,
         role: "guest",
         status: opponent ? "connected" : "connecting",
-        message: opponent ? "" : "Waiting for host…",
+        message: opponent ? "" : t("peer.waitingHost"),
       }));
       // F712: with no host seated the wait is unbounded — arm the deadline.
       // An opponent present means the host is already seated (or this is a
@@ -370,7 +371,7 @@ export function handleRelayEvent(
         : {
             ...prev,
             status: "connecting",
-            message: "Opponent connecting…",
+            message: t("peer.opponentConnecting"),
           },
     );
     return;
@@ -466,7 +467,7 @@ export function handleRelayEvent(
     // Validate message is a string; reject non-string values from a
     // malicious or buggy relay (fleet needs-work 2026-09-07 P2).
     const msg = (event as { message?: unknown }).message;
-    const raw = typeof msg === "string" ? msg : "Room error";
+    const raw = typeof msg === "string" ? msg : t("peer.roomError");
     setState((prev) => ({
       ...prev,
       message: raw.slice(0, PEER_MAX_ERROR_LENGTH),

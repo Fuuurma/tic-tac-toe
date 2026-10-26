@@ -7,6 +7,7 @@ import {
 } from "@/game/constants";
 import type { LessonStage } from "@/game/tutorial";
 import { Button } from "@/components/ui/button";
+import { t, useStrings } from "@/i18n/language";
 import { Board } from "@/components/game/board";
 import { useTutorialGame } from "@/hooks/useTutorialGame";
 import { cn } from "@/lib/utils";
@@ -28,33 +29,33 @@ function coachFor(stage: LessonStage, placed: number, hasHint: boolean): Coach {
   switch (stage) {
     case "place":
       if (placed === 0) {
-        return { title: "Place your first mark", body: "Tap any square. You play first, then the AI answers." };
+        return { title: t("ob.practice.coach.place0.title"), body: t("ob.practice.coach.place0.body") };
       }
       if (placed === 1) {
-        return { title: "Now a second mark", body: "Everyone keeps up to three marks on the board." };
+        return { title: t("ob.practice.coach.place1.title"), body: t("ob.practice.coach.place1.body") };
       }
-      return { title: "And a third", body: "Three is the limit. See what happens when you go past it." };
+      return { title: t("ob.practice.coach.place2.title"), body: t("ob.practice.coach.place2.body") };
     case "limit":
       return {
-        title: "Your oldest mark is blinking",
-        body: "Marks about to vanish blink, yours and the AI's. Place a fourth and watch yours go.",
+        title: t("ob.practice.coach.limit.title"),
+        body: t("ob.practice.coach.limit.body"),
       };
     case "vanished":
       return {
-        title: "It vanished",
-        body: "You never run out of room, but nothing stays forever. Your opponent's oldest mark vanishes too.",
+        title: t("ob.practice.coach.vanished.title"),
+        body: t("ob.practice.coach.vanished.body"),
       };
     case "win":
       return {
-        title: "Now line up three",
+        title: t("ob.practice.coach.winHint.title"),
         body: hasHint
-          ? "The glowing square wins the round."
-          : "Get three in a row, column or diagonal. Your oldest mark keeps vanishing, so plan ahead.",
+          ? t("ob.practice.coach.winHint.body")
+          : t("ob.practice.coach.win.body"),
       };
     case "won":
       return {
-        title: "Three in a row. You win!",
-        body: "That is the whole game. Every turn, think about which mark leaves next.",
+        title: t("ob.practice.coach.won.title"),
+        body: t("ob.practice.coach.won.body"),
       };
   }
 }
@@ -65,7 +66,7 @@ function MarkMeter({ used, color }: { used: number; color: Color }) {
   return (
     <div
       role="img"
-      aria-label={`Marks on board: ${used} of ${max}`}
+      aria-label={t("ob.practice.markMeter", { used, max })}
       className="flex shrink-0 flex-col items-center gap-1.5"
       style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
     >
@@ -83,7 +84,7 @@ function MarkMeter({ used, color }: { used: number; color: Color }) {
         ))}
       </div>
       <span aria-hidden="true" className="text-xs font-medium text-muted-foreground">
-        On board
+        {t("ob.practice.onBoard")}
       </span>
     </div>
   );
@@ -100,6 +101,9 @@ export function PracticeStep({
   onSkip: () => void;
   onComplete: () => void;
 }) {
+  // Subscribes so a language switch re-renders; the coach copy above
+  // reads the live locale through the module translator.
+  useStrings();
   const { state, stage, hint, aiToMove, place } = useTutorialGame(profile);
   const { currentPlayer, players, moves } = state;
 
@@ -127,7 +131,7 @@ export function PracticeStep({
   return (
     <StepShell
       color={profile.color}
-      title="Practice round"
+      title={t("ob.practice.title")}
       progress={replay ? undefined : { current: 2, total: 3 }}
       onSkip={onSkip}
       focusTitle
@@ -142,11 +146,11 @@ export function PracticeStep({
             className="h-12 w-full text-base font-bold sm:h-14"
             style={ctaStyle(profile.color)}
           >
-            {replay ? "Back to lobby" : "Continue"}
+            {replay ? t("ob.practice.backLobby") : t("ob.practice.continue")}
           </Button>
         ) : (
           <p className="py-3 text-center text-sm text-muted-foreground">
-            Tap a square to place a mark.
+            {t("ob.practice.tapHint")}
           </p>
         )
       }
@@ -176,7 +180,7 @@ export function PracticeStep({
           previewShape={playersTurn ? shapes[PlayerSymbol.X] : undefined}
           disabled={aiToMove || won}
           disabledReason={
-            won ? "the practice round is over" : aiToMove ? "the AI is replying" : undefined
+            won ? t("game.practiceOver") : aiToMove ? t("game.aiReplying") : undefined
           }
           hintIndex={hint}
           showVanish

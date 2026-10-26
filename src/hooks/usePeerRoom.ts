@@ -5,6 +5,7 @@ import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import { RoomClient } from "@/lib/roomClient";
+import { t } from "@/i18n/language";
 import {
   startTurnTimer,
   stopTurnTimer,
@@ -305,7 +306,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     if (!rematchPendingRef.current) return;
     rematchPendingRef.current = false;
     roomRef.current?.send({ type: "rematchCancel" });
-    setState((prev) => ({ ...prev, message: "Rematch request expired", rematchOutgoing: false }));
+    setState((prev) => ({ ...prev, message: t("peer.rematchExpired"), rematchOutgoing: false }));
   }, []);
 
   const hostDeps = useCallback(
@@ -530,7 +531,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     rematchTimeoutRef.current = window.setTimeout(expireRematch, REMATCH_TIMEOUT_MS);
     setState((prev) => ({
       ...prev,
-      message: "Waiting for opponent to accept rematch",
+      message: t("peer.waitingAccept"),
       rematchOutgoing: true,
     }));
   }, [
@@ -611,7 +612,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       clearTimeout(waitingForHostTimeoutRef.current);
       waitingForHostTimeoutRef.current = null;
     }
-    setState((prev) => ({ ...prev, status: "disconnected", message: "You left", rematchIncoming: false, rematchOutgoing: false }));
+    setState((prev) => ({ ...prev, status: "disconnected", message: t("peer.youLeft"), rematchIncoming: false, rematchOutgoing: false }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {

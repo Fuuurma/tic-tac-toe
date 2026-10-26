@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { AppearancePickers } from "./appearancePickers";
+import { LanguageSwitcher } from "./languageSwitcher";
+import { t, useStrings } from "@/i18n/language";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, Play, User } from "lucide-react";
@@ -78,6 +80,8 @@ export function SettingsSheet({
   const playerPanelId = `${sheetId}-panel-player`;
   const opponentPanelId = `${sheetId}-panel-opponent`;
 
+  // Subscribes so a language switch re-renders the sheet.
+  useStrings();
   const isOnline = gameMode === GameModes.ONLINE;
   const showOpponentTab = !isOnline;
   const activeColor = tab === "opponent" ? opponent.opponentColor : player.color;
@@ -89,7 +93,7 @@ export function SettingsSheet({
     <Sheet
       open={isOpen}
       onClose={onClose}
-      title="Settings"
+      title={t("settings.title")}
       // Content-height bottom sheet on phones: the form is short (tabs +
       // name + pickers), so a full-height page left a dead middle. Auto
       // pins the sheet to the content with the game visible behind it.
@@ -132,7 +136,7 @@ export function SettingsSheet({
         <>
           <div
             role="tablist"
-            aria-label="Settings tabs"
+            aria-label={t("settings.tabs")}
             className="flex shrink-0 gap-2"
             onKeyDown={handleTabListKeyDown}
           >
@@ -151,7 +155,7 @@ export function SettingsSheet({
               )}
             >
               <User className="size-3.5" aria-hidden="true" />
-              You
+              {t("settings.you")}
             </button>
             {showOpponentTab && (
               <button
@@ -173,9 +177,13 @@ export function SettingsSheet({
                 ) : (
                   <User className="size-3.5" aria-hidden="true" />
                 )}
-                Opponent
+                {t("settings.opponent")}
               </button>
             )}
+          </div>
+          {/* Language is global, not per-tab: one centered row under the tabs. */}
+          <div className="flex shrink-0 justify-center">
+            <LanguageSwitcher size="sm" />
           </div>
 
           {tab === "player" && (
@@ -253,14 +261,14 @@ function PlayerTab({
     <>
       <NameField
         id="sheet-name"
-        label="Your name"
+        label={t("settings.name")}
         value={value.displayName}
         onChange={(displayName) => onChange({ ...value, displayName })}
       />
 
       <AppearancePickers
-        colorLabel="Your color"
-        shapeLabel="Your symbol"
+        colorLabel={t("settings.color")}
+        shapeLabel={t("settings.symbol")}
         color={value.color}
         shape={value.playerShape}
         shapeDisabled={isOnline}
@@ -288,18 +296,18 @@ function OpponentTab({
     <>
       {/* AI first to match the lobby game-mode order. The tab already says
           "Opponent", so this group names what is being chosen. */}
-      <div role="group" aria-label="Opponent type" className="flex flex-col gap-2">
-        <span className="hidden text-sm font-semibold max-sm:block">Plays as</span>
+      <div role="group" aria-label={t("settings.opponentType")} className="flex flex-col gap-2">
+        <span className="hidden text-sm font-semibold max-sm:block">{t("settings.playsAs")}</span>
         <div
           role="radiogroup"
-          aria-label="Opponent type"
+          aria-label={t("settings.opponentType")}
           className="grid grid-cols-2 gap-2"
           onKeyDown={handleRadioGroupKeyDown}
         >
           <button
             type="button"
             role="radio"
-            aria-label="AI"
+            aria-label={t("settings.ai")}
             aria-checked={isAI}
             data-state={isAI ? "active" : "inactive"}
             tabIndex={isAI ? 0 : -1}
@@ -312,12 +320,12 @@ function OpponentTab({
             )}
           >
             <Bot className="size-3.5" aria-hidden="true" />
-            AI
+            {t("settings.ai")}
           </button>
           <button
             type="button"
             role="radio"
-            aria-label="Human"
+            aria-label={t("settings.human")}
             aria-checked={!isAI}
             data-state={!isAI ? "active" : "inactive"}
             tabIndex={!isAI ? 0 : -1}
@@ -330,7 +338,7 @@ function OpponentTab({
             )}
           >
             <User className="size-3.5" aria-hidden="true" />
-            Human
+            {t("settings.human")}
           </button>
         </div>
       </div>
@@ -344,14 +352,14 @@ function OpponentTab({
 
       <NameField
         id="sheet-opponent-name"
-        label="Opponent name"
+        label={t("settings.opponentName")}
         value={value.opponentName}
         onChange={(opponentName) => onChange({ ...value, opponentName })}
       />
 
       <AppearancePickers
-        colorLabel="Opponent color"
-        shapeLabel="Opponent symbol"
+        colorLabel={t("settings.opponentColor")}
+        shapeLabel={t("settings.opponentSymbol")}
         color={value.opponentColor}
         shape={value.opponentShape}
         onColorChange={(nextColor) => onChange({ ...value, opponentColor: nextColor })}
@@ -388,7 +396,7 @@ export function PlayerSummaryCard({
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-base font-bold text-foreground">
-          {settings.displayName || "You"}
+          {settings.displayName || t("settings.youFallback")}
         </span>
       </span>
       {onEdit && <Pencil className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />}
@@ -410,7 +418,7 @@ export function PlayerSummaryCard({
     <button
       type="button"
       onClick={onEdit}
-      aria-label="Edit your player settings"
+      aria-label={t("settings.editPlayer")}
       className="glass-interactive flex w-full items-center gap-3.5 rounded-xl px-4 py-3.5 text-left"
       style={{ "--glass-sweep-color": COLOR_RGB[settings.color] } as React.CSSProperties}
     >
@@ -436,13 +444,13 @@ export function OpponentSummaryCard({
 }) {
   const isAI = opponentType === PlayerTypes.COMPUTER;
   const colorBg = COLOR_BG_CLASSES[opponentColor];
-  const displayName = opponentName || (isAI ? "AI" : "Opponent");
+  const displayName = opponentName || (isAI ? t("settings.aiFallback") : t("settings.opponentFallback"));
 
   return (
     <button
       type="button"
       onClick={onEdit}
-      aria-label="Edit opponent settings"
+      aria-label={t("settings.editOpponent")}
       className="glass-interactive flex w-full items-center gap-3.5 rounded-xl px-4 py-3.5 text-left"
       style={{ "--glass-sweep-color": COLOR_RGB[opponentColor] } as React.CSSProperties}
     >

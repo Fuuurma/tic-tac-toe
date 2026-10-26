@@ -1,4 +1,5 @@
-import { AVAILABLE_SHAPES, SHAPE_LABELS, SymbolShape } from "@/game/constants";
+import { AVAILABLE_SHAPES, SymbolShape } from "@/game/constants";
+import { getShapeLabel } from "@/i18n/language";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
@@ -25,7 +26,7 @@ export function SymbolShapePicker({
     >
       {AVAILABLE_SHAPES.map((shape) => {
         const isSelected = value === shape;
-        const label = SHAPE_LABELS[shape];
+        const label = getShapeLabel(shape);
 
         return (
           <button

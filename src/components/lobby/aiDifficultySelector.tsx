@@ -1,9 +1,9 @@
 import { useId, useRef, useState } from "react";
 import {
   AI_Difficulty,
-  AI_DIFFICULTY_LABELS,
   type AI_Difficulty as AI_DifficultyType,
 } from "@/game/constants";
+import { getDifficultyLabel, t, useStrings } from "@/i18n/language";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { Bot, Check } from "lucide-react";
@@ -29,6 +29,8 @@ export function AI_DifficultySelector({
   selectedDifficulty,
   onDifficultyChange,
 }: AI_DifficultySelectorProps) {
+  // Subscribes so a language switch re-renders the segments.
+  useStrings();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -46,28 +48,28 @@ export function AI_DifficultySelector({
       }}
       className="flex flex-col gap-2"
     >
-      <p className="text-sm font-semibold sm:hidden">Difficulty</p>
+      <p className="text-sm font-semibold sm:hidden">{t("settings.difficulty")}</p>
       <PickerTrigger
         ref={triggerRef}
         open={open}
         controls={panelId}
         onToggle={() => setOpen((current) => !current)}
-        label="Difficulty"
+        label={t("settings.difficulty")}
         className="max-sm:hidden"
         preview={
           <Bot className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         }
-        valueText={AI_DIFFICULTY_LABELS[selectedDifficulty]}
+        valueText={getDifficultyLabel(selectedDifficulty)}
       />
       <PickerPanel id={panelId} open={open} alwaysOpenOnMobile>
         <div
           role="radiogroup"
-          aria-label="AI difficulty"
+          aria-label={t("settings.aiDifficulty")}
           className="grid grid-cols-3 gap-2"
           onKeyDown={handleRadioGroupKeyDown}
         >
           {DIFFICULTIES.map((value) => {
-            const label = AI_DIFFICULTY_LABELS[value];
+            const label = getDifficultyLabel(value);
             const active = selectedDifficulty === value;
             return (
               <button

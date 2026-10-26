@@ -1,6 +1,7 @@
 import { makeMove, makeRandomMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { GameStatus, TURN_DURATION_MS } from "@/game/constants";
+import { t } from "@/i18n/language";
 
 /**
  * Turn-clock controller for local play, extracted from useLocalGame
@@ -92,9 +93,9 @@ export function startLocalTurnTimer(deps: LocalTurnTimerDeps) {
         cur === prev
           ? {
               ...updated,
-              turnNotice: `${
-                prev.players[prev.currentPlayer].username || "Player"
-              } ran out of time`,
+              turnNotice: t("peer.timeout", {
+                name: prev.players[prev.currentPlayer].username || t("game.playerFallback"),
+              }),
             }
           : cur,
       );

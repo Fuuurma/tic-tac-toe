@@ -14,6 +14,7 @@ import {
   PickerTrigger,
 } from "./pickerDisclosure";
 import { useDismissOnOutsidePress } from "@/hooks/useDismissOnOutsidePress";
+import { t } from "@/i18n/language";
 
 type OpenPicker = "color" | "shape";
 
@@ -70,13 +71,13 @@ export function AppearancePickers({
       onEscape={dismiss}
       className="grid grid-cols-2 gap-3"
     >
-      <div role="group" aria-label="Color" className="contents">
+      <div role="group" aria-label={t("settings.groupColor")} className="contents">
         <PickerTrigger
           ref={colorTriggerRef}
           open={open === "color"}
           controls={colorPanelId}
           ariaLabel={colorLabel}
-          label="Color"
+          label={t("settings.groupColor")}
           presentation="tile"
           onToggle={() => setOpen(open === "color" ? null : "color")}
           preview={
@@ -97,13 +98,13 @@ export function AppearancePickers({
         </PickerPanel>
       </div>
 
-      <div role="group" aria-label="Symbol" className="contents">
+      <div role="group" aria-label={t("settings.groupSymbol")} className="contents">
         <PickerTrigger
           ref={shapeTriggerRef}
           open={open === "shape"}
           controls={shapePanelId}
           ariaLabel={shapeLabel}
-          label="Symbol"
+          label={t("settings.groupSymbol")}
           presentation="tile"
           disabled={shapeDisabled}
           onToggle={() => setOpen(open === "shape" ? null : "shape")}
@@ -126,7 +127,7 @@ export function AppearancePickers({
         )}
         {shapeDisabled && (
           <p className="col-span-2 text-xs leading-tight text-muted-foreground max-sm:text-sm">
-            Online rooms assign your symbol when you connect.
+            {t("settings.onlineSymbolNote")}
           </p>
         )}
       </div>

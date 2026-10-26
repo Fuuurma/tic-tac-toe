@@ -13,6 +13,7 @@ import { sanitizeDisplayName } from "@/lib/identity";
 import type { PeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/roomClient";
 import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
+import { t } from "@/i18n/language";
 
 /**
  * Host-side game protocol, extracted from usePeerRoom (god-hook
@@ -383,7 +384,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         if (prev.rematchIncoming) return prev;
         return {
           ...prev,
-          message: `${state.players[message.requesterSymbol].username} wants a rematch. Accept or decline below.`,
+          message: t("peer.wantsRematch", { name: state.players[message.requesterSymbol].username }),
           rematchIncoming: true,
         };
       });
@@ -394,7 +395,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // on the explicit flag, never on the message copy.
       setState((prev) =>
         prev.rematchIncoming
-          ? { ...prev, message: "Rematch request withdrawn", rematchIncoming: false }
+          ? { ...prev, message: t("peer.rematchWithdrawn"), rematchIncoming: false }
           : prev,
       );
       return;
@@ -423,7 +424,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       if (!rematchPendingRef.current) return;
       rematchPendingRef.current = false;
       clearRematchTimeout();
-      setState((prev) => ({ ...prev, message: "Rematch declined", rematchOutgoing: false }));
+      setState((prev) => ({ ...prev, message: t("peer.rematchDeclined"), rematchOutgoing: false }));
       return;
     }
     if (message.type === "leave") {
@@ -443,7 +444,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           ...prev,
           status: "disconnected" as const,
           gameState: ended,
-          message: "Opponent left",
+          message: t("peer.opponentLeft"),
           rematchOutgoing: false,
         };
       });

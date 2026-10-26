@@ -1,3 +1,5 @@
+import { t } from "@/i18n/language";
+
 type Match = {
   roomId: string;
   role: "host" | "guest";
@@ -109,7 +111,7 @@ export const ONLINE_UNAVAILABLE = import.meta.env.PROD && !_matchmakingUrl;
 
 const resolveBaseUrl = (override?: string): string => {
   if (override) return override;
-  if (ONLINE_UNAVAILABLE) throw new Error(MATCHMAKING_UNAVAILABLE_MESSAGE);
+  if (ONLINE_UNAVAILABLE) throw new Error(t("lobby.backendMissing"));
   return MATCHMAKING_BASE_URL;
 };
 

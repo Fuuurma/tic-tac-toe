@@ -1,5 +1,6 @@
 import { Clock, Grid3x3, Keyboard, MoveRight, RotateCcw, Trophy } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
+import { useStrings } from "@/i18n/language";
 
 interface HelpDrawerProps {
   isOpen: boolean;
@@ -9,35 +10,16 @@ interface HelpDrawerProps {
   onReplayTutorial?: () => void;
 }
 
-const TIPS: { Icon: typeof Clock; title: string; body: string }[] = [
-  {
-    Icon: Grid3x3,
-    title: "Three-piece limit",
-    body: "Each player can only have 3 marks on the board at once. Place a 4th and your oldest mark vanishes, so plan your moves.",
-  },
-  {
-    Icon: MoveRight,
-    title: "Oldest mark moves first",
-    body: "When you place your 4th mark, the oldest one is automatically removed. Watch the wiggling border. That is the mark that goes next.",
-  },
-  {
-    Icon: Trophy,
-    title: "Win condition",
-    body: "Get 3 of your marks in a row, column, or diagonal. Winning cells light up emerald green.",
-  },
-  {
-    Icon: Keyboard,
-    title: "Keyboard shortcuts",
-    body: "On a keyboard, press 1-9 to place your mark on the matching cell. The layout reads left to right, top to bottom: 1 is top-left, 9 is bottom-right.",
-  },
-  {
-    Icon: Clock,
-    title: "Turn timer",
-    body: "You have 10 seconds per turn. Run out and a random legal move is played for you. Stay sharp.",
-  },
+const TIPS: { Icon: typeof Clock; titleKey: `help.tip${1 | 2 | 3 | 4 | 5}.title`; bodyKey: `help.tip${1 | 2 | 3 | 4 | 5}.body` }[] = [
+  { Icon: Grid3x3, titleKey: "help.tip1.title", bodyKey: "help.tip1.body" },
+  { Icon: MoveRight, titleKey: "help.tip2.title", bodyKey: "help.tip2.body" },
+  { Icon: Trophy, titleKey: "help.tip3.title", bodyKey: "help.tip3.body" },
+  { Icon: Keyboard, titleKey: "help.tip4.title", bodyKey: "help.tip4.body" },
+  { Icon: Clock, titleKey: "help.tip5.title", bodyKey: "help.tip5.body" },
 ];
 
 export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }: HelpDrawerProps) {
+  const { t } = useStrings();
   return (
     <Sheet
       open={isOpen}
@@ -45,8 +27,8 @@ export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }
       inline={inline}
       size="auto"
       compactMobile
-      title="How to play"
-      closeLabel="Close help"
+      title={t("help.title")}
+      closeLabel={t("help.close")}
       bodyClassName="sm:pb-5"
       // Phone: a 75%-height bottom sheet, never full-screen, so the game
       // stays visible behind the rules. tailwind-merge keeps this cap over
@@ -60,14 +42,14 @@ export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }
             className="glass-interactive flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-lg text-sm font-semibold"
           >
             <RotateCcw className="size-4" aria-hidden="true" />
-            Replay tutorial
+            {t("help.replay")}
           </button>
         ) : undefined
       }
     >
       <ul className="flex flex-col gap-5 pt-1">
-        {TIPS.map(({ Icon, title, body }) => (
-          <li key={title} className="flex gap-3.5">
+        {TIPS.map(({ Icon, titleKey, bodyKey }) => (
+          <li key={titleKey} className="flex gap-3.5">
             <span
               aria-hidden="true"
               className="glass-cell flex size-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground"
@@ -75,8 +57,8 @@ export function HelpDrawer({ isOpen, onClose, inline = false, onReplayTutorial }
               <Icon className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-foreground">{title}</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              <p className="text-base font-bold text-foreground">{t(titleKey)}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t(bodyKey)}</p>
             </div>
           </li>
         ))}

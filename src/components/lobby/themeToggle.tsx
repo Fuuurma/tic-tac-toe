@@ -1,8 +1,11 @@
 import { Moon, Sun } from "lucide-react";
 import { useAppTheme } from "@/hooks/useAppTheme";
+import { t, useStrings } from "@/i18n/language";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useAppTheme();
+  // Subscribes so the tooltip follows a language switch.
+  useStrings();
   const nextTheme = theme === "light" ? "dark" : "light";
   const ThemeIcon = nextTheme === "dark" ? Moon : Sun;
 
@@ -10,8 +13,8 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(nextTheme)}
-      aria-label={`Switch to ${nextTheme} theme`}
-      title={`Switch to ${nextTheme} theme`}
+      aria-label={nextTheme === "dark" ? t("theme.toDark") : t("theme.toLight")}
+      title={nextTheme === "dark" ? t("theme.toDark") : t("theme.toLight")}
       className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
     >
       <ThemeIcon className="size-4.5" aria-hidden="true" />
