@@ -96,7 +96,7 @@ export default function App() {
       {/* Keep the dark scrim below the board; leave the light symbol field clear. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[1] dark:bg-[image:var(--bg-mask-dark)]"
+        className="pointer-events-none fixed inset-0 z-[1] dark:bg-[image:var(--bg-mask-dark)] dark:max-sm:bg-[image:var(--bg-mask-dark-phone)]"
       />
       {/* Below `sm` this wrapper stretches to the full scrollport so the
           phone game column can take the full height and centre the board in

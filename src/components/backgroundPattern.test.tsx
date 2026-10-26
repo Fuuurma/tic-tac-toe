@@ -267,8 +267,10 @@ describe("BackgroundPattern resize coalescing (work:246)", () => {
   const drawImages = (calls: Array<{ op: string; args: unknown[] }>) =>
     calls.filter((c) => c.op === "drawImage").length;
 
-  const translates = (calls: Array<{ op: string; args: unknown[] }>) =>
-    calls.filter((c) => c.op === "translate").map((c) => c.args);
+  // Each symbol starts its own subpath, so the moveTo sequence is the field's
+  // fingerprint: same seed, same symbols at the same jittered positions.
+  const subpaths = (calls: Array<{ op: string; args: unknown[] }>) =>
+    calls.filter((c) => c.op === "moveTo").map((c) => c.args);
 
   it("rebuilds at most once per frame for a resize burst", () => {
     const { calls, queue } = setup();
@@ -291,16 +293,16 @@ describe("BackgroundPattern resize coalescing (work:246)", () => {
 
   it("keeps the same symbol field across a resize", () => {
     const { calls, queue } = setup();
-    const firstGrid = translates(calls);
+    const firstGrid = subpaths(calls);
 
     // Paint 2 starts where paint 1 ended — slice on the call index,
-    // not on the filtered translate count.
+    // not on the filtered subpath count.
     const paintBoundary = calls.length;
     setInnerWidth(640);
     window.dispatchEvent(new Event("resize"));
     flush(queue);
 
-    const secondGrid = translates(calls.slice(paintBoundary));
+    const secondGrid = subpaths(calls.slice(paintBoundary));
     // The seed is fixed per mount: the first cells of the rebuilt field
     // are the same symbols at the same jittered positions, not a new roll.
     expect(secondGrid.length).toBeGreaterThanOrEqual(5);
@@ -319,157 +321,382 @@ describe("BackgroundPattern resize coalescing (work:246)", () => {
 });
 
 /**
- * The reveal follows the pointer's path, not just its position: samples are
- * laid down by distance travelled and aged out by time, so a fast flick
- * leaves a streak and a resting cursor collapses back to a halo. The span
- * cap is a performance cap — the repaint box grows with the trail.
+ * The reveal has memory: every symbol the input reaches keeps its own heat
+ * and cools on its own curve, so the wake behind a cursor thins out instead
+ * of being cut off. A jump is an arrival, not a sweep, and a cursor held
+ * still keeps its disc without keeping the frame loop alive.
  */
-describe("BackgroundPattern gesture trail", () => {
+type Call = { op: string; args: unknown[] };
+
+const recordingContext = () => {
+  const calls: Call[] = [];
+  const target: Record<string, unknown> = {
+    createRadialGradient: () => ({ addColorStop: () => {} }),
+    canvas: null,
+  };
+  const ctx = new Proxy(target, {
+    get(t, prop) {
+      if (prop in t) return t[prop as string];
+      const value = (...args: unknown[]) => {
+        calls.push({ op: String(prop), args });
+      };
+      t[prop as string] = value;
+      return value;
+    },
+    set: () => true,
+  }) as unknown as CanvasRenderingContext2D;
+  return { ctx, calls };
+};
+
+/** A frame loop the test drives by hand, one `time` at a time. */
+const mountWithFrames = (
+  matches: (query: string) => boolean = () => false,
+) => {
+  const { ctx, calls } = recordingContext();
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    () => ctx,
+  );
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: matches(query),
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }));
+  const queue: FrameRequestCallback[] = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+    queue.push(cb);
+    return queue.length;
+  });
+  render(<BackgroundPattern />);
+  const frame = (time: number) => {
+    const cb = queue.shift();
+    if (cb) cb(time);
+  };
+  /** Runs frames every 16ms from `from` until `until`, as long as one is queued. */
+  const idleUntil = (from: number, until: number) => {
+    let time = from;
+    while (queue.length > 0 && time <= until) {
+      frame(time);
+      time += 16;
+    }
+    return time;
+  };
+  return { calls, queue, frame, idleUntil };
+};
+
+/** Where each lit symbol starts its subpath, in canvas coordinates. */
+const litPoints = (calls: Call[]) =>
+  calls.filter((c) => c.op === "moveTo").map((c) => c.args as number[]);
+
+const strokes = (calls: Call[]) =>
+  calls.filter((c) => c.op === "lineTo").length;
+
+/**
+ * A ring is an arc centred exactly on the point that opened it. `O` symbols
+ * also call `arc`, but their centres are jittered floats, never a tap point.
+ */
+const arcsAt = (calls: Call[], x: number, y: number) =>
+  calls.filter((c) => c.op === "arc" && c.args[0] === x && c.args[1] === y);
+
+const touchEvent = (
+  type: string,
+  touches: Array<{ x: number; y: number }>,
+  changed = touches,
+) => {
+  const event = new Event(type);
+  const toTouch = (p: { x: number; y: number }) => ({
+    clientX: p.x,
+    clientY: p.y,
+  });
+  Object.defineProperty(event, "touches", { value: touches.map(toTouch) });
+  Object.defineProperty(event, "changedTouches", {
+    value: changed.map(toTouch),
+  });
+  return event;
+};
+
+describe("BackgroundPattern wake", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  const recordingContext = () => {
-    const calls: Array<{ op: string; args: unknown[] }> = [];
-    const target: Record<string, unknown> = {
-      createRadialGradient: () => ({ addColorStop: () => {} }),
-      canvas: null,
-    };
-    const ctx = new Proxy(target, {
-      get(t, prop) {
-        if (prop in t) return t[prop as string];
-        const value = (...args: unknown[]) => {
-          calls.push({ op: String(prop), args });
-        };
-        t[prop as string] = value;
-        return value;
-      },
-      set: () => true,
-    }) as unknown as CanvasRenderingContext2D;
-    return { ctx, calls };
-  };
+  it("keeps the wake lit after the pointer has moved on", () => {
+    const { calls, frame } = mountWithFrames();
 
-  /** Drives N frames, moving the pointer by `step` px between each. */
-  const run = (
-    ctx: CanvasRenderingContext2D,
-    queue: FrameRequestCallback[],
-    frames: Array<{ x: number; y: number; time: number }>,
-  ) => {
-    for (const frame of frames) {
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 200, clientY: 300 }),
+    );
+    frame(16);
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 500, clientY: 300 }),
+    );
+    const before = calls.length;
+    frame(32);
+
+    const xs = litPoints(calls.slice(before))
+      .filter(([, y]) => Math.abs(y - 300) < 30)
+      .map(([x]) => x);
+    // Symbols around the old position are still lit alongside the new one.
+    expect(Math.min(...xs)).toBeLessThan(300);
+    expect(Math.max(...xs)).toBeGreaterThan(400);
+  });
+
+  it("treats a long jump as an arrival, not a sweep", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 300, clientY: 400 }),
+    );
+    frame(16);
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 900, clientY: 400 }),
+    );
+    const before = calls.length;
+    frame(32);
+
+    const xs = litPoints(calls.slice(before))
+      .filter(([, y]) => Math.abs(y - 400) < 30)
+      .map(([x]) => x);
+    // The old disc is still cooling and the new one is lit...
+    expect(xs.some((x) => x < 400)).toBe(true);
+    expect(xs.some((x) => x > 800)).toBe(true);
+    // ...but nothing was swept in between, so nothing in between is lit.
+    expect(xs.filter((x) => x > 570 && x < 630)).toEqual([]);
+  });
+
+  it("fades the wake out gradually once the pointer holds still", () => {
+    const { calls, frame, idleUntil } = mountWithFrames();
+
+    // A slow drag keeps every frame's segment under the sweep cap.
+    for (let i = 0; i < 8; i++) {
       window.dispatchEvent(
         new PointerEvent("pointermove", {
-          clientX: frame.x,
-          clientY: frame.y,
+          clientX: 200 + i * 40,
+          clientY: 300,
         }),
       );
-      const cb = queue.shift();
-      if (cb) cb(frame.time);
-      ctx.clearRect(0, 0, 0, 0); // no-op, keeps the recorder honest
+      frame(16 * (i + 1));
     }
-  };
-
-  const setup = () => {
-    const { ctx, calls } = recordingContext();
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
-      () => ctx,
-    );
-    stubReducedMotion(false);
-    const queue: FrameRequestCallback[] = [];
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
-      queue.push(cb);
-      return queue.length;
-    });
-    render(<BackgroundPattern />);
-    return { ctx, calls, queue };
-  };
-
-  it("paints a stroke that outlives the instant the pointer passed", () => {
-    const { ctx, calls, queue } = setup();
-
-    // Two fast frames: the pointer sweeps 300px between them.
-    run(ctx, queue, [
-      { x: 200, y: 300, time: 16 },
-      { x: 500, y: 300, time: 32 },
-    ]);
-
-    const stroked = calls.filter((c) => c.op === "lineTo");
-    expect(stroked.length).toBeGreaterThan(0);
-    // More symbols lit than a single 480px-wide disc can hold: the path
-    // between the two pointer positions is lit too.
-    const xs = calls
-      .filter((c) => c.op === "translate" && c.args[1] === 300)
-      .map((c) => c.args[0] as number);
-    expect(Math.max(...xs)).toBeGreaterThan(400);
-    expect(Math.min(...xs)).toBeLessThan(300);
-  });
-
-  it("keeps the repaint region bounded during a full-screen flick", () => {
-    const boxWidthFor = (travel: number) => {
-      const { ctx, calls, queue } = setup();
-      run(ctx, queue, [{ x: 400, y: 400, time: 16 }]);
-      // Only the second frame's calls: the first one includes the full
-      // canvas clear that resize() does.
+    const strokesFor = (atTime: number) => {
       const before = calls.length;
-      run(ctx, queue, [{ x: 400 + travel, y: 400, time: 32 }]);
-      const clears = calls
-        .slice(before)
-        .filter((c) => c.op === "clearRect");
-      return Math.max(...clears.map((c) => c.args[2] as number));
+      frame(atTime);
+      return strokes(calls.slice(before));
     };
+    const justAfter = strokesFor(144);
+    idleUntil(160, 400);
+    const later = strokesFor(416);
 
-    // The box is TRAIL_MAX_SPAN of travel plus the reveal radius and its
-    // margin on each side, so it must NOT grow with the distance actually
-    // travelled: this is the difference between a bounded repaint and the
-    // full-grid redraw the component exists to avoid.
-    const short = boxWidthFor(60);
-    const long = boxWidthFor(900);
-    expect(long).toBeLessThanOrEqual(short);
-    // Bounded by the span cap plus the reveal radius and margin, not by the
-    // canvas: a 900px flick must not repaint the whole viewport.
-    expect(long).toBeLessThan(900);
+    // The path behind the cursor has dissolved; the disc under it has not.
+    expect(later).toBeGreaterThan(0);
+    expect(later).toBeLessThan(justAfter);
   });
 
-  it("collapses to a halo once the pointer stops", () => {
-    const { ctx, calls, queue } = setup();
-
-    run(ctx, queue, [
-      { x: 200, y: 300, time: 16 },
-      { x: 500, y: 300, time: 32 },
-    ]);
-    // Held still long enough for every sample but the cursor's to age out.
-    const beforeIdle = calls.length;
-    run(ctx, queue, [
-      { x: 500, y: 300, time: 400 },
-      { x: 500, y: 300, time: 800 },
-    ]);
-    const idle = calls.slice(beforeIdle);
-
-    const xs = idle
-      .filter((c) => c.op === "translate" && c.args[1] === 300)
-      .map((c) => c.args[0] as number);
-    // Only the cursor position is lit once the trail has collapsed.
-    expect(xs.length).toBeGreaterThan(0);
-    expect(Math.min(...xs)).toBeGreaterThan(240);
-    expect(Math.max(...xs)).toBeLessThan(760);
+  it("stops the frame loop for a parked cursor", () => {
+    const { queue, idleUntil } = mountWithFrames();
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 300, clientY: 300 }),
+    );
+    idleUntil(16, 5000);
+    expect(queue.length).toBe(0);
   });
 
   it("stops painting entirely once the pointer leaves", () => {
-    const { ctx, calls, queue } = setup();
-    run(ctx, queue, [{ x: 200, y: 300, time: 16 }]);
+    const { calls, queue, frame, idleUntil } = mountWithFrames();
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: 200, clientY: 300 }),
+    );
+    frame(16);
 
+    window.dispatchEvent(new PointerEvent("pointerout"));
+    // Long enough for every symbol to cool and the glow to ease out.
+    idleUntil(32, 8000);
+
+    expect(queue.length).toBe(0);
     const before = calls.length;
-    run(ctx, queue, [{ x: -900, y: -900, time: 32 }]);
-    run(ctx, queue, [{ x: -900, y: -900, time: 48 }]);
-    run(ctx, queue, [{ x: -900, y: -900, time: 64 }]);
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { clientX: -900, clientY: -900 }),
+    );
+    frame(9000);
+    // Off-screen input lights nothing: only the final restore happens.
+    expect(strokes(calls.slice(before))).toBe(0);
+  });
 
-    // Energy decays to zero and the trail is dropped; only the final
-    // restore happens, and no symbol is re-stroked afterwards.
-    const strokesAfter = calls
-      .slice(before)
-      .filter((c) => c.op === "lineTo").length;
-    expect(strokesAfter).toBe(0);
+  it("opens a ring from a mouse click", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(
+      new PointerEvent("pointerdown", { clientX: 300, clientY: 300 }),
+    );
+    frame(16);
+    frame(160);
+
+    const arcs = arcsAt(calls, 300, 300);
+    expect(arcs.length).toBeGreaterThan(0);
+    expect(arcs[0].args[2] as number).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * A finger is not a cursor. It is at the glass only while it touches, it
+ * hides what is under it, and it arrives as a tap — so touch has its own
+ * input path (touch events, because a touch pointer is cancelled the moment
+ * the browser takes the gesture for a pan) and its own look: a ring out of
+ * every tap and a glow that leads the fingertip.
+ */
+describe("BackgroundPattern touch", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("lights the field from a dragging finger through touch events", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(touchEvent("touchstart", [{ x: 150, y: 400 }]));
+    frame(16);
+    window.dispatchEvent(touchEvent("touchmove", [{ x: 190, y: 380 }]));
+    const before = calls.length;
+    frame(32);
+
+    expect(strokes(calls.slice(before))).toBeGreaterThan(0);
+  });
+
+  it("ignores touch pointer events, which a pan would cancel anyway", () => {
+    const { queue } = mountWithFrames();
+    window.dispatchEvent(
+      new PointerEvent("pointermove", {
+        clientX: 100,
+        clientY: 100,
+        pointerType: "touch",
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        clientX: 100,
+        clientY: 100,
+        pointerType: "touch",
+      }),
+    );
+    expect(queue.length).toBe(0);
+  });
+
+  it("leads the glow above the fingertip instead of hiding it under the hand", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(touchEvent("touchstart", [{ x: 200, y: 500 }]));
+    const before = calls.length;
+    frame(16);
+
+    // The spotlight is filled under a translate to the aim point, which sits
+    // above the contact point.
+    const fills = calls.slice(before);
+    const fillIndex = fills.findIndex((c) => c.op === "fillRect");
+    expect(fillIndex).toBeGreaterThanOrEqual(0);
+    const translate = fills
+      .slice(0, fillIndex)
+      .reverse()
+      .find((c) => c.op === "translate")!;
+    expect(translate.args[0]).toBe(200);
+    expect(translate.args[1]).toBe(460);
+  });
+
+  it("answers a tap with a ring that opens from the touch point", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(touchEvent("touchstart", [{ x: 120, y: 520 }]));
+    frame(16);
+    frame(120);
+    frame(240);
+
+    const radii = arcsAt(calls, 120, 520).map((c) => c.args[2] as number);
+    expect(radii.length).toBeGreaterThanOrEqual(2);
+    expect(radii[radii.length - 1]).toBeGreaterThan(radii[0]);
+  });
+
+  it("opens one ring per finger that lands", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(
+      touchEvent(
+        "touchstart",
+        [
+          { x: 80, y: 300 },
+          { x: 300, y: 300 },
+        ],
+        [
+          { x: 80, y: 300 },
+          { x: 300, y: 300 },
+        ],
+      ),
+    );
+    frame(16);
+    frame(120);
+
+    expect(arcsAt(calls, 80, 300).length).toBeGreaterThan(0);
+    expect(arcsAt(calls, 300, 300).length).toBeGreaterThan(0);
+  });
+
+  it("lets go of the glow when the finger lifts, and stops the loop", () => {
+    const { queue, idleUntil } = mountWithFrames();
+    window.dispatchEvent(touchEvent("touchstart", [{ x: 200, y: 400 }]));
+    window.dispatchEvent(touchEvent("touchend", []));
+    idleUntil(16, 8000);
+    expect(queue.length).toBe(0);
+  });
+
+  it("keeps lighting while one finger lifts and another stays down", () => {
+    const { calls, frame } = mountWithFrames();
+    window.dispatchEvent(
+      touchEvent("touchstart", [
+        { x: 100, y: 400 },
+        { x: 300, y: 400 },
+      ]),
+    );
+    frame(16);
+    window.dispatchEvent(
+      touchEvent("touchend", [{ x: 300, y: 400 }], [{ x: 100, y: 400 }]),
+    );
+    const before = calls.length;
+    frame(32);
+    // Still aiming at the finger that is down: the glow did not go dark.
+    expect(strokes(calls.slice(before))).toBeGreaterThan(0);
+  });
+
+  it("greets a touch-only device with one soft ring", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { calls, frame } = mountWithFrames(
+      (query) => query === "(hover: none) and (pointer: coarse)",
+    );
+    const welcome = [window.innerWidth / 2, window.innerHeight * 0.58] as const;
+    frame(16);
+    expect(arcsAt(calls, ...welcome).length).toBe(0);
+
+    vi.advanceTimersByTime(600);
+    frame(32);
+    frame(200);
+    expect(arcsAt(calls, ...welcome).length).toBeGreaterThan(0);
+  });
+
+  it("does not greet a device that has a cursor", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { calls, frame } = mountWithFrames(() => false);
+    vi.advanceTimersByTime(2000);
+    frame(16);
+    frame(200);
+    expect(
+      arcsAt(calls, window.innerWidth / 2, window.innerHeight * 0.58).length,
+    ).toBe(0);
+  });
+
+  it("starts nothing under reduced motion", () => {
+    const { queue } = mountWithFrames(
+      (query) => query === "(prefers-reduced-motion: reduce)",
+    );
+    window.dispatchEvent(touchEvent("touchstart", [{ x: 100, y: 100 }]));
+    window.dispatchEvent(touchEvent("touchmove", [{ x: 120, y: 90 }]));
+    expect(queue.length).toBe(0);
   });
 });
 
