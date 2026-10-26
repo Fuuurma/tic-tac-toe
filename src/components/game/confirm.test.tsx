@@ -34,13 +34,18 @@ describe("Confirm", () => {
     return { onConfirm, onCancel };
   };
 
-  it("shows the title, description and both actions", () => {
-    renderConfirm();
+  it("shows the title and both actions with no subtitle when none is given", () => {
+    renderConfirm({ description: undefined });
 
     expect(screen.getByRole("heading", { name: "Start a new game" })).toBeTruthy();
-    expect(screen.getByText("Restart with the same players and settings?")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Restart" })).toBeTruthy();
+  });
+
+  it("shows a consequence-only description when one is given", () => {
+    renderConfirm({ description: "Current progress will be lost." });
+
+    expect(screen.getByText("Current progress will be lost.")).toBeTruthy();
   });
 
   it("calls onConfirm and onCancel from their buttons", () => {

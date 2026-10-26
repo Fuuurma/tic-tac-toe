@@ -225,7 +225,7 @@ describe("PlayersPanel confirmation lifecycle", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
     const dialog = screen
-      .getByText("Leave the room? Your opponent will be notified.")
+      .getByText("Your opponent will be notified.")
       .closest("dialog") as HTMLDialogElement;
     expect(dialog.open).toBe(true);
     expect(onPauseChange).toHaveBeenLastCalledWith(true);

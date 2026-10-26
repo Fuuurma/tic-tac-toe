@@ -536,7 +536,7 @@ export function PlayersPanel({
       <Confirm
         isOpen={showExit && isActive}
         title={exitLabel}
-        description={isOnline ? "Leave the room? Your opponent will be notified." : "Are you sure? Current progress will be lost."}
+        description={isOnline ? "Your opponent will be notified." : "Current progress will be lost."}
         confirmText={isOnline ? "Leave" : "Exit"}
         destructive
         playerColor={humanColor}
@@ -555,7 +555,6 @@ export function PlayersPanel({
       <Confirm
         isOpen={showNewGame && isActive}
         title={isActive ? "Start a new game" : "Play again"}
-        description={isActive ? "Restart with the same players and settings?" : "Play again with the same players and settings?"}
         confirmText={isActive ? "Restart" : "Play again"}
         playerColor={humanColor}
         onConfirm={() => {

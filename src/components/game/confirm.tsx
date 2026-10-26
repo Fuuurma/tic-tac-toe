@@ -5,7 +5,9 @@ import { Sheet } from "@/components/ui/sheet";
 interface ConfirmProps {
   isOpen: boolean;
   title: string;
-  description: string;
+  /** Consequence-only subline. Omit it when the title + actions already say
+      everything (a restated subtitle is clutter, not clarity). */
+  description?: string;
   confirmText?: string;
   cancelText?: string;
   destructive?: boolean;
@@ -82,7 +84,9 @@ export function Confirm({
         </>
       }
     >
-      <p className="text-sm text-muted-foreground">{description}</p>
+      {description ? (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      ) : null}
     </Sheet>
   );
 }

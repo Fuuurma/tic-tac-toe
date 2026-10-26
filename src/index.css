@@ -273,10 +273,6 @@ a {
   }
 }
 
-.sheet-footer {
-  border-top: 1px solid rgb(var(--glass-border) / 0.18);
-}
-
 /* Short landscape — a phone rotated, not a small desktop window.
    The width and the height disagree, and the height is the one that cannot
    scroll away cheaply while a turn clock runs. Deliberately narrow: a
