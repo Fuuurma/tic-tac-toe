@@ -152,6 +152,15 @@
     rgb(0 0 0 / 0.3) 82%,
     transparent 100%
   );
+  /* A phone has no margin around the board for the vignette to leave clear:
+     the desktop ellipse covers nearly the whole screen, and with it the
+     touch reveal. Keep a light scrim for contrast and let the field show. */
+  --bg-mask-dark-phone: radial-gradient(
+    75% 60% at 50% 48%,
+    rgb(0 0 0 / 0.4) 0%,
+    rgb(0 0 0 / 0.24) 62%,
+    transparent 100%
+  );
 }
 
 /* Coarse-pointer material budget. The lobby stacks a card, the settings
@@ -263,7 +272,10 @@ a {
    copy of the screen behind it. The footer hairline separates the sticky
    action row from content scrolling under it. */
 @media (max-width: 639.98px) {
-  :root[data-theme="light"] .lobby-screen-glass {
+  /* The phone lobby is a full-screen pane, so its backdrop is the whole
+     symbol field. Blurring it smears the field into a haze in either theme
+     and takes the touch reveal with it. */
+  .lobby-screen-glass {
     --glass-blur: 0px;
     --glass-saturate: 100%;
   }

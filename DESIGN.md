@@ -61,6 +61,11 @@ Icon buttons use `rounded-lg`, never `rounded-full`.
 ## Motion
 
 - Authored moment: glass-interactive sweep + refraction on hover
+- Living field: the symbol field is light with memory. Mouse: a spotlight whose
+  wake cools symbol by symbol, and a lens push that settles back. Touch has no
+  cursor, so it has its own moves: a ring travels out of every tap, and the
+  glow leads the fingertip instead of hiding under it. Reduced motion turns the
+  field's reveal off
 - Game cues: next-to-remove wiggle, timer countdown stroke, piece pop-in
 - Durations: 150–250ms micro, 400–600ms glass, timer tied to `TURN_DURATION_MS`
 - `prefers-reduced-motion: reduce` zeros animation and glass motion
