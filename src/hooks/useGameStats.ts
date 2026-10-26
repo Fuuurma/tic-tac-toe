@@ -108,42 +108,65 @@ const writeStats = (guestId: string, stats: GameStats): void => {
   }
 };
 
+/**
+ * One recorded game applied to a stats snapshot — pure, so the merge
+ * semantics (tallies, streaks) live in one testable place.
+ */
+export const applyGame = (
+  stats: GameStats,
+  key: string,
+  won: boolean,
+): GameStats => {
+  const bucket = stats.breakdown[key] ?? DEFAULT_BUCKET;
+  const breakdown = {
+    ...stats.breakdown,
+    [key]: {
+      wins: bucket.wins + (won ? 1 : 0),
+      losses: bucket.losses + (won ? 0 : 1),
+    },
+  };
+  if (won) {
+    return {
+      ...stats,
+      breakdown,
+      totalGames: stats.totalGames + 1,
+      wins: stats.wins + 1,
+      currentWinStreak: stats.currentWinStreak + 1,
+      bestWinStreak: Math.max(stats.bestWinStreak, stats.currentWinStreak + 1),
+    };
+  }
+  return {
+    ...stats,
+    breakdown,
+    totalGames: stats.totalGames + 1,
+    losses: stats.losses + 1,
+    currentWinStreak: 0,
+  };
+};
+
 export function useGameStats() {
   const [guestId] = useState<string>(() => getOrCreateGuestIdentity().guestId);
   const [stats, setStats] = useState<GameStats>(() => readStats(guestId));
 
-  const record = useCallback((context: StatsContext, won: boolean) => {
-    // Only vs Computer splits by difficulty; a friend or online result has
-    // no difficulty to attribute it to.
-    const key = breakdownKey(context.gameMode, context.aiDifficulty);
-    setStats((prev) => {
-      const bucket = prev.breakdown[key] ?? DEFAULT_BUCKET;
-      const breakdown = {
-        ...prev.breakdown,
-        [key]: {
-          wins: bucket.wins + (won ? 1 : 0),
-          losses: bucket.losses + (won ? 0 : 1),
-        },
-      };
-      if (won) {
-        return {
-          ...prev,
-          breakdown,
-          totalGames: prev.totalGames + 1,
-          wins: prev.wins + 1,
-          currentWinStreak: prev.currentWinStreak + 1,
-          bestWinStreak: Math.max(prev.bestWinStreak, prev.currentWinStreak + 1),
-        };
-      }
-      return {
-        ...prev,
-        breakdown,
-        totalGames: prev.totalGames + 1,
-        losses: prev.losses + 1,
-        currentWinStreak: 0,
-      };
-    });
-  }, []);
+  const record = useCallback(
+    (context: StatsContext, won: boolean) => {
+      // Only vs Computer splits by difficulty; a friend or online result
+      // has no difficulty to attribute it to.
+      const key = breakdownKey(context.gameMode, context.aiDifficulty);
+      // F791: merge into the FRESH stored snapshot, not React state —
+      // another tab shares this guest identity (it lives in localStorage)
+      // and may have recorded games since this hook last rendered. The
+      // read-merge-write is synchronous against the shared store, so each
+      // game adds exactly one tally to whatever is newest. Residual: two
+      // tabs recording in the exact same instant still race (localStorage
+      // has no compare-and-swap) — the window is microseconds, and the
+      // storage-event resync below keeps both views honest afterwards.
+      const merged = applyGame(readStats(guestId), key, won);
+      writeStats(guestId, merged);
+      setStats(merged);
+    },
+    [guestId],
+  );
 
   const recordWin = useCallback(
     (context: StatsContext) => record(context, true),
@@ -155,11 +178,24 @@ export function useGameStats() {
     [record],
   );
 
-  // Persist on every stats change — updaters must stay pure (StrictMode
-  // double-invokes them, which would double the localStorage write).
+  // F791: adopt a newer snapshot another tab wrote. Adoption happens
+  // only on genuine difference — same-value storage events fire in some
+  // browsers, and re-adopting identical stats would be a no-op anyway;
+  // persistence is NOT on this path (record writes), so there is no
+  // write/event loop.
   useEffect(() => {
-    writeStats(guestId, stats);
-  }, [guestId, stats]);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== storageKey(guestId)) return;
+      setStats((prev) => {
+        const incoming = readStats(guestId);
+        return JSON.stringify(incoming) === JSON.stringify(prev)
+          ? prev
+          : incoming;
+      });
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [guestId]);
 
   return { stats, recordWin, recordLoss };
 }
