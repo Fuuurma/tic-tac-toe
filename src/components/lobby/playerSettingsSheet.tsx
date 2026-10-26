@@ -90,6 +90,10 @@ export function SettingsSheet({
       open={isOpen}
       onClose={onClose}
       title="Settings"
+      // Content-height bottom sheet on phones: the form is short (tabs +
+      // name + pickers), so a full-height page left a dead middle. Auto
+      // pins the sheet to the content with the game visible behind it.
+      size="auto"
       bodyClassName="max-sm:gap-6"
       style={{ "--player-color": COLOR_RGB[activeColor] } as CSSProperties}
       footer={
