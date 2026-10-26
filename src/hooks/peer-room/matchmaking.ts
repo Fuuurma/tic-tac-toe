@@ -100,7 +100,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   liveAttempts.set(matchmakingTicketRef, attempt);
   const isCurrent = () => liveAttempts.get(matchmakingTicketRef) === attempt;
   stopTimer();
-  setStatus({ status: "creating", message: t("online.findingMatch") });
+  setStatus({ status: "creating", queue: "searching", message: t("online.findingMatch") });
 
   // Cancel-on-disconnect: if the tab closes mid-queue, a keepalive
   // leave drops the ticket on the Worker now instead of leaking it
@@ -115,6 +115,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     hasStartedRef.current = false;
     setStatus({
       status: "error",
+      queue: "none",
       message: t("mm.quickEndedAway"),
     });
     if (ticket) {
@@ -175,6 +176,9 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           if (pollResponse.status === "matched") {
             matched = true;
             const { match, slotToken } = pollResponse;
+            // Paired: the surface shows the handoff before the room is
+            // built, so a player mid-warm-up is told rather than teleported.
+            setStatus({ queue: "matched" });
             if (match.role === "guest") {
               // A failed room bind at join time parks the joiner on `waiting`
               // with its own room id; the poll later pairs it into the
@@ -225,6 +229,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
         hasStartedRef.current = false;
         setStatus({
           status: "error",
+          queue: "none",
           message: t("mm.searchExpired"),
         });
         return;
@@ -251,6 +256,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
             ? {
                 ...prev,
                 status: "error",
+                queue: "none",
                 message: t("mm.noOpponentRetry"),
               }
             : prev,
@@ -263,6 +269,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       liveAttempts.delete(matchmakingTicketRef);
       matchmakingTicketRef.current = null;
       hasStartedRef.current = false;
+      setStatus({ queue: "matched" });
       joinAsGuest(response.match.roomId, response.match.wsUrl, response.slotToken);
       return;
     }
@@ -279,6 +286,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     hasStartedRef.current = false;
     setStatus({
       status: "error",
+      queue: "none",
       message: t("mm.failedErr", { detail: (err as Error).message }),
     });
   } finally {

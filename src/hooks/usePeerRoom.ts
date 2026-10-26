@@ -48,9 +48,21 @@ export type PeerStatus =
   | "disconnected"
   | "error";
 
+/**
+ * Where a Quick Match is in the queue, independent of `status`.
+ *
+ * `status` cannot say it: a searcher polling the queue and a paired host
+ * building its room both hold `creating`. `searching` is "in line, nobody
+ * yet", `matched` is "paired, the room is being set up", `none` is anything
+ * else (not a quick match, cancelled, expired, failed). The search UI and the
+ * play-while-you-wait handoff key on this, never on message copy.
+ */
+export type QueueStage = "none" | "searching" | "matched";
+
 export interface PeerRoomState {
   role: PeerRole;
   status: PeerStatus;
+  queue: QueueStage;
   roomId: string;
   hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
@@ -90,6 +102,7 @@ export interface PendingPlayerSettings {
 const initialState: PeerRoomState = {
   role: null,
   status: "idle",
+  queue: "none",
   roomId: "",
   hostSymbol: null,
   guestSymbol: null,
@@ -612,7 +625,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       clearTimeout(waitingForHostTimeoutRef.current);
       waitingForHostTimeoutRef.current = null;
     }
-    setState((prev) => ({ ...prev, status: "disconnected", message: t("peer.youLeft"), rematchIncoming: false, rematchOutgoing: false }));
+    setState((prev) => ({ ...prev, status: "disconnected", queue: "none", message: t("peer.youLeft"), rematchIncoming: false, rematchOutgoing: false }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {
