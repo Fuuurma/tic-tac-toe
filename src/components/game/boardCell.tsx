@@ -30,15 +30,17 @@ interface BoardCellProps {
 /** Matches the `vanish` keyframe; the ghost is removed once it has played. */
 const VANISH_MS = 600;
 
+// Marks step one shade darker off-dark: -500s tuned for the black well
+// wash out on white (yellow especially), while dark keeps its exact hues.
 const SYMBOL_COLOR: Record<Color, string> = {
-  [Color.BLUE]: "text-blue-500",
-  [Color.GREEN]: "text-green-500",
-  [Color.YELLOW]: "text-yellow-500",
-  [Color.ORANGE]: "text-orange-500",
-  [Color.RED]: "text-red-500",
-  [Color.PINK]: "text-pink-500",
-  [Color.PURPLE]: "text-purple-500",
-  [Color.GRAY]: "text-gray-500",
+  [Color.BLUE]: "text-blue-600 dark:text-blue-500",
+  [Color.GREEN]: "text-green-600 dark:text-green-500",
+  [Color.YELLOW]: "text-yellow-600 dark:text-yellow-500",
+  [Color.ORANGE]: "text-orange-600 dark:text-orange-500",
+  [Color.RED]: "text-red-600 dark:text-red-500",
+  [Color.PINK]: "text-pink-600 dark:text-pink-500",
+  [Color.PURPLE]: "text-purple-600 dark:text-purple-500",
+  [Color.GRAY]: "text-gray-600 dark:text-gray-500",
 };
 
 const NEXT_TO_REMOVE_CLASSES: Record<Color, string> = {
