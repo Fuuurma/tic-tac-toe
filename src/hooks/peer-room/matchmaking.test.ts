@@ -238,6 +238,7 @@ describe("runQuickMatch", () => {
     expect(hasStartedRef.current).toBe(false);
     expect(deps.setStatus).toHaveBeenLastCalledWith({
       status: "error",
+      queue: "none",
       message: "Quick Match ended while this page was away. Try again or go back to setup.",
     });
     expect(mockedLeaveMatch).toHaveBeenCalledWith(
@@ -523,5 +524,118 @@ describe("runQuickMatch cancellation and attempt identity (F86, F307)", () => {
     expect(startAsHost).toHaveBeenCalledWith("r1", "wss://relay.example/room/r1", undefined);
     expect(markQuickMatchHost).toHaveBeenCalledTimes(1);
     expect(quickMatchHostRef.current).toBe(true);
+  });
+});
+
+describe("runQuickMatch queue stage", () => {
+  // The surface cannot tell "still in line" from "paired, room being built"
+  // by status: both hold `creating`. `queue` is the explicit signal the
+  // search UI (and the play-while-you-wait handoff) keys on.
+  const patches = (deps: { setStatus: unknown }) =>
+    vi.mocked(deps.setStatus as (p: Record<string, unknown>) => void).mock.calls.map(
+      (call) => call[0] as Record<string, unknown>,
+    );
+
+  it("enters the queue as searching with the first status patch", async () => {
+    const { deps } = makeDeps();
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    mockedPollMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+
+    await runQuickMatch(deps);
+
+    expect(patches(deps)[0]).toMatchObject({ status: "creating", queue: "searching" });
+  });
+
+  it("marks the pairing before the host room is built, so the handoff shows first", async () => {
+    const startAsHost = vi.fn();
+    const { deps } = makeDeps({ startAsHost });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    mockedPollMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r1", role: "host" }),
+      slotToken: "host-slot",
+    });
+
+    await runQuickMatch(deps);
+
+    const matchedAt = patches(deps).findIndex((p) => p.queue === "matched");
+    expect(matchedAt).toBeGreaterThan(0);
+    expect(vi.mocked(deps.setStatus).mock.invocationCallOrder[matchedAt]).toBeLessThan(
+      startAsHost.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("marks an instant match and a deferred-bind guest match the same way", async () => {
+    const joinAsGuest = vi.fn();
+    const instant = makeDeps({ joinAsGuest });
+    mockedFindMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r2" }),
+    });
+    await runQuickMatch(instant.deps);
+    expect(patches(instant.deps).some((p) => p.queue === "matched")).toBe(true);
+    expect(
+      vi.mocked(instant.deps.setStatus).mock.invocationCallOrder.at(-1),
+    ).toBeLessThan(joinAsGuest.mock.invocationCallOrder[0]);
+
+    const deferred = makeDeps({ joinAsGuest: vi.fn() });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t2", roomId: "r3" });
+    mockedPollMatch.mockResolvedValue({
+      status: "matched",
+      match: makeMatch({ roomId: "r4", role: "guest" }),
+    });
+    await runQuickMatch(deferred.deps);
+    expect(patches(deferred.deps).some((p) => p.queue === "matched")).toBe(true);
+  });
+
+  it("leaves the queue when the search times out", async () => {
+    const { deps } = makeDeps();
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    mockedPollMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+
+    await runQuickMatch(deps);
+
+    const updater = vi.mocked(deps.patchStatus).mock.calls[0][0] as (
+      prev: Record<string, unknown>,
+    ) => Record<string, unknown>;
+    expect(updater({ status: "creating", queue: "searching" })).toMatchObject({
+      status: "error",
+      queue: "none",
+    });
+  });
+
+  it("leaves the queue when the ticket expires or the service fails", async () => {
+    const expired = makeDeps({ maxPollMs: 60_000 });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    const { TicketExpiredError } = await import("@/lib/matchmaking");
+    mockedPollMatch.mockRejectedValue(new TicketExpiredError("t1"));
+    await runQuickMatch(expired.deps);
+    expect(patches(expired.deps).at(-1)).toMatchObject({ status: "error", queue: "none" });
+
+    const failed = makeDeps();
+    mockedFindMatch.mockRejectedValue(new Error("boom"));
+    await runQuickMatch(failed.deps);
+    expect(patches(failed.deps).at(-1)).toMatchObject({ status: "error", queue: "none" });
+  });
+
+  it("leaves the queue when the page was away", async () => {
+    const page = new EventTarget();
+    vi.stubGlobal("window", page);
+    const { deps } = makeDeps({ maxPollMs: 60_000 });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    let finishPoll!: () => void;
+    mockedPollMatch.mockImplementation(
+      () => new Promise((resolve) => {
+        finishPoll = () => resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+      }),
+    );
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledTimes(1));
+
+    page.dispatchEvent(new Event("pagehide"));
+
+    expect(patches(deps).at(-1)).toMatchObject({ status: "error", queue: "none" });
+    finishPoll();
+    await attempt;
   });
 });

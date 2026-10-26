@@ -34,6 +34,7 @@ function roomState(game: GameState, role: "host" | "guest"): PeerRoomState {
   return {
     role,
     status: "connected",
+    queue: "none",
     roomId: "room-1",
     hostSymbol: PlayerSymbol.X,
     guestSymbol: PlayerSymbol.O,
