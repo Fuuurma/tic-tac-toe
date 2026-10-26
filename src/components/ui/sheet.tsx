@@ -12,6 +12,13 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DRAG_HANDLE_TOUCH_ACTION, useDragToDismiss } from "@/hooks/useDragToDismiss";
 
+// jsdom (and very old browsers) ship no matchMedia — default to the
+// desktop layout rather than crashing.
+const queryPhone = (): boolean =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(max-width: 639px)").matches;
+
 const EXIT_ANIMATION_FALLBACK_MS = 400;
 
 /**
@@ -98,6 +105,22 @@ export function Sheet({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // F793: mirrors Tailwind's sm boundary. A phone inline sheet is a
+  // full-screen overlay, so it gets the modal path (top layer, Esc,
+  // background inert); the desktop inline sheet stays an embedded,
+  // non-modal panel.
+  const [isPhone, setIsPhone] = useState(() => queryPhone());
+  useEffect(() => {
+    // jsdom (and very old browsers) ship no matchMedia; the desktop
+    // inline layout is the safe default there.
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const onChange = (event: MediaQueryListEvent) => setIsPhone(event.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const phoneOverlay = inline && isPhone;
+
   useEffect(() => {
     if (open || !isPresent) return;
     const timeoutId = window.setTimeout(
@@ -109,7 +132,7 @@ export function Sheet({
 
   useLayoutEffect(() => {
     const dlg = dialogRef.current;
-    if (!dlg || inline) return;
+    if (!dlg || (inline && !phoneOverlay)) return;
     if (isVisible && !dlg.open) {
       dlg.showModal();
       // The panel, not the first field: focusing an input on open pops the
@@ -118,7 +141,7 @@ export function Sheet({
     } else if (!isVisible && dlg.open) {
       dlg.close();
     }
-  }, [isVisible, inline]);
+  }, [isVisible, inline, phoneOverlay]);
 
   // Non-modal (inline) dialogs get no Esc, focus trap or focus restore from
   // the platform, so the inline path supplies them.
@@ -262,7 +285,7 @@ export function Sheet({
     </>
   );
 
-  if (inline) {
+  if (inline && !phoneOverlay) {
     if (!isVisible) return null;
     return (
       <div
