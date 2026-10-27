@@ -6,19 +6,30 @@ async function openPlayerSettings(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Edit your player settings" }).click();
 }
 
-// The settings sheet's dismiss button is named "Close" and the help drawer's
-// is "Close help" — an unscoped getByRole name match is a substring hit on
-// both, so whenever both dialogs render (the drawer once stayed mounted in
-// the lobby) strict mode fails on two elements. Scope to the sheet.
-async function closeSettingsSheet(page: import("@playwright/test").Page) {
+// A sheet's dismiss button is named "Close" and the help drawer's is "Close
+// help" — an unscoped getByRole name match is a substring hit on both, so
+// whenever both dialogs render (the drawer once stayed mounted in the lobby)
+// strict mode fails on two elements. Scope to the sheet by its title.
+//
+// There are two sheets and they are different surfaces: "Players" is the
+// You/Opponent form the player cards open, "Settings" is the app preferences
+// the gear opens. Closing the wrong one waits forever for a dialog that is not
+// on screen, which is how the whole suite went red when they were split.
+async function closeSheet(
+  page: import("@playwright/test").Page,
+  title: "Players" | "Settings",
+) {
   await page
-    .getByRole("dialog", { name: "Settings", exact: true })
+    .getByRole("dialog", { name: title, exact: true })
     .getByRole("button", { name: "Close" })
     .click();
 }
 
+const closeSettingsSheet = (page: import("@playwright/test").Page) =>
+  closeSheet(page, "Settings");
+
 async function closePlayerSettings(page: import("@playwright/test").Page) {
-  await closeSettingsSheet(page);
+  await closeSheet(page, "Players");
 }
 
 async function openOpponentSettings(page: import("@playwright/test").Page) {
@@ -26,7 +37,7 @@ async function openOpponentSettings(page: import("@playwright/test").Page) {
 }
 
 async function closeOpponentSettings(page: import("@playwright/test").Page) {
-  await closeSettingsSheet(page);
+  await closeSheet(page, "Players");
 }
 
 async function fillLobby(
@@ -119,9 +130,11 @@ for (const [name, viewport] of [
       const { right } = range.getBoundingClientRect();
       return right;
     });
-    const toggle = await page.getByRole("button", { name: /Switch to (dark|light) theme/ }).boundingBox();
-    expect(toggle).not.toBeNull();
-    expect(wordBox).toBeLessThanOrEqual(toggle!.x - 4);
+    // The masthead's one chrome control is the settings gear; theme and
+    // language live behind it.
+    const gear = await page.getByRole("button", { name: "Settings", exact: true }).boundingBox();
+    expect(gear).not.toBeNull();
+    expect(wordBox).toBeLessThanOrEqual(gear!.x - 4);
   });
 }
 
@@ -291,7 +304,8 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
   await closeOpponentSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
   await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Help", exact: true })).toBeVisible();
+  // Help is reached through Settings, so the in-game bar carries Settings, not a Help button.
+  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   // The chosen difficulty must reach the game, not just the lobby: the AI
   // player card carries it in its accessible name.
   await expect(page.getByRole("group", { name: /, Easy(,|$)/ })).toBeVisible();
@@ -483,7 +497,10 @@ test("highlights the three winning cells", async ({ page }) => {
   await clickCell(page, 1, 3); // X wins
 
   await expect(page.getByText(/(Alice|Bob) wins!/, { exact: true })).toBeVisible();
-  await expect(page.locator('button[class~="bg-emerald-500/20"]')).toHaveCount(3);
+  // The line lights in the winner's colour (it was a fixed emerald), and the
+  // marks that did not win step back so the line is the one bright thing.
+  await expect(page.locator('button[class~="animate-win-claim"]')).toHaveCount(3);
+  await expect(page.locator('button[class~="opacity-55"]')).toHaveCount(2);
 });
 
 test("marks the oldest X piece as 'next to be removed' after the 3rd move", async ({ page }) => {
@@ -577,7 +594,7 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
   await page.getByRole("radio", { name: "vs Friend", exact: true }).click();
   await page.getByRole("button", { name: "Edit opponent settings" }).click();
   await page.getByLabel("Opponent name", { exact: true }).fill("Bob");
-  await closeSettingsSheet(page);
+  await closeOpponentSettings(page);
   await page.getByRole("button", { name: "Start Game" }).click();
 
   const ring = page.locator("path.animate-countdown-border");

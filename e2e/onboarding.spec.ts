@@ -103,13 +103,13 @@ test("an invited friend goes straight to their room", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Get started" })).toHaveCount(0);
 });
 
-test("the practice round can be replayed from How to play without touching the setup", async ({ page }) => {
+test("the practice round can be replayed from Settings without touching the setup", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("tic-tac-toe:guestId", "guest:returning");
     window.localStorage.setItem("tic-tac-toe:displayName", "Maria");
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "How to play" }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Replay tutorial" }).click();
   await expect(page.getByRole("heading", { name: "Practice round" })).toBeVisible();
 
