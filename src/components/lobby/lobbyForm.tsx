@@ -26,6 +26,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+import { ctaStyle } from "@/components/onboarding/ctaStyle";
 import { GameModeSelector } from "./gameModeSelector";
 import { GameMark } from "./gameMark";
 import { ThemeToggle } from "./themeToggle";
@@ -409,7 +410,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
                   tail vanishes on light glass and reads as a clipped word. */}
               <span
                 aria-hidden="true"
-                className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/60 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[2rem]"
+                className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/60 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[1.625rem]"
               >
                 Disappear
               </span>
@@ -568,13 +569,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
               "h-12 w-full text-base font-bold sm:h-14",
               startDisabled && "cursor-not-allowed opacity-50",
             )}
-            style={{
-              "--glass-sweep-color": COLOR_RGB[color],
-              "--glass-tint": COLOR_RGB[color],
-              "--glass-alpha": "0.15",
-              "--glass-sheen": COLOR_RGB[color],
-              "--glass-sheen-alpha": "0.25",
-            } as React.CSSProperties}
+            style={ctaStyle(color)}
           >
             {gameMode === GameModes.ONLINE ? (
               <>

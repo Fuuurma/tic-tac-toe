@@ -28,7 +28,7 @@ export const en = {
   "shape.square": "Square",
   "shape.diamond": "Diamond",
   "shape.star": "Star",
-  "shape.hexagon": "Hexagon",
+  "shape.crescent": "Crescent",
   "shape.heart": "Heart",
 
   "difficulty.easy": "Easy",

@@ -101,6 +101,30 @@ test("loads the playable shell", async ({ page }) => {
   await expect(page.getByRole("radio", { name: "vs Computer", exact: true })).toBeVisible();
 });
 
+// The word was 2rem on a 448px card whose title column is ~226px wide, so
+// "Disappear" ran 22px under the theme toggle. jsdom has no layout, so this
+// is measured in a real browser.
+for (const [name, viewport] of [
+  ["desktop", { width: 1280, height: 800 }],
+  ["phone", { width: 390, height: 844 }],
+] as const) {
+  test(`lobby wordmark clears the header buttons on ${name}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    const word = page.getByText("Disappear", { exact: true });
+    await expect(word).toBeVisible();
+    const wordBox = await word.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const { right } = range.getBoundingClientRect();
+      return right;
+    });
+    const toggle = await page.getByRole("button", { name: /Switch to (dark|light) theme/ }).boundingBox();
+    expect(toggle).not.toBeNull();
+    expect(wordBox).toBeLessThanOrEqual(toggle!.x - 4);
+  });
+}
+
 test("settings tablist follows the Arrow/Home/End keyboard contract", async ({ page }) => {
   await page.goto("/");
   await openPlayerSettings(page);
@@ -304,8 +328,8 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .toBe(beforePlay + 2);
 
   // Both pieces render, and the turn is back with the human.
-  await expect(pieces.first().locator("svg")).toHaveClass(/text-(red|blue)-500/);
-  await expect(pieces.last().locator("svg")).toHaveClass(/text-(red|blue)-500/);
+  await expect(pieces.first().locator("svg")).toHaveClass(/text-mark-(red|blue)/);
+  await expect(pieces.last().locator("svg")).toHaveClass(/text-mark-(red|blue)/);
   await expect
     .poll(
       () =>
@@ -341,8 +365,8 @@ test("starts a vs Friend game and the turn alternates", async ({ page }) => {
   // Both pieces should have distinct colors (blue vs red by default).
   const cell1Color = await page.getByRole("button", { name: /Row 1 column 1/ }).locator("svg").getAttribute("class");
   const cell3Color = await page.getByRole("button", { name: /Row 1 column 3/ }).locator("svg").getAttribute("class");
-  expect(cell1Color).toMatch(/text-(red|blue)-500/);
-  expect(cell3Color).toMatch(/text-(red|blue)-500/);
+  expect(cell1Color).toMatch(/text-mark-(red|blue)/);
+  expect(cell3Color).toMatch(/text-mark-(red|blue)/);
   // The two cells should have different colors.
   expect(cell1Color).not.toEqual(cell3Color);
 });
@@ -408,8 +432,8 @@ test("customizes distinct colors for both VS Friend players", async ({ page }) =
   // The two pieces should have the configured distinct colors (green vs red).
   const cell1Color = await page.getByRole("button", { name: /Row 1 column 1/ }).locator("svg").getAttribute("class");
   const cell2Color = await page.getByRole("button", { name: /Row 1 column 2/ }).locator("svg").getAttribute("class");
-  expect(cell1Color).toMatch(/text-(green|red)-500/);
-  expect(cell2Color).toMatch(/text-(green|red)-500/);
+  expect(cell1Color).toMatch(/text-mark-(green|red)/);
+  expect(cell2Color).toMatch(/text-mark-(green|red)/);
   expect(cell1Color).not.toEqual(cell2Color);
 });
 

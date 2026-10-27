@@ -5,6 +5,7 @@ import {
   GAME_RULES,
   GameModes,
   GameStatus,
+  LEGACY_SHAPES,
   PlayerSymbol,
   PlayerTypes,
   SymbolShape,
@@ -227,6 +228,25 @@ const isColor = (value: unknown): value is Color =>
 const VALID_SHAPES: ReadonlySet<string> = new Set(Object.values(SymbolShape));
 const isSymbolShape = (value: unknown): value is SymbolShape =>
   typeof value === "string" && VALID_SHAPES.has(value);
+
+/**
+ * An older cached client still names the hexagon the crescent replaced. Its
+ * frames would fail validation and drop the whole game, so map the id in place
+ * before they are checked. Frames without a game state, and shapes already
+ * current, are left untouched.
+ */
+export const migrateLegacyShapes = (message: unknown): void => {
+  if (typeof message !== "object" || message === null) return;
+  const players = (message as { gameState?: { players?: unknown } }).gameState?.players;
+  if (typeof players !== "object" || players === null) return;
+  for (const player of Object.values(players)) {
+    if (typeof player !== "object" || player === null) continue;
+    const record = player as { shape?: unknown };
+    if (typeof record.shape === "string" && record.shape in LEGACY_SHAPES) {
+      record.shape = LEGACY_SHAPES[record.shape];
+    }
+  }
+};
 
 const VALID_GAME_STATUSES: ReadonlySet<_GameStatusType> = new Set([
   GameStatus.WAITING,

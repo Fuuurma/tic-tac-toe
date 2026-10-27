@@ -1,3 +1,5 @@
+import { PALETTE, hexToRgb } from "./palette";
+
 export const PlayerSymbol = {
   X: "X",
   O: "O",
@@ -11,11 +13,20 @@ export const SymbolShape = {
   SQUARE: "square",
   DIAMOND: "diamond",
   STAR: "star",
-  HEXAGON: "hexagon",
+  CRESCENT: "crescent",
   HEART: "heart",
 } as const;
 export type SymbolShape = (typeof SymbolShape)[keyof typeof SymbolShape];
 export const AVAILABLE_SHAPES: SymbolShape[] = Object.values(SymbolShape);
+
+/**
+ * Shape ids that older builds saved or sent. The hexagon gave way to the
+ * crescent; anything that reads a stored or relayed shape maps it through
+ * here so an old preference or an old cached client keeps working.
+ */
+export const LEGACY_SHAPES: Readonly<Record<string, SymbolShape>> = {
+  hexagon: SymbolShape.CRESCENT,
+};
 
 export const SHAPE_LABELS: Record<SymbolShape, string> = {
   [SymbolShape.X]: "X",
@@ -24,7 +35,7 @@ export const SHAPE_LABELS: Record<SymbolShape, string> = {
   [SymbolShape.SQUARE]: "Square",
   [SymbolShape.DIAMOND]: "Diamond",
   [SymbolShape.STAR]: "Star",
-  [SymbolShape.HEXAGON]: "Hexagon",
+  [SymbolShape.CRESCENT]: "Crescent",
   [SymbolShape.HEART]: "Heart",
 };
 
@@ -154,24 +165,19 @@ export const COLOR_MARK_TEXT: Record<Color, string> = {
   [Color.GRAY]: "text-white",
 };
 
-export const COLOR_RGB: Record<Color, string> = {
-  [Color.BLUE]: "59 130 246",
-  [Color.GREEN]: "34 197 94",
-  [Color.YELLOW]: "234 179 8",
-  [Color.ORANGE]: "249 115 22",
-  [Color.RED]: "239 68 68",
-  [Color.PINK]: "236 72 153",
-  [Color.PURPLE]: "168 85 247",
-  [Color.GRAY]: "107 114 128",
-};
+export const COLOR_RGB: Record<Color, string> = Object.fromEntries(
+  Object.entries(PALETTE).map(([color, { chip }]) => [color, hexToRgb(chip).join(" ")]),
+) as Record<Color, string>;
 
 const OPPOSITE_COLOR: Record<Color, Color> = {
   [Color.BLUE]: Color.RED,
   [Color.RED]: Color.BLUE,
   [Color.GREEN]: Color.PURPLE,
   [Color.PURPLE]: Color.GREEN,
-  [Color.YELLOW]: Color.ORANGE,
-  [Color.ORANGE]: Color.YELLOW,
+  // Yellow and orange are the two nearest hues in the set, so neither is the
+  // other's opponent: each faces a colour nothing like it.
+  [Color.YELLOW]: Color.PURPLE,
+  [Color.ORANGE]: Color.BLUE,
   [Color.PINK]: Color.GRAY,
   [Color.GRAY]: Color.PINK,
 };

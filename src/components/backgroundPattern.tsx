@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Color, SymbolShape } from "@/game/constants";
+import { PALETTE, hexToRgb } from "@/game/palette";
+import { SHAPE_GEOMETRY } from "@/game/shapeGeometry";
 import {
   COLORS,
   createHeatField,
@@ -103,16 +105,9 @@ const WELCOME_RIPPLE: RippleKind = {
 const WELCOME_DELAY_MS = 500;
 const RING_COLOR = "56,182,255";
 
-const COLOR_HEX: Record<Color, [number, number, number]> = {
-  [Color.BLUE]: [59, 130, 246],
-  [Color.GREEN]: [34, 197, 94],
-  [Color.YELLOW]: [234, 179, 8],
-  [Color.ORANGE]: [249, 115, 22],
-  [Color.RED]: [239, 68, 68],
-  [Color.PINK]: [236, 72, 153],
-  [Color.PURPLE]: [168, 85, 247],
-  [Color.GRAY]: [107, 114, 128],
-};
+const COLOR_HEX = Object.fromEntries(
+  Object.entries(PALETTE).map(([color, { chip }]) => [color, hexToRgb(chip)]),
+) as Record<Color, [number, number, number]>;
 
 interface LitStyle {
   size: number;
@@ -228,16 +223,68 @@ const curve = (
     cy + x3 * sin + y3 * cos,
   );
 
-// Star and hexagon vertices are unit directions; only the radius changes with
-// the symbol's size.
-const STAR_UNIT: Array<[number, number]> = Array.from({ length: 10 }, (_, i) => {
-  const a = (Math.PI / 5) * i - Math.PI / 2;
-  return [Math.cos(a), Math.sin(a)];
-});
-const HEXAGON_UNIT: Array<[number, number]> = Array.from({ length: 6 }, (_, i) => {
-  const a = (Math.PI / 3) * i - Math.PI / 6;
-  return [Math.cos(a), Math.sin(a)];
-});
+// The symbols come from the same geometry the board strokes as SVG
+// (src/game/shapeGeometry.ts), compiled once into a flat op list so tracing a
+// symbol stays a tight loop with no per-symbol allocation. Coordinates are
+// stored centred on the origin, in the geometry's 100-unit grid.
+const OP_MOVE = 0;
+const OP_LINE = 1;
+const OP_CURVE = 2;
+const OP_CLOSE = 3;
+const OP_ARC = 4;
+const OP_CIRCLE = 5;
+
+/** The geometry's grid is 100 units with the circle at 68 across; a field
+ *  symbol's `size` is that circle's diameter plus a little. */
+const GRID_PER_SIZE = 85;
+
+const COMPILED_SHAPES = Object.fromEntries(
+  Object.entries(SHAPE_GEOMETRY).map(([shape, geometry]) => {
+    const ops: number[] = [];
+    let circleOpen = false;
+    // Symbols here are a few pixels across, so use the cheaper outline.
+    for (const path of geometry.field ?? geometry.paths) {
+      for (const command of path) {
+        switch (command[0]) {
+          case "M":
+            ops.push(OP_MOVE, command[1] - 50, command[2] - 50);
+            break;
+          case "L":
+            ops.push(OP_LINE, command[1] - 50, command[2] - 50);
+            break;
+          case "C":
+            ops.push(
+              OP_CURVE,
+              command[1] - 50,
+              command[2] - 50,
+              command[3] - 50,
+              command[4] - 50,
+              command[5] - 50,
+              command[6] - 50,
+            );
+            break;
+          case "A":
+            if (command[5] - command[4] >= Math.PI * 2 - 1e-6 && ops[ops.length - 3] === OP_MOVE) {
+              // A whole circle replaces the move before it: the rasteriser's
+              // fast circle path needs the pen to start at (cx + r, cy) and
+              // an arc from angle 0, exactly as the old hand-traced O did.
+              ops.length -= 3;
+              ops.push(OP_CIRCLE, command[1] - 50, command[2] - 50, command[3]);
+              circleOpen = true;
+            } else {
+              ops.push(OP_ARC, command[1] - 50, command[2] - 50, command[3], command[4], command[5]);
+            }
+            break;
+          case "Z":
+            if (!circleOpen) ops.push(OP_CLOSE);
+            circleOpen = false;
+            break;
+        }
+      }
+    }
+    return [shape, Float64Array.from(ops)];
+  }),
+) as Record<SymbolShape, Float64Array>;
 
 /** Adds one symbol to the current path; the caller strokes. */
 function traceShape(
@@ -249,81 +296,54 @@ function traceShape(
   cos: number,
   sin: number,
 ) {
-  const s = size / 2;
-  switch (shape) {
-    case SymbolShape.X: {
-      const r = s * 0.78;
-      move(ctx, cx, cy, cos, sin, -r, -r);
-      line(ctx, cx, cy, cos, sin, r, r);
-      move(ctx, cx, cy, cos, sin, r, -r);
-      line(ctx, cx, cy, cos, sin, -r, r);
-      break;
-    }
-    case SymbolShape.O: {
-      // A circle has no tilt. The moveTo starts the subpath at the arc's own
-      // start point, so the arc does not join the previous symbol with a line.
-      const r = s * 0.8;
-      ctx.moveTo(cx + r, cy);
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      break;
-    }
-    case SymbolShape.TRIANGLE: {
-      const r = s * 0.9;
-      move(ctx, cx, cy, cos, sin, 0, -r);
-      line(ctx, cx, cy, cos, sin, r * 0.9, r * 0.75);
-      line(ctx, cx, cy, cos, sin, -r * 0.9, r * 0.75);
-      ctx.closePath();
-      break;
-    }
-    case SymbolShape.SQUARE: {
-      const r = s * 0.74;
-      move(ctx, cx, cy, cos, sin, -r, -r);
-      line(ctx, cx, cy, cos, sin, r, -r);
-      line(ctx, cx, cy, cos, sin, r, r);
-      line(ctx, cx, cy, cos, sin, -r, r);
-      ctx.closePath();
-      break;
-    }
-    case SymbolShape.DIAMOND: {
-      const r = s * 0.86;
-      move(ctx, cx, cy, cos, sin, 0, -r);
-      line(ctx, cx, cy, cos, sin, r, 0);
-      line(ctx, cx, cy, cos, sin, 0, r);
-      line(ctx, cx, cy, cos, sin, -r, 0);
-      ctx.closePath();
-      break;
-    }
-    case SymbolShape.STAR: {
-      const outer = s * 0.95;
-      const inner = s * 0.42;
-      for (let i = 0; i < 10; i++) {
-        const radius = i % 2 === 0 ? outer : inner;
-        const [ux, uy] = STAR_UNIT[i];
-        if (i === 0) move(ctx, cx, cy, cos, sin, ux * radius, uy * radius);
-        else line(ctx, cx, cy, cos, sin, ux * radius, uy * radius);
+  const ops = COMPILED_SHAPES[shape];
+  const k = size / GRID_PER_SIZE;
+  // Arcs keep their centre and radius, so the symbol's tilt is just an offset
+  // on both angles. Taken lazily: most shapes have no arc.
+  let tilt = NaN;
+  for (let i = 0; i < ops.length; ) {
+    switch (ops[i]) {
+      case OP_MOVE:
+        move(ctx, cx, cy, cos, sin, ops[i + 1] * k, ops[i + 2] * k);
+        i += 3;
+        break;
+      case OP_LINE:
+        line(ctx, cx, cy, cos, sin, ops[i + 1] * k, ops[i + 2] * k);
+        i += 3;
+        break;
+      case OP_CURVE:
+        curve(
+          ctx, cx, cy, cos, sin,
+          ops[i + 1] * k, ops[i + 2] * k,
+          ops[i + 3] * k, ops[i + 4] * k,
+          ops[i + 5] * k, ops[i + 6] * k,
+        );
+        i += 7;
+        break;
+      case OP_CIRCLE: {
+        const x = ops[i + 1] * k;
+        const y = ops[i + 2] * k;
+        const r = ops[i + 3] * k;
+        const px = cx + x * cos - y * sin;
+        const py = cy + x * sin + y * cos;
+        ctx.moveTo(px + r, py);
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        i += 4;
+        break;
       }
-      ctx.closePath();
-      break;
-    }
-    case SymbolShape.HEXAGON: {
-      const r = s * 0.82;
-      for (let i = 0; i < 6; i++) {
-        const [ux, uy] = HEXAGON_UNIT[i];
-        if (i === 0) move(ctx, cx, cy, cos, sin, ux * r, uy * r);
-        else line(ctx, cx, cy, cos, sin, ux * r, uy * r);
+      case OP_ARC: {
+        if (Number.isNaN(tilt)) tilt = Math.atan2(sin, cos);
+        const x = ops[i + 1] * k;
+        const y = ops[i + 2] * k;
+        const from = ops[i + 4] + tilt;
+        const to = ops[i + 5] + tilt;
+        ctx.arc(cx + x * cos - y * sin, cy + x * sin + y * cos, ops[i + 3] * k, from, to, to < from);
+        i += 6;
+        break;
       }
-      ctx.closePath();
-      break;
-    }
-    case SymbolShape.HEART: {
-      // The heart is authored in a 68-unit box centred on the origin; the
-      // scale keeps it visually balanced with the other shapes.
-      const k = s * 0.018;
-      move(ctx, cx, cy, cos, sin, 0, 30 * k);
-      curve(ctx, cx, cy, cos, sin, -34 * k, 4 * k, -34 * k, -34 * k, 0, -16 * k);
-      curve(ctx, cx, cy, cos, sin, 34 * k, -34 * k, 34 * k, 4 * k, 0, 30 * k);
-      ctx.closePath();
-      break;
+      default:
+        ctx.closePath();
+        i += 1;
     }
   }
 }

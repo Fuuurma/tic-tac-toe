@@ -27,7 +27,7 @@ export const es: Record<StringKey, string> = {
   "shape.square": "Cuadrado",
   "shape.diamond": "Diamante",
   "shape.star": "Estrella",
-  "shape.hexagon": "Hexágono",
+  "shape.crescent": "Media luna",
   "shape.heart": "Corazón",
 
   "difficulty.easy": "Fácil",

@@ -15,6 +15,7 @@ import {
   chooseGuestColor,
   generateRoomId,
   isPeerMessage,
+  migrateLegacyShapes,
 } from "@/lib/peer";
 import type { PeerMessage } from "@/lib/peer";
 import {
@@ -110,6 +111,8 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     slotToken,
   });
   client.setMessageHandler((msg) => {
+    // An older cached client may still send the hexagon the crescent replaced.
+    migrateLegacyShapes(msg);
     // `error` is reserved by the relay: it rejects a client-sent one, so
     // every `error` frame here is the relay's own, never a peer's.
     if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || msg.type === "error") {

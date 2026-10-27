@@ -1,133 +1,46 @@
-import { SymbolShape } from "@/game/constants";
+import type { SymbolShape } from "@/game/constants";
+import { SHAPE_GEOMETRY, toSvgPath } from "@/game/shapeGeometry";
 
 interface SymbolShapeRendererProps {
   shape: SymbolShape;
   className?: string;
   strokeWidth?: number;
+  /** A CSS colour for a thin darker edge under the stroke. For a colour too
+   *  pale to clear 3:1 on its own on the light board (yellow). */
+  casing?: string;
 }
+
+/** How much wider than the stroke the casing is, in viewBox units. */
+const CASING_EXTRA = 3.2;
 
 /**
  * Renders a symbol shape as crisp SVG.
- * Each shape is drawn in a 100x100 viewBox, centered, with currentColor stroke.
+ * Geometry comes from `shapeGeometry.ts`, the same source the background
+ * canvas traces, drawn in a 100x100 viewBox with a `currentColor` stroke.
  * Use `text-*` or `color-*` classes on the parent to control the color.
  */
 export function SymbolShapeRenderer({
   shape,
   className,
   strokeWidth = 8,
+  casing,
 }: SymbolShapeRendererProps) {
+  const { paths, weight } = SHAPE_GEOMETRY[shape];
+  const d = paths.map(toSvgPath).join(" ");
+  const width = strokeWidth * weight;
   return (
     <svg
       viewBox="0 0 100 100"
       fill="none"
       stroke="currentColor"
-      strokeWidth={strokeWidth}
+      strokeWidth={width}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden="true"
     >
-      {renderShape(shape, strokeWidth)}
+      {casing && <path d={d} style={{ stroke: casing }} strokeWidth={width + CASING_EXTRA} />}
+      <path d={d} />
     </svg>
   );
-}
-
-function renderShape(shape: SymbolShape, strokeWidth: number) {
-  const inset = strokeWidth + 4;
-  switch (shape) {
-    case SymbolShape.X: {
-      const barLength = 100 - 2 * inset;
-      const barThickness = strokeWidth * 1.6;
-      return (
-        <>
-          <rect
-            x={inset}
-            y={50 - barThickness / 2}
-            width={barLength}
-            height={barThickness}
-            rx={barThickness / 3}
-            transform="rotate(45 50 50)"
-            fill="currentColor"
-            stroke="none"
-          />
-          <rect
-            x={inset}
-            y={50 - barThickness / 2}
-            width={barLength}
-            height={barThickness}
-            rx={barThickness / 3}
-            transform="rotate(-45 50 50)"
-            fill="currentColor"
-            stroke="none"
-          />
-        </>
-      );
-    }
-    case SymbolShape.O:
-      return <circle cx={50} cy={50} r={50 - inset} />;
-    case SymbolShape.TRIANGLE:
-      return (
-        <polygon
-          points={`50,${inset} ${100 - inset},${100 - inset} ${inset},${100 - inset}`}
-        />
-      );
-    case SymbolShape.SQUARE:
-      return (
-        <rect
-          x={inset}
-          y={inset}
-          width={100 - inset * 2}
-          height={100 - inset * 2}
-          rx={6}
-        />
-      );
-    case SymbolShape.DIAMOND:
-      return (
-        <polygon
-          points={`50,${inset} ${100 - inset},50 50,${100 - inset} ${inset},50`}
-        />
-      );
-    case SymbolShape.STAR: {
-      const cx = 50;
-      const cy = 50;
-      const outerR = 50 - inset;
-      const innerR = outerR * 0.4;
-      const points: string[] = [];
-      for (let i = 0; i < 10; i++) {
-        const angle = (Math.PI / 5) * i - Math.PI / 2;
-        const r = i % 2 === 0 ? outerR : innerR;
-        points.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
-      }
-      return <polygon points={points.join(" ")} />;
-    }
-    case SymbolShape.HEXAGON: {
-      const cx = 50;
-      const cy = 50;
-      const r = 50 - inset;
-      const points: string[] = [];
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i - Math.PI / 2;
-        points.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
-      }
-      return <polygon points={points.join(" ")} />;
-    }
-    case SymbolShape.HEART: {
-      // Classic heart silhouette built from two arcs meeting a bottom tip.
-      // Outlined (stroke only) to match the other shapes.
-      const top = 28;
-      const bottom = 88;
-      const dipY = 42;
-      const lobeR = 22;
-      const lobeCx = 50 - lobeR - 2;
-      const lobeCy = top + lobeR;
-      const rlobeCx = 50 + lobeR + 2;
-      return (
-        <path
-          d={`M 50 ${bottom} C ${50 - 34} ${bottom - 26}, ${lobeCx - lobeR} ${lobeCy + 6}, ${lobeCx - lobeR} ${lobeCy - 4} A ${lobeR} ${lobeR} 0 0 1 ${50} ${dipY} A ${lobeR} ${lobeR} 0 0 1 ${rlobeCx + lobeR} ${lobeCy - 4} C ${rlobeCx + lobeR} ${lobeCy + 6}, ${50 + 34} ${bottom - 26}, 50 ${bottom} Z`}
-        />
-      );
-    }
-    default:
-      return null;
-  }
 }

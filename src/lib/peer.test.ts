@@ -7,6 +7,7 @@ import {
   applyHostGuestJoin,
   generateRoomId,
   isPeerMessage,
+  migrateLegacyShapes,
   peerLeftUserMessage,
 } from "@/lib/peer";
 
@@ -72,6 +73,43 @@ describe("isPeerMessage", () => {
     expect(
       isPeerMessage({ type: "state_snapshot", gameState: { board: [] } }),
     ).toBe(false);
+  });
+});
+
+describe("migrateLegacyShapes", () => {
+  // An older cached client still sends the hexagon the crescent replaced.
+  const snapshotWithHexagon = () => {
+    const state = onlineState();
+    return {
+      type: "state_snapshot",
+      gameState: {
+        ...state,
+        players: {
+          ...state.players,
+          X: { ...state.players.X, shape: "hexagon" },
+        },
+      },
+    };
+  };
+
+  it("lets a legacy hexagon through as the crescent instead of dropping the game", () => {
+    const msg = snapshotWithHexagon();
+    expect(isPeerMessage(msg)).toBe(false);
+
+    migrateLegacyShapes(msg);
+
+    expect(msg.gameState.players.X.shape).toBe("crescent");
+    expect(isPeerMessage(msg)).toBe(true);
+  });
+
+  it("leaves current shapes, non-game frames and junk alone", () => {
+    const msg = { type: "state_snapshot", gameState: onlineState() };
+    const before = JSON.stringify(msg);
+    migrateLegacyShapes(msg);
+    migrateLegacyShapes({ type: "move", index: 4 });
+    migrateLegacyShapes(null);
+    migrateLegacyShapes("hexagon");
+    expect(JSON.stringify(msg)).toBe(before);
   });
 });
 

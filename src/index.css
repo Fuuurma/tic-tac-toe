@@ -57,6 +57,24 @@
   --well-border-alpha: 0.1;
   --well-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 18px 40px rgb(0 0 0 / 0.15);
   --player-color: 59 130 246;
+  /* A pale yellow cannot reach 3:1 on the light well without turning olive, so
+     its mark carries a darker edge instead (none in dark). */
+  --mark-casing-yellow: #977502;
+  /* Light surfaces that carry a form (lobby card, sheets) are denser than the
+     HUD glass: at 35% the field read through them, and through the scrim it
+     went muddy. Dark keeps its own, which hid the field already. */
+  --glass-surface-alpha: 0.62;
+  /* A sheet sits over live content (the lobby's chips and CTA), which showed
+     through as blue and red blobs at 62%. */
+  --glass-sheet-alpha: 0.78;
+  /* The dark refraction slivers on glass-interactive borders: invisible on a
+     dark card, stray black dashes on a light one. */
+  --glass-refract-alpha: 0.16;
+  /* Start Game's tint. 15% reads as a disabled pale button on light; dark
+     keeps the deep wash. */
+  --cta-alpha: 0.38;
+  /* Occupied-cell tint over a white tile (see cell-tint). */
+  --cell-tint-alpha: 0.16;
 
   /* Native controls and scrollbars follow the saved app theme. */
   color-scheme: light;
@@ -134,7 +152,9 @@
   --color-border: oklch(0.9 0.01 220);
   --color-input: oklch(0.9 0.01 220);
   /* F247: one scrim for every modal overlay — was bg-black/40 vs /50. */
-  --color-overlay-scrim: oklch(0 0 0 / 0.5);
+  /* Light pages dim to a cool slate, not black: a black 50% wash turned the
+     page and the sheet over it a muddy grey-green. Dark keeps black. */
+  --color-overlay-scrim: oklch(0.28 0.03 225 / 0.34);
   --color-ring: oklch(0.55 0.16 205);
   --color-primary: oklch(0.55 0.16 205);
   --color-primary-foreground: oklch(0.98 0 0);
@@ -142,14 +162,26 @@
   --color-destructive-foreground: oklch(0.98 0 0);
   --color-amber-500: oklch(0.78 0.16 80);
   --color-emerald-500: oklch(0.7 0.17 160);
-  --color-blue-500: oklch(0.6 0.2 255);
-  --color-green-500: oklch(0.7 0.18 145);
-  --color-yellow-500: oklch(0.82 0.16 95);
-  --color-orange-500: oklch(0.7 0.18 50);
-  --color-red-500: oklch(0.63 0.23 27);
-  --color-pink-500: oklch(0.7 0.2 0);
-  --color-purple-500: oklch(0.55 0.22 295);
-  --color-gray-500: oklch(0.55 0.01 220);
+  /* Player colours. Hex, and mirrored in src/game/palette.ts: a test fails if
+     the two disagree. -500 is the chip / identity colour and the mark in dark
+     mode; --color-mark-* is the mark itself, darker on the light well and
+     hue-matched to its chip (yellow was amber there, which read as orange). */
+  --color-blue-500: #007df3;
+  --color-green-500: #45ba50;
+  --color-yellow-500: #e5c226;
+  --color-orange-500: #f37513;
+  --color-red-500: #f53131;
+  --color-pink-500: #fb5c99;
+  --color-purple-500: #8047e1;
+  --color-gray-500: #6b7376;
+  --color-mark-blue: #155dfc;
+  --color-mark-green: #059a46;
+  --color-mark-yellow: #ddbc0b;
+  --color-mark-orange: #dc7106;
+  --color-mark-red: #e7000b;
+  --color-mark-pink: #e60076;
+  --color-mark-purple: #9810fa;
+  --color-mark-gray: #4a5565;
   --color-emerald-600: oklch(0.62 0.17 160);
   --color-emerald-400: oklch(0.76 0.16 160);
   --gradient-light:
@@ -204,6 +236,21 @@
   --color-border: oklch(0.3 0.02 220);
   --color-input: oklch(0.3 0.02 220);
   --color-ring: oklch(0.7 0.12 205);
+  --color-mark-blue: #007df3;
+  --color-mark-green: #45ba50;
+  --color-mark-yellow: #e5c226;
+  --color-mark-orange: #f37513;
+  --color-mark-red: #f53131;
+  --color-mark-pink: #fb5c99;
+  --color-mark-purple: #8047e1;
+  --color-mark-gray: #6b7376;
+  --mark-casing-yellow: transparent;
+  --glass-surface-alpha: 0.28;
+  --glass-sheet-alpha: 0.28;
+  --glass-refract-alpha: 0.5;
+  --cta-alpha: 0.15;
+  --cell-tint-alpha: 0.12;
+  --color-overlay-scrim: oklch(0 0 0 / 0.5);
 }
 
 html,
@@ -280,6 +327,14 @@ a {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+.lobby-screen-glass {
+  --glass-alpha: var(--glass-surface-alpha);
+}
+
+.sheet-surface {
+  --glass-alpha: var(--glass-sheet-alpha);
 }
 
 /* A full-screen phone sheet is a page, not a pane over the lobby: the glass
@@ -642,11 +697,11 @@ dialog.sheet-exiting::backdrop {
     background:
       conic-gradient(
         from var(--glass-angle),
-        rgb(0 0 0 / 0.5),
+        rgb(0 0 0 / var(--glass-refract-alpha)),
         transparent 5% 40%,
-        rgb(0 0 0 / 0.5) 50%,
+        rgb(0 0 0 / var(--glass-refract-alpha)) 50%,
         transparent 60% 95%,
-        rgb(0 0 0 / 0.5)
+        rgb(0 0 0 / var(--glass-refract-alpha))
       ),
       linear-gradient(180deg, rgb(var(--glass-border) / var(--glass-border-alpha)), rgb(var(--glass-border) / var(--glass-border-alpha)));
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -758,6 +813,17 @@ dialog.sheet-exiting::backdrop {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* An occupied cell: the same raised tile an empty one is, plus the player's
+   colour. A flat bg-<colour>/10 over the grey well mixed warm colours into
+   khaki (yellow and orange cells looked dirty); tinting a white tile keeps
+   them clean. --cell-rgb is set per cell. */
+@utility cell-tint {
+  background:
+    linear-gradient(rgb(var(--cell-rgb) / var(--cell-tint-alpha)), rgb(var(--cell-rgb) / var(--cell-tint-alpha))),
+    linear-gradient(135deg, transparent 0%, rgb(var(--glass-sheen) / var(--glass-cell-sheen-alpha)) 45%, transparent 90%),
+    rgb(var(--glass-cell-tint) / var(--glass-cell-alpha));
 }
 
 /* The board well: one frosted pane under the 3x3 grid. A single backdrop

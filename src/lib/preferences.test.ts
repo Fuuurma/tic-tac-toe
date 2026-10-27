@@ -31,6 +31,19 @@ describe("preferences storage", () => {
     });
   });
 
+  it("upgrades a saved hexagon to the crescent that replaced it", () => {
+    window.localStorage.setItem(
+      KEY,
+      JSON.stringify({ playerShape: "hexagon", opponentShape: "hexagon", color: Color.PINK }),
+    );
+
+    expect(loadPreferences()).toEqual({
+      color: Color.PINK,
+      playerShape: SymbolShape.CRESCENT,
+      opponentShape: SymbolShape.CRESCENT,
+    });
+  });
+
   it("merges patches instead of clobbering the stored blob", () => {
     savePreferences({ color: Color.GREEN });
     savePreferences({ aiDifficulty: AI_Difficulty.EASY });

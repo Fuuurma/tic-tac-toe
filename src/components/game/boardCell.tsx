@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from "react";
-import { Color, PlayerSymbol, SymbolShape } from "@/game/constants";
+import { COLOR_RGB, Color, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { getShapeLabel, t, useStrings } from "@/i18n/language";
 import { cn } from "@/lib/utils";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
@@ -30,39 +30,47 @@ interface BoardCellProps {
 /** Matches the `vanish` keyframe; the ghost is removed once it has played. */
 const VANISH_MS = 600;
 
-// Marks step one shade darker off-dark: -500s tuned for the black well
-// wash out on white (yellow especially), while dark keeps its exact hues.
+// Marks use the palette's own tokens (`--color-mark-*` in index.css): darker
+// on the light well, the chip colour in dark. They used to be Tailwind's
+// default -600 shades, whose hues drifted from their chips (yellow read as
+// orange).
 const SYMBOL_COLOR: Record<Color, string> = {
-  [Color.BLUE]: "text-blue-600 dark:text-blue-500",
-  [Color.GREEN]: "text-green-600 dark:text-green-500",
-  [Color.YELLOW]: "text-yellow-600 dark:text-yellow-500",
-  [Color.ORANGE]: "text-orange-600 dark:text-orange-500",
-  [Color.RED]: "text-red-600 dark:text-red-500",
-  [Color.PINK]: "text-pink-600 dark:text-pink-500",
-  [Color.PURPLE]: "text-purple-600 dark:text-purple-500",
-  [Color.GRAY]: "text-gray-600 dark:text-gray-500",
+  [Color.BLUE]: "text-mark-blue",
+  [Color.GREEN]: "text-mark-green",
+  [Color.YELLOW]: "text-mark-yellow",
+  [Color.ORANGE]: "text-mark-orange",
+  [Color.RED]: "text-mark-red",
+  [Color.PINK]: "text-mark-pink",
+  [Color.PURPLE]: "text-mark-purple",
+  [Color.GRAY]: "text-mark-gray",
+};
+
+// A pale colour carries a darker edge on the light board (none in dark: the
+// token resolves to transparent there).
+const SYMBOL_CASING: Partial<Record<Color, string>> = {
+  [Color.YELLOW]: "var(--mark-casing-yellow)",
 };
 
 const NEXT_TO_REMOVE_CLASSES: Record<Color, string> = {
-  [Color.BLUE]: "border-blue-500/70 bg-blue-500/10 shadow-lg shadow-blue-500/30",
-  [Color.GREEN]: "border-green-500/70 bg-green-500/10 shadow-lg shadow-green-500/30",
-  [Color.YELLOW]: "border-yellow-500/70 bg-yellow-500/10 shadow-lg shadow-yellow-500/30",
-  [Color.ORANGE]: "border-orange-500/70 bg-orange-500/10 shadow-lg shadow-orange-500/30",
-  [Color.RED]: "border-red-500/70 bg-red-500/10 shadow-lg shadow-red-500/30",
-  [Color.PINK]: "border-pink-500/70 bg-pink-500/10 shadow-lg shadow-pink-500/30",
-  [Color.PURPLE]: "border-purple-500/70 bg-purple-500/10 shadow-lg shadow-purple-500/30",
-  [Color.GRAY]: "border-gray-500/70 bg-gray-500/10 shadow-lg shadow-gray-500/30",
+  [Color.BLUE]: "border-blue-500/70 shadow-lg shadow-blue-500/30",
+  [Color.GREEN]: "border-green-500/70 shadow-lg shadow-green-500/30",
+  [Color.YELLOW]: "border-yellow-500/70 shadow-lg shadow-yellow-500/30",
+  [Color.ORANGE]: "border-orange-500/70 shadow-lg shadow-orange-500/30",
+  [Color.RED]: "border-red-500/70 shadow-lg shadow-red-500/30",
+  [Color.PINK]: "border-pink-500/70 shadow-lg shadow-pink-500/30",
+  [Color.PURPLE]: "border-purple-500/70 shadow-lg shadow-purple-500/30",
+  [Color.GRAY]: "border-gray-500/70 shadow-lg shadow-gray-500/30",
 };
 
 const OCCUPIED_TINT_CLASSES: Record<Color, string> = {
-  [Color.BLUE]: "bg-blue-500/10 shadow-md shadow-blue-500/20",
-  [Color.GREEN]: "bg-green-500/10 shadow-md shadow-green-500/20",
-  [Color.YELLOW]: "bg-yellow-500/10 shadow-md shadow-yellow-500/20",
-  [Color.ORANGE]: "bg-orange-500/10 shadow-md shadow-orange-500/20",
-  [Color.RED]: "bg-red-500/10 shadow-md shadow-red-500/20",
-  [Color.PINK]: "bg-pink-500/10 shadow-md shadow-pink-500/20",
-  [Color.PURPLE]: "bg-purple-500/10 shadow-md shadow-purple-500/20",
-  [Color.GRAY]: "bg-gray-500/10 shadow-md shadow-gray-500/20",
+  [Color.BLUE]: "shadow-md shadow-blue-500/20",
+  [Color.GREEN]: "shadow-md shadow-green-500/20",
+  [Color.YELLOW]: "shadow-md shadow-yellow-500/20",
+  [Color.ORANGE]: "shadow-md shadow-orange-500/20",
+  [Color.RED]: "shadow-md shadow-red-500/20",
+  [Color.PINK]: "shadow-md shadow-pink-500/20",
+  [Color.PURPLE]: "shadow-md shadow-purple-500/20",
+  [Color.GRAY]: "shadow-md shadow-gray-500/20",
 };
 
 export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
@@ -88,6 +96,7 @@ export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
       onFocus={() => onHover?.(index)}
       onBlur={() => onHover?.(null)}
       className={getBoardCellClassName(props)}
+      style={value && props.valueColor ? ({ "--cell-rgb": COLOR_RGB[props.valueColor] } as React.CSSProperties) : undefined}
     >
       {renderBoardCellContents(props, ghost)}
     </button>
@@ -157,6 +166,7 @@ function renderBoardCellContents(props: BoardCellProps, ghost: VanishGhost | nul
           <SymbolShapeRenderer
             shape={ghost.shape}
             strokeWidth={7}
+            casing={SYMBOL_CASING[ghost.color]}
             className={cn("h-3/5 w-3/5", SYMBOL_COLOR[ghost.color])}
           />
         </span>
@@ -165,6 +175,7 @@ function renderBoardCellContents(props: BoardCellProps, ghost: VanishGhost | nul
         <SymbolShapeRenderer
           shape={valueShape}
           strokeWidth={7}
+          casing={SYMBOL_CASING[valueColor ?? Color.GRAY]}
           className={cn(
             "h-3/5 w-3/5 transition-all duration-300 ease-out animate-pop-in",
             isNextToRemove && !isWinningCell && "animate-sos-blink",
@@ -177,6 +188,7 @@ function renderBoardCellContents(props: BoardCellProps, ghost: VanishGhost | nul
         <SymbolShapeRenderer
           shape={previewShape}
           strokeWidth={7}
+          casing={previewColor && SYMBOL_CASING[previewColor]}
           className={cn(
             "absolute h-3/5 w-3/5 opacity-30 scale-90 transition-all duration-200",
             previewColor && SYMBOL_COLOR[previewColor],
@@ -205,6 +217,7 @@ function getBoardCellClassName({
     isDisabled && !value && "cursor-not-allowed opacity-50",
     isHint && !value && !isDisabled && "animate-pulse-slow border-[rgb(var(--player-color)/0.7)] bg-[rgb(var(--player-color)/0.14)] ring-2 ring-[rgb(var(--player-color)/0.45)]",
     isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30 animate-win-glow",
+    value && !isWinningCell && "cell-tint",
     !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
     !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],
     !isWinningCell && !isNextToRemove && value && valueColor && OCCUPIED_TINT_CLASSES[valueColor],

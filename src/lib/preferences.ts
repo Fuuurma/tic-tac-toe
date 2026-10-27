@@ -2,6 +2,7 @@ import {
   AI_Difficulty,
   AVAILABLE_COLORS,
   AVAILABLE_SHAPES,
+  LEGACY_SHAPES,
   type Color,
   type SymbolShape,
   type AI_Difficulty as AI_DifficultyType,
@@ -54,6 +55,10 @@ const isColor = (v: unknown): v is Color =>
 const isShape = (v: unknown): v is SymbolShape =>
   typeof v === "string" && (AVAILABLE_SHAPES as string[]).includes(v);
 
+/** A shape saved by an older build, mapped to the one that replaced it. */
+const readShape = (v: unknown): SymbolShape | undefined =>
+  isShape(v) ? v : typeof v === "string" ? LEGACY_SHAPES[v] : undefined;
+
 const isDifficulty = (v: unknown): v is AI_DifficultyType =>
   typeof v === "string" &&
   (Object.values(AI_Difficulty) as string[]).includes(v);
@@ -76,9 +81,11 @@ export function loadPreferences(
   const out: GamePreferences = {};
   if (isTheme(prefs.theme)) out.theme = prefs.theme;
   if (isColor(prefs.color)) out.color = prefs.color;
-  if (isShape(prefs.playerShape)) out.playerShape = prefs.playerShape;
+  const playerShape = readShape(prefs.playerShape);
+  if (playerShape) out.playerShape = playerShape;
   if (isColor(prefs.opponentColor)) out.opponentColor = prefs.opponentColor;
-  if (isShape(prefs.opponentShape)) out.opponentShape = prefs.opponentShape;
+  const opponentShape = readShape(prefs.opponentShape);
+  if (opponentShape) out.opponentShape = opponentShape;
   const opponentName = sanitizeDisplayName(
     typeof prefs.opponentName === "string" ? prefs.opponentName : null,
     "",

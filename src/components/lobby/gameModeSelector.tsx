@@ -81,10 +81,10 @@ export function GameModeSelector({
                 // taking the player color. Content stays centered.
                 "group relative flex min-h-14 w-full flex-col items-stretch justify-center gap-1 rounded-lg border px-3.5 py-3 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:gap-1.5 sm:px-2.5 sm:py-2.5",
                 reason
-                  ? "cursor-not-allowed border-border/50 bg-background/30 text-muted-foreground/60 opacity-70"
+                  ? "cursor-not-allowed border-foreground/10 bg-foreground/[0.04] text-muted-foreground/60 opacity-70 dark:border-border/50 dark:bg-background/30"
                   : active
                     ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-md ring-2 ring-[rgb(var(--player-color)/0.35)]"
-                    : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                    : "border-foreground/15 bg-card/70 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-card hover:text-foreground dark:border-border/70 dark:bg-background/50 dark:hover:bg-muted/60",
               )}
             >
               {reason && (

@@ -18,6 +18,7 @@ import { ThemeToggle } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
+import { ctaStyle } from "@/components/onboarding/ctaStyle";
 import { Bot, Pencil, Play, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
@@ -117,15 +118,7 @@ export function SettingsSheet({
               "h-12 w-full shrink-0 text-base font-bold sm:h-14",
               startDisabled && "cursor-not-allowed opacity-50",
             )}
-            style={
-              {
-                "--glass-sweep-color": COLOR_RGB[activeColor],
-                "--glass-tint": COLOR_RGB[activeColor],
-                "--glass-alpha": "0.15",
-                "--glass-sheen": COLOR_RGB[activeColor],
-                "--glass-sheen-alpha": "0.25",
-              } as CSSProperties
-            }
+            style={ctaStyle(activeColor)}
           >
             <Play className="h-5 w-5" aria-hidden="true" />
             {startLabel ?? "Start Game"}

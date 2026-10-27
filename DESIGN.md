@@ -43,8 +43,25 @@ in-focus object on the operate surface.
 - Numerals in the timer: `tabular-nums` + `font-mono`
 - Brand primary / ring: `oklch(0.55 0.16 205)` (dark ring `0.7 0.12 205`)
 - Neutrals: cool cyan-gray hue 220, chroma kept low
-- Player tokens (`COLOR_RGB`) stay identity; they tint the start CTA and
-  current-turn chrome, not the whole app
+- Player colours are one palette (`src/game/palette.ts`, mirrored as tokens in
+  `index.css`, drift-tested): the chip colour is the identity and the dark mark,
+  a hue-matched darker mark sits on the light well, and yellow carries a thin
+  darker casing there because a pale yellow cannot clear 3:1 on near-white
+  without going olive. Orange and yellow are never each other's opponent.
+  Colours tint the start CTA and current-turn chrome, not the whole app
+
+## Symbols
+
+Eight outline symbols (X, O, triangle, square, diamond, star, crescent, heart),
+one stroke weight, drawn once in `src/game/shapeGeometry.ts` and used by the
+board, the HUD and the pickers (SVG) and by the living field (canvas). Sized
+optically, not mechanically: every shape's longest side sits between 56 and 74
+units of a 100-unit grid, the triangle is nudged up so its mass does not sink,
+and the X is drawn a quarter heavier because its strokes cross. The crescent
+replaced the hexagon: the set had five angular shapes and few round ones, and
+a regular polygon read as filler. Round joins, round caps, true arcs: crisp at
+any pixel density, since SVG is resolution independent and a 2x screen simply
+has more pixels to draw the same path.
 
 ## Surfaces
 

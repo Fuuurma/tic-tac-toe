@@ -6,7 +6,7 @@ export const ctaStyle = (color: Color): CSSProperties =>
   ({
     "--glass-sweep-color": COLOR_RGB[color],
     "--glass-tint": COLOR_RGB[color],
-    "--glass-alpha": "0.15",
+    "--glass-alpha": "var(--cta-alpha)",
     "--glass-sheen": COLOR_RGB[color],
     "--glass-sheen-alpha": "0.25",
   }) as CSSProperties;
