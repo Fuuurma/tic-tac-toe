@@ -118,7 +118,7 @@ export const Board = memo(function Board({
         // --board-avail carries the height left over after the rest of the
         // column, and the landscape variant in index.css restates it for the
         // side-by-side layout, where the HUD no longer consumes any of it.
-        className="no-touch-select relative mx-auto aspect-square w-full max-w-[var(--board-max)] rounded-2xl border border-black/10 bg-white/50 p-2.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.6),0_18px_40px_rgb(0_0_0/0.15)] sm:p-3.5 dark:border-white/12 dark:bg-black/50"
+        className="no-touch-select relative mx-auto aspect-square w-full max-w-[var(--board-max)] glass-well rounded-2xl p-2.5 sm:p-3.5"
       >
         <div
           role="group"

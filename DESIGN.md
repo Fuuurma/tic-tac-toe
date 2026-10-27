@@ -53,7 +53,7 @@ in-focus object on the operate surface.
 | `glass` | Lobby card, sheets, dialogs. Calm. No rotating border. |
 | `glass-interactive` | Buttons and tappable tiles. One authored moment: specular sweep. |
 | `glass-cell` | Board cells, compact chips. No backdrop-filter. |
-| Board well | Dark inset square. Largest object. Cells sit *in* it. |
+| `glass-well` | Board well. Largest object. Cells sit *in* it. Frosted harder than `glass` (blur 24px, tint 0.8 light / 0.64 dark) so the symbol field reaches the cells as haze, never as drawn shapes. The one backdrop blur under the board; cells stay filter-free. Light tint is cool grey so white cells read as raised tiles. |
 
 Radius map (already in `src/index.css`): md 10 / lg 14 / xl 18 / 2xl 22.
 Icon buttons use `rounded-lg`, never `rounded-full`.
