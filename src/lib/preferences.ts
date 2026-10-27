@@ -8,6 +8,7 @@ import {
   type AI_Difficulty as AI_DifficultyType,
 } from "@/game/constants";
 import { sanitizeDisplayName } from "@/lib/identity";
+import { getBrowserStorage } from "@/lib/storage";
 
 export type AppTheme = "light" | "dark";
 
@@ -39,15 +40,6 @@ interface GamePreferences {
 }
 
 const PREFERENCES_STORAGE_KEY = "tic-tac-toe:preferences";
-
-const getBrowserStorage = (): Storage | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
 
 const isColor = (v: unknown): v is Color =>
   typeof v === "string" && (AVAILABLE_COLORS as string[]).includes(v);

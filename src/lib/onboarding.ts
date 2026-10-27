@@ -1,4 +1,5 @@
 import { LANGUAGE_STORAGE_KEY } from "@/i18n/language";
+import { getBrowserStorage } from "@/lib/storage";
 
 export const ONBOARDING_STORAGE_KEY = "tic-tac-toe:onboarding";
 
@@ -8,15 +9,6 @@ type OnboardingOutcome = "done" | "skipped";
 // Anything the app itself wrote before. Their presence means the visitor has
 // played here already (or predates onboarding), so they are not new.
 const EXISTING_DATA_PREFIX = "tic-tac-toe:";
-
-const getBrowserStorage = (): Storage | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
 
 /**
  * True only for a visitor we hold no data on: no recorded outcome and nothing

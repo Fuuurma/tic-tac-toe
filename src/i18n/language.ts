@@ -9,6 +9,7 @@ import {
 import type { Locale } from "@/lib/preferences";
 import { en, type StringKey } from "./en";
 import { es } from "./es";
+import { getBrowserStorage } from "@/lib/storage";
 
 /**
  * Own storage key, deliberately outside the preferences blob: the
@@ -17,15 +18,6 @@ import { es } from "./es";
  * run. The gate skips exactly this key (see lib/onboarding).
  */
 export const LANGUAGE_STORAGE_KEY = "tic-tac-toe:language";
-
-const getBrowserStorage = (): Storage | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
 
 const isLocale = (v: unknown): v is Locale => v === "en" || v === "es";
 

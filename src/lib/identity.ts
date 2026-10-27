@@ -1,5 +1,6 @@
 import { getLocale } from "@/i18n/language";
 import type { Locale } from "@/lib/preferences";
+import { getBrowserStorage } from "@/lib/storage";
 
 export const IDENTITY_STORAGE_KEYS = {
   guestId: "tic-tac-toe:guestId",
@@ -95,15 +96,6 @@ const GUEST_NAME_NOUNS_ES = [
   "Zorro", "Vértigo", "Sendero", "Volcán", "Océano",
   "Juglar", "Corsario", "Trovador", "Forastero", "Nómada",
 ] as const;
-
-const getBrowserStorage = (): Storage | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-};
 
 const generateGuestId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
