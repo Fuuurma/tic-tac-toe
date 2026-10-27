@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { handleGuestMessage } from '../hooks/peer-room/guestProtocol';
-import { handleHostMessage } from '../hooks/peer-room/hostProtocol';
-import type { GameState } from '../game/logic';
-import { createInitialGameState } from '../game/logic';
-import { GameModes, GameStatus } from '../game/constants';
+import { handleGuestMessage } from './guestProtocol';
+import { handleHostMessage } from './hostProtocol';
+import type { GameState } from '../../game/logic';
+import { createInitialGameState } from '../../game/logic';
+import { GameModes, GameStatus } from '../../game/constants';
 
 /**
  * Protocol-level regression locks for the guest/host message cores

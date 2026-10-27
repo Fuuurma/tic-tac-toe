@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import config from "../vite.config";
+import config from "../../vite.config";
 
 /**
  * work:246 — the manualChunks matcher tested `id.includes("react")`, and
