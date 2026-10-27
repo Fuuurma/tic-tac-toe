@@ -27,8 +27,11 @@ interface BoardCellProps {
   onHover?: (index: number | null) => void;
 }
 
-/** Matches the `vanish` keyframe; the ghost is removed once it has played. */
-const VANISH_MS = 600;
+/** Must be >= the `vanish` keyframe duration in src/index.css (`0.55s`); the
+ *  ghost span is removed once it has played. The two are coupled by hand — it
+ *  said "matches" while sitting at 600ms against a 550ms keyframe, which is
+ *  harmless only because the teardown lands after the animation ends. */
+const VANISH_MS = 550;
 
 // Marks use the palette's own tokens (`--color-mark-*` in index.css): darker
 // on the light well, the chip colour in dark. They used to be Tailwind's

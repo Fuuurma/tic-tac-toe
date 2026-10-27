@@ -9,7 +9,7 @@ import {
   PlayerTypes,
   SymbolShape,
 } from "@/game/constants";
-import { GameStatus } from "@/game/constants";
+import { COPY_FLASH_MS, GameStatus } from "@/game/constants";
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
@@ -622,7 +622,7 @@ function RoomIdShare({
       await navigator.clipboard.writeText(text);
       setCopyError(false);
       setCopied(kind);
-      window.setTimeout(() => setCopied(null), 1800);
+      window.setTimeout(() => setCopied(null), COPY_FLASH_MS);
     } catch {
       setCopyError(true);
     }

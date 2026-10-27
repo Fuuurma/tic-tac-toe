@@ -108,6 +108,10 @@ export const REMATCH_TIMEOUT_MS = 30_000;
 export const HOST_ABSENT_TIMEOUT_MS = 45_000;
 export const AI_MOVE_DELAY_MS = 700;
 export const AI_MOVE_DELAY_JITTER_MS = 600;
+/** How long a "copied" confirmation stays on screen. Three copy affordances
+ *  share it (room-code chip, invite link, share strip); it lived as a local
+ *  const in one of them and as a bare `1800` in the other two. */
+export const COPY_FLASH_MS = 1800;
 export const GAME_ID = "tictactoe";
 
 export const PLAYER_CONFIG: Record<

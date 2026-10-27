@@ -5,7 +5,7 @@ import {
   PlayerSymbol,
   type Color,
 } from "@/game/constants";
-import type { LessonStage } from "@/game/tutorial";
+import { humanMoveCount, type LessonStage } from "@/game/tutorial";
 import { Button } from "@/components/ui/button";
 import { t, useStrings } from "@/i18n/language";
 import { Board } from "@/components/game/board";
@@ -124,7 +124,9 @@ export function PracticeStep({
   );
 
   const won = stage === "won";
-  const placed = Math.ceil(state.moveCount / 2);
+  // Same count the lesson stage uses (game/tutorial.ts) — re-deriving it here
+  // let the coach copy and the stage disagree if a move ever lands off-turn.
+  const placed = humanMoveCount(state);
   const coach = coachFor(stage, placed, hint !== null);
   const playersTurn = currentPlayer === PlayerSymbol.X && !won;
 

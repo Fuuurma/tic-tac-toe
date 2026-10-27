@@ -414,3 +414,38 @@ describe("PlayersPanel AI difficulty label", () => {
     expect(screen.queryByText("(Hard)")).toBeNull();
   });
 });
+
+describe("PlayersPanel room-code chip — clipboard refusal (B4)", () => {
+  // The room-code chip swallowed a rejected writeText with an empty catch, so
+  // the reader pressed copy and got no confirmation and no failure. The other
+  // two copy affordances on this screen both report; this one now does too.
+  it("tells the reader when the clipboard refused", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const state = terminalState();
+    state.gameStatus = GameStatus.ACTIVE;
+    state.winner = null;
+    render(
+      <PlayersPanel
+        gameState={state}
+        message=""
+        roomCode="AB3XK9"
+        onExit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Room code AB3XK9, click to copy" }),
+    );
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("AB3XK9"));
+    expect(
+      await screen.findByText("Copy was unavailable. Select the code manually."),
+    ).toBeTruthy();
+    // And the success announcement must not appear for a failed copy.
+    expect(screen.queryByText("Room code copied to clipboard")).toBeNull();
+  });
+});

@@ -10,6 +10,7 @@ import {
   PlayerSymbol,
   PlayerTypes,
   COLOR_MARK_TEXT,
+  COPY_FLASH_MS,
 } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
@@ -128,6 +129,7 @@ export function PlayersPanel({
   const showExit = showExitStored && !freshGame;
   const showNewGame = showNewGameStored && !freshGame;
   const [copiedRoom, setCopiedRoom] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
 
@@ -135,10 +137,14 @@ export function PlayersPanel({
     if (!roomCode) return;
     try {
       await navigator.clipboard.writeText(roomCode);
+      setCopyError(false);
       setCopiedRoom(true);
-      window.setTimeout(() => setCopiedRoom(false), 1800);
+      window.setTimeout(() => setCopiedRoom(false), COPY_FLASH_MS);
     } catch {
-      /* clipboard unavailable */
+      // The other two copy affordances on this screen both say when the
+      // clipboard refused; this one used to fail silently, leaving the reader
+      // pressing a button that appeared to work.
+      setCopyError(true);
     }
   };
 
@@ -367,6 +373,11 @@ export function PlayersPanel({
                 {copiedRoom && (
                   <span role="status" aria-live="polite" className="sr-only">
                     {t("game.copied")}
+                  </span>
+                )}
+                {copyError && (
+                  <span role="status" aria-live="polite" className="text-[10px] font-normal normal-case tracking-normal text-destructive">
+                    {t("online.copyFail")}
                   </span>
                 )}
                 <MorphIcon

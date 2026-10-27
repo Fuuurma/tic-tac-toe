@@ -10,6 +10,7 @@ import {
   type AI_Difficulty as AI_DifficultyType,
   type Color,
   type SymbolShape,
+  COPY_FLASH_MS,
 } from "@/game/constants";
 import { getDifficultyLabel, t } from "@/i18n/language";
 import { useGameStats } from "@/hooks/useGameStats";
@@ -105,9 +106,6 @@ export interface StripInvite {
   shareText: string;
 }
 
-/** How long a copy confirmation stays on screen. */
-const FLASH_MS = 1800;
-
 /**
  * Share on a phone, copy anywhere else. Its result is the strip's detail
  * line for a moment, so the confirmation is announced without a second live
@@ -142,7 +140,7 @@ function InviteAction({
     window.setTimeout(() => {
       setCopied(false);
       onFlash(null);
-    }, FLASH_MS);
+    }, COPY_FLASH_MS);
   };
 
   const Icon = canShare ? Share2 : copied ? Check : Link2;
