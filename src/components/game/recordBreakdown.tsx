@@ -184,8 +184,11 @@ export function RecordBreakdown({
             // `glass` is tuned for large surfaces over the gradient (0.35
             // tint). This panel is small, dense, and lands on top of the
             // player cards, so it borrows the same material with an opaque
-            // enough base to read numbers against.
-            "--glass-alpha": "0.82",
+            // enough base to read numbers against. At 0.82 the winner's name
+            // and the opponent's mark read through it, doubling the text
+            // behind the numbers; 0.95 still left the name faintly sharp (the
+            // blur does not soften it here), so only the tint hides it.
+            "--glass-alpha": "0.98",
             left: `${offset?.left ?? 0}px`,
             top: `${offset?.top ?? 0}px`,
           } as React.CSSProperties}

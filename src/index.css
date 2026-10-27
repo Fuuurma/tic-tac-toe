@@ -65,8 +65,11 @@
      went muddy. Dark keeps its own, which hid the field already. */
   --glass-surface-alpha: 0.62;
   /* A sheet sits over live content (the lobby's chips and CTA), which showed
-     through as blue and red blobs at 62%. */
-  --glass-sheet-alpha: 0.78;
+     through as blue and red blobs at 62%, and a ghosted "Start Game" at 78%.
+     It is a raised pane, not a window: dense enough that nothing behind it
+     reads, with the sheen, rim and shadow still saying "glass". */
+  --glass-sheet-alpha: 0.9;
+  --glass-sheet-tint: 255 255 255;
   /* The dark refraction slivers on glass-interactive borders: invisible on a
      dark card, stray black dashes on a light one. */
   --glass-refract-alpha: 0.16;
@@ -246,7 +249,13 @@
   --color-mark-gray: #6b7376;
   --mark-casing-yellow: transparent;
   --glass-surface-alpha: 0.28;
-  --glass-sheet-alpha: 0.28;
+  /* Dark sheets were the page's 28% glass over the lobby's own 28% glass:
+     two translucent layers over live chips, so the field and the player
+     colours smeared through as purple and green blobs and the lobby card
+     showed as a second frame behind it. Dense and near-black, one step above
+     the page, so the sheet reads as the same material seen closer. */
+  --glass-sheet-alpha: 0.92;
+  --glass-sheet-tint: 20 22 27;
   --glass-refract-alpha: 0.5;
   --cta-alpha: 0.15;
   --cell-tint-alpha: 0.12;
@@ -335,6 +344,7 @@ a {
 
 .sheet-surface {
   --glass-alpha: var(--glass-sheet-alpha);
+  --glass-tint: var(--glass-sheet-tint);
 }
 
 /* A full-screen phone sheet is a page, not a pane over the lobby: the glass
@@ -564,6 +574,26 @@ a {
 
 dialog.sheet-exiting::backdrop {
   animation: sheet-scrim-out 0.22s ease-out both;
+}
+
+/* A desktop sheet is shorter than the lobby card it sits on, so the card's
+   title and Start button showed above and below it as a second, half-hidden
+   frame. Frosting the scrim turns the page into haze and leaves the sheet the
+   only sharp object. Desktop and fine pointers only: a phone sheet already
+   covers the screen, and the coarse-pointer budget above is spent on the
+   card, not a full-viewport blur over a live canvas. */
+@media (min-width: 640px) and (pointer: fine) {
+  dialog.sheet-surface::backdrop {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  dialog.sheet-surface::backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 @media (max-width: 639px) {

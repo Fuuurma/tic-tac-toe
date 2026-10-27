@@ -42,20 +42,15 @@ export function PreferencesSheet({
       // Short list: content-height on phones, so the game stays visible behind.
       size="auto"
       compactMobile
-      bodyClassName="max-sm:gap-6"
     >
       {isOpen && (
-        <div className="flex flex-col gap-5 max-sm:gap-6">
-          <Group label={t("settings.appearance")}>
-            <Row>
-              <ThemeSegmented />
-            </Row>
-          </Group>
-          <Group label={t("settings.language")}>
-            <Row>
-              <LanguageSwitcher />
-            </Row>
-          </Group>
+        <div className="flex flex-col">
+          <Row label={t("settings.appearance")}>
+            <ThemeSegmented className={SEGMENTED_WIDTH} />
+          </Row>
+          <Row label={t("settings.language")}>
+            <LanguageSwitcher className={SEGMENTED_WIDTH} />
+          </Row>
           <Group label={t("settings.learn")}>
             <LinkRow label={t("settings.howToPlay")} onClick={onHowToPlay} />
             {onReplayTutorial && (
@@ -68,10 +63,25 @@ export function PreferencesSheet({
   );
 }
 
-/** One setting, one row: label left, control right, hairline under it. */
-function Row({ children }: { children: ReactNode }) {
+/**
+ * The two-option controls share one width, so their right edges line up and
+ * the pair reads as a set instead of two shrink-wrapped pills of different
+ * length. Wide enough for "Español" and "Oscuro" with the glyph, narrow
+ * enough that the label still fits beside it at 320px.
+ */
+const SEGMENTED_WIDTH = "grid w-[11.5rem] shrink-0 grid-cols-2";
+
+/**
+ * One setting, one row: the name on the left, its control on the right,
+ * hairline under it. The label used to sit above a control that hugged the
+ * left edge, which left the right half of the sheet empty and made each
+ * setting two stacked things instead of one line. It wraps rather than clips
+ * if a translation ever outgrows the row.
+ */
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border/60 py-1.5 last:border-b-0">
+    <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/60 py-2 last:border-b-0">
+      <span className="text-sm font-semibold text-foreground">{label}</span>
       {children}
     </div>
   );
@@ -79,7 +89,7 @@ function Row({ children }: { children: ReactNode }) {
 
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col">
+    <div className="mt-4 flex flex-col">
       <h3 className="m-0 mb-1 text-xs font-semibold text-muted-foreground">{label}</h3>
       {children}
     </div>

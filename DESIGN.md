@@ -69,13 +69,26 @@ has more pixels to draw the same path.
 
 | Token | Job |
 |---|---|
-| `glass` | Lobby card, sheets, dialogs. Calm. No rotating border. |
+| `glass` | Lobby card, sheets, dialogs. Calm. No rotating border. A sheet (`sheet-surface`) is the dense variant: 0.9 tint light, 0.92 dark, with its own `--glass-sheet-tint` (a near-black one step above the page in dark). It sits over live chips and a second glass card, and at 0.28 both smeared through as coloured blobs. |
 | `glass-interactive` | Buttons and tappable tiles. One authored moment: specular sweep. |
 | `glass-cell` | Board cells, compact chips. No backdrop-filter. |
 | `glass-well` | Board well. Largest object. Cells sit *in* it. Frosted harder than `glass` (blur 24px, tint 0.8 light / 0.64 dark) so the symbol field reaches the cells as haze, never as drawn shapes. The one backdrop blur under the board; cells stay filter-free. Light tint is cool grey so white cells read as raised tiles. |
 
 Radius map (already in `src/index.css`): md 10 / lg 14 / xl 18 / 2xl 22.
 Icon buttons use `rounded-lg`, never `rounded-full`.
+
+### Sheets
+
+A sheet is a raised pane, so nothing behind it may read through it. On desktop
+the scrim is frosted (`blur(6px)`, fine pointers only, off under reduced
+transparency) so a sheet shorter than the lobby card does not show the card's
+title and Start button as a second frame above and below it. A phone sheet
+covers the screen and skips the blur.
+
+Settings rows are one line each: the name on the left, a fixed-width control on
+the right, a hairline under it. A label above a control that hugs the left edge
+left half the sheet empty. Both two-option controls share one width so their
+right edges line up, and their options are 44px tall on a phone.
 
 ## Motion
 
@@ -234,6 +247,10 @@ player's identity.
 - **One flourish, 420ms.** The winning line pulses once (`win-claim`) and the
   crown pops (`crown-pop`), both stopped by `prefers-reduced-motion`. The
   resting border and tint carry the state for anyone who never sees the motion.
+- **The line is the one bright thing.** Once someone has won, every mark that
+  is not on the line steps back to 55% (`isDimmed`), so the board answers "who"
+  instead of showing two lit rows to compare. A draw has no line, so nothing is
+  dimmed.
 - **A draw stays neutral.** No crown, no tint: the win surfaces key on the
   winner's colour, so there is nothing to wear when nobody won.
 - **Minimums**: 12px text (14px for anything read), 44px targets, 48px

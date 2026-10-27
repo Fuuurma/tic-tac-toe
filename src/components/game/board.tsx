@@ -147,6 +147,7 @@ export const Board = memo(function Board({
                     valueShape={value ? shapes[value] : undefined}
                     isNextToRemove={isNext}
                     isWinningCell={isWinning}
+                    isDimmed={winningCombination !== null && !isWinning}
                     isDisabled={disabled}
                     disabledReason={disabledReason}
                     isHovered={hovered === index}

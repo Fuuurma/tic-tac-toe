@@ -76,4 +76,20 @@ describe("winning line", () => {
       expect(cell.className).not.toContain("animate-win-claim");
     }
   });
+
+  // Two bright lines of three made the win a comparison instead of an answer:
+  // the loser's row of tinted marks pulled as hard as the winning line.
+  it("steps the marks that did not win back, and only those", () => {
+    renderWin();
+    const [a, b, c, d, , , g] = cellButtons();
+    for (const cell of [a!, b!, c!]) expect(cell.className).not.toContain("opacity-55");
+    for (const cell of [d!, g!]) expect(cell.className).toContain("opacity-55");
+  });
+
+  it("leaves every mark at full weight while the game is still running", () => {
+    renderWin(false);
+    for (const cell of cellButtons()) {
+      expect(cell.className).not.toContain("opacity-55");
+    }
+  });
 });

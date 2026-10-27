@@ -11,6 +11,9 @@ interface BoardCellProps {
   valueShape?: SymbolShape;
   isNextToRemove: boolean;
   isWinningCell: boolean;
+  /** A line has won and this mark is not on it: it steps back so the line is
+   *  the one bright thing on the board. */
+  isDimmed?: boolean;
   isDisabled: boolean;
   /** Plain-language reason the cell cannot be played, appended to the
    *  accessible name. Absent when the cell is playable. */
@@ -217,6 +220,7 @@ function getBoardCellClassName({
   valueColor,
   isNextToRemove,
   isWinningCell,
+  isDimmed,
   isDisabled,
   isHint,
 }: BoardCellProps): string {
@@ -233,6 +237,9 @@ function getBoardCellClassName({
     // mark's own colour: the same idea, asserted.
     isWinningCell && "bg-[rgb(var(--player-color)/0.3)] border-2 border-[rgb(var(--player-color)/0.85)] animate-win-claim",
     value && !isWinningCell && "cell-tint",
+    // The loser's marks keep their colour but not their weight: two bright
+    // lines of three made the win a comparison instead of an answer.
+    value && isDimmed && "opacity-55",
     !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
     !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],
     !isWinningCell && !isNextToRemove && value && valueColor && OCCUPIED_TINT_CLASSES[valueColor],

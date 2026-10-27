@@ -19,7 +19,7 @@ import type { AppTheme } from "@/lib/preferences";
  * job. No "system" option — `useAppTheme` stores `light | dark`, and a
  * follow-the-OS mode is a separate feature with a media-query listener.
  */
-export function ThemeSegmented() {
+export function ThemeSegmented({ className }: { className?: string }) {
   const { theme, setTheme } = useAppTheme();
   // Subscribes so a language switch re-renders the labels.
   useStrings();
@@ -31,7 +31,10 @@ export function ThemeSegmented() {
     <div
       role="group"
       aria-label={t("settings.appearance")}
-      className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-background/50 p-1 text-sm"
+      className={cn(
+        "inline-flex items-center gap-1 rounded-lg border border-border/70 bg-background/50 p-1 text-sm",
+        className,
+      )}
     >
       {options.map(({ value, labelKey, Icon }) => {
         const active = theme === value;
@@ -42,7 +45,7 @@ export function ThemeSegmented() {
             aria-pressed={active}
             onClick={() => setTheme(value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 font-bold transition max-sm:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
               active
                 ? "bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.35)]"
                 : "text-muted-foreground hover:text-foreground",
