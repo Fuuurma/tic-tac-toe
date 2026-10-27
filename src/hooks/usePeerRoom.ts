@@ -1,6 +1,7 @@
+import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import type { Reaction } from "@/lib/social";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, TURN_DURATION_MS } from "@/game/constants";
+import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
@@ -273,7 +274,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         if (current.turnDeadlineAt === undefined) return;
         const frozen: GameState = {
           ...current,
-          turnTimeRemaining: Math.max(0, current.turnDeadlineAt - Date.now()),
+          turnTimeRemaining: freezeRemaining(current.turnDeadlineAt, Date.now()),
         };
         stateRef.current = frozen;
         setState((prev) => ({ ...prev, gameState: frozen }));
@@ -291,7 +292,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       if (current.turnDeadlineAt === undefined) return;
       const rebuilt: GameState = {
         ...current,
-        turnDeadlineAt: Date.now() + (current.turnTimeRemaining ?? TURN_DURATION_MS),
+        turnDeadlineAt: rebuildDeadline(current.turnTimeRemaining, Date.now()),
       };
       stateRef.current = rebuilt;
       setState((prev) => ({ ...prev, gameState: rebuilt }));

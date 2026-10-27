@@ -1,6 +1,6 @@
+import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import { isGameActive, makeMove, makeRandomMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { TURN_DURATION_MS } from "@/game/constants";
 import { t } from "@/i18n/language";
 import type { PeerRole } from "../usePeerRoom";
 import type { PeerRoomState } from "../usePeerRoom";
@@ -45,15 +45,13 @@ export function startTurnTimer(deps: TurnTimerDeps) {
       return;
     }
 
-    const deadline =
-      current.turnDeadlineAt ??
-      Date.now() + (current.turnTimeRemaining ?? TURN_DURATION_MS);
+    const deadline = current.turnDeadlineAt ?? rebuildDeadline(current.turnTimeRemaining, Date.now());
     if (current.turnDeadlineAt === undefined) {
       current = { ...current, turnDeadlineAt: deadline };
       stateRef.current = current;
     }
 
-    const remaining = Math.max(0, deadline - Date.now());
+    const remaining = freezeRemaining(deadline, Date.now());
     if (remaining <= 0) {
       if (roleRef.current !== "host") {
         setState((prev) =>

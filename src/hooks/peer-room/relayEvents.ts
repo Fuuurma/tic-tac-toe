@@ -1,3 +1,4 @@
+import { rebuildDeadline } from "@/game/turnClock";
 import {
   GameStatus,
   HOST_ABSENT_TIMEOUT_MS,
@@ -320,10 +321,9 @@ export function handleRelayEvent(
         // guest timer ticks against a past deadline, briefly showing 0
         // and potentially firing the local "ran out of time" branch
         // before the host's gameUpdate arrives (fleet 09-07 P1).
-        const remaining = current.turnTimeRemaining ?? TURN_DURATION_MS;
         const resynthesized = {
           ...current,
-          turnDeadlineAt: Date.now() + remaining,
+          turnDeadlineAt: rebuildDeadline(current.turnTimeRemaining, Date.now()),
         };
         stateRef.current = resynthesized;
         // Commit unconditionally: the ref above is already resynthesized,

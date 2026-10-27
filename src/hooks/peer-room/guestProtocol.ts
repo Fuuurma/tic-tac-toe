@@ -1,4 +1,5 @@
-import { GameStatus, TURN_DURATION_MS, PlayerSymbol } from "@/game/constants";
+import { rebuildDeadline } from "@/game/turnClock";
+import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { t } from "@/i18n/language";
@@ -91,9 +92,10 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       const gameState = isGameActive(message.gameState)
         ? {
             ...message.gameState,
-            turnDeadlineAt:
-              Date.now() +
-              (message.gameState.turnTimeRemaining ?? TURN_DURATION_MS),
+            turnDeadlineAt: rebuildDeadline(
+              message.gameState.turnTimeRemaining,
+              Date.now(),
+            ),
           }
         : message.gameState;
       // Capture the rollback snapshot BEFORE clearing it. The host cannot

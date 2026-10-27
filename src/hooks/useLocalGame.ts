@@ -1,3 +1,4 @@
+import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AI_Difficulty,
@@ -9,7 +10,6 @@ import {
   PlayerSymbol,
   PlayerTypes,
   SymbolShape,
-  TURN_DURATION_MS,
   randomPlayerSymbol,
 } from "@/game/constants";
 import {
@@ -158,14 +158,14 @@ export function useLocalGame(input: LocalGameInput) {
         // Freeze the exact remaining time; the resume branch rebuilds
         // the deadline from it.
         if (prev.turnDeadlineAt === undefined) return prev;
-        return { ...prev, turnTimeRemaining: Math.max(0, prev.turnDeadlineAt - Date.now()) };
+        return { ...prev, turnTimeRemaining: freezeRemaining(prev.turnDeadlineAt, Date.now()) };
       }
       // Rebuild the absolute deadline from the frozen remaining time so
       // time spent paused doesn't count down the turn. Without this the
       // deadline keeps aging while the interval is stopped and the first
       // tick after resume can fire an immediate forced move.
       if (prev.turnDeadlineAt === undefined) return prev;
-      return { ...prev, turnDeadlineAt: Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS) };
+      return { ...prev, turnDeadlineAt: rebuildDeadline(prev.turnTimeRemaining, Date.now()) };
     });
   }, [stopTimer]);
 

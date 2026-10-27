@@ -1,6 +1,7 @@
+import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import { makeMove, makeRandomMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { GameStatus, TURN_DURATION_MS } from "@/game/constants";
+import { GameStatus } from "@/game/constants";
 import { t } from "@/i18n/language";
 
 /**
@@ -80,10 +81,8 @@ export function startLocalTurnTimer(deps: LocalTurnTimerDeps) {
     // Use the absolute deadline so the timer stays correct even when
     // the browser throttles setInterval in background tabs. Falls back
     // to decrementing turnTimeRemaining when no deadline is set.
-    const deadline =
-      prev.turnDeadlineAt ??
-      Date.now() + (prev.turnTimeRemaining ?? TURN_DURATION_MS);
-    const remaining = Math.max(0, deadline - Date.now());
+    const deadline = prev.turnDeadlineAt ?? rebuildDeadline(prev.turnTimeRemaining, Date.now());
+    const remaining = freezeRemaining(deadline, Date.now());
     if (remaining <= 0) {
       const random = makeRandomMove(prev.board);
       if (random === null) return;
