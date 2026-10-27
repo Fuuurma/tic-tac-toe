@@ -1,6 +1,8 @@
 # DESIGN.md — Tic-tac-toe Disappear
 
-> Hard contract. Authority: this file > `design-arsenal` > `AGENTS.md`.
+> Hard contract for how it looks, reads and moves. Authority: this file >
+> `design-arsenal` > `AGENTS.md`. Mechanism — what runs, in what order, and the
+> traps — is [ARCHITECTURE.md](ARCHITECTURE.md).
 > Before UI: 3 named references + 1 craft move.
 
 ## Direction
