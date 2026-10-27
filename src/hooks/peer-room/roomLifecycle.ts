@@ -118,9 +118,6 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
     // every `error` frame here is the relay's own, never a peer's.
     if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || msg.type === "error") {
       handleWsEvent(msg as { type: string; [k: string]: unknown });
-      if (msg.type === "peer-joined" || msg.type === "peer-reconnected" || (msg.type === "welcome" && msg.opponent)) {
-        client.send({ type: "social_hello", reply: false });
-      }
       if (msg.type === "welcome" && role === "guest") {
         const identity = getOrCreateGuestIdentity();
         client.send({
@@ -152,7 +149,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
         });
       }
     } else if (isPeerMessage(msg)) {
-      if (msg.type === "social_hello" || msg.type === "social_reaction") {
+      if (msg.type === "social_reaction") {
         deps.handleSocial?.(msg);
         return;
       }

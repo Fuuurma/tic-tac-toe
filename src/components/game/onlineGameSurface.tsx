@@ -443,7 +443,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       {/* Game area — below the status banners */}
       {showGame && (
         <>
-          <SocialReactions ready={peer.socialReady && peer.state.status === "connected"} reaction={peer.reaction} send={peer.sendReaction} />
+          <SocialReactions ready={peer.state.status === "connected"} reaction={peer.reaction} send={peer.sendReaction} />
           <PlayersPanel
             gameState={peer.state.gameState}
             message={message}

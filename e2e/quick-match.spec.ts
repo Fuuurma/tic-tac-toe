@@ -34,6 +34,7 @@ test("quick match pairs two players", async ({ browser }) => {
 
   // Guest starts a quick match
   await configureQuickPlayer(guestPage, "Guest");
+  await guestPage.setViewportSize({ width: 390, height: 844 });
   await guestPage.getByRole("button", { name: "Quick Match" }).click();
 
   // Both reach the board and connect

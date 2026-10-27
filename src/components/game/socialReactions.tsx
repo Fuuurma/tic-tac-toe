@@ -3,8 +3,8 @@ import { getLocale } from "@/i18n/language";
 import { REACTIONS, type Reaction } from "@/lib/social";
 
 const copy = {
-  en: { title: "Reactions", mute: "Mute reactions", unmute: "Unmute reactions", unavailable: "Reactions unavailable with this opponent", sent: "Sent", failed: "Could not send", labels: ["Hello!", "Good luck!", "Nice move!", "Wow!", "Oops!", "Thinking…", "Thanks!", "Good game!", "Well played!", "Rematch?"] },
-  es: { title: "Reacciones", mute: "Silenciar reacciones", unmute: "Activar reacciones", unavailable: "Reacciones no disponibles con este rival", sent: "Enviado", failed: "No se pudo enviar", labels: ["¡Hola!", "¡Buena suerte!", "¡Buena jugada!", "¡Guau!", "¡Ups!", "Pensando…", "¡Gracias!", "¡Buena partida!", "¡Bien jugado!", "¿Revancha?"] },
+  en: { title: "Reactions", mute: "Mute reactions", unmute: "Unmute reactions", unavailable: "Reactions available when connected", sent: "Sent", failed: "Could not send", labels: ["Hello!", "Good luck!", "Nice move!", "Wow!", "Oops!", "Thinking…", "Thanks!", "Good game!", "Well played!", "Rematch?"] },
+  es: { title: "Reacciones", mute: "Silenciar reacciones", unmute: "Activar reacciones", unavailable: "Reacciones disponibles al conectar", sent: "Enviado", failed: "No se pudo enviar", labels: ["¡Hola!", "¡Buena suerte!", "¡Buena jugada!", "¡Guau!", "¡Ups!", "Pensando…", "¡Gracias!", "¡Buena partida!", "¡Bien jugado!", "¿Revancha?"] },
 } as const;
 const icons = ["👋", "🍀", "👏", "😮", "😅", "🤔", "🙏", "🤝", "✨", "🔄"];
 const KEY = "tic-tac-toe:social-muted";

@@ -23,7 +23,6 @@ import { sanitizeDisplayName } from "@/lib/identity";
 import { t } from "@/i18n/language";
 
 export type PeerMessage =
-  | { type: "social_hello"; reply: boolean }
   | { type: "social_reaction"; id: Reaction }
   | { type: "join"; displayName: string; guestId: string; preferredColor?: Color }
   | { type: "joined"; symbol: PlayerSymbol; color: Color; gameState: GameState }
@@ -575,8 +574,6 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
   if (!value || typeof value !== "object" || !("type" in value)) return false;
   const message = value as Record<string, unknown>;
   switch (message.type) {
-    case "social_hello":
-      return typeof message.reply === "boolean";
     case "social_reaction":
       return isReaction(message.id);
     case "join":

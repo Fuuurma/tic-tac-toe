@@ -124,25 +124,21 @@ interface PeerRoomOptions {
 export function usePeerRoom(options: PeerRoomOptions) {
   const [state, setState] = useState<PeerRoomState>(initialState);
   const roomRef = useRef<RoomClient | null>(null);
-  const [socialReady, setSocialReady] = useState(false);
   const [reaction, setReaction] = useState<{ id: Reaction; at: number } | null>(null);
   const lastReactionRef = useRef(0);
   const lastSentReactionRef = useRef(0);
   const handleSocial = useCallback((message: PeerMessage) => {
-    if (message.type === "social_hello") {
-      setSocialReady(true);
-      if (!message.reply) roomRef.current?.send({ type: "social_hello", reply: true });
-    } else if (message.type === "social_reaction" && Date.now() - lastReactionRef.current >= 3000) {
+    if (message.type === "social_reaction" && Date.now() - lastReactionRef.current >= 3000) {
       lastReactionRef.current = Date.now();
       setReaction({ id: message.id, at: Date.now() });
     }
   }, []);
   const sendReaction = useCallback((id: Reaction) => {
-    if (!socialReady || Date.now() - lastSentReactionRef.current < 3000) return false;
+    if (state.status !== "connected" || Date.now() - lastSentReactionRef.current < 3000) return false;
     const sent = roomRef.current?.send({ type: "social_reaction", id }) ?? false;
     if (sent) lastSentReactionRef.current = Date.now();
     return sent;
-  }, [socialReady]);
+  }, [state.status]);
   const stateRef = useRef<GameState>(initialState.gameState);
   const hostSymbolRef = useRef<PlayerSymbol | null>(null);
   const guestSymbolRef = useRef<PlayerSymbol | null>(null);
@@ -403,7 +399,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
   const handleWsEvent = useCallback(
     (event: { type: string; [k: string]: unknown }) => {
-      if (event.type === "peer-left") { setSocialReady(false); setReaction(null); }
+      if (event.type === "peer-left") setReaction(null);
       handleRelayEvent(relayDeps(), event);
     },
     [relayDeps],
@@ -627,7 +623,6 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [clearRematchTimeout]);
 
   const leave = useCallback(() => {
-    setSocialReady(false);
     setReaction(null);
     quickMatchHostRef.current = false;
     leaveRoom(roomRef);
@@ -719,7 +714,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   return {
     state,
-    socialReady, reaction, sendReaction,
+    reaction, sendReaction,
     startAsHost,
     startQuickMatch,
     joinAsGuest,

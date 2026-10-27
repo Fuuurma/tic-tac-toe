@@ -184,8 +184,7 @@ describe("joinAsGuest rematch-flag reset", () => {
     send.mockClear();
 
     captured.handler?.({ type: "peer-joined" });
-    expect(send).toHaveBeenCalledWith({ type: "social_hello", reply: false });
-    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "join" }));
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("F252: an ACTIVE game does not resend join on peer-reconnected", () => {
@@ -203,8 +202,7 @@ describe("joinAsGuest rematch-flag reset", () => {
     send.mockClear();
 
     captured.handler?.({ type: "peer-reconnected" });
-    expect(send).toHaveBeenCalledWith({ type: "social_hello", reply: false });
-    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ type: "join" }));
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("guest welcome mid-game wires sync_request BEFORE the auto join resend (combined reconnect path)", () => {
@@ -262,7 +260,7 @@ describe("joinAsGuest rematch-flag reset", () => {
     const types = send.mock.calls.map(
       ([m]) => (m as { type: string }).type,
     );
-    expect(types).toEqual(["sync_request", "social_hello", "join"]);
+    expect(types).toEqual(["sync_request", "join"]);
   });
 
   it("clears the sync-pull gate + throttle on room entry (review 2026-10-03 repair P2)", () => {
