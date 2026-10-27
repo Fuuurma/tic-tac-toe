@@ -8,6 +8,7 @@ import {
   PlayerSymbol,
   PlayerTypes,
   SymbolShape,
+  type TurnAction,
 } from "@/game/constants";
 import { COPY_FLASH_MS, GameStatus } from "@/game/constants";
 import { Board } from "./board";
@@ -37,7 +38,7 @@ interface OnlineGameSurfaceProps {
     playerShape: SymbolShape;
     gameMode: typeof GameModes.ONLINE;
     onlineRoomId: string;
-    onlineAction: "create" | "join" | "quick";
+    onlineAction: TurnAction;
   };
   onExit: () => void;
 }

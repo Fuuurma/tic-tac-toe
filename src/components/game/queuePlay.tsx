@@ -9,7 +9,7 @@ import {
   oppositeColor,
   type AI_Difficulty as AI_DifficultyType,
   type Color,
-  type SymbolShape,
+  type PlayerSettings,
   COPY_FLASH_MS,
 } from "@/game/constants";
 import { getDifficultyLabel, t } from "@/i18n/language";
@@ -275,7 +275,7 @@ export function QueueWarmup({
   handoffTitle,
   onStop,
 }: {
-  player: { displayName: string; color: Color; playerShape: SymbolShape };
+  player: PlayerSettings;
   difficulty: AI_DifficultyType;
   handoff: boolean;
   /** What the overlay announces; Quick Match finds an opponent, a room's is joined. */

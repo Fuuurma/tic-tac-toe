@@ -1,13 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
-import {
-  Color,
-  GameModes,
-  SymbolShape,
-  type AI_Difficulty as AI_DifficultyType,
-  type PlayerType,
-} from "@/game/constants";
+import { GameModes, type GameSetup } from "@/game/constants";
 
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
@@ -36,19 +30,7 @@ const OnlineGameSurface = lazy(() =>
 
 type View = "onboarding" | "lobby" | "game";
 
-interface GameConfig {
-  displayName: string;
-  color: Color;
-  opponentColor: Color;
-  playerShape: SymbolShape;
-  opponentShape: SymbolShape;
-  gameMode: typeof GameModes.VS_COMPUTER | typeof GameModes.VS_FRIEND | typeof GameModes.ONLINE;
-  aiDifficulty: AI_DifficultyType;
-  opponentName: string;
-  opponentType: PlayerType;
-  onlineRoomId: string;
-  onlineAction: "create" | "join" | "quick";
-}
+
 
 export default function App() {
   const [initialRoomId] = useState(() => {
@@ -62,22 +44,13 @@ export default function App() {
     !initialRoomId && shouldShowOnboarding() ? "onboarding" : "lobby",
   );
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
-  const [config, setConfig] = useState<GameConfig | null>(null);
+  const [config, setConfig] = useState<GameSetup | null>(null);
 
   const handleStart = (payload: LobbyFormPayload) => {
-    setConfig({
-      displayName: payload.displayName,
-      color: payload.color,
-      opponentColor: payload.opponentColor,
-      playerShape: payload.playerShape,
-      opponentShape: payload.opponentShape,
-      gameMode: payload.gameMode,
-      aiDifficulty: payload.aiDifficulty,
-      opponentName: payload.opponentName,
-      opponentType: payload.opponentType,
-      onlineRoomId: payload.onlineRoomId,
-      onlineAction: payload.onlineAction,
-    });
+    // `LobbyFormPayload` IS `GameSetup`, so there is nothing to copy across —
+    // the eleven-field copy that used to live here is what let the two
+    // declarations drift apart.
+    setConfig(payload);
     setView("game");
     if (payload.onlineRoomId && typeof window !== "undefined") {
       window.history.replaceState({}, "", window.location.pathname);
@@ -132,7 +105,7 @@ export default function App() {
   );
 }
 
-function GameView({ config, onExit }: { config: GameConfig; onExit: () => void }) {
+function GameView({ config, onExit }: { config: GameSetup; onExit: () => void }) {
   const isOnline = config.gameMode === GameModes.ONLINE;
 
   if (!isOnline) {
@@ -162,7 +135,7 @@ function LocalGameSurface({
   config,
   onExit,
 }: {
-  config: GameConfig;
+  config: GameSetup;
   onExit: () => void;
 }) {
   const [playerSettings, setPlayerSettings] = useState<PlayerSettings>({

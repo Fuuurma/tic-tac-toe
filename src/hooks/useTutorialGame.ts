@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   AI_MOVE_DELAY_MS,
   PlayerSymbol,
-  type Color,
-  type SymbolShape,
+  type PlayerProfile,
 } from "@/game/constants";
 import { isGameActive, makeMove, type GameState } from "@/game/logic";
 import {
@@ -14,11 +13,7 @@ import {
   type LessonStage,
 } from "@/game/tutorial";
 
-interface TutorialProfile {
-  displayName: string;
-  color: Color;
-  shape: SymbolShape;
-}
+type TutorialProfile = PlayerProfile;
 
 interface TutorialGame {
   state: GameState;

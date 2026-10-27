@@ -4,6 +4,7 @@ import {
   GAME_RULES,
   GameModes,
   PlayerSymbol,
+  type PlayerProfile,
   SymbolShape,
   oppositeColor,
 } from "./constants";
@@ -35,11 +36,7 @@ const FIRST_VANISH_MOVE = GAME_RULES.MAX_MOVES_PER_PLAYER + 1;
 /** Centre, corners, then edges: a plausible opener without being a threat. */
 const AI_PREFERENCE = [4, 0, 2, 6, 8, 1, 3, 5, 7];
 
-interface TutorialProfile {
-  displayName: string;
-  color: Color;
-  shape: SymbolShape;
-}
+type TutorialProfile = PlayerProfile;
 
 export type LessonStage = "place" | "limit" | "vanished" | "win" | "won";
 

@@ -12,7 +12,9 @@ import {
   oppositeColor,
   type AI_Difficulty as AI_DifficultyType,
   type GameMode,
+  type GameSetup,
   type PlayerType,
+  type TurnAction,
 } from "@/game/constants";
 import {
   MATCHMAKING_CONFIGURED,
@@ -55,19 +57,10 @@ import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { usePlayerCount, type PlayerCount } from "@/hooks/usePlayerCount";
 
-export interface LobbyFormPayload {
-  displayName: string;
-  color: Color;
-  opponentColor: Color;
-  playerShape: SymbolShape;
-  opponentShape: SymbolShape;
-  gameMode: GameMode;
-  aiDifficulty: AI_DifficultyType;
-  opponentName: string;
-  opponentType: PlayerType;
-  onlineRoomId: string;
-  onlineAction: "create" | "join" | "quick";
-}
+/** The lobby's name for the app's launch configuration; declared once in
+ *  game/constants.ts as `GameSetup` (it had been a byte-identical second
+ *  declaration here, and App copied all eleven fields across by hand). */
+export type LobbyFormPayload = GameSetup;
 
 interface LobbyFormProps {
   initialRoomId?: string;
@@ -158,16 +151,16 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   // matchmaking URL), in which case Create is the live default.
   // Which dead match-type tile the visitor tapped: its reason shows on
   // demand. Picking a live action clears it.
-  const [explainedAction, setExplainedAction] = useState<"create" | "join" | "quick" | null>(
+  const [explainedAction, setExplainedAction] = useState<TurnAction | null>(
     null,
   );
-  const actionDeadReason = (action: "create" | "join" | "quick"): string | null =>
+  const actionDeadReason = (action: TurnAction): string | null =>
     action === "quick"
       ? quickMatchReason
       : ONLINE_UNAVAILABLE
         ? t("lobby.backendMissing")
         : null;
-  const chooseOnlineAction = (action: "create" | "join" | "quick") => {
+  const chooseOnlineAction = (action: TurnAction) => {
     const dead = actionDeadReason(action);
     if (dead) {
       setExplainedAction((cur) => (cur === action ? null : action));
@@ -176,7 +169,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
       setOnlineAction(action);
     }
   };
-  const [onlineAction, setOnlineAction] = useState<"create" | "join" | "quick">(
+  const [onlineAction, setOnlineAction] = useState<TurnAction>(
     initialRoomId && !ONLINE_UNAVAILABLE
       ? "join"
       : !MATCHMAKING_CONFIGURED

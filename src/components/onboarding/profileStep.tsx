@@ -3,8 +3,7 @@ import { Dices, User } from "lucide-react";
 import {
   COLOR_BG_CLASSES,
   COLOR_MARK_TEXT,
-  type Color,
-  type SymbolShape,
+  type PlayerProfile,
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/lobby/colorPicker";
@@ -16,11 +15,7 @@ import { cn } from "@/lib/utils";
 import { ctaStyle } from "./ctaStyle";
 import { StepShell } from "./stepShell";
 
-export interface Profile {
-  displayName: string;
-  color: Color;
-  shape: SymbolShape;
-}
+export type Profile = PlayerProfile;
 
 export function ProfileStep({
   initial,

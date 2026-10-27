@@ -8,6 +8,7 @@ import {
   SymbolShape,
   type AI_Difficulty as AI_DifficultyType,
   type PlayerType,
+  type PlayerSettings,
   COLOR_MARK_TEXT,
 } from "@/game/constants";
 import { Button } from "@/components/ui/button";
@@ -29,11 +30,7 @@ type GameModeValue =
   | typeof GameModes.VS_FRIEND
   | typeof GameModes.ONLINE;
 
-export interface PlayerSettings {
-  displayName: string;
-  color: Color;
-  playerShape: SymbolShape;
-}
+export type { PlayerSettings };
 
 export interface OpponentSettings {
   opponentName: string;

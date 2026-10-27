@@ -1,4 +1,4 @@
-import { GameStatus } from "@/game/constants";
+import { GameStatus, type TurnAction } from "@/game/constants";
 import type { PeerRole, PeerStatus, QueueStage } from "@/hooks/usePeerRoom";
 
 /**
@@ -16,7 +16,7 @@ import type { PeerRole, PeerStatus, QueueStage } from "@/hooks/usePeerRoom";
 export type WaitPhase = "searching" | "matched" | "ended";
 
 export interface WaitInput {
-  action: "create" | "join" | "quick";
+  action: TurnAction;
   role: PeerRole;
   status: PeerStatus;
   queue: QueueStage;

@@ -17,6 +17,7 @@ import {
   type GameMode as _GameModeType,
   type GameStatus as _GameStatusType,
   type PlayerType as _PlayerTypeType,
+  type PeerSide,
 } from "@/game/constants";
 import { isGameActive, isValidMove, makeMove, type GameState } from "@/game/logic";
 import { sanitizeDisplayName } from "@/lib/identity";
@@ -83,7 +84,7 @@ export const chooseGuestColor = (preferred: Color | undefined, hostColor: Color)
 };
 
 export const peerLeftUserMessage = (
-  role: "host" | "guest",
+  role: PeerSide,
   reason: "disconnect" | "closed" | "expired",
 ): string => {
   if (reason === "disconnect") {

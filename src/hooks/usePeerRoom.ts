@@ -1,7 +1,7 @@
 import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import type { Reaction } from "@/lib/social";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape } from "@/game/constants";
+import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, type PeerSide, type PlayerSettings } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
@@ -38,7 +38,7 @@ import { handleGuestMessage } from "./peer-room/guestProtocol";
  * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
  */
 
-export type PeerRole = "host" | "guest" | null;
+export type PeerRole = PeerSide | null;
 
 export type PeerStatus =
   | "idle"
@@ -106,11 +106,12 @@ export interface PeerRoomState {
  * Pending host-side settings that the user changed via the in-game edit
  * button. Stored on the host only; the guest cannot edit a peer's identity.
  */
-export interface PendingPlayerSettings {
-  displayName: string;
-  color: Color;
-  playerShape: SymbolShape;
-}
+/**
+ * Re-exported for the peer-room's callers. The declaration lives in
+ * game/constants.ts as `PlayerSettings` — this file carried a byte-identical
+ * copy under this name, and the settings sheet a third.
+ */
+export type PendingPlayerSettings = PlayerSettings;
 
 const initialState: PeerRoomState = {
   role: null,

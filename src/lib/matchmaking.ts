@@ -1,8 +1,9 @@
+import { type PeerSide } from "@/game/constants";
 import { t } from "@/i18n/language";
 
 type Match = {
   roomId: string;
-  role: "host" | "guest";
+  role: PeerSide;
   host: {
     peerId: string;
     displayName: string;

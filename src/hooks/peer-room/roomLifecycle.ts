@@ -6,6 +6,7 @@ import {
   PLAYER_CONFIG,
   PlayerSymbol,
   SymbolShape,
+  type PeerSide,
   oppositeSymbol,
   randomPlayerSymbol,
 } from "@/game/constants";
@@ -24,7 +25,7 @@ import {
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { RoomClient } from "@/lib/roomClient";
 import { disarmSyncReplyThrottle } from "./hostProtocol";
-import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
+import type { PeerRole, PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
 import { t } from "@/i18n/language";
 
 /**
@@ -36,7 +37,7 @@ import { t } from "@/i18n/language";
 export interface RoomLifecycleDeps {
   roomRef: { current: RoomClient | null };
   stateRef: { current: GameState };
-  roleRef: { current: "host" | "guest" | null };
+  roleRef: { current: PeerRole };
   /** True while the current host room came from a quick-match allocation. */
   quickMatchHostRef: { current: boolean };
   hostSymbolRef: { current: PlayerSymbol | null };
@@ -100,7 +101,7 @@ function closeExistingRoom(roomRef: RoomLifecycleDeps["roomRef"]) {
   leaveRoom(roomRef);
 }
 
-export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "host" | "guest", slotToken?: string): RoomClient {
+export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: PeerSide, slotToken?: string): RoomClient {
   const { stateRef, roleRef, setState, handleWsEvent, handleHostData, handleGuestData } = deps;
   const identity = getOrCreateGuestIdentity();
   const client = new RoomClient({

@@ -114,6 +114,59 @@ export const AI_MOVE_DELAY_JITTER_MS = 600;
 export const COPY_FLASH_MS = 1800;
 export const GAME_ID = "tictactoe";
 
+/** Which online action the lobby asked for. */
+export type TurnAction = "create" | "join" | "quick";
+
+/** A peer's side of a room. `PeerRole` in the hook is this plus `null`. */
+export type PeerSide = "host" | "guest";
+
+/**
+ * Everything the lobby hands the app to launch a game.
+ *
+ * This was declared twice — `GameConfig` in App.tsx and `LobbyFormPayload` in
+ * lobbyForm.tsx — field for field, and App copied all eleven across by hand.
+ * The hand copy is what let them drift; a missed field was a silent
+ * `undefined` rather than a type error.
+ */
+export interface GameSetup {
+  displayName: string;
+  color: Color;
+  opponentColor: Color;
+  playerShape: SymbolShape;
+  opponentShape: SymbolShape;
+  gameMode: GameMode;
+  aiDifficulty: AI_Difficulty;
+  opponentName: string;
+  opponentType: PlayerType;
+  onlineRoomId: string;
+  onlineAction: TurnAction;
+}
+
+/**
+ * Who is playing, as the onboarding and tutorial flows carry it.
+ *
+ * Deliberately NOT merged with `PlayerSettings` below: this one is identity
+ * (`shape`), that one is an editable settings field (`playerShape`, the name
+ * the game state uses for it — see `InitialGameStateInput`). Merging them
+ * means renaming `playerShape` across 57 sites in the state, wire and lobby
+ * layers, which is its own pass.
+ */
+export interface PlayerProfile {
+  displayName: string;
+  color: Color;
+  shape: SymbolShape;
+}
+
+/**
+ * A player's editable identity in the settings sheet. `PendingPlayerSettings`
+ * in the peer-room hook was a byte-identical second declaration of this.
+ */
+export interface PlayerSettings {
+  displayName: string;
+  color: Color;
+  playerShape: SymbolShape;
+}
+
 export const PLAYER_CONFIG: Record<
   PlayerSymbol,
   { label: string; defaultColor: Color; defaultShape: SymbolShape; accessibleName: string }
