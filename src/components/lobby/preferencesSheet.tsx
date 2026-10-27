@@ -42,6 +42,8 @@ export function PreferencesSheet({
       // Short list: content-height on phones, so the game stays visible behind.
       size="auto"
       compactMobile
+      // Four fixed rows: a swipe anywhere on the sheet moves it.
+      dragFromBody
     >
       {isOpen && (
         <div className="flex flex-col">

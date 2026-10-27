@@ -383,6 +383,15 @@ a {
   --board-max: min(100%, var(--board-avail));
 }
 
+/* A phone's masthead is a 44px row (mark, title over record, clock) rather than
+   a single text line, so the chrome above the well is taller than the desktop
+   HUD's. Only phones pay for it; desktop keeps the 15.5rem it was tuned to. */
+@media (max-width: 639px) {
+  :root {
+    --board-avail: calc(100dvh - 17rem);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 560px) {
   :root {
     --board-avail: calc(100dvh - 4rem);
@@ -548,8 +557,12 @@ a {
   }
 }
 
+/* `backwards`, not `both`: once the rise has ended the sheet must go back to
+   its own style. Holding the last keyframe (translateY(0)) beat the inline
+   transform a swipe writes, so the sheet stood still under the finger. The
+   exit below keeps `both`, because it has to stay down until unmounted. */
 @utility animate-sheet-up {
-  animation: sheet-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: sheet-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes sheet-down {

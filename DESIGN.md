@@ -85,6 +85,15 @@ transparency) so a sheet shorter than the lobby card does not show the card's
 title and Start button as a second frame above and below it. A phone sheet
 covers the screen and skips the blur.
 
+A phone sheet follows the finger and dismisses on a 96px drag or a flick. The
+rise animation must not hold its last keyframe (`backwards`, never `both`): a
+held `translateY(0)` beats the inline transform the swipe writes, and the sheet
+stood still under the finger. The handle is the header (44px on a compact
+sheet); a sheet with short, fixed content opts into `dragFromBody` so a swipe
+anywhere on it works, which needs `touch-action: none` on the body too, since
+the property stops at the nearest scroll container. A sheet whose content can
+grow or scroll never opts in.
+
 Settings rows are one line each: the name on the left, a fixed-width control on
 the right, a hairline under it. A label above a control that hugs the left edge
 left half the sheet empty. Both two-option controls share one width so their
@@ -222,6 +231,11 @@ zone. Primary actions live at the bottom edge with
   filled tile plus its ring is the selection signal. The chosen symbol is
   centered in its tile. Tapping either expands its full
   options below. AI difficulty remains an always-open segmented choice.
+- **Game masthead**: the XO mark, the mode as a 20px title over the record at
+  16px, and the clock at the right. All three are 44px tall so they line up, and
+  the player cards start a full 12px below the clock (they sat 1px under it).
+  The difficulty label stacks under "AI" instead of wrapping as "(Normal" / ")".
+  `--board-avail` reserves 17rem of chrome on a phone (15.5rem on desktop).
 - **Game**: status + timer on top, player strip, the board as hero, then a
   bottom action bar of labelled buttons (Settings, Edit, New game, Exit).
   Settings is the app preferences and Edit is identity: two controls because

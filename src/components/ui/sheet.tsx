@@ -55,6 +55,8 @@ interface SheetProps {
   /** Sticky action row under the scrolling body. */
   footer?: ReactNode;
   size?: "full" | "auto";
+  /** Short, fixed content: let a swipe that starts on it drag the sheet. */
+  dragFromBody?: boolean;
   inline?: boolean;
   compactMobile?: boolean;
   /** Visually hide the close button (a confirm answers with its footer). */
@@ -73,6 +75,7 @@ export function Sheet({
   children,
   footer,
   size = "full",
+  dragFromBody = false,
   inline = false,
   compactMobile = false,
   hideClose = false,
@@ -100,6 +103,24 @@ export function Sheet({
     enabled: open,
     preserveOffsetOnDisable: isExiting,
   });
+
+  // A sheet with short, fixed content can be dragged from anywhere on it: a
+  // swipe starting on the content moves it, the way a platform bottom sheet
+  // does. Opt-in (`dragFromBody`) and measured, because `touch-action: none` on
+  // a scroller stops it scrolling: a sheet whose content can grow (pickers
+  // that expand) or that overflows a short landscape phone keeps the drag on
+  // its header only.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [bodyFits, setBodyFits] = useState(false);
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body || !isVisible || !dragFromBody) return;
+    const measure = () => setBodyFits(body.scrollHeight <= body.clientHeight + 1);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [isVisible, dragFromBody]);
+  const dragAnywhere = dragFromBody && bodyFits;
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -215,14 +236,24 @@ export function Sheet({
   );
 
   const panel = (
-    <>
+    // The drag surface is this wrapper, not the dialog: pointer capture would
+    // otherwise retarget the click that follows a drag to the dialog itself,
+    // which the backdrop-click check reads as a tap on the scrim and closes.
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
+      {...(dragAnywhere ? drag.handleProps : {})}
+    >
       <div
         className={cn(
           "flex shrink-0 select-none flex-col px-5 pb-3",
           full ? "pt-[max(0.5rem,var(--inset-top))] sm:pt-5" : "pt-2 sm:pt-5",
+          // With the title and X gone, the grabber is the whole handle: give
+          // it the 44px a thumb needs instead of the ~34px it measured.
+          compactMobile && "max-sm:min-h-11",
         )}
         style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
-        {...drag.handleProps}
+        {...(dragAnywhere ? {} : drag.handleProps)}
       >
         <div
           aria-hidden="true"
@@ -264,6 +295,11 @@ export function Sheet({
         </div>
       </div>
       <div
+        ref={bodyRef}
+        // touch-action stops propagating at the nearest scroll container, and
+        // this is one: without it here a swipe that starts on the content is
+        // claimed by the browser as a pan and the drag is cancelled.
+        style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-5",
           !footer && "pb-[max(1.25rem,var(--inset-bottom))]",
@@ -282,7 +318,7 @@ export function Sheet({
           {footer}
         </div>
       )}
-    </>
+    </div>
   );
 
   if (inline && !phoneOverlay) {

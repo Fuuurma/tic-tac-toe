@@ -316,6 +316,49 @@ test("the record breakdown stays above the board after a win", async ({ page }) 
   expect(covered).toEqual([]);
 });
 
+// A bottom sheet has to follow the finger. The open animation holds its final
+// keyframe (translateY(0)) after it ends, and an animation beats the inline
+// transform the drag writes, so the sheet sat still under the finger and then
+// just vanished on release. Touch dragging is only visible through real touch
+// events, so this drives them through CDP.
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("a bottom sheet follows the finger and dismisses on a long drag", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: "Settings", exact: true });
+    await expect(sheet).toBeVisible();
+    // Let the rise finish; the bug only exists once the animation has ended.
+    await page.waitForTimeout(600);
+
+    const cdp = await page.context().newCDPSession(page);
+    const top = async () => (await sheet.boundingBox())!.y;
+    const rest = await top();
+    // The body of a short sheet is draggable too, not just the grabber.
+    const x = 195;
+    const y0 = rest + 150;
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+      });
+
+    await touch("touchStart", y0);
+    for (let i = 1; i <= 5; i++) await touch("touchMove", y0 + i * 12);
+    await expect.poll(async () => Math.round((await top()) - rest)).toBeGreaterThan(40);
+    await touch("touchEnd", y0 + 60);
+    // A short drag springs back and leaves the sheet open.
+    await expect.poll(async () => Math.round((await top()) - rest)).toBe(0);
+    await expect(sheet).toBeVisible();
+
+    await touch("touchStart", y0);
+    for (let i = 1; i <= 12; i++) await touch("touchMove", y0 + i * 14);
+    await touch("touchEnd", y0 + 168);
+    await expect(sheet).toBeHidden();
+  });
+});
+
 test("sets up a private room with a custom code or a friend code", async ({ page }) => {
   test.skip(
     !(await onlineSmokeEnabled()),

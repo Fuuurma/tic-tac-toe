@@ -15,6 +15,7 @@ import {
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
 import { Button } from "@/components/ui/button";
+import { GameMark } from "@/components/lobby/gameMark";
 import { Confirm } from "./confirm";
 import { RecordBreakdown } from "./recordBreakdown";
 import { SymbolShapeRenderer } from "./symbolShapeRenderer";
@@ -372,11 +373,18 @@ export function PlayersPanel({
         <div
           className={cn(
             "min-w-0 flex-1 max-sm:order-1 max-sm:flex-none max-sm:px-4 max-sm:pt-[max(0.75rem,var(--inset-top))]",
+            // Phones: the mark, then the title over the record, the whole
+            // block as tall as the 44px clock beside it so the three line up
+            // and the cards below start a full gap clear of the clock.
+            "max-sm:grid max-sm:grid-cols-[auto_1fr] max-sm:items-center",
             isActive && "sm:max-w-[calc(50%-2rem)] max-sm:pr-22",
           )}
         >
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:text-sm">
-            <span>{getGameModeLabel(gameMode ?? gameState.gameMode)}</span>
+          <GameMark size="sm" className="sm:hidden max-sm:col-start-1 max-sm:row-span-2 max-sm:mr-3" />
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:col-start-2 max-sm:gap-y-0 max-sm:text-base max-sm:leading-5">
+            <span className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground">
+              {getGameModeLabel(gameMode ?? gameState.gameMode)}
+            </span>
             {roomCode && (
               <button
                 type="button"
@@ -438,7 +446,7 @@ export function PlayersPanel({
                 // the player saw what looked like an empty status line. Two
                 // clamped lines keep the HUD compact and still carry the start
                 // of the message; the full text is announced by the status role.
-                "mt-1 line-clamp-2 text-xs sm:text-sm",
+                "mt-1 line-clamp-2 text-xs max-sm:col-start-2 sm:text-sm",
                 // An explicit status message is alert-worthy; the default
                 // turn label is not. Key off message presence, not copy.
                 message
@@ -658,7 +666,9 @@ const PlayerCard = memo(function PlayerCard({
         <div className="text-sm font-semibold leading-tight max-sm:line-clamp-2 max-sm:break-words sm:truncate landscape-short:line-clamp-2 landscape-short:whitespace-normal landscape-short:break-words">
           {displayName}
           {aiDifficultyLabel && (
-            <span className="ml-1 text-[11px] font-medium text-muted-foreground max-sm:text-xs landscape-short:ml-0 landscape-short:block">
+            // Stacked under the name on phones: "AI (Normal)" is wider than the
+            // room a half-width card leaves at 360px, and wrapped as "(Normal" / ")".
+            <span className="ml-1 text-[11px] font-medium text-muted-foreground max-sm:ml-0 max-sm:block max-sm:text-xs landscape-short:ml-0 landscape-short:block">
               ({aiDifficultyLabel})
             </span>
           )}

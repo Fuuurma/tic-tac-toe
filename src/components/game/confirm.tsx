@@ -43,6 +43,7 @@ export function Confirm({
       onClose={onCancel}
       title={title}
       size="auto"
+      dragFromBody
       hideClose
       className="sm:max-w-sm"
       style={

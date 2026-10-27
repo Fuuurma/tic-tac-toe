@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { COLOR_RGB, Color } from "@/game/constants";
+import { cn } from "@/lib/utils";
 
 // Brand mark, not player chrome: an X-blue / O-red "XO" lockup (DESIGN.md),
 // fixed no matter which colors the players picked. The X knocks a clean gap
@@ -27,7 +28,14 @@ function xBars(halfLength: number, thickness: number) {
   ));
 }
 
-export function GameMark() {
+/** `sm` is the in-game masthead: the same lockup at the 44px of a touch row. */
+export function GameMark({
+  size = "md",
+  className,
+}: {
+  size?: "md" | "sm";
+  className?: string;
+}) {
   // useId output can carry characters that break `url(#…)` references.
   const id = `game-mark${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const fadeId = `${id}-fade`;
@@ -36,9 +44,13 @@ export function GameMark() {
   return (
     <div
       aria-hidden="true"
-      className="glass-cell grid size-14 shrink-0 place-items-center rounded-xl shadow-lg max-[360px]:hidden"
+      className={cn(
+        "glass-cell grid shrink-0 place-items-center shadow-lg max-[360px]:hidden",
+        size === "sm" ? "size-11 rounded-lg" : "size-14 rounded-xl",
+        className,
+      )}
     >
-      <svg viewBox="0 0 48 48" className="size-11">
+      <svg viewBox="0 0 48 48" className={size === "sm" ? "size-9" : "size-11"}>
         <defs>
           <linearGradient id={fadeId} gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="47" y2="0">
             <stop offset="0" stopColor={`rgb(${O_RGB})`} />
