@@ -398,7 +398,12 @@ export function PlayersPanel({
               </button>
             )}
             {stats && stats.totalGames > 0 && (
-              <span className="inline-flex items-center gap-0.5">
+              // The chip and its breakdown share one hover target: the
+              // numbers are what someone points at, so they must open it too.
+              <RecordBreakdown
+                stats={stats}
+                gameMode={gameMode ?? gameState.gameMode}
+              >
                 <span
                   role="status"
                   aria-label={t("game.record", { wins: stats.wins, losses: stats.losses })}
@@ -414,11 +419,7 @@ export function PlayersPanel({
                     </span>
                   )}
                 </span>
-                <RecordBreakdown
-                  stats={stats}
-                  gameMode={gameMode ?? gameState.gameMode}
-                />
-              </span>
+              </RecordBreakdown>
             )}
           </div>
           {isActive && (

@@ -157,6 +157,8 @@ export const es: Record<StringKey, string> = {
   "game.tallyLosses": "{count}D",
   "game.breakdown": "Ver desglose del récord",
   "game.breakdownGroup": "Récord por modo y dificultad",
+  "game.breakdownTitle": "Historial",
+  "game.gamesTotal": "{count} partidas",
   "game.noGames": "Sin partidas",
   "game.thinking": "{name} pensando",
   "game.turn": "Turno de {name}",

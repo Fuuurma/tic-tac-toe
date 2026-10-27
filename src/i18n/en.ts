@@ -156,6 +156,8 @@ export const en = {
   "game.tallyLosses": "{count}L",
   "game.breakdown": "Show record breakdown",
   "game.breakdownGroup": "Record by mode and difficulty",
+  "game.breakdownTitle": "Record",
+  "game.gamesTotal": "{count} games",
   "game.noGames": "No games",
   "game.thinking": "{name} thinking",
   "game.turn": "{name}'s turn",

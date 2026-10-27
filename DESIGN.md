@@ -90,6 +90,31 @@ Icon buttons use `rounded-lg`, never `rounded-full`.
 - `prefers-reduced-motion: reduce` zeros animation and glass motion
 - `prefers-reduced-transparency: reduce` drops blur
 
+## Anchored panels
+
+Anything that floats off a trigger — the record breakdown is the only one
+today — is **measured and placed against the viewport**, never dropped at a
+fixed corner of its anchor. `src/lib/panelPlacement.ts` owns the two rules:
+
+- **Flip**: below the trigger, unless that leaves the panel off the bottom and
+  there is more room above.
+- **Shift**: clamp inside an 8px gutter, so a panel on a right-hand trigger is
+  pushed left instead of cut off. The stats chip left-aligns its panel and ran
+  14px past a 390px screen; at 320 it was still clipped.
+
+The trigger moves whenever the page scrolls or the window resizes, so placement
+is recomputed on both (capture-phase scroll catches nested scrollers). The
+panel is `invisible` for the one frame before it has a position, so it never
+flashes at the wrong corner. A panel taller than the window is pinned to the
+gutter and scrolls inside itself (`max-h-[calc(100dvh-1rem)]`).
+
+**Hover is a pointer capability, not an assumption.** Touch browsers fire a
+synthetic `mouseenter` on tap and no matching `mouseleave`, so a hover-driven
+panel latches open and the second tap cannot close it. Gate hover on
+`(hover: hover) and (pointer: fine)` and let click do the work everywhere else.
+Dismissal (Escape) clears the hover state too, or the pointer resting on the
+trigger re-opens the panel immediately.
+
 ## Lobby
 
 Hairline masthead: GameMark + two-line Syne wordmark, no rules copy (the

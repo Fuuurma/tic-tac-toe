@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { AI_Difficulty, GameModes } from "@/game/constants";
 import { breakdownKey, type GameStats } from "@/hooks/useGameStats";
@@ -138,5 +138,111 @@ describe("RecordBreakdown", () => {
     fireEvent.click(trigger());
     // No mode and no record means no rows, so no empty panel over the board.
     expect(panel()).toBeNull();
+  });
+});
+describe("RecordBreakdown placement", () => {
+  // The panel is measured and placed against the viewport, because the trigger
+  // is the last thing in a phone header: a `left-0` panel ran 14px off the
+  // right edge at 390. These cases prove the wiring, not the arithmetic —
+  // `placePanel` owns the rules and is covered on its own.
+  const rect = { top: 800, left: 350, width: 24, height: 24, right: 374, bottom: 824, x: 350, y: 800, toJSON: () => ({}) };
+
+  function withGeometry({ panelWidth = 200, panelHeight = 140, viewport = { width: 390, height: 900 } } = {}) {
+    const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(rect as DOMRect);
+    const width = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(panelWidth);
+    const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(panelHeight);
+    const vw = vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(viewport.width);
+    const vh = vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(viewport.height);
+    return () => [rectSpy, width, height, vw, vh].forEach((spy) => spy.mockRestore());
+  }
+
+  const openPanel = () => {
+    render(
+      <RecordBreakdown
+        stats={stats({
+          [breakdownKey(GameModes.VS_COMPUTER, AI_Difficulty.HARD)]: { wins: 4, losses: 2 },
+          [breakdownKey(GameModes.VS_FRIEND)]: { wins: 2, losses: 1 },
+        })}
+        gameMode={GameModes.VS_COMPUTER}
+      />,
+    );
+    fireEvent.click(trigger());
+    return panel() as HTMLElement;
+  };
+
+  it("flips above the trigger when the bottom of the screen is crowded", () => {
+    const restore = withGeometry();
+    const el = openPanel();
+    // 800 + 24 + 6 = 830 below would end at 970 in a 900 viewport; above is
+    // 654. The offset is anchor-relative, so 654 - 800.
+    expect(el.style.top).toBe("-146px");
+    restore();
+  });
+
+  it("shifts left instead of hanging off the right edge", () => {
+    const restore = withGeometry();
+    const el = openPanel();
+    // A 200px panel from x=350 on a 390 viewport starts at 182, not 350.
+    expect(el.style.left).toBe("-168px");
+    expect(el.style.top).toBe("-146px");
+    restore();
+  });
+
+  it("is invisible until it has been measured", () => {
+    render(
+      <RecordBreakdown
+        stats={stats({ [breakdownKey(GameModes.VS_FRIEND)]: { wins: 1, losses: 0 } })}
+        gameMode={GameModes.VS_FRIEND}
+      />,
+    );
+    fireEvent.click(trigger());
+    // With no layout in jsdom the panel still gets a clamped position rather
+    // than a raw 0,0 flash.
+    expect((panel() as HTMLElement).className).not.toContain("invisible");
+  });
+});
+
+describe("RecordBreakdown on a touch screen", () => {
+  // A touch tap fires a synthetic mouseenter with no matching mouseleave, so a
+  // hover-driven panel latched open and the second tap could not close it.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    cleanup();
+  });
+
+  const stubHover = (canHoverPointer: boolean) => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("hover") ? canHoverPointer : false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+  };
+
+  it("ignores hover when the pointer is coarse", () => {
+    stubHover(false);
+    render(
+      <RecordBreakdown
+        stats={stats({ [breakdownKey(GameModes.VS_FRIEND)]: { wins: 1, losses: 0 } })}
+        gameMode={GameModes.VS_FRIEND}
+      />,
+    );
+    fireEvent.mouseEnter(trigger().parentElement as HTMLElement);
+    expect(panel()).toBeNull();
+    // A tap still works.
+    fireEvent.click(trigger());
+    expect(panel()).not.toBeNull();
+  });
+
+  it("opens on hover when the pointer is fine", () => {
+    stubHover(true);
+    render(
+      <RecordBreakdown
+        stats={stats({ [breakdownKey(GameModes.VS_FRIEND)]: { wins: 1, losses: 0 } })}
+        gameMode={GameModes.VS_FRIEND}
+      />,
+    );
+    fireEvent.mouseEnter(trigger().parentElement as HTMLElement);
+    expect(panel()).not.toBeNull();
   });
 });
