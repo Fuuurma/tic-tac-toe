@@ -28,7 +28,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { ctaStyle } from "@/components/onboarding/ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { GameModeSelector } from "./gameModeSelector";
 import { GameMark } from "./gameMark";
 import { ThemeToggle } from "./themeToggle";

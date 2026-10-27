@@ -25,7 +25,7 @@ import {
 } from "@/components/lobby/playerSettingsSheet";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
-import { waitPhase } from "./waitPhase";
+import { waitPhase } from "@/lib/room-protocol/waitPhase";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";

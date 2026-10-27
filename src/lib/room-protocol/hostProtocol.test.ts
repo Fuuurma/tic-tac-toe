@@ -9,7 +9,7 @@ import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/roomClient";
 import { isPeerMessage } from "@/lib/peer";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState } from "./state";
 import {
   acceptIncomingRematch,
   applyHostMove,

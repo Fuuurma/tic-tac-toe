@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { freshGameState, makeMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState } from "./state";
 import {
   startTurnTimer,
   stopTurnTimer,

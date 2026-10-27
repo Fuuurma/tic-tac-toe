@@ -12,7 +12,7 @@ import { Board } from "@/components/game/board";
 import { useTutorialGame } from "@/hooks/useTutorialGame";
 import { cn } from "@/lib/utils";
 import type { Profile } from "./profileStep";
-import { ctaStyle } from "./ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { StepShell } from "./stepShell";
 
 interface Coach {

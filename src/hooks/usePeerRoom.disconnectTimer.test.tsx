@@ -6,7 +6,7 @@ import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/roomClient";
-import type { RoomLifecycleDeps } from "./peer-room/roomLifecycle";
+import type { RoomLifecycleDeps } from "@/lib/room-protocol/roomLifecycle";
 import { usePeerRoom } from "./usePeerRoom";
 
 // TTT-TIMER-TRANSITION-01 (tic-tac-toe F217).
@@ -48,9 +48,9 @@ const harness = vi.hoisted(() => ({
 
 const TURN_WINDOW_MS = 10_000;
 
-vi.mock("./peer-room/roomLifecycle", async (importActual) => {
+vi.mock("@/lib/room-protocol/roomLifecycle", async (importActual) => {
   const actual =
-    await importActual<typeof import("./peer-room/roomLifecycle")>();
+    await importActual<typeof import("@/lib/room-protocol/roomLifecycle")>();
   return {
     ...actual,
     // Same seam as usePeerRoom.rematchTimeout.test.tsx, but an ACTIVE game

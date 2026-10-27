@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useStrings } from "@/i18n/language";
 import { PlayerSummaryCard } from "@/components/lobby/playerSettingsSheet";
 import type { Profile } from "./profileStep";
-import { ctaStyle } from "./ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { StepShell } from "./stepShell";
 
 const FACTS: { Icon: typeof Clock; titleKey: "ob.ready.fact1.title" | "ob.ready.fact2.title" | "ob.ready.fact3.title" | "ob.ready.fact4.title"; bodyKey: "ob.ready.fact1.body" | "ob.ready.fact2.body" | "ob.ready.fact3.body" | "ob.ready.fact4.body" }[] = [

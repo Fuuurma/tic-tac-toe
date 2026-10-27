@@ -25,7 +25,8 @@ import {
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { RoomClient } from "@/lib/roomClient";
 import { disarmSyncReplyThrottle } from "./hostProtocol";
-import type { PeerRole, PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
+import type { PeerRole, PeerRoomState } from "./state";
+import type { PlayerSettings } from "@/game/constants";
 import { t } from "@/i18n/language";
 
 /**
@@ -60,7 +61,7 @@ export interface RoomLifecycleDeps {
   /** Join gate for sync_request — cleared on room entry so a stale
    *  "guest joined" can never leak into the next room. */
   guestJoinedRef: { current: boolean };
-  hostPendingSettingsRef: { current: PendingPlayerSettings | null };
+  hostPendingSettingsRef: { current: PlayerSettings | null };
   /** Once-per-move reconnect full-deadline-reset budget (relayEvents) —
    *  cleared on room entry like the other room-scoped refs: its
    *  moveCount key restarts each game, so a consumed budget must not

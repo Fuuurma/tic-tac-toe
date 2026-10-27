@@ -5,7 +5,7 @@ import { createInitialGameState, type GameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
-import type { PendingPlayerSettings } from "../usePeerRoom";
+import type { PlayerSettings } from "@/game/constants";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
 // closing the socket. A frame sent after close is silently dropped, so the
@@ -64,7 +64,7 @@ describe("joinAsGuest rematch-flag reset", () => {
   // would be honored against a game that never asked for one.
   function lifecycleDeps(
     rematchPendingRef: { current: boolean },
-    hostPendingSettingsRef = { current: null as PendingPlayerSettings | null },
+    hostPendingSettingsRef = { current: null as PlayerSettings | null },
   ) {
     const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
     const deps: RoomLifecycleDeps = {
@@ -105,7 +105,7 @@ describe("joinAsGuest rematch-flag reset", () => {
   it("F241: clears stale pending identity settings on room entry", () => {
     const rematchPendingRef = { current: false };
     const hostPendingSettingsRef = {
-      current: { displayName: "OldHost" } as PendingPlayerSettings,
+      current: { displayName: "OldHost" } as PlayerSettings,
     };
     joinAsGuest(
       lifecycleDeps(rematchPendingRef, hostPendingSettingsRef).deps,

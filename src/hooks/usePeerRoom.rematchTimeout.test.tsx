@@ -12,7 +12,7 @@ import {
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { RoomClient } from "@/lib/roomClient";
-import type { RoomLifecycleDeps } from "./peer-room/roomLifecycle";
+import type { RoomLifecycleDeps } from "@/lib/room-protocol/roomLifecycle";
 import { usePeerRoom } from "./usePeerRoom";
 
 // Regression coverage for the host-side rematch deadline (fleet 09-13):
@@ -40,9 +40,9 @@ const terminalGame = (): GameState => ({
   winner: PlayerSymbol.X,
 });
 
-vi.mock("./peer-room/roomLifecycle", async (importActual) => {
+vi.mock("@/lib/room-protocol/roomLifecycle", async (importActual) => {
   const actual =
-    await importActual<typeof import("./peer-room/roomLifecycle")>();
+    await importActual<typeof import("@/lib/room-protocol/roomLifecycle")>();
   return {
     ...actual,
     // Test seam: skip the real WebSocket handshake — install a scripted

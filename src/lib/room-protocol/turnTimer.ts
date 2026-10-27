@@ -2,8 +2,8 @@ import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import { isGameActive, makeMove, makeRandomMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { t } from "@/i18n/language";
-import type { PeerRole } from "../usePeerRoom";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRole } from "./state";
+import type { PeerRoomState } from "./state";
 
 /**
  * Turn-clock controller for online play, extracted from usePeerRoom

@@ -20,11 +20,11 @@ import { loadPreferences } from "@/lib/preferences";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ctaStyle } from "@/components/onboarding/ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { HelpDrawer } from "./helpDrawer";
 import { LocalBoard } from "./localBoard";
 import { PlayersPanel } from "./playersPanel";
-import type { WaitPhase } from "./waitPhase";
+import type { WaitPhase } from "@/lib/room-protocol/waitPhase";
 
 /**
  * Play the computer while an online game is still being found.

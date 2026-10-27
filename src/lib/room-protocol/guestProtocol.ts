@@ -4,7 +4,7 @@ import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { t } from "@/i18n/language";
 import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState } from "./state";
 
 /** Guest-facing notice while the host's clock is frozen (5b76d7b). */
 // Localised at each use site (never stored): the pause notice must read

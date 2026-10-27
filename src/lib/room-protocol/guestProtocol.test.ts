@@ -7,7 +7,7 @@ import {
 } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState } from "./state";
 import { isPeerMessage } from "@/lib/peer";
 import { handleGuestMessage, type GuestProtocolDeps } from "./guestProtocol";
 

@@ -12,8 +12,8 @@ import { applyForfeitIfActive, peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from
 import { t } from "@/i18n/language";
 import type { RoomClient } from "@/lib/roomClient";
 import { leaveRoom } from "./roomLifecycle";
-import type { PeerRole } from "../usePeerRoom";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRole } from "./state";
+import type { PeerRoomState } from "./state";
 
 /**
  * Relay lifecycle-event handling, extracted from usePeerRoom (god-hook

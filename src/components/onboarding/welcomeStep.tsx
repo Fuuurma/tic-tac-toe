@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { GameMark } from "@/components/lobby/gameMark";
 import { LanguageSwitcher } from "@/components/lobby/languageSwitcher";
 import { useStrings } from "@/i18n/language";
-import { ctaStyle } from "./ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { StepShell } from "./stepShell";
 
 const WHAT_HAPPENS_NEXT_KEYS = [

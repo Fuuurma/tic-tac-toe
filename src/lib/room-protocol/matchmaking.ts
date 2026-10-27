@@ -10,7 +10,7 @@ import {
 } from "@/lib/matchmaking";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
 import { t } from "@/i18n/language";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRoomState } from "./state";
 
 /**
  * Quick-match controller, extracted from usePeerRoom (god-hook

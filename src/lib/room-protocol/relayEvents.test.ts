@@ -9,8 +9,8 @@ import {
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { peerLeftUserMessage } from "@/lib/peer";
-import type { PeerRole } from "../usePeerRoom";
-import type { PeerRoomState } from "../usePeerRoom";
+import type { PeerRole } from "./state";
+import type { PeerRoomState } from "./state";
 import type { RoomClient } from "@/lib/roomClient";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
 import { buildRoomClient } from "./roomLifecycle";

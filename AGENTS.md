@@ -90,14 +90,22 @@ pnpm check
 
 - `src/` — Vite + React application
   - `src/game/` — pure game domain (rules, AI, turn clock, constants); must not import React
-  - `src/hooks/` — React hooks (usePeerRoom, useLocalGame, useGameStats) and `src/hooks/peer-room/` (the host/guest protocol state machine — no hooks, see Tests below)
+  - `src/hooks/` — React hooks only (usePeerRoom, useLocalGame, useGameStats)
+  - `src/lib/` — non-React logic: identity, preferences, onboarding gate, matchmaking client, `src/lib/peer.ts` (the wire protocol), `src/lib/room-protocol/`, `src/lib/ctaStyle.ts`, `src/lib/storage.ts`
+  - `src/lib/room-protocol/` — the host/guest protocol state machine: message handling, room lifecycle, relay events, the turn timer, and the `src/lib/room-protocol/state.ts` vocabulary. No hooks live here
   - `src/components/` — UI (board, lobby, panels, selectors, confirm dialog)
   - `src/components/onboarding/` — first-run flow: welcome, profile, practice round, ready
-  - `src/lib/` — utilities (identity helper, WebSocket protocol, cn())
   - `src/__tests__/` — repo-level pins: the AGENTS.md structure guard, package/CI metadata pins, the Vite chunk map
 - `e2e/` — Playwright smoke tests
 - `public/` — static assets and `_headers` (CF Pages)
 - `wrangler.jsonc` — Cloudflare Pages config
+
+**The placement rule, so this does not drift again.** A directory is named for what it holds:
+
+- No hooks in `src/hooks/`? Then it is not a hook — it belongs in `src/lib/`. The old hooks/peer-room directory held 1,884 lines of protocol state machine with zero `useState`/`useEffect`/`useRef` calls, and the type graph said the protocol depended on a React hook. That directory is `src/lib/room-protocol/` now, and the state types it needs live in `src/lib/room-protocol/state.ts` so the dependency points the right way.
+- A pure module used by more than one feature is library code, not UI: `src/lib/room-protocol/waitPhase.ts` and `src/lib/ctaStyle.ts` moved there for that reason.
+- **A pure model used by exactly one component stays beside it.** `src/components/backgroundField.ts` is the heat-field model for `BackgroundPattern` and nothing else imports it; separating them would cost locality for nothing. This is the one deliberate exception to "components/ is UI only".
+- `src/components/onboarding/` is a feature folder, not a dumping ground for shared helpers — anything the lobby or the game also needs goes to `src/lib/`.
 
 ## Tests
 
@@ -105,9 +113,9 @@ One convention, so a reader can find the test for a module without guessing:
 
 - **Colocated.** A test sits beside the module it tests, named `<module>.test.ts` (or `.tsx` when it renders). `src/game/ai.behavior.test.ts` tests `src/game/ai.ts`.
 - **Suffixed variants are the norm, not an exception.** A module with more than one suite keeps them apart by suffix rather than by directory: `peer.hostile.test.ts`, `peer.integration.test.ts`, `ai.selfplay.test.ts`, `ai.bench.test.ts`, `usePeerRoom.rematchTimeout.test.tsx`, `board.render.test.tsx`. The suffix names the *angle* (hostile input, cross-module integration, self-play, benchmark), so the suite that guards a risk is findable by the risk.
-- **A test named after another module is a bug in the test.** `peerProtocol.test.ts` lived under `src/__tests__/` and tested `hooks/peer-room/*`; it is now `hooks/peer-room/protocol.test.ts`. If the file you are editing has no same-named test, check for a suffixed variant before concluding it is untested.
+- **A test named after another module is a bug in the test.** `peerProtocol.test.ts` lived under `src/__tests__/` and tested `hooks/peer-room/*`; it is now `lib/room-protocol/protocol.test.ts`. If the file you are editing has no same-named test, check for a suffixed variant before concluding it is untested.
 - **`src/__tests__/` is only for repo-level pins** — tests whose subject is the repository rather than a module: the AGENTS.md path inventory guard, package/CI metadata pins, the Vite chunk map. Nothing that tests `src/` code belongs there; that is what colocation is for.
-- A module covered only through a sibling's suite is acceptable but say so: `usePeerRoom.ts` is exercised by nine peer-room suites rather than a colocated one, because its behaviour is the protocol's.
+- A module covered only through a sibling's suite is acceptable but say so: `usePeerRoom.ts` is exercised by nine `room-protocol` suites rather than a colocated one, because its behaviour is the protocol's.
 
 ## Stack
 

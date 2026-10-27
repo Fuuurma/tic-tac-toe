@@ -12,7 +12,8 @@ import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGa
 import { sanitizeDisplayName } from "@/lib/identity";
 import type { PeerMessage } from "@/lib/peer";
 import type { RoomClient } from "@/lib/roomClient";
-import type { PeerRoomState, PendingPlayerSettings } from "../usePeerRoom";
+import type { PeerRoomState } from "./state";
+import type { PlayerSettings } from "@/game/constants";
 import { t } from "@/i18n/language";
 
 /**
@@ -60,7 +61,7 @@ export interface HostProtocolDeps {
    *  relayEvents on welcome/peer-reconnected. Keyed on moveCount, which
    *  restarts each round — must be re-armed when a new game begins. */
   reconnectResetsRef: { current: { moveCount: number } };
-  hostPendingSettingsRef: { current: PendingPlayerSettings | null };
+  hostPendingSettingsRef: { current: PlayerSettings | null };
   /** True while a mid-game overlay (Settings/Help/confirm) freezes the
    *  turn clock. The host owns the clock, so it must also refuse inbound
    *  guest moves while frozen — otherwise the guest keeps playing against a

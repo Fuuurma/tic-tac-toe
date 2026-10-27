@@ -12,7 +12,7 @@ import { SymbolShapeRenderer } from "@/components/game/symbolShapeRenderer";
 import { filterDisplayNameInput, generateGuestDisplayName, sanitizeDisplayName } from "@/lib/identity";
 import { useStrings } from "@/i18n/language";
 import { cn } from "@/lib/utils";
-import { ctaStyle } from "./ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { StepShell } from "./stepShell";
 
 export type Profile = PlayerProfile;

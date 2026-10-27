@@ -1,7 +1,7 @@
 import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import type { Reaction } from "@/lib/social";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, type PeerSide, type PlayerSettings } from "@/game/constants";
+import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, type PlayerSettings } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
@@ -11,22 +11,22 @@ import { t } from "@/i18n/language";
 import {
   startTurnTimer,
   stopTurnTimer,
-} from "./peer-room/turnTimer";
-import { handleRelayEvent } from "./peer-room/relayEvents";
-import { abandonTicket, runQuickMatch } from "./peer-room/matchmaking";
+} from "@/lib/room-protocol/turnTimer";
+import { handleRelayEvent } from "@/lib/room-protocol/relayEvents";
+import { abandonTicket, runQuickMatch } from "@/lib/room-protocol/matchmaking";
 import {
   joinAsGuest as joinAsGuestImpl,
   leaveRoom,
   startAsHost as startAsHostImpl,
-} from "./peer-room/roomLifecycle";
+} from "@/lib/room-protocol/roomLifecycle";
 import {
   applyHostMove as applyHostMoveMsg,
   disarmSyncReplyThrottle,
   acceptIncomingRematch,
   handleHostMessage,
   SYNC_REPLY_COOLDOWN_MS,
-} from "./peer-room/hostProtocol";
-import { handleGuestMessage } from "./peer-room/guestProtocol";
+} from "@/lib/room-protocol/hostProtocol";
+import { handleGuestMessage } from "@/lib/room-protocol/guestProtocol";
 
 /**
  * Online play hook for tic-tac-toe.
@@ -38,69 +38,8 @@ import { handleGuestMessage } from "./peer-room/guestProtocol";
  * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
  */
 
-export type PeerRole = PeerSide | null;
-
-export type PeerStatus =
-  | "idle"
-  | "creating"
-  | "waiting"
-  | "connecting"
-  | "connected"
-  | "reconnecting"
-  | "disconnected"
-  | "error";
-
-/**
- * Where a Quick Match is in the queue, independent of `status`.
- *
- * `status` cannot say it: a searcher polling the queue and a paired host
- * building its room both hold `creating`. `searching` is "in line, nobody
- * yet", `matched` is "paired, the room is being set up", `none` is anything
- * else (not a quick match, cancelled, expired, failed). The search UI and the
- * play-while-you-wait handoff key on this, never on message copy.
- */
-export type QueueStage = "none" | "searching" | "matched";
-
-export interface PeerRoomState {
-  role: PeerRole;
-  status: PeerStatus;
-  queue: QueueStage;
-  roomId: string;
-  hostSymbol: PlayerSymbol | null;
-  guestSymbol: PlayerSymbol | null;
-  message: string;
-  /**
-   * F590: the message a host pause replaced. The pause frame shows
-   * "Your host paused the game" so a stopped clock is legible, but a live
-   * notice (rematch prompt, error text) is stashed here and restored on
-   * resume instead of being destroyed. `null` when nothing is stashed.
-   */
-  pausedStash: string | null;
-  /**
-   * True while a host rematch request is pending on the guest. This is
-   * the source of truth for rematch-prompt UI — never derive it by
-   * matching user-facing message copy with a regex.
-   */
-  rematchIncoming: boolean;
-  /**
-   * True while this client (host) has issued a rematch request the guest
-   * has not answered yet. Source of truth for the host's cancel UI —
-   * mirrors rematchPendingRef as renderable state.
-   */
-  rematchOutgoing: boolean;
-  /**
-   * True once THIS client left the room, until the next room entry.
-   *
-   * The disconnect handler lets a terminal relay reason (the peer-left line)
-   * outrank the transport's generic message, and it needs a durable way to
-   * tell "we disconnected because we left" from "the relay told us why". It
-   * used to compare `message` against the English literal "You left", which
-   * silently stopped matching under any other locale — the message is display
-   * copy and translated, so it cannot carry behaviour.
-   */
-  leftBySelf: boolean;
-  gameState: GameState;
-}
+export type { PeerRole, PeerRoomState, PeerStatus, QueueStage } from "@/lib/room-protocol/state";
+import type { PeerRole, PeerRoomState } from "@/lib/room-protocol/state";
 
 /**
  * Pending host-side settings that the user changed via the in-game edit

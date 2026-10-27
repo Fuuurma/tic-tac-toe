@@ -19,7 +19,7 @@ import { ThemeToggle } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
-import { ctaStyle } from "@/components/onboarding/ctaStyle";
+import { ctaStyle } from "@/lib/ctaStyle";
 import { Bot, Pencil, Play, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";

@@ -1,5 +1,5 @@
 import { GameStatus, type TurnAction } from "@/game/constants";
-import type { PeerRole, PeerStatus, QueueStage } from "@/hooks/usePeerRoom";
+import type { PeerRole, PeerStatus, QueueStage } from "./state";
 
 /**
  * Where a player stands before their online game exists.
