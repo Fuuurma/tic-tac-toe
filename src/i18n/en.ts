@@ -164,6 +164,7 @@ export const en = {
   "game.currentTurn": ", current turn",
   "game.playerFallback": "Player",
   "game.cardPlayer": "Player {symbol}",
+  "game.winner": "winner",
   "game.winsHeadline": "{name} wins!",
   "game.rematch": "Rematch",
   "game.acceptRematch": "Accept rematch",

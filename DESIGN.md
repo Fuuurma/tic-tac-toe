@@ -190,7 +190,27 @@ zone. Primary actions live at the bottom edge with
   they are two jobs. The Help control is the one that went, since Settings owns
   the rules; a guest online gets no Edit, because the host assigns symbols. The
   HUD box dissolves (`max-sm:contents`) and `order` stacks its rows around
-  the board. Game over tints "Play again" and lifts the result to `text-xl`.
+  the board.
+
+### Win state
+
+**The winner's own colour says who won.** A finished game paints its three
+winning cells in the colour of the player who owns them (one step up from the
+occupied-cell tint), and the same colour marks their card and tints "Play
+again". No fixed green: green meant "someone won" and never said who, so the
+one surface whose job is to name a player was the only one not using that
+player's identity.
+
+- **A crown on the winner's card is the status**, arriving with the line's
+  flourish. Colour alone is never the signal (same rule as amber and red).
+- **The sentence is announced, not printed.** "Ada wins!" is rendered
+  screen-reader-only: the line and the crown already say it, in Ada's colour,
+  and a second copy in nobody's green competed with them.
+- **One flourish, 420ms.** The winning line pulses once (`win-claim`) and the
+  crown pops (`crown-pop`), both stopped by `prefers-reduced-motion`. The
+  resting border and tint carry the state for anyone who never sees the motion.
+- **A draw stays neutral.** No crown, no tint: the win surfaces key on the
+  winner's colour, so there is nothing to wear when nobody won.
 - **Minimums**: 12px text (14px for anything read), 44px targets, 48px
   primary CTAs, 16px inputs (iOS zoom), `no-touch-select` on the board.
 - Short landscape (`landscape-short:`) is wider than `sm`, so it keeps the

@@ -165,6 +165,7 @@ export const es: Record<StringKey, string> = {
   "game.currentTurn": ", turno actual",
   "game.playerFallback": "Jugador",
   "game.cardPlayer": "Jugador {symbol}",
+  "game.winner": "ganador",
   "game.winsHeadline": "¡{name} gana!",
   "game.rematch": "Revancha",
   "game.acceptRematch": "Aceptar revancha",

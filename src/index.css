@@ -576,13 +576,30 @@ dialog.sheet-exiting::backdrop {
    across the three winning cells. Uses box-shadow so it layers on top
    of the existing emerald bg/border without replacing them. 200ms
    matches DESIGN.md micro duration. Respects reduced-motion. */
-@keyframes win-glow {
-  0% { box-shadow: 0 0 0 0 oklch(0.76 0.16 160 / 0); }
-  40% { box-shadow: 0 0 24px 4px oklch(0.76 0.16 160 / 0.5); }
-  100% { box-shadow: 0 0 0 0 oklch(0.76 0.16 160 / 0); }
+/* The win flourish, drawn in the WINNER'S colour.
+   A fixed green told you "someone won" but not who: the one place on screen
+   whose job is to name a player was the only place not using their colour.
+   The winning cells set --player-color from their own mark, so the light is
+   the winner's identity and the board answers the question itself.
+   One 420ms pulse, then it settles; the resting border and tint stay, so a
+   reduced-motion visitor still sees a marked line. */
+@keyframes win-claim {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--player-color) / 0); }
+  35% { transform: scale(1.03); box-shadow: 0 0 26px 5px rgb(var(--player-color) / 0.5); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--player-color) / 0); }
 }
-.animate-win-glow {
-  animation: win-glow 0.2s ease-out;
+.animate-win-claim {
+  animation: win-claim 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* The crown on the winner's card arrives with the board's flourish, so the two
+   read as one event rather than a status line under it. */
+@keyframes crown-pop {
+  0% { transform: scale(0.55) rotate(-10deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.animate-crown-pop {
+  animation: crown-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .animate-wiggle {
   animation: wiggle 1.4s ease-in-out infinite;

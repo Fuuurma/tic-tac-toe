@@ -99,7 +99,17 @@ export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
       onFocus={() => onHover?.(index)}
       onBlur={() => onHover?.(null)}
       className={getBoardCellClassName(props)}
-      style={value && props.valueColor ? ({ "--cell-rgb": COLOR_RGB[props.valueColor] } as React.CSSProperties) : undefined}
+      style={
+        value && props.valueColor
+          ? ({
+              "--cell-rgb": COLOR_RGB[props.valueColor],
+              // The board sets --player-color to the NEXT player, for the hover
+              // preview. A winning cell must light in the colour of the mark it
+              // holds, which is the winner's.
+              ...(props.isWinningCell ? { "--player-color": COLOR_RGB[props.valueColor] } : {}),
+            } as React.CSSProperties)
+          : undefined
+      }
     >
       {renderBoardCellContents(props, ghost)}
     </button>
@@ -219,7 +229,9 @@ function getBoardCellClassName({
     !isDisabled && value && "hover:shadow-sm",
     isDisabled && !value && "cursor-not-allowed opacity-50",
     isHint && !value && !isDisabled && "animate-pulse-slow border-[rgb(var(--player-color)/0.7)] bg-[rgb(var(--player-color)/0.14)] ring-2 ring-[rgb(var(--player-color)/0.45)]",
-    isWinningCell && "bg-emerald-500/20 border-2 border-emerald-500/70 shadow-lg shadow-emerald-500/30 animate-win-glow",
+    // One step up from the occupied tint (--cell-tint-alpha 0.16), in the
+    // mark's own colour: the same idea, asserted.
+    isWinningCell && "bg-[rgb(var(--player-color)/0.3)] border-2 border-[rgb(var(--player-color)/0.85)] animate-win-claim",
     value && !isWinningCell && "cell-tint",
     !isWinningCell && isNextToRemove && value && "border-2 animate-wiggle",
     !isWinningCell && isNextToRemove && value && valueColor && NEXT_TO_REMOVE_CLASSES[valueColor],

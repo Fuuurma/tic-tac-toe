@@ -11,7 +11,7 @@ import {
 } from "@testing-library/react";
 import { PlayersPanel } from "./playersPanel";
 import { freshGameState, type GameState } from "@/game/logic";
-import { GameModes, GameStatus, PlayerSymbol, PlayerTypes, AI_Difficulty } from "@/game/constants";
+import { Color, GameModes, GameStatus, PlayerSymbol, PlayerTypes, AI_Difficulty } from "@/game/constants";
 
 // The orbs animate on canvas, which jsdom does not implement. They only
 // mount mid-game (isCurrent) and are unrelated to the rematch CTA wiring
@@ -442,5 +442,63 @@ describe("PlayersPanel room-code chip — clipboard refusal (B4)", () => {
     ).toBeTruthy();
     // And the success announcement must not appear for a failed copy.
     expect(screen.queryByText("Room code copied to clipboard")).toBeNull();
+  });
+});
+
+describe("PlayersPanel win state", () => {
+  // The board and the winner's card carry the result in that player's own
+  // colour, with a crown for the meaning; the sentence is announced rather
+  // than printed, because it repeated what the two visuals already said and
+  // did it in a green that belonged to no one.
+  const wonState = (): GameState => {
+    const state = freshGameState();
+    state.gameMode = GameModes.VS_COMPUTER;
+    state.gameStatus = GameStatus.COMPLETED;
+    state.winner = PlayerSymbol.X;
+    state.players[PlayerSymbol.X].username = "Ada";
+    state.players[PlayerSymbol.X].color = Color.PURPLE;
+    state.players[PlayerSymbol.O].color = Color.GREEN;
+    return state;
+  };
+
+  it("crowns the winner and names them in their own card", () => {
+    render(
+      <PlayersPanel gameState={wonState()} message="" onExit={vi.fn()} />,
+    );
+
+    const card = screen.getByRole("group", { name: /Ada.*winner/ });
+    expect(card.className).toContain("var(--player-color)");
+    expect(card.className).not.toContain("emerald");
+    // The crown is what says "won"; colour alone is never the status.
+    expect(card.querySelector("svg.animate-crown-pop")).toBeTruthy();
+  });
+
+  it("tints Play again with the winner's colour, never a fixed green", () => {
+    render(
+      <PlayersPanel
+        gameState={wonState()}
+        message=""
+        onExit={vi.fn()}
+        onNewGame={vi.fn()}
+      />,
+    );
+
+    const again = screen.getByRole("button", { name: "Play again" });
+    const style = again.getAttribute("style") ?? "";
+    // Purple is Ada's colour; the old hardcoded emerald (16 185 129) must be gone.
+    expect(style).toContain("128 71 225");
+    expect(style).not.toContain("16 185 129");
+  });
+
+  it("announces the winning sentence without printing it", () => {
+    render(
+      <PlayersPanel gameState={wonState()} message="" onExit={vi.fn()} />,
+    );
+
+    // Present for assistive technology...
+    const status = screen.getByText("Ada wins!");
+    expect(status.getAttribute("role")).toBe("status");
+    // ...and rendered off-screen, because the board and the crown already say it.
+    expect(status.className).toContain("sr-only");
   });
 });

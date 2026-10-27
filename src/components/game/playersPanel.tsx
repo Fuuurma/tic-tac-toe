@@ -21,7 +21,7 @@ import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
 import { getDifficultyLabel, getModeLabel, t, useStrings } from "@/i18n/language";
 import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
-import { Flame, LogOut, Pencil, RotateCcw, Settings2 } from "lucide-react";
+import { Crown, Flame, LogOut, Pencil, RotateCcw, Settings2 } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
 import { ThinkingOrb } from "thinking-orbs";
 
@@ -159,6 +159,10 @@ export function PlayersPanel({
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
     gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
+  /** The colour of whoever won, or null for a draw: the win surfaces (line,
+   *  card, restart tint) all key on it so none of them can wear a colour that
+   *  belongs to nobody. */
+  const winnerColor = gameState.winner ? gameState.players[gameState.winner].color : null;
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isOnline = gameMode === GameModes.ONLINE;
@@ -484,9 +488,15 @@ export function PlayersPanel({
               onClick={handleNewGameClick}
               aria-label={isGameOver ? t("game.again") : t("game.restartTitle")}
               className={cn(HUD_ACTION, isGameOver && "max-sm:font-semibold max-sm:text-foreground")}
-              // Game over: the restart is the next thing a phone player
-              // wants, so it takes the emerald win tint in the bar.
-              style={isGameOver ? ({ "--glass-tint": "16 185 129", "--glass-alpha": "0.22" } as React.CSSProperties) : undefined}
+              // Game over: the restart is the next thing a phone player wants,
+              // so it takes the win tint in the bar — in the WINNER's colour,
+              // like the line and the card. A fixed emerald was a third
+              // "someone won" green that belonged to nobody; a draw stays neutral.
+              style={
+                winnerColor
+                  ? ({ "--glass-tint": COLOR_RGB[winnerColor], "--glass-alpha": "0.22" } as React.CSSProperties)
+                  : undefined
+              }
             >
               <RotateCcw
                 className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
@@ -613,11 +623,15 @@ const PlayerCard = memo(function PlayerCard({
   return (
     <div
       role="group"
-      aria-label={`${displayName}, ${playerSymbol}${aiDifficultyLabel ? `, ${aiDifficultyLabel}` : ""}${isCurrent ? t("game.currentTurn") : ""}`}
+      aria-label={`${displayName}, ${playerSymbol}${aiDifficultyLabel ? `, ${aiDifficultyLabel}` : ""}${isCurrent ? t("game.currentTurn") : ""}${isWinner ? `, ${t("game.winner")}` : ""}`}
       className={cn(
         "flex min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-colors sm:px-3.5 sm:py-3",
         isCurrent && "border-[rgb(var(--player-color)/0.4)] bg-[rgb(var(--player-color)/0.1)] shadow-sm",
-        isWinner && "border-emerald-500/40 bg-emerald-500/15",
+        // The winner is marked in the colour they already own everywhere else
+        // on screen. The crown, not the hue, is what says "won" (status is
+        // never colour-alone); it arrives with the board's flourish.
+        isWinner &&
+          "border-[rgb(var(--player-color)/0.55)] bg-[rgb(var(--player-color)/0.18)] shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]",
         !isCurrent && !isWinner && "glass-cell border-white/30 dark:border-white/10",
       )}
       style={{ "--player-color": COLOR_RGB[player.color] } as React.CSSProperties}
@@ -642,6 +656,12 @@ const PlayerCard = memo(function PlayerCard({
           )}
         </div>
       </div>
+      {isWinner && (
+        <Crown
+          className="size-4 shrink-0 animate-crown-pop text-[rgb(var(--player-color))]"
+          aria-hidden="true"
+        />
+      )}
       {isCurrent && !isWinner && (
         <ThinkingOrb
           state={isAITurn ? "solving" : "listening"}
@@ -674,10 +694,11 @@ function GameEndActions({
   return (
     <div className="flex flex-col gap-1.5 text-center">
       {headline && (
-        <div
-          role="status"
-          className="text-sm font-semibold max-sm:text-xl max-sm:font-bold text-emerald-600 dark:text-emerald-400"
-        >
+        // The board and the winner's crown already say who won, in that
+        // player's own colour. "X wins!" over the top repeated it in words (and
+        // in a colour that belonged to nobody), so it is announced rather than
+        // printed: assistive technology still gets the sentence.
+        <div role="status" className="sr-only">
           {headline}
         </div>
       )}
