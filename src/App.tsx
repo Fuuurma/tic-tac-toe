@@ -152,7 +152,7 @@ function LocalGameSurface({
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
   // Settings edits made mid-game persist like lobby edits do, so the next
   // match reopens with the same setup.
@@ -204,8 +204,8 @@ function LocalGameSurface({
   const [panelPaused, setPanelPaused] = useState(false);
 
   useEffect(() => {
-    setPaused(settingsOpen || helpOpen || panelPaused);
-  }, [settingsOpen, helpOpen, panelPaused, setPaused]);
+    setPaused(settingsOpen || howToPlayOpen || panelPaused);
+  }, [settingsOpen, howToPlayOpen, panelPaused, setPaused]);
 
   return (
     // Portrait stacks HUD above board. A short landscape phone (~667x375)
@@ -232,14 +232,13 @@ function LocalGameSurface({
             exit();
             onExit();
           }}
-          onHelp={() => setHelpOpen(true)}
-          onEditSettings={() => {
+          onOpenSettings={() => {
             setSettingsTab("player");
             setSettingsOpen(true);
           }}
           onPauseChange={(panelPause) => {
             setPanelPaused(panelPause);
-            setPaused(settingsOpen || helpOpen || panelPause);
+            setPaused(settingsOpen || howToPlayOpen || panelPause);
           }}
           paused={paused}
         />
@@ -249,8 +248,8 @@ function LocalGameSurface({
       </div>
       <HelpDrawer
         inline
-        isOpen={helpOpen}
-        onClose={() => setHelpOpen(false)}
+        isOpen={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
       />
       <SettingsSheet
         isOpen={settingsOpen}
@@ -262,6 +261,11 @@ function LocalGameSurface({
         onPlayerChange={handlePlayerSettingsChange}
         onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
+        canEditIdentity
+        onHowToPlay={() => {
+          setSettingsOpen(false);
+          setHowToPlayOpen(true);
+        }}
       />
     </div>
   );

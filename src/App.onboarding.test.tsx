@@ -99,6 +99,9 @@ describe("replaying the practice round", () => {
     window.localStorage.setItem(IDENTITY_STORAGE_KEYS.displayName, "Maria");
     render(<App />);
 
+    // One settings surface: the masthead gear opens on the App tab, where the
+    // learning rows live.
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "How to play" }));
     fireEvent.click(screen.getByRole("button", { name: "Replay tutorial" }));
 
@@ -116,7 +119,11 @@ describe("replaying the practice round", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Start Game" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    // Mid-game the same surface is reachable, but replay is not offered from
+    // it: switching to the tutorial would abandon the match.
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("tab", { name: "App" }));
+    fireEvent.click(screen.getByRole("button", { name: "How to play" }));
     expect(screen.queryByRole("button", { name: "Replay tutorial" })).toBeNull();
   });
 });

@@ -12,7 +12,7 @@ async function openPlayerSettings(page: import("@playwright/test").Page) {
 // the lobby) strict mode fails on two elements. Scope to the sheet.
 async function closeSettingsSheet(page: import("@playwright/test").Page) {
   await page
-    .getByRole("dialog", { name: "Settings" })
+    .getByRole("dialog", { name: "Settings", exact: true })
     .getByRole("button", { name: "Close" })
     .click();
 }
@@ -593,7 +593,7 @@ test("pausing freezes the countdown and the ring", async ({ page }) => {
   // Open the in-game settings sheet — this pauses the clock. Poll rather
   // than assert once: the sheet opening, the React effect, and the ring's
   // recomputed style are separate commits, so a bare read races the render.
-  await page.getByRole("button", { name: "Edit player settings" }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
 
   await expect.poll(playState).toBe("paused");
   await expect

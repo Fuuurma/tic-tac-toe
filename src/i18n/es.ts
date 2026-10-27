@@ -114,6 +114,14 @@ export const es: Record<StringKey, string> = {
   "settings.editPlayer": "Editar tus ajustes",
   "settings.editOpponent": "Editar ajustes del rival",
 
+  "settings.open": "Ajustes",
+  "settings.app": "App",
+  "settings.appearance": "Apariencia",
+  "settings.language": "Idioma",
+  "settings.learn": "Aprender",
+  "settings.howToPlay": "Cómo jugar",
+  "theme.light": "Claro",
+  "theme.dark": "Oscuro",
   "theme.toDark": "Cambiar a tema oscuro",
   "theme.toLight": "Cambiar a tema claro",
 

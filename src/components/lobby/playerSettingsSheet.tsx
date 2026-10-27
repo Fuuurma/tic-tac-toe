@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -11,16 +11,14 @@ import {
   type PlayerSettings,
   COLOR_MARK_TEXT,
 } from "@/game/constants";
-import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { AppearancePickers } from "./appearancePickers";
-import { LanguageToggle } from "./languageSwitcher";
-import { ThemeToggle } from "./themeToggle";
+import { LanguageSwitcher } from "./languageSwitcher";
+import { ThemeSegmented } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
 import { AI_DifficultySelector } from "./aiDifficultySelector";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
-import { ctaStyle } from "@/lib/ctaStyle";
-import { Bot, Pencil, Play, User } from "lucide-react";
+import { Bot, ChevronRight, Pencil, Settings2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
 import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
@@ -45,7 +43,7 @@ export interface OpponentSettings {
 /* Unified settings sheet with tabs                                    */
 /* ------------------------------------------------------------------ */
 
-export type SettingsTab = "player" | "opponent";
+export type SettingsTab = "player" | "opponent" | "app";
 
 interface SettingsSheetProps {
   isOpen: boolean;
@@ -57,9 +55,14 @@ interface SettingsSheetProps {
   onPlayerChange: (next: PlayerSettings) => void;
   onOpponentChange: (next: OpponentSettings) => void;
   onClose: () => void;
-  onStart?: () => void;
-  startLabel?: string;
-  startDisabled?: boolean;
+  /**
+   * Identity is host-owned in an online room: the host assigns the symbols, so
+   * a guest gets no You/Opponent tabs. Theme, language and help are local and
+   * stay available to both, which is why this gates the tabs and not the sheet.
+   */
+  canEditIdentity: boolean;
+  onHowToPlay: () => void;
+  onReplayTutorial?: () => void;
 }
 
 export function SettingsSheet({
@@ -72,19 +75,36 @@ export function SettingsSheet({
   onPlayerChange,
   onOpponentChange,
   onClose,
-  onStart,
-  startLabel,
-  startDisabled,
+  canEditIdentity,
+  onHowToPlay,
+  onReplayTutorial,
 }: SettingsSheetProps) {
   const sheetId = useId();
-  const playerPanelId = `${sheetId}-panel-player`;
-  const opponentPanelId = `${sheetId}-panel-opponent`;
 
   // Subscribes so a language switch re-renders the sheet.
   useStrings();
-  const isOnline = gameMode === GameModes.ONLINE;
-  const showOpponentTab = !isOnline;
-  const activeColor = tab === "opponent" ? opponent.opponentColor : player.color;
+  const showOpponentTab = canEditIdentity && gameMode !== GameModes.ONLINE;
+  const tabs = [
+    ...(canEditIdentity
+      ? [{ id: "player" as const, label: t("settings.you"), Icon: User }]
+      : []),
+    ...(showOpponentTab
+      ? [
+          {
+            id: "opponent" as const,
+            label: t("settings.opponent"),
+            Icon: opponent.opponentType === PlayerTypes.COMPUTER ? Bot : User,
+          },
+        ]
+      : []),
+    { id: "app" as const, label: t("settings.app"), Icon: Settings2 },
+  ];
+  // A guest in an online room has exactly one tab, and a one-item strip is
+  // chrome answering a question nobody asked.
+  const showStrip = tabs.length > 1;
+  const active = tabs.some((entry) => entry.id === tab) ? tab : tabs[0].id;
+  const activeColor = active === "opponent" ? opponent.opponentColor : player.color;
+  const panelId = (id: SettingsTab) => `${sheetId}-panel-${id}`;
 
   // The Sheet stays mounted so its dialog runs showModal and focus restore on
   // open and close. The form mounts only while open, so a closed sheet never
@@ -101,82 +121,65 @@ export function SettingsSheet({
       compactMobile
       bodyClassName="max-sm:gap-6"
       style={{ "--player-color": COLOR_RGB[activeColor] } as CSSProperties}
-      footer={
-        // In-game edits apply live, so there is nothing to submit: phones
-        // dismiss with a swipe, Esc, or a backdrop tap, and the header
-        // chrome is stripped (compactMobile), so no Done action is offered.
-        isOpen && onStart ? (
-          <Button
-            type="button"
-            size="lg"
-            variant="glass"
-            disabled={startDisabled}
-            onClick={onStart}
-            className={cn(
-              "h-12 w-full shrink-0 text-base font-bold sm:h-14",
-              startDisabled && "cursor-not-allowed opacity-50",
-            )}
-            style={ctaStyle(activeColor)}
-          >
-            <Play className="h-5 w-5" aria-hidden="true" />
-            {startLabel ?? "Start Game"}
-          </Button>
-        ) : undefined
-      }
     >
       {isOpen && (
         <>
-          <div
-            role="tablist"
-            aria-label={t("settings.tabs")}
-            className="flex shrink-0 gap-2"
-            onKeyDown={handleTabListKeyDown}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "player"}
-              aria-controls={playerPanelId}
-              tabIndex={tab === "player" ? 0 : -1}
-              onClick={() => onTabChange("player")}
-              className={cn(
-                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                pickerTileClass(tab === "player"),
-              )}
+          {showStrip && (
+            <div
+              role="tablist"
+              aria-label={t("settings.tabs")}
+              className="flex shrink-0 gap-2"
+              onKeyDown={handleTabListKeyDown}
             >
-              <User className="size-3.5" aria-hidden="true" />
-              {t("settings.you")}
-            </button>
-            {showOpponentTab && (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "opponent"}
-                aria-controls={opponentPanelId}
-                tabIndex={tab === "opponent" ? 0 : -1}
-                onClick={() => onTabChange("opponent")}
-                className={cn(
-                  "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                  pickerTileClass(tab === "opponent"),
-                )}
-              >
-                {opponent.opponentType === PlayerTypes.COMPUTER ? (
-                  <Bot className="size-3.5" aria-hidden="true" />
-                ) : (
-                  <User className="size-3.5" aria-hidden="true" />
-                )}
-                {t("settings.opponent")}
-              </button>
-            )}
-          </div>
-          {tab === "player" && (
-            <div role="tabpanel" id={playerPanelId} className="flex flex-col gap-5 max-sm:gap-6">
-              <PlayerTab isOnline={isOnline} value={player} onChange={onPlayerChange} />
+              {tabs.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active === id}
+                  aria-controls={panelId(id)}
+                  tabIndex={active === id ? 0 : -1}
+                  onClick={() => onTabChange(id)}
+                  className={cn(
+                    "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
+                    pickerTileClass(active === id),
+                  )}
+                >
+                  <Icon className="size-3.5" aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
             </div>
           )}
-          {tab === "opponent" && showOpponentTab && (
-            <div role="tabpanel" id={opponentPanelId} className="flex flex-col gap-5 max-sm:gap-6">
+          {active === "player" && (
+            <div
+              role="tabpanel"
+              id={panelId("player")}
+              className="flex flex-col gap-5 max-sm:gap-6"
+            >
+              <PlayerTab
+                isOnline={gameMode === GameModes.ONLINE}
+                value={player}
+                onChange={onPlayerChange}
+              />
+            </div>
+          )}
+          {active === "opponent" && showOpponentTab && (
+            <div
+              role="tabpanel"
+              id={panelId("opponent")}
+              className="flex flex-col gap-5 max-sm:gap-6"
+            >
               <OpponentTab value={opponent} onChange={onOpponentChange} />
+            </div>
+          )}
+          {active === "app" && (
+            <div
+              role="tabpanel"
+              id={panelId("app")}
+              className="flex flex-col gap-5 max-sm:gap-6"
+            >
+              <AppTab onHowToPlay={onHowToPlay} onReplayTutorial={onReplayTutorial} />
             </div>
           )}
         </>
@@ -242,11 +245,6 @@ function PlayerTab({
 }) {
   return (
     <>
-      {/* One-button toggles for the two global prefs, side by side. */}
-      <div className="grid grid-cols-2 gap-2">
-        <ThemeToggle className="h-12 w-full" />
-        <LanguageToggle />
-      </div>
       <NameField
         id="sheet-name"
         label={t("settings.name")}
@@ -461,5 +459,77 @@ export function OpponentSummaryCard({
       </span>
       <Pencil className="size-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
     </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* App tab: the preferences that are not about a player                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One setting, one row: label left, control right, hairline under it.
+ *
+ * The two global preferences used to be 44px icon buttons in the You tab, so
+ * their state was inferred from a glyph and both lived in a form that is about
+ * a player rather than about the app. A row states the setting; the control
+ * states its value.
+ */
+function Row({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border/60 py-1.5 last:border-b-0">
+      {children}
+    </div>
+  );
+}
+
+function Group({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col">
+      <h3 className="m-0 mb-1 text-xs font-semibold text-muted-foreground">{label}</h3>
+      {children}
+    </div>
+  );
+}
+
+/** A row whose whole width is the action. */
+function LinkRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-14 w-full items-center justify-between gap-3 border-b border-border/60 text-left text-sm font-semibold text-foreground transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+    >
+      {label}
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </button>
+  );
+}
+
+function AppTab({
+  onHowToPlay,
+  onReplayTutorial,
+}: {
+  onHowToPlay: () => void;
+  onReplayTutorial?: () => void;
+}) {
+  return (
+    <>
+      <Group label={t("settings.appearance")}>
+        <Row>
+          <ThemeSegmented />
+        </Row>
+      </Group>
+      <Group label={t("settings.language")}>
+        <Row>
+          <LanguageSwitcher />
+        </Row>
+      </Group>
+      <Group label={t("settings.learn")}>
+        <LinkRow label={t("settings.howToPlay")} onClick={onHowToPlay} />
+        {onReplayTutorial && (
+          <LinkRow label={t("help.replay")} onClick={onReplayTutorial} />
+        )}
+      </Group>
+    </>
   );
 }

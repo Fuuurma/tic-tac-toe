@@ -92,8 +92,10 @@ Icon buttons use `rounded-lg`, never `rounded-full`.
 
 ## Lobby
 
-Hairline masthead: GameMark + two-line Syne wordmark, no rules copy (Help
-owns the rules). "Tic Tac Toe" sits small and muted above a large
+Hairline masthead: GameMark + two-line Syne wordmark, no rules copy (the
+settings surface owns the rules), and exactly one chrome control: the settings
+gear. Theme, language and help are not masthead icons — they live in that one
+surface, which opens on its App tab from here. "Tic Tac Toe" sits small and muted above a large
 "Disappear" whose tail fades toward the card. GameMark is a bold "XO"
 lockup: the X knocks a gap out of the O, which fades toward the wordmark
 like the word. Never concentric (an X in a ring reads as a close button).
@@ -124,7 +126,8 @@ happened, one idea at a time.
 ## Operate (in-game)
 
 PlayersPanel is HUD, not a second hero. Sentence-case mode label. The
-board well dominates the column. Help is a sheet, not a new page.
+board well dominates the column. Help is a sheet, not a new page, and it is
+reached through settings rather than a HUD icon: one entry point beats four.
 Online status banners sit above the board so connection state is first.
 
 ### Play while you wait
@@ -180,7 +183,10 @@ zone. Primary actions live at the bottom edge with
   centered in its tile. Tapping either expands its full
   options below. AI difficulty remains an always-open segmented choice.
 - **Game**: status + timer on top, player strip, the board as hero, then a
-  bottom action bar of labelled buttons (Help, Edit, New game, Exit). The
+  bottom action bar of labelled buttons (Settings, New game, Exit). The one
+  settings surface is the single entry for identity, theme, language and help;
+  it replaced the separate Edit and Help controls, so the bar lost an icon
+  rather than gaining one. The
   HUD box dissolves (`max-sm:contents`) and `order` stacks its rows around
   the board. Game over tints "Play again" and lifts the result to `text-xl`.
 - **Minimums**: 12px text (14px for anything read), 44px targets, 48px

@@ -214,15 +214,15 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     !peer.state.rematchOutgoing;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [panelPaused, setPanelPaused] = useState(false);
   // Mid-game overlays pause the turn clock like local play does: without
   // this the host's 10s timer keeps running (and can force a random move)
   // while the Settings sheet, Help drawer, or exit/rematch confirm is open.
   const setPeerPaused = peer.setPaused;
   useEffect(() => {
-    setPeerPaused(settingsOpen || helpOpen || panelPaused);
-  }, [settingsOpen, helpOpen, panelPaused, setPeerPaused]);
+    setPeerPaused(settingsOpen || howToPlayOpen || panelPaused);
+  }, [settingsOpen, howToPlayOpen, panelPaused, setPeerPaused]);
   // Seed from the live host player data; the next rematch picks the values
   // up via `peer.updatePendingSettings`. We refresh the buffered values each
   // time the user opens the sheet so they always edit the latest identity.
@@ -460,10 +460,9 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               // with Accept or Decline. Both roles get the same controls.
               canRequestRematch ? () => peer.requestRematch() : undefined
             }
-            onHelp={() => setHelpOpen(true)}
-            onEditSettings={peer.state.role === "host" ? handleOpenSettings : undefined}
+            onOpenSettings={handleOpenSettings}
             onPauseChange={setPanelPaused}
-            paused={peer.paused || peer.hostPaused || settingsOpen || helpOpen}
+            paused={peer.paused || peer.hostPaused || settingsOpen || howToPlayOpen}
             onAcceptRematch={
               peer.state.rematchIncoming ? () => peer.acceptRematch() : undefined
             }
@@ -520,7 +519,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         </>
       )}
       <SettingsSheet
-        isOpen={settingsOpen && peer.state.role === "host"}
+        isOpen={settingsOpen}
         gameMode={GameModes.ONLINE}
         tab="player"
         onTabChange={() => undefined}
@@ -551,8 +550,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           }
           setSettingsOpen(false);
         }}
+        canEditIdentity={peer.state.role === "host"}
+        onHowToPlay={() => {
+          setSettingsOpen(false);
+          setHowToPlayOpen(true);
+        }}
       />
-      <HelpDrawer inline isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpDrawer inline isOpen={howToPlayOpen} onClose={() => setHowToPlayOpen(false)} />
     </div>
   );
 }

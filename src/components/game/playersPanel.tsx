@@ -21,7 +21,7 @@ import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
 import { getDifficultyLabel, getModeLabel, t, useStrings } from "@/i18n/language";
 import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
-import { CircleHelp, Flame, LogOut, Pencil, RotateCcw } from "lucide-react";
+import { Flame, LogOut, RotateCcw, Settings2 } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
 import { ThinkingOrb } from "thinking-orbs";
 
@@ -34,8 +34,10 @@ interface PlayersPanelProps {
   roomCode?: string;
   onNewGame?: () => void;
   onExit: () => void;
-  onHelp?: () => void;
-  onEditSettings?: () => void;
+  /** Opens the one settings surface. Omitted by surfaces with no settings
+   *  context of their own (the play-while-you-wait card), which then renders
+   *  no gear rather than a dead control. */
+  onOpenSettings?: () => void;
   onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
   onCancelRematch?: () => void;
@@ -110,8 +112,7 @@ export function PlayersPanel({
   roomCode,
   onNewGame,
   onExit,
-  onHelp,
-  onEditSettings,
+  onOpenSettings,
   onAcceptRematch,
   onDeclineRematch,
   onCancelRematch,
@@ -441,34 +442,19 @@ export function PlayersPanel({
           aria-label={t("game.actions")}
           className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]"
         >
-          {onHelp && (
+          {onOpenSettings && (
             <Button
               variant="glass"
               size="sm"
-              onClick={onHelp}
-              aria-label={t("game.help")}
+              onClick={onOpenSettings}
+              aria-label={t("settings.open")}
               className={HUD_ACTION}
             >
-              <CircleHelp
+              <Settings2
                 className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
                 aria-hidden="true"
               />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.help")}</span>}
-            </Button>
-          )}
-          {onEditSettings && (
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={onEditSettings}
-              aria-label={t("game.editSettings")}
-              className={HUD_ACTION}
-            >
-              <Pencil
-                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
-                aria-hidden="true"
-              />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.edit")}</span>}
+              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("settings.open")}</span>}
             </Button>
           )}
           {onNewGame && (

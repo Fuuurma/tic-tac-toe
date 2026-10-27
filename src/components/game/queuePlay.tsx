@@ -7,8 +7,9 @@ import {
   PlayerSymbol,
   PlayerTypes,
   oppositeColor,
+  SymbolShape,
+  Color,
   type AI_Difficulty as AI_DifficultyType,
-  type Color,
   type PlayerSettings,
   COPY_FLASH_MS,
 } from "@/game/constants";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ctaStyle } from "@/lib/ctaStyle";
 import { HelpDrawer } from "./helpDrawer";
+import { SettingsSheet } from "@/components/lobby/playerSettingsSheet";
 import { LocalBoard } from "./localBoard";
 import { PlayersPanel } from "./playersPanel";
 import type { WaitPhase } from "@/lib/room-protocol/waitPhase";
@@ -301,11 +303,12 @@ export function QueueWarmup({
   const gameStats = useGameStats();
   useRecordLocalResult(gameState, humanSymbol, gameStats);
 
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [panelPaused, setPanelPaused] = useState(false);
   useEffect(() => {
-    setPaused(handoff || helpOpen || panelPaused);
-  }, [handoff, helpOpen, panelPaused, setPaused]);
+    setPaused(handoff || settingsOpen || howToPlayOpen || panelPaused);
+  }, [handoff, settingsOpen, howToPlayOpen, panelPaused, setPaused]);
 
   return (
     <>
@@ -316,7 +319,7 @@ export function QueueWarmup({
         aiDifficulty={gameState.aiDifficulty}
         message={gameState.turnNotice ?? ""}
         onNewGame={handleReset}
-        onHelp={() => setHelpOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onPauseChange={setPanelPaused}
         paused={paused}
         // Leaving the warm-up is not leaving the queue: the search card
@@ -344,7 +347,33 @@ export function QueueWarmup({
           </div>
         )}
       </div>
-      <HelpDrawer inline isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
+      {/* The warm-up is a local vs-Computer game: its identity is the one
+          chosen in the lobby, so this surface offers the app preferences
+          (theme, language, help) without identity tabs. */}
+      <SettingsSheet
+        isOpen={settingsOpen}
+        gameMode={GameModes.VS_COMPUTER}
+        tab="app"
+        onTabChange={() => undefined}
+        player={{ displayName: player.displayName, color: player.color, playerShape: player.playerShape }}
+        opponent={{
+          opponentName: t("settings.aiFallback"),
+          opponentColor: Color.GRAY,
+          opponentShape: SymbolShape.O,
+          opponentType: PlayerTypes.COMPUTER,
+          aiDifficulty: difficulty,
+        }}
+        onPlayerChange={() => undefined}
+        onOpponentChange={() => undefined}
+        onClose={() => setSettingsOpen(false)}
+        canEditIdentity={false}
+        onHowToPlay={() => {
+          setSettingsOpen(false);
+          setHowToPlayOpen(true);
+        }}
+      />
+
+      <HelpDrawer inline isOpen={howToPlayOpen} onClose={() => setHowToPlayOpen(false)} />
     </>
   );
 }

@@ -113,6 +113,14 @@ export const en = {
   "settings.editPlayer": "Edit your player settings",
   "settings.editOpponent": "Edit opponent settings",
 
+  "settings.open": "Settings",
+  "settings.app": "App",
+  "settings.appearance": "Appearance",
+  "settings.language": "Language",
+  "settings.learn": "Learn",
+  "settings.howToPlay": "How to play",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
   "theme.toDark": "Switch to dark theme",
   "theme.toLight": "Switch to light theme",
 

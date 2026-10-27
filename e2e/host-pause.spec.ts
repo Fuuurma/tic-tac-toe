@@ -77,7 +77,7 @@ test("a host pause reaches the guest across the relay", async ({ browser }) => {
   await expect(guestTimer).toBeVisible();
 
   // Host opens its in-game settings — this freezes the host's clock.
-  await hostPage.getByRole("button", { name: "Edit player settings" }).click();
+  await hostPage.getByRole("button", { name: "Settings", exact: true }).click();
 
   // The guest is told, in words, why the game stopped. This assertion is the
   // proof the frame is relayed rather than dropped by the host.

@@ -74,8 +74,7 @@ describe("PlayersPanel in-play HUD economy", () => {
         message={message}
         onExit={vi.fn()}
         onNewGame={vi.fn()}
-        onHelp={vi.fn()}
-        onEditSettings={vi.fn()}
+        onOpenSettings={vi.fn()}
       />,
     );
   const bar = () => screen.getByRole("toolbar", { name: "Game actions" });
@@ -83,15 +82,11 @@ describe("PlayersPanel in-play HUD economy", () => {
   it("hides action words while playing; icons keep their accessible names", () => {
     renderPanel(activeOnlineState());
 
-    expect(within(bar()).queryByText("Help")).toBeNull();
-    expect(within(bar()).queryByText("Edit")).toBeNull();
+    expect(within(bar()).queryByText("Settings")).toBeNull();
     expect(within(bar()).queryByText("New game")).toBeNull();
     expect(within(bar()).queryByText("Leave")).toBeNull();
     expect(
-      within(bar()).getByRole("button", { name: "Help" }),
-    ).toBeTruthy();
-    expect(
-      within(bar()).getByRole("button", { name: "Edit player settings" }),
+      within(bar()).getByRole("button", { name: "Settings" }),
     ).toBeTruthy();
     expect(
       within(bar()).getByRole("button", { name: "Start a new game" }),
@@ -104,7 +99,7 @@ describe("PlayersPanel in-play HUD economy", () => {
   it("brings the words back when the game ends", () => {
     renderPanel(terminalState());
 
-    expect(within(bar()).getByText("Help")).toBeTruthy();
+    expect(within(bar()).getByText("Settings")).toBeTruthy();
     expect(within(bar()).getByText("Play again")).toBeTruthy();
   });
 

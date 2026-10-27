@@ -31,7 +31,6 @@ import {
 import { ctaStyle } from "@/lib/ctaStyle";
 import { GameModeSelector } from "./gameModeSelector";
 import { GameMark } from "./gameMark";
-import { ThemeToggle } from "./themeToggle";
 import {
   SettingsSheet,
   type SettingsTab,
@@ -41,13 +40,13 @@ import {
   type OpponentSettings,
 } from "./playerSettingsSheet";
 import {
-  CircleHelp,
   Play,
   KeyRound,
   Plus,
   LogIn,
   Hash,
   TriangleAlert,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getOrCreateGuestIdentity, sanitizeDisplayName, saveDisplayName } from "@/lib/identity";
@@ -180,7 +179,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
   // Live Online population, plus reachability. Subscribed whenever the
   // lobby is up (not only in Online mode): answering "is anyone playing?"
@@ -412,14 +411,21 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <ThemeToggle />
+            {/* One control for theme, language, help and the tutorial. It
+                opens on the App tab because that is what the masthead icon
+                promises; the lobby's identity setup is reached from the
+                summary cards below. */}
             <button
               type="button"
-              onClick={() => setHelpOpen(true)}
-              aria-label={t("lobby.help")}
+              onClick={() => {
+                setSettingsTab("app");
+                setSettingsOpen(true);
+              }}
+              aria-label={t("settings.open")}
+              title={t("settings.open")}
               className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
             >
-              <CircleHelp className="size-4.5" aria-hidden="true" />
+              <Settings2 className="size-4.5" aria-hidden="true" />
             </button>
           </div>
         </CardHeader>
@@ -609,24 +615,26 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
         onPlayerChange={handlePlayerSettingsChange}
         onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
-        onStart={() => {
-          if (startGame()) setSettingsOpen(false);
+        canEditIdentity
+        // The rules sheet is opened FROM settings, never stacked on top of it:
+        // settings closes first, so there is only ever one modal.
+        onHowToPlay={() => {
+          setSettingsOpen(false);
+          setHowToPlayOpen(true);
         }}
-        startLabel={
-          gameMode === GameModes.ONLINE
-            ? onlineAction === "quick"
-              ? t("lobby.quickMatch")
-              : onlineAction === "create"
-                ? t("lobby.createRoom")
-                : t("lobby.joinRoom")
-            : t("lobby.start")
+        onReplayTutorial={
+          onReplayTutorial
+            ? () => {
+                setSettingsOpen(false);
+                onReplayTutorial();
+              }
+            : undefined
         }
-        startDisabled={startDisabled}
       />
 
       <HelpDrawer
-        isOpen={helpOpen}
-        onClose={() => setHelpOpen(false)}
+        isOpen={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
         onReplayTutorial={onReplayTutorial}
       />
     </form>
