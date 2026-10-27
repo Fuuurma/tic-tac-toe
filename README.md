@@ -20,6 +20,13 @@ matchmaking and a per-room Durable Object WebSocket relay. No account is require
 - Vitest + Playwright
 - Cloudflare Pages for the static build
 
+## Docs
+
+- [AGENTS.md](AGENTS.md) — how to work in this repo: commands, layout, tests, gates
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how it works: protocol, engine, storage, measurements
+- [DESIGN.md](DESIGN.md) — the visual contract: direction, references, tokens, motion
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Pages release runbook and the Worker's contract
+
 ## Commands
 
 ```bash
