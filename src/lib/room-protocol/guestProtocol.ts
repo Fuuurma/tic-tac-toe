@@ -3,7 +3,8 @@ import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { t } from "@/i18n/language";
-import { applyForfeitIfActive, type PeerMessage } from "@/lib/peer";
+import { type PeerMessage } from "@/lib/peer.wire";
+import { applyForfeitIfActive } from "@/lib/peer.apply";
 import type { PeerRoomState } from "./state";
 
 /** Guest-facing notice while the host's clock is frozen (5b76d7b). */

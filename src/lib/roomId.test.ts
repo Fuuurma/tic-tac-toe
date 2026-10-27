@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeRoomId } from "@/lib/roomId";
+import { generateRoomId, normalizeRoomId } from "@/lib/roomId";
 
 describe("normalizeRoomId", () => {
   it("accepts generated and URL-safe room IDs", () => {
@@ -12,5 +12,13 @@ describe("normalizeRoomId", () => {
     expect(normalizeRoomId("abc")).toBe("");
     expect(normalizeRoomId("x".repeat(65))).toBe("");
     expect(normalizeRoomId(null)).toBe("");
+  });
+});
+
+describe("generateRoomId", () => {
+  it("returns a room id long enough that guessing is not trivial", () => {
+    const roomId = generateRoomId();
+    expect(roomId.length).toBeGreaterThanOrEqual(32);
+    expect(roomId.length).toBeLessThanOrEqual(64);
   });
 });

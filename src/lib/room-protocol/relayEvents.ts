@@ -8,7 +8,8 @@ import {
 } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyForfeitIfActive, peerLeftUserMessage, PEER_MAX_ERROR_LENGTH } from "@/lib/peer";
+import { PEER_MAX_ERROR_LENGTH } from "@/lib/peer.wire";
+import { applyForfeitIfActive, peerLeftUserMessage } from "@/lib/peer.apply";
 import { t } from "@/i18n/language";
 import type { RoomClient } from "@/lib/roomClient";
 import { leaveRoom } from "./roomLifecycle";

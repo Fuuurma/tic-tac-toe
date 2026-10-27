@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, type PlayerSettings } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove, toWireGameState } from "@/lib/peer";
-import type { PeerMessage } from "@/lib/peer";
+import { toWireGameState } from "@/lib/peer.wire";
+import { applyAuthorizedMove } from "@/lib/peer.apply";
+import type { PeerMessage } from "@/lib/peer.wire";
 import { RoomClient } from "@/lib/roomClient";
 import { t } from "@/i18n/language";
 import {

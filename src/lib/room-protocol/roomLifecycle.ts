@@ -12,13 +12,10 @@ import {
 } from "@/game/constants";
 import { createInitialGameState, freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import {
-  chooseGuestColor,
-  generateRoomId,
-  isPeerMessage,
-  migrateLegacyShapes,
-} from "@/lib/peer";
-import type { PeerMessage } from "@/lib/peer";
+import { isPeerMessage, migrateLegacyShapes } from "@/lib/peer.wire";
+import { chooseGuestColor } from "@/lib/peer.apply";
+import { generateRoomId } from "@/lib/roomId";
+import type { PeerMessage } from "@/lib/peer.wire";
 import {
   buildRoomWsUrl,
 } from "@/lib/matchmaking";

@@ -8,9 +8,10 @@ import {
 } from "@/game/constants";
 import { createInitialGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin, toWireGameState } from "@/lib/peer";
+import { toWireGameState } from "@/lib/peer.wire";
+import { applyAuthorizedMove, applyForfeitIfActive, applyHostGuestJoin } from "@/lib/peer.apply";
 import { sanitizeDisplayName } from "@/lib/identity";
-import type { PeerMessage } from "@/lib/peer";
+import type { PeerMessage } from "@/lib/peer.wire";
 import type { RoomClient } from "@/lib/roomClient";
 import type { PeerRoomState } from "./state";
 import type { PlayerSettings } from "@/game/constants";

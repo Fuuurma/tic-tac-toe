@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPeerMessage } from "./peer";
+import { isPeerMessage } from "./peer.wire";
 
 describe("social messages", () => {
   it("accepts supported reaction IDs and rejects free text", () => {

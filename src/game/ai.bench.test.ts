@@ -6,9 +6,7 @@ import {
   GameStatus,
   PlayerSymbol,
 } from "@/game/constants";
-import {
-  applyAuthorizedMove,
-} from "@/lib/peer";
+import { applyAuthorizedMove } from "@/lib/peer.apply";
 import {
   createInitialGameState,
   freshGameState,

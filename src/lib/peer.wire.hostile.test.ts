@@ -16,16 +16,15 @@ import {
   makeMove,
 } from "@/game/logic";
 import {
-  applyAuthorizedMove,
-  applyForfeitIfActive,
   isPeerMessage,
   PEER_MAX_BOARD_INDEX,
+  PEER_MAX_ERROR_LENGTH,
   PEER_MAX_MOVE_COUNT,
   PEER_MAX_NAME_LENGTH,
   PEER_MAX_TURN_DEADLINE,
-  PEER_MAX_ERROR_LENGTH,
   PEER_MAX_TURN_MS,
-} from "@/lib/peer";
+} from "./peer.wire";
+import { applyAuthorizedMove, applyForfeitIfActive } from "./peer.apply";
 
 const baselineState = () => {
   const state = createInitialGameState({

@@ -8,7 +8,7 @@ import {
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { PeerRoomState } from "./state";
-import { isPeerMessage } from "@/lib/peer";
+import { isPeerMessage } from "@/lib/peer.wire";
 import { handleGuestMessage, type GuestProtocolDeps } from "./guestProtocol";
 
 // Coverage pins for the state_snapshot branch (DST-04 reconnect pull,

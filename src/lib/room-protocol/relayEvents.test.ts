@@ -8,7 +8,7 @@ import {
 } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { peerLeftUserMessage } from "@/lib/peer";
+import { peerLeftUserMessage } from "@/lib/peer.apply";
 import type { PeerRole } from "./state";
 import type { PeerRoomState } from "./state";
 import type { RoomClient } from "@/lib/roomClient";

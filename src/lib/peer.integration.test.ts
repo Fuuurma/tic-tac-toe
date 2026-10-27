@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isPeerMessage } from "./peer";
+import { isPeerMessage } from "./peer.wire";
 import { RoomClient } from "./roomClient";
 
 /**
