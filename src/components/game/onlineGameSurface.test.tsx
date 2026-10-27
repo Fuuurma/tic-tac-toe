@@ -85,6 +85,7 @@ function makePeer(
       message: "",
       rematchIncoming: false,
       rematchOutgoing: false,
+      leftBySelf: false,
       gameState: terminalOnlineGame(),
       ...stateOverrides,
     } as PeerRoomState,

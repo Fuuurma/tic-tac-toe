@@ -370,4 +370,64 @@ describe("joinAsGuest rematch-flag reset", () => {
 
     expect(deps.syncPendingRef.current).toBe(false);
   });
+
+  describe("disconnect message precedence (B2)", () => {
+    // The guard had to tell "we disconnected because we left" apart from "the
+    // relay told us why". It compared `message` to the English literal
+    // "You left" — display copy, and translated — so in any other locale the
+    // comparison never matched and the transport's generic message overwrote
+    // the relay's specific peer-left reason.
+
+    function captureStatusHandler(deps: RoomLifecycleDeps) {
+      const captured: { status?: (s: string, detail?: string) => void } = {};
+      vi.spyOn(RoomClient.prototype, "setStatusHandler").mockImplementation(
+        ((h: (s: string, detail?: string) => void) => {
+          captured.status = h;
+        }) as never,
+      );
+      vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+        (() => undefined) as never,
+      );
+      buildRoomClient(deps, "ws://relay.test/room", "guest");
+      return captured;
+    }
+
+    it("keeps the relay's peer-left reason over our own leave notice, in Spanish", async () => {
+      const { setLocale, t } = await import("@/i18n/language");
+      setLocale("es");
+      try {
+        const { deps } = lifecycleDeps({ current: false });
+        const captured = captureStatusHandler(deps);
+        const afterLeave = {
+          status: "disconnected",
+          message: t("peer.youLeft"),
+          leftBySelf: true,
+        } as never;
+
+        captured.status?.("disconnected", "La sala se cerró");
+
+        const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
+          .mock.calls[0]?.[0] as (prev: never) => { message: string };
+        expect(updater(afterLeave).message).toBe("La sala se cerró");
+      } finally {
+        setLocale("en");
+      }
+    });
+
+    it("does not let a generic disconnect overwrite a reason the relay already gave", () => {
+      const { deps } = lifecycleDeps({ current: false });
+      const captured = captureStatusHandler(deps);
+      const relaySaid = {
+        status: "disconnected",
+        message: "El anfitrión cerró la sala",
+        leftBySelf: false,
+      } as never;
+
+      captured.status?.("disconnected");
+
+      const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
+        .mock.calls[0]?.[0] as (prev: never) => { message: string };
+      expect(updater(relaySaid).message).toBe("El anfitrión cerró la sala");
+    });
+  });
 });

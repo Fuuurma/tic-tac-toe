@@ -43,6 +43,7 @@ function roomState(game: GameState, role: "host" | "guest"): PeerRoomState {
     pausedStash: null,
     rematchIncoming: false,
     rematchOutgoing: false,
+    leftBySelf: false,
     gameState: game,
   } as PeerRoomState;
 }

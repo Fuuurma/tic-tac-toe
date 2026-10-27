@@ -87,6 +87,17 @@ export interface PeerRoomState {
    * mirrors rematchPendingRef as renderable state.
    */
   rematchOutgoing: boolean;
+  /**
+   * True once THIS client left the room, until the next room entry.
+   *
+   * The disconnect handler lets a terminal relay reason (the peer-left line)
+   * outrank the transport's generic message, and it needs a durable way to
+   * tell "we disconnected because we left" from "the relay told us why". It
+   * used to compare `message` against the English literal "You left", which
+   * silently stopped matching under any other locale — the message is display
+   * copy and translated, so it cannot carry behaviour.
+   */
+  leftBySelf: boolean;
   gameState: GameState;
 }
 
@@ -111,6 +122,7 @@ const initialState: PeerRoomState = {
   pausedStash: null,
   rematchIncoming: false,
   rematchOutgoing: false,
+  leftBySelf: false,
   gameState: freshGameState(),
 };
 
@@ -641,12 +653,20 @@ export function usePeerRoom(options: PeerRoomOptions) {
     // F241: pending identity edits are room-scoped — never let them leak
     // into the next room's rematch.
     hostPendingSettingsRef.current = null;
+    // The remaining room-scoped values, matching what room ENTRY clears in
+    // roomLifecycle (startAsHost / joinAsGuest). Leaving without these let the
+    // next room inherit a reconnect move-count from the last one — which
+    // suppresses the full-deadline reset a reconnect should get — plus a
+    // rollback snapshot and a sync flag that belong to a room that is gone.
+    reconnectResetsRef.current.moveCount = -1;
+    pendingGuestStateRef.current = null;
+    syncPendingRef.current = false;
     clearRematchTimeout();
     if (waitingForHostTimeoutRef.current !== null) {
       clearTimeout(waitingForHostTimeoutRef.current);
       waitingForHostTimeoutRef.current = null;
     }
-    setState((prev) => ({ ...prev, status: "disconnected", queue: "none", message: t("peer.youLeft"), rematchIncoming: false, rematchOutgoing: false }));
+    setState((prev) => ({ ...prev, status: "disconnected", queue: "none", message: t("peer.youLeft"), rematchIncoming: false, rematchOutgoing: false, leftBySelf: true }));
   }, [stopTimer, clearRematchTimeout]);
 
   useEffect(() => {

@@ -179,7 +179,12 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: "h
         // Terminal relay messages (peer-left reason lines) win over the
         // transport's generic "You left"/"Disconnected" — the relay frame
         // is the authoritative reason (needs-work 10-03 P1).
-        if (prev.status === "disconnected" && prev.message && prev.message !== "You left") {
+        //
+        // `leftBySelf` is the test, not the message text: the generic "You
+        // left" is translated, so comparing it against an English literal
+        // silently stopped matching in any other locale and let the generic
+        // message overwrite the relay's reason.
+        if (prev.status === "disconnected" && prev.message && !prev.leftBySelf) {
           return prev;
         }
         return { ...prev, status: "disconnected", message: detail ?? t("mm.disconnected") };
@@ -258,6 +263,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     gameState: waitingGame,
     message: "",
     rematchOutgoing: false,
+    leftBySelf: false,
   });
   roleRef.current = "host";
 
@@ -304,7 +310,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const waitingState: GameState = { ...freshGameState(), gameMode: GameModes.ONLINE };
   deps.stateRef.current = waitingState;
   deps.pendingGuestStateRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false });
+  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false, leftBySelf: false });
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
