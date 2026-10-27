@@ -264,6 +264,58 @@ test("record breakdown breaks the record down by mode and difficulty", async ({ 
   await expect(page.getByRole("group", { name: /record by mode/i })).toHaveCount(0);
 });
 
+// A finished game turns the HUD into a glass pane, which isolates it into its
+// own stacking context; the board comes later in the DOM, so it painted over
+// the bottom of a tall breakdown and cut off its last rows. Painting is not
+// visible to toBeVisible(), so ask the browser what the pointer would hit.
+test("the record breakdown stays above the board after a win", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("tic-tac-toe:guestId", "guest:e2e-record-win");
+    window.localStorage.setItem(
+      "tic-tac-toe:stats:guest:e2e-record-win",
+      JSON.stringify({
+        totalGames: 21,
+        wins: 12,
+        losses: 9,
+        currentWinStreak: 3,
+        bestWinStreak: 5,
+        breakdown: {
+          "VS_COMPUTER:EASY": { wins: 5, losses: 1 },
+          "VS_COMPUTER:NORMAL": { wins: 4, losses: 3 },
+          "VS_COMPUTER:HARD": { wins: 1, losses: 4 },
+          VS_FRIEND: { wins: 2, losses: 1 },
+          ONLINE: { wins: 1, losses: 0 },
+        },
+      }),
+    );
+  });
+  await fillLobby(page, { name: "Alice", color: "blue", mode: "vs Friend", opponentName: "Bob" });
+  await page.getByRole("button", { name: "Start Game" }).click();
+  await clickCell(page, 1, 1); // X
+  await clickCell(page, 2, 1); // O
+  await clickCell(page, 1, 2); // X
+  await clickCell(page, 2, 2); // O
+  await clickCell(page, 1, 3); // X wins
+  await expect(page.locator('button[class~="animate-win-claim"]')).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Show record breakdown" }).click();
+  const panel = page.getByRole("group", { name: /record by mode/i });
+  await expect(panel).toBeVisible();
+  await expect(panel.locator("dt")).toHaveCount(5);
+
+  const covered = await panel.locator("dt").evaluateAll((rows) =>
+    rows
+      .filter((row) => {
+        const group = row.closest('[role="group"]');
+        const box = row.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return !hit || !group?.contains(hit);
+      })
+      .map((row) => row.textContent),
+  );
+  expect(covered).toEqual([]);
+});
+
 test("sets up a private room with a custom code or a friend code", async ({ page }) => {
   test.skip(
     !(await onlineSmokeEnabled()),

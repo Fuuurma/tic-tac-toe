@@ -275,7 +275,14 @@ export function PlayersPanel({
         // Phones: `contents` dissolves the HUD box so its rows join the game
         // column and order around the board: status on top, players, the
         // board, then the actions in a thumb-reach bar at the bottom edge.
-        "relative w-full px-4 pt-3 pb-4 max-sm:contents sm:rounded-2xl sm:px-5 sm:py-5",
+        //
+        // z-20: the record breakdown hangs off this box and runs taller than
+        // it. While a game is live the HUD is not a stacking context, so the
+        // panel's own z-30 beat the board; once it ends the root takes `glass`
+        // (isolation: isolate), the whole HUD paints in DOM order, and the
+        // board, which comes later, cut off the panel's last rows. Stating the
+        // layer here keeps the HUD above the board in both states.
+        "relative z-20 w-full px-4 pt-3 pb-4 max-sm:contents sm:rounded-2xl sm:px-5 sm:py-5",
         !isActive && "glass",
       )}
     >
