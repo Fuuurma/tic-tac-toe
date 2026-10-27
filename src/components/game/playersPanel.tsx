@@ -21,7 +21,7 @@ import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
 import { getDifficultyLabel, getModeLabel, t, useStrings } from "@/i18n/language";
 import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
-import { Flame, LogOut, RotateCcw, Settings2 } from "lucide-react";
+import { Flame, LogOut, Pencil, RotateCcw, Settings2 } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
 import { ThinkingOrb } from "thinking-orbs";
 
@@ -38,6 +38,10 @@ interface PlayersPanelProps {
    *  context of their own (the play-while-you-wait card), which then renders
    *  no gear rather than a dead control. */
   onOpenSettings?: () => void;
+  /** Edits the player's own identity. Separate from settings: one is "how the
+   *  app behaves", the other is "who is playing". Omitted for an online guest,
+   *  whose symbol the host assigns. */
+  onEditIdentity?: () => void;
   onAcceptRematch?: () => void;
   onDeclineRematch?: () => void;
   onCancelRematch?: () => void;
@@ -113,6 +117,7 @@ export function PlayersPanel({
   onNewGame,
   onExit,
   onOpenSettings,
+  onEditIdentity,
   onAcceptRematch,
   onDeclineRematch,
   onCancelRematch,
@@ -455,6 +460,21 @@ export function PlayersPanel({
                 aria-hidden="true"
               />
               {isGameOver && <span className={HUD_ACTION_LABEL}>{t("settings.open")}</span>}
+            </Button>
+          )}
+          {onEditIdentity && (
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onEditIdentity}
+              aria-label={t("game.editSettings")}
+              className={HUD_ACTION}
+            >
+              <Pencil
+                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
+                aria-hidden="true"
+              />
+              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.edit")}</span>}
             </Button>
           )}
           {onNewGame && (

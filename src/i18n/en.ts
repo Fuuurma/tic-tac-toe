@@ -88,6 +88,7 @@ export const en = {
   "lobby.defaultAI": "AI",
   "lobby.defaultPlayer2": "Player 2",
 
+  "settings.playersTitle": "Players",
   "settings.title": "Settings",
   "settings.tabs": "Settings tabs",
   "settings.you": "You",

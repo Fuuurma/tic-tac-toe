@@ -9,6 +9,7 @@ import { BackgroundPattern } from "@/components/backgroundPattern";
 import { LocalBoard } from "@/components/game/localBoard";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { PlayersPanel } from "@/components/game/playersPanel";
+import { PreferencesSheet } from "@/components/lobby/preferencesSheet";
 import {
   SettingsSheet,
   type OpponentSettings,
@@ -151,6 +152,7 @@ function LocalGameSurface({
     aiDifficulty: config.aiDifficulty,
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
@@ -204,8 +206,8 @@ function LocalGameSurface({
   const [panelPaused, setPanelPaused] = useState(false);
 
   useEffect(() => {
-    setPaused(settingsOpen || howToPlayOpen || panelPaused);
-  }, [settingsOpen, howToPlayOpen, panelPaused, setPaused]);
+    setPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPaused);
+  }, [settingsOpen, preferencesOpen, howToPlayOpen, panelPaused, setPaused]);
 
   return (
     // Portrait stacks HUD above board. A short landscape phone (~667x375)
@@ -232,13 +234,14 @@ function LocalGameSurface({
             exit();
             onExit();
           }}
-          onOpenSettings={() => {
+          onOpenSettings={() => setPreferencesOpen(true)}
+          onEditIdentity={() => {
             setSettingsTab("player");
             setSettingsOpen(true);
           }}
           onPauseChange={(panelPause) => {
             setPanelPaused(panelPause);
-            setPaused(settingsOpen || howToPlayOpen || panelPause);
+            setPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPause);
           }}
           paused={paused}
         />
@@ -261,9 +264,13 @@ function LocalGameSurface({
         onPlayerChange={handlePlayerSettingsChange}
         onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
-        canEditIdentity
+      />
+
+      <PreferencesSheet
+        isOpen={preferencesOpen}
+        onClose={() => setPreferencesOpen(false)}
         onHowToPlay={() => {
-          setSettingsOpen(false);
+          setPreferencesOpen(false);
           setHowToPlayOpen(true);
         }}
       />

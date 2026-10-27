@@ -39,6 +39,7 @@ import {
   type PlayerSettings,
   type OpponentSettings,
 } from "./playerSettingsSheet";
+import { PreferencesSheet } from "./preferencesSheet";
 import {
   Play,
   KeyRound,
@@ -179,6 +180,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
   // Live Online population, plus reachability. Subscribed whenever the
@@ -417,10 +419,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
                 summary cards below. */}
             <button
               type="button"
-              onClick={() => {
-                setSettingsTab("app");
-                setSettingsOpen(true);
-              }}
+              onClick={() => setPreferencesOpen(true)}
               aria-label={t("settings.open")}
               title={t("settings.open")}
               className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
@@ -615,17 +614,21 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
         onPlayerChange={handlePlayerSettingsChange}
         onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
-        canEditIdentity
-        // The rules sheet is opened FROM settings, never stacked on top of it:
-        // settings closes first, so there is only ever one modal.
+      />
+
+      {/* App preferences: theme, language and the learning rows. A separate
+          surface from the player form above, which is a setup task. */}
+      <PreferencesSheet
+        isOpen={preferencesOpen}
+        onClose={() => setPreferencesOpen(false)}
         onHowToPlay={() => {
-          setSettingsOpen(false);
+          setPreferencesOpen(false);
           setHowToPlayOpen(true);
         }}
         onReplayTutorial={
           onReplayTutorial
             ? () => {
-                setSettingsOpen(false);
+                setPreferencesOpen(false);
                 onReplayTutorial();
               }
             : undefined

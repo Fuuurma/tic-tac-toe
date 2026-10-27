@@ -29,23 +29,23 @@ if (!HTMLDialogElement.prototype.showModal) {
   };
 }
 
-describe("SettingsSheet", () => {
+// This sheet is the You/Opponent form. App preferences — theme, language and
+// the two learning rows — are a separate surface with their own test
+// (preferencesSheet.test.tsx); one dialog used to answer both questions.
+describe("SettingsSheet (players)", () => {
   afterEach(cleanup);
 
   const renderSheet = (
     onClose = vi.fn(),
-    { canEditIdentity = true, tab = "player" as const, onHowToPlay = vi.fn(), onReplayTutorial } = {} as {
-      canEditIdentity?: boolean;
-      tab?: "player" | "opponent" | "app";
-      onHowToPlay?: () => void;
-      onReplayTutorial?: () => void;
-    },
+    {
+      gameMode = GameModes.VS_COMPUTER,
+    }: { gameMode?: typeof GameModes.VS_COMPUTER | typeof GameModes.ONLINE } = {},
   ) =>
     render(
       <SettingsSheet
         isOpen
-        gameMode={GameModes.VS_COMPUTER}
-        tab={tab}
+        gameMode={gameMode}
+        tab="player"
         onTabChange={vi.fn()}
         player={{
           displayName: "Ada",
@@ -62,79 +62,48 @@ describe("SettingsSheet", () => {
         onPlayerChange={vi.fn()}
         onOpponentChange={vi.fn()}
         onClose={onClose}
-        canEditIdentity={canEditIdentity}
-        onHowToPlay={onHowToPlay}
-        onReplayTutorial={onReplayTutorial}
       />,
     );
 
-  it("renders a modal dialog named Settings with a Close control in its header", () => {
+  it("is named for players, so the two dialogs cannot be confused", () => {
     renderSheet();
 
-    const dialog = screen.getByRole("dialog", { name: "Settings" });
-    expect(within(dialog).getByRole("heading", { name: "Settings" })).toBeTruthy();
+    const dialog = screen.getByRole("dialog", { name: "Players" });
+    expect(within(dialog).getByRole("heading", { name: "Players" })).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: "Close" })).toBeTruthy();
+    // The app-preferences dialog owns the name "Settings".
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
   });
 
   it("calls onClose when the Close control is pressed", () => {
     const onClose = vi.fn();
     renderSheet(onClose);
 
-    const dialog = screen.getByRole("dialog", { name: "Settings" });
+    const dialog = screen.getByRole("dialog", { name: "Players" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("offers no Done action; in-game edits apply live and phones dismiss by gesture", () => {
+  it("never offers a Start action; the lobby footer owns it", () => {
     renderSheet();
-
-    const dialog = screen.getByRole("dialog", { name: "Settings" });
-    expect(within(dialog).queryByRole("button", { name: "Done" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /start/i })).toBeNull();
   });
 
-  it("exposes the You, Opponent and App tabs in a named tablist", () => {
+  it("exposes the You and Opponent tabs, and no App tab", () => {
     renderSheet();
 
     const tablist = screen.getByRole("tablist", { name: "Settings tabs" });
     expect(within(tablist).getByRole("tab", { name: "You" })).toBeTruthy();
     expect(within(tablist).getByRole("tab", { name: "Opponent" })).toBeTruthy();
-    expect(within(tablist).getByRole("tab", { name: "App" })).toBeTruthy();
+    expect(within(tablist).queryByRole("tab", { name: "App" })).toBeNull();
   });
 
-  it("opens the App tab with the app preferences and the two learning rows", () => {
-    renderSheet(vi.fn(), { tab: "app" });
+  it("hides the Opponent tab in an online room, where identity is relay-owned", () => {
+    renderSheet(vi.fn(), { gameMode: GameModes.ONLINE });
 
-    // Appearance and Language are named groups whose row holds the control.
-    expect(screen.getByRole("group", { name: "Appearance" })).toBeTruthy();
-    expect(screen.getByRole("group", { name: "Language" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "How to play" })).toBeTruthy();
-  });
-
-  it("fires onHowToPlay and onReplayTutorial from the App tab", () => {
-    const onHowToPlay = vi.fn();
-    const onReplayTutorial = vi.fn();
-    renderSheet(vi.fn(), { tab: "app", onHowToPlay, onReplayTutorial });
-
-    fireEvent.click(screen.getByRole("button", { name: "How to play" }));
-    fireEvent.click(screen.getByRole("button", { name: "Replay tutorial" }));
-
-    expect(onHowToPlay).toHaveBeenCalledTimes(1);
-    expect(onReplayTutorial).toHaveBeenCalledTimes(1);
-  });
-
-  it("gives a guest no identity tabs and no tab strip at all", () => {
-    // A guest in an online room cannot edit identity (the host assigns the
-    // symbols), but theme, language and help are local to them.
-    renderSheet(vi.fn(), { canEditIdentity: false, tab: "app" });
-
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Your name" })).toBeNull();
-    expect(screen.getByRole("group", { name: "Appearance" })).toBeTruthy();
-  });
-
-  it("never offers a Start action; the lobby footer owns it", () => {
-    renderSheet();
-    expect(screen.queryByRole("button", { name: /start/i })).toBeNull();
+    const tablist = screen.getByRole("tablist", { name: "Settings tabs" });
+    expect(within(tablist).getByRole("tab", { name: "You" })).toBeTruthy();
+    expect(within(tablist).queryByRole("tab", { name: "Opponent" })).toBeNull();
   });
 });

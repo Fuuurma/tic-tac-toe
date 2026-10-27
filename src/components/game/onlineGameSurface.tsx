@@ -19,6 +19,7 @@ import { usePlayerCount } from "@/hooks/usePlayerCount";
 import { useGameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
 import { loadPreferences, savePreferences } from "@/lib/preferences";
+import { PreferencesSheet } from "@/components/lobby/preferencesSheet";
 import {
   SettingsSheet,
   type PlayerSettings,
@@ -214,6 +215,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     !peer.state.rematchOutgoing;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [panelPaused, setPanelPaused] = useState(false);
   // Mid-game overlays pause the turn clock like local play does: without
@@ -221,8 +223,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // while the Settings sheet, Help drawer, or exit/rematch confirm is open.
   const setPeerPaused = peer.setPaused;
   useEffect(() => {
-    setPeerPaused(settingsOpen || howToPlayOpen || panelPaused);
-  }, [settingsOpen, howToPlayOpen, panelPaused, setPeerPaused]);
+    setPeerPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPaused);
+  }, [settingsOpen, preferencesOpen, howToPlayOpen, panelPaused, setPeerPaused]);
   // Seed from the live host player data; the next rematch picks the values
   // up via `peer.updatePendingSettings`. We refresh the buffered values each
   // time the user opens the sheet so they always edit the latest identity.
@@ -460,9 +462,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
               // with Accept or Decline. Both roles get the same controls.
               canRequestRematch ? () => peer.requestRematch() : undefined
             }
-            onOpenSettings={handleOpenSettings}
+            onOpenSettings={() => setPreferencesOpen(true)}
+            onEditIdentity={peer.state.role === "host" ? handleOpenSettings : undefined}
             onPauseChange={setPanelPaused}
-            paused={peer.paused || peer.hostPaused || settingsOpen || howToPlayOpen}
+            paused={peer.paused || peer.hostPaused || settingsOpen || preferencesOpen || howToPlayOpen}
             onAcceptRematch={
               peer.state.rematchIncoming ? () => peer.acceptRematch() : undefined
             }
@@ -519,7 +522,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         </>
       )}
       <SettingsSheet
-        isOpen={settingsOpen}
+        isOpen={settingsOpen && peer.state.role === "host"}
         gameMode={GameModes.ONLINE}
         tab="player"
         onTabChange={() => undefined}
@@ -550,9 +553,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           }
           setSettingsOpen(false);
         }}
-        canEditIdentity={peer.state.role === "host"}
+      />
+
+      <PreferencesSheet
+        isOpen={preferencesOpen}
+        onClose={() => setPreferencesOpen(false)}
         onHowToPlay={() => {
-          setSettingsOpen(false);
+          setPreferencesOpen(false);
           setHowToPlayOpen(true);
         }}
       />

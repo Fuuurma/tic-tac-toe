@@ -122,7 +122,6 @@ describe("replaying the practice round", () => {
     // Mid-game the same surface is reachable, but replay is not offered from
     // it: switching to the tutorial would abandon the match.
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-    fireEvent.click(screen.getByRole("tab", { name: "App" }));
     fireEvent.click(screen.getByRole("button", { name: "How to play" }));
     expect(screen.queryByRole("button", { name: "Replay tutorial" })).toBeNull();
   });

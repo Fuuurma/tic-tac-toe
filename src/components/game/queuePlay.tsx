@@ -7,7 +7,6 @@ import {
   PlayerSymbol,
   PlayerTypes,
   oppositeColor,
-  SymbolShape,
   Color,
   type AI_Difficulty as AI_DifficultyType,
   type PlayerSettings,
@@ -23,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ctaStyle } from "@/lib/ctaStyle";
 import { HelpDrawer } from "./helpDrawer";
-import { SettingsSheet } from "@/components/lobby/playerSettingsSheet";
+import { PreferencesSheet } from "@/components/lobby/preferencesSheet";
 import { LocalBoard } from "./localBoard";
 import { PlayersPanel } from "./playersPanel";
 import type { WaitPhase } from "@/lib/room-protocol/waitPhase";
@@ -347,26 +346,11 @@ export function QueueWarmup({
           </div>
         )}
       </div>
-      {/* The warm-up is a local vs-Computer game: its identity is the one
-          chosen in the lobby, so this surface offers the app preferences
-          (theme, language, help) without identity tabs. */}
-      <SettingsSheet
+      {/* Warm-up is a local vs-Computer game: identity is the one chosen in
+          the lobby, so this surface offers app preferences only. */}
+      <PreferencesSheet
         isOpen={settingsOpen}
-        gameMode={GameModes.VS_COMPUTER}
-        tab="app"
-        onTabChange={() => undefined}
-        player={{ displayName: player.displayName, color: player.color, playerShape: player.playerShape }}
-        opponent={{
-          opponentName: t("settings.aiFallback"),
-          opponentColor: Color.GRAY,
-          opponentShape: SymbolShape.O,
-          opponentType: PlayerTypes.COMPUTER,
-          aiDifficulty: difficulty,
-        }}
-        onPlayerChange={() => undefined}
-        onOpponentChange={() => undefined}
         onClose={() => setSettingsOpen(false)}
-        canEditIdentity={false}
         onHowToPlay={() => {
           setSettingsOpen(false);
           setHowToPlayOpen(true);

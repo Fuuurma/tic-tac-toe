@@ -89,6 +89,7 @@ export const es: Record<StringKey, string> = {
   "lobby.defaultAI": "IA",
   "lobby.defaultPlayer2": "Jugador 2",
 
+  "settings.playersTitle": "Jugadores",
   "settings.title": "Ajustes",
   "settings.tabs": "Pestañas de ajustes",
   "settings.you": "Tú",
