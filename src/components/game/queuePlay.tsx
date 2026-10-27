@@ -25,6 +25,7 @@ import { HelpDrawer } from "./helpDrawer";
 import { LocalBoard } from "./localBoard";
 import { PlayersPanel } from "./playersPanel";
 import type { WaitPhase } from "@/lib/room-protocol/waitPhase";
+import { pickerTileClass } from "@/lib/pickerClasses";
 
 /**
  * Play the computer while an online game is still being found.
@@ -74,9 +75,7 @@ export function WarmupInvite({
               onClick={() => onDifficultyChange(value)}
               className={cn(
                 "flex min-h-11 items-center justify-center rounded-lg border px-2 py-2 text-xs font-semibold transition max-sm:h-12 max-sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                active
-                  ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                  : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                pickerTileClass(active),
               )}
             >
               {label}

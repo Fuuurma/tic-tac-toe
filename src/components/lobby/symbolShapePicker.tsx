@@ -4,6 +4,7 @@ import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
+import { pickerTileClass } from "@/lib/pickerClasses";
 
 interface SymbolShapePickerProps {
   /** Accessible name for the radiogroup (the visible label lives on the dropdown trigger). */
@@ -41,9 +42,11 @@ export function SymbolShapePicker({
             onClick={() => onChange(shape)}
             className={cn(
               "relative flex h-12 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              isSelected
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)] max-sm:ring-2 max-sm:ring-[rgb(var(--player-color))] max-sm:ring-offset-2 max-sm:ring-offset-background"
-                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+              pickerTileClass(isSelected),
+              // A phone cannot show a 1px selection ring; this surface alone
+              // takes a heavier one at coarse sizes.
+              isSelected &&
+                "max-sm:ring-2 max-sm:ring-[rgb(var(--player-color))] max-sm:ring-offset-2 max-sm:ring-offset-background",
             )}
           >
             <SymbolShapeRenderer

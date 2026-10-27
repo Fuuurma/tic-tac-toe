@@ -13,6 +13,7 @@ import {
   PickerTrigger,
 } from "./pickerDisclosure";
 import { useDismissOnOutsidePress } from "@/hooks/useDismissOnOutsidePress";
+import { pickerTileClass } from "@/lib/pickerClasses";
 
 interface AI_DifficultySelectorProps {
   selectedDifficulty: AI_DifficultyType;
@@ -83,9 +84,7 @@ export function AI_DifficultySelector({
                 onClick={() => onDifficultyChange(value)}
                 className={cn(
                   "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-semibold transition max-sm:h-12 max-sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                  active
-                    ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                    : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                  pickerTileClass(active),
                 )}
               >
                 <span>{label}</span>

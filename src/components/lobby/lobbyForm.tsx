@@ -56,6 +56,7 @@ import { HelpDrawer } from "@/components/game/helpDrawer";
 import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { usePlayerCount, type PlayerCount } from "@/hooks/usePlayerCount";
+import { pickerTileClass } from "@/lib/pickerClasses";
 
 /** The lobby's name for the app's launch configuration; declared once in
  *  game/constants.ts as `GameSetup` (it had been a byte-identical second
@@ -703,9 +704,7 @@ function OnlineOption({
         "group relative flex min-h-14 w-full flex-row items-center justify-center gap-3 rounded-lg border px-3.5 py-3 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 sm:min-h-[4.5rem] sm:flex-col sm:items-center sm:justify-center sm:gap-1.5 sm:px-2.5 sm:py-2.5",
         disabledReason
           ? "cursor-not-allowed border-border/50 bg-background/30 text-muted-foreground/60 opacity-70"
-          : active
-            ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-md ring-2 ring-[rgb(var(--player-color)/0.35)]"
-            : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+          : pickerTileClass(active, "strong"),
       )}
     >
       <span

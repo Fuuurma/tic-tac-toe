@@ -131,6 +131,7 @@ One convention, so a reader can find the test for a module without guessing:
 
 - Functional components with hooks, `"use client"` not needed (Vite SPA)
 - Use `cn()` from `@/lib/utils` for className merging
+- Selectable tiles (radio/option chips) take their selected/unselected styling from `pickerTileClass(selected, weight?)` in `src/lib/pickerClasses.ts`, never by hand: the recipe had been written out at nine sites and drifted into four selected variants. Compose site-specific extras on top with `cn()`, and see that module's doc for the two surfaces that are deliberately not tiles (`pickerDisclosure` is a trigger; the game-mode tiles are a card surface).
 - Use `useCallback`/`useMemo` for event handlers and expensive computations
 - Pure game logic in `src/game/` must not import React
 - Game message types are a discriminated union in `src/lib/peer.ts` (the filename is historical; transport is WebSocket-only)

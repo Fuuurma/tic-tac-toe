@@ -24,6 +24,7 @@ import { Bot, Pencil, Play, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
 import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
+import { pickerTileClass } from "@/lib/pickerClasses";
 
 type GameModeValue =
   | typeof GameModes.VS_COMPUTER
@@ -140,9 +141,7 @@ export function SettingsSheet({
               onClick={() => onTabChange("player")}
               className={cn(
                 "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                tab === "player"
-                  ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
-                  : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                pickerTileClass(tab === "player"),
               )}
             >
               <User className="size-3.5" aria-hidden="true" />
@@ -158,9 +157,7 @@ export function SettingsSheet({
                 onClick={() => onTabChange("opponent")}
                 className={cn(
                   "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-                  tab === "opponent"
-                    ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm"
-                    : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+                  pickerTileClass(tab === "opponent"),
                 )}
               >
                 {opponent.opponentType === PlayerTypes.COMPUTER ? (
@@ -305,9 +302,7 @@ function OpponentTab({
             onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
             className={cn(
               "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              isAI
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+              pickerTileClass(isAI),
             )}
           >
             <Bot className="size-3.5" aria-hidden="true" />
@@ -323,9 +318,7 @@ function OpponentTab({
             onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
             className={cn(
               "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              !isAI
-                ? "border-[rgb(var(--player-color))] bg-[rgb(var(--player-color)/0.1)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.2)]"
-                : "border-border/70 bg-background/50 text-muted-foreground hover:border-[rgb(var(--player-color)/0.4)] hover:bg-muted/60 hover:text-foreground",
+              pickerTileClass(!isAI),
             )}
           >
             <User className="size-3.5" aria-hidden="true" />
