@@ -53,6 +53,15 @@ test("quick match pairs two players", async ({ browser }) => {
     await expect(page.getByLabel(/Room code/)).toHaveCount(0);
   }
 
+  // Reactions travel between the two players and can be muted locally.
+  await hostPage.getByText("Reactions", { exact: true }).click();
+  const hello = hostPage.getByRole("button", { name: "👋 Hello!" });
+  await expect(hello).toBeEnabled();
+  await hello.click();
+  await expect(guestPage.getByRole("status").filter({ hasText: "Hello!" })).toBeVisible();
+  await guestPage.getByRole("button", { name: "Mute reactions" }).click();
+  await expect(guestPage.getByRole("status").filter({ hasText: "Hello!" })).toHaveCount(0);
+
   // Host plays top-left
   await hostPage.getByRole("button", { name: "Row 1 column 1" }).click();
   await expect(

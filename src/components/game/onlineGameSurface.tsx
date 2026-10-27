@@ -1,3 +1,4 @@
+import { SocialReactions } from "./socialReactions";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AI_Difficulty,
@@ -442,6 +443,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       {/* Game area — below the status banners */}
       {showGame && (
         <>
+          <SocialReactions ready={peer.socialReady && peer.state.status === "connected"} reaction={peer.reaction} send={peer.sendReaction} />
           <PlayersPanel
             gameState={peer.state.gameState}
             message={message}

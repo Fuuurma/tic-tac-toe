@@ -1,3 +1,4 @@
+import type { Reaction } from "@/lib/social";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolShape, TURN_DURATION_MS } from "@/game/constants";
 import { freshGameState, isGameActive } from "@/game/logic";
@@ -123,6 +124,25 @@ interface PeerRoomOptions {
 export function usePeerRoom(options: PeerRoomOptions) {
   const [state, setState] = useState<PeerRoomState>(initialState);
   const roomRef = useRef<RoomClient | null>(null);
+  const [socialReady, setSocialReady] = useState(false);
+  const [reaction, setReaction] = useState<{ id: Reaction; at: number } | null>(null);
+  const lastReactionRef = useRef(0);
+  const lastSentReactionRef = useRef(0);
+  const handleSocial = useCallback((message: PeerMessage) => {
+    if (message.type === "social_hello") {
+      setSocialReady(true);
+      if (!message.reply) roomRef.current?.send({ type: "social_hello", reply: true });
+    } else if (message.type === "social_reaction" && Date.now() - lastReactionRef.current >= 3000) {
+      lastReactionRef.current = Date.now();
+      setReaction({ id: message.id, at: Date.now() });
+    }
+  }, []);
+  const sendReaction = useCallback((id: Reaction) => {
+    if (!socialReady || Date.now() - lastSentReactionRef.current < 3000) return false;
+    const sent = roomRef.current?.send({ type: "social_reaction", id }) ?? false;
+    if (sent) lastSentReactionRef.current = Date.now();
+    return sent;
+  }, [socialReady]);
   const stateRef = useRef<GameState>(initialState.gameState);
   const hostSymbolRef = useRef<PlayerSymbol | null>(null);
   const guestSymbolRef = useRef<PlayerSymbol | null>(null);
@@ -382,7 +402,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
     [broadcastGameState, commitHostState, startTimer, stopTimer, clearRematchTimeout],
   );
   const handleWsEvent = useCallback(
-    (event: { type: string; [k: string]: unknown }) => handleRelayEvent(relayDeps(), event),
+    (event: { type: string; [k: string]: unknown }) => {
+      if (event.type === "peer-left") { setSocialReady(false); setReaction(null); }
+      handleRelayEvent(relayDeps(), event);
+    },
     [relayDeps],
   );
 
@@ -420,6 +443,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       handleWsEvent,
       handleHostData,
       handleGuestData,
+      handleSocial,
       stopTimer,
       rematchPendingRef,
       lastSyncReplyAtRef,
@@ -431,7 +455,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       waitingForHostTimeoutRef,
       quickMatchHostRef,
     }),
-    [handleGuestData, handleHostData, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
+    [handleGuestData, handleHostData, handleSocial, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
   );
 
   const startAsHost = useCallback(
@@ -603,6 +627,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, [clearRematchTimeout]);
 
   const leave = useCallback(() => {
+    setSocialReady(false);
+    setReaction(null);
     quickMatchHostRef.current = false;
     leaveRoom(roomRef);
     stopTimer();
@@ -693,6 +719,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   return {
     state,
+    socialReady, reaction, sendReaction,
     startAsHost,
     startQuickMatch,
     joinAsGuest,
