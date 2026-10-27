@@ -28,16 +28,6 @@ export const LEGACY_SHAPES: Readonly<Record<string, SymbolShape>> = {
   hexagon: SymbolShape.CRESCENT,
 };
 
-export const SHAPE_LABELS: Record<SymbolShape, string> = {
-  [SymbolShape.X]: "X",
-  [SymbolShape.O]: "O",
-  [SymbolShape.TRIANGLE]: "Triangle",
-  [SymbolShape.SQUARE]: "Square",
-  [SymbolShape.DIAMOND]: "Diamond",
-  [SymbolShape.STAR]: "Star",
-  [SymbolShape.CRESCENT]: "Crescent",
-  [SymbolShape.HEART]: "Heart",
-};
 
 export const GameModes = {
   VS_COMPUTER: "VS_COMPUTER",
@@ -89,12 +79,6 @@ export const AI_Difficulty = {
   HARD: "HARD",
 } as const;
 export type AI_Difficulty = (typeof AI_Difficulty)[keyof typeof AI_Difficulty];
-
-export const AI_DIFFICULTY_LABELS: Record<AI_Difficulty, string> = {
-  [AI_Difficulty.EASY]: "Easy",
-  [AI_Difficulty.NORMAL]: "Normal",
-  [AI_Difficulty.HARD]: "Hard",
-};
 
 export const GAME_RULES = {
   BOARD_SIZE: 9,

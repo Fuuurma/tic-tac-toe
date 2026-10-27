@@ -15,7 +15,7 @@ import type { PeerRole, PeerStatus, QueueStage } from "@/hooks/usePeerRoom";
  */
 export type WaitPhase = "searching" | "matched" | "ended";
 
-export interface WaitInput {
+interface WaitInput {
   action: TurnAction;
   role: PeerRole;
   status: PeerStatus;

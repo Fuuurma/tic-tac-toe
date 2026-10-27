@@ -57,7 +57,7 @@ export interface RippleSpec {
   strength: number;
 }
 
-export interface Ripple extends RippleSpec {
+interface Ripple extends RippleSpec {
   /** Front radius at the last `advance`. */
   r: number;
   /** Amplitude at the last `advance`: strength, thinned as the ring spreads. */
@@ -317,4 +317,3 @@ export function createHeatField(floor = HEAT_FLOOR) {
   return field;
 }
 
-export type HeatField = ReturnType<typeof createHeatField>;

@@ -11,7 +11,7 @@ import type { Color } from "./constants";
  * - `markLight` is the mark on the light well. Hue-matched to `chip` (yellow
  *   was hue 71 there, which read as orange) and no darker than it needs to be.
  */
-export interface PaletteEntry {
+interface PaletteEntry {
   chip: string;
   markLight: string;
 }
