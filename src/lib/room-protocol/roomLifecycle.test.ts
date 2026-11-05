@@ -371,6 +371,52 @@ describe("joinAsGuest rematch-flag reset", () => {
     expect(deps.syncPendingRef.current).toBe(false);
   });
 
+  it("work:300: both entry paths clear the same full room-scoped set", async () => {
+    // The two entry paths shared one hand-written reset list each — a
+    // future room-scoped ref added to one path and missed in the other
+    // would leak a previous room's state into the next one. Both paths
+    // now run resetRoomEntryState: dirty every flag and pin the full
+    // cleared set on each path, including the cleared timeout firing.
+    const dirty = () => {
+      const { deps } = lifecycleDeps(
+        { current: true },
+        { current: { displayName: "OldHost" } as PlayerSettings },
+      );
+      deps.quickMatchHostRef.current = true;
+      deps.guestJoinedRef.current = true;
+      deps.lastSyncReplyAtRef.current = performance.now();
+      deps.reconnectResetsRef.current.moveCount = 5;
+      deps.pendingGuestStateRef.current = { ...deps.stateRef.current };
+      deps.syncPendingRef.current = true;
+      let fired = false;
+      deps.waitingForHostTimeoutRef.current = setTimeout(() => {
+        fired = true;
+      }, 30);
+      return { deps, wasFired: () => fired };
+    };
+    const entries = [
+      (deps: RoomLifecycleDeps) => startAsHost(deps, "ROOM42", "ws://127.0.0.1:1"),
+      (deps: RoomLifecycleDeps) => joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1"),
+    ];
+    for (const enter of entries) {
+      const { deps, wasFired } = dirty();
+      enter(deps);
+      expect(deps.quickMatchHostRef.current).toBe(false);
+      expect(deps.rematchPendingRef.current).toBe(false);
+      expect(deps.hostPendingSettingsRef.current).toBeNull();
+      expect(deps.guestJoinedRef.current).toBe(false);
+      expect(
+        performance.now() - deps.lastSyncReplyAtRef.current,
+      ).toBeGreaterThanOrEqual(SYNC_REPLY_COOLDOWN_MS);
+      expect(deps.reconnectResetsRef.current.moveCount).toBe(-1);
+      expect(deps.pendingGuestStateRef.current).toBeNull();
+      expect(deps.syncPendingRef.current).toBe(false);
+      expect(deps.waitingForHostTimeoutRef.current).toBeNull();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(wasFired()).toBe(false);
+    }
+  });
+
   describe("disconnect message precedence (B2)", () => {
     // The guard had to tell "we disconnected because we left" apart from "the
     // relay told us why". It compared `message` to the English literal

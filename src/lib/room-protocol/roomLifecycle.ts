@@ -99,6 +99,40 @@ function closeExistingRoom(roomRef: RoomLifecycleDeps["roomRef"]) {
   leaveRoom(roomRef);
 }
 
+/** The guest's join frame, sent on welcome and resent when the host (re)seats
+ *  while the game is still WAITING (F252) — one sender so the frame cannot
+ *  drift between the two paths. */
+function sendGuestJoin(deps: RoomLifecycleDeps, client: RoomClient) {
+  const identity = getOrCreateGuestIdentity();
+  client.send({
+    type: "join",
+    displayName: deps.hostDisplayName,
+    guestId: identity.guestId,
+    preferredColor: deps.hostColor,
+  });
+}
+
+/** Room-scoped ref reset shared by startAsHost/joinAsGuest: every flag listed
+ *  here leaked a previous room's state into the next one once (rematchPending
+ *  needs-work 2026-09-10 P2, hostPendingSettings F241, guestJoined + throttle
+ *  review 2026-10-03 repair P2, reconnectResets F362, pendingGuestState F275,
+ *  syncPending F618). One reset so a future room-scoped ref cannot be added
+ *  to one entry path and missed in the other. */
+function resetRoomEntryState(deps: RoomLifecycleDeps, quickMatchHost: boolean) {
+  deps.quickMatchHostRef.current = quickMatchHost;
+  deps.rematchPendingRef.current = false;
+  deps.hostPendingSettingsRef.current = null;
+  deps.guestJoinedRef.current = false;
+  disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
+  deps.reconnectResetsRef.current.moveCount = -1;
+  deps.pendingGuestStateRef.current = null;
+  deps.syncPendingRef.current = false;
+  if (deps.waitingForHostTimeoutRef.current !== null) {
+    clearTimeout(deps.waitingForHostTimeoutRef.current);
+    deps.waitingForHostTimeoutRef.current = null;
+  }
+}
+
 export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: PeerSide, slotToken?: string): RoomClient {
   const { stateRef, roleRef, setState, handleWsEvent, handleHostData, handleGuestData } = deps;
   const identity = getOrCreateGuestIdentity();
@@ -118,13 +152,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
     if (msg.type === "welcome" || msg.type === "peer-joined" || msg.type === "peer-reconnected" || msg.type === "peer-left" || msg.type === "error") {
       handleWsEvent(msg as { type: string; [k: string]: unknown });
       if (msg.type === "welcome" && role === "guest") {
-        const identity = getOrCreateGuestIdentity();
-        client.send({
-          type: "join",
-          displayName: deps.hostDisplayName,
-          guestId: identity.guestId,
-          preferredColor: deps.hostColor,
-        });
+        sendGuestJoin(deps, client);
       }
       // F252: the guest's one-shot join fanned out to zero peers if the
       // host socket was down (reconnect grace). When the host comes back
@@ -139,13 +167,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
         role === "guest" &&
         deps.stateRef.current.gameStatus === GameStatus.WAITING
       ) {
-        const identity = getOrCreateGuestIdentity();
-        client.send({
-          type: "join",
-          displayName: deps.hostDisplayName,
-          guestId: identity.guestId,
-          preferredColor: deps.hostColor,
-        });
+        sendGuestJoin(deps, client);
       }
     } else if (isPeerMessage(msg)) {
       if (msg.type === "social_reaction") {
@@ -209,29 +231,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
-  deps.quickMatchHostRef.current = Boolean(slotToken);
-  // A stale pending-rematch flag must not leak into the new room —
-  // without this a stray rematchAccept arriving right after the room
-  // swap is honored against a game that never asked for one
-  // (needs-work 2026-09-10 P2).
-  deps.rematchPendingRef.current = false;
-  // F241: pending identity edits are room-scoped — a leftover from the
-  // previous room would apply silently on the next room's rematch accept.
-  deps.hostPendingSettingsRef.current = null;
-  // Sync state is room-scoped too (review 2026-10-03 repair P2): the
-  // joined gate must re-arm (no peer has joined THIS room yet) and the
-  // reply throttle must not carry a cooldown over from the last room.
-  deps.guestJoinedRef.current = false;
-  disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
-  deps.reconnectResetsRef.current.moveCount = -1;
-  // Room-scoped like the rest: a snapshot taken in a previous room is
-  // never a valid rollback target in this one (F275).
-  deps.pendingGuestStateRef.current = null;
-  deps.syncPendingRef.current = false;
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
-  }
+  resetRoomEntryState(deps, Boolean(slotToken));
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -277,17 +277,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const { roomRef, roleRef, update, stopTimer } = deps;
   stopTimer();
   closeExistingRoom(roomRef);
-  deps.quickMatchHostRef.current = false;
-  deps.rematchPendingRef.current = false;
-  deps.hostPendingSettingsRef.current = null;
-  deps.guestJoinedRef.current = false;
-  disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
-  deps.reconnectResetsRef.current.moveCount = -1;
-  deps.syncPendingRef.current = false;
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
-  }
+  resetRoomEntryState(deps, false);
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: t("mm.enterRoom") });
@@ -303,12 +293,11 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   // COMPLETED/ACTIVE reports "game in progress" for a room that has not
   // started and suppresses the resend that unstrands the guest. Seed a
   // fresh WAITING placeholder; the host's `joined`/`gameStart` replaces it
-  // wholesale. The optimistic rollback snapshot is room-scoped too — a
-  // stray "Invalid move" before that first frame would resurrect the old
-  // state.
+  // wholesale. The optimistic rollback snapshot is room-scoped too — it was
+  // cleared with the other room-scoped refs above, since a stray
+  // "Invalid move" before that first frame would resurrect the old state.
   const waitingState: GameState = { ...freshGameState(), gameMode: GameModes.ONLINE };
   deps.stateRef.current = waitingState;
-  deps.pendingGuestStateRef.current = null;
   update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false, leftBySelf: false });
   roleRef.current = "guest";
 
