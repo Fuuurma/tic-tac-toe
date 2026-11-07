@@ -9,12 +9,12 @@ import { TURN_DURATION_MS } from "./constants";
  * expressions everywhere, and they had been written out six times with three
  * slightly different guards:
  *
- *   src/hooks/peer-room/turnTimer.ts        freeze + fallback rebuild
+ *   src/lib/room-protocol/turnTimer.ts      freeze + fallback rebuild
  *   src/hooks/localTurnTimer.ts             freeze + fallback rebuild
  *   src/hooks/usePeerRoom.ts                freeze (guarded) + rebuild (host only)
  *   src/hooks/useLocalGame.ts               freeze (guarded) + rebuild
- *   src/hooks/peer-room/guestProtocol.ts    rebuild from the wire
- *   src/hooks/peer-room/relayEvents.ts      rebuild after a disconnect
+ *   src/lib/room-protocol/guestProtocol.ts  rebuild from the wire
+ *   src/lib/room-protocol/relayEvents.ts    rebuild after a disconnect
  *
  * The HOST/GUEST asymmetry around these calls is deliberate and stays where it
  * is (F226: a guest must not rebuild a deadline on resume, because its

@@ -71,7 +71,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tic-tac-toe-arch-title tic-tac-toe-arch-desc">
         <title id="tic-tac-toe-arch-title">tic-tac-toe — architecture</title>
-        <desc id="tic-tac-toe-arch-desc">Generated guest identity feeds the React UI and hooks over the pure game engine, while the online path runs from the UI through the peer-room host authority and matchmaking client to the external fuurma-matchmaking relay.</desc>
+        <desc id="tic-tac-toe-arch-desc">Generated guest identity feeds the React UI and hooks over the pure game engine, while the online path runs from the UI through the host-authority validators and matchmaking client to the external fuurma-matchmaking relay.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
           <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
@@ -147,7 +147,7 @@
         <rect x="412" y="310" width="42" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
         <text x="433" y="319" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">HOST</text>
         <text x="500" y="358" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Peer room</text>
-        <text x="500" y="376" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">peer.ts · host authority</text>
+        <text x="500" y="376" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">peer.wire.ts · host authority</text>
 
         <!-- relay : external -->
         <rect x="684" y="304" width="192" height="96" rx="6" fill="#f5f5f5"/>

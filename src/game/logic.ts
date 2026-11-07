@@ -157,7 +157,7 @@ export const isValidMove = (state: GameState, index: number, symbol: PlayerSymbo
   // F218: reject non-integer indices — board[1.5] reads undefined, so a
   // float passed the range and occupancy guards and madeMove wrote an
   // out-of-band property invisible to checkWinner. Same guard as
-  // applyAuthorizedMove (peer.ts).
+  // applyAuthorizedMove (peer.apply.ts).
   if (!Number.isInteger(index)) return false;
   if (index < 0 || index >= GAME_RULES.BOARD_SIZE) return false;
   if (state.board[index] !== null) return false;

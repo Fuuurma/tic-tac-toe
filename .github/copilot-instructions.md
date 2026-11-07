@@ -94,7 +94,7 @@ pnpm deploy                   # deploy:check (build + dist preflight) && wrangle
 ## Wire Schema
 
 Wire messages are validated by `isPeerMessage` in
-`src/lib/peer.ts`. The validator rejects:
+`src/lib/peer.wire.ts`. The validator rejects:
 
 - Display names/guest IDs outside 1..20 / 1..64 character bounds.
 - `preferredColor` that is not a member of the `Color` enum.
@@ -119,8 +119,8 @@ frames. Rejecting those frames is part of the contract.
 - Use `useCallback`/`useMemo` for event handlers and expensive
   computations.
 - Pure game logic in `src/game/` must not import React.
-- Game message types are a discriminated union in `src/lib/peer.ts`
-  (the filename is historical; the transport is the WebSocket
+- Game message types are a discriminated union in `src/lib/peer.wire.ts`
+  (the transport is the WebSocket
   relay, never PeerJS or Socket.IO).
 - Validate wire state before writing it to React state, even though
   the host is intended to be authoritative — a hostile relay peer
@@ -151,10 +151,10 @@ frames. Rejecting those frames is part of the contract.
 ### Adding a new wire field
 
 1. Extend `GameState` in `src/game/logic.ts` (or `PeerMessage`
-   in `src/lib/peer.ts` for top-level messages).
-2. Update `isGameState`/`isPeerMessage` in `src/lib/peer.ts`
+   in `src/lib/peer.wire.ts` for top-level messages).
+2. Update `isGameState`/`isPeerMessage` in `src/lib/peer.wire.ts`
    to validate the new field, including hostile frames.
-3. Add a focused regression test in `src/lib/peer.hostile.test.ts`.
+3. Add a focused regression test in `src/lib/peer.wire.hostile.test.ts`.
 
 ### Adding a new AI difficulty
 

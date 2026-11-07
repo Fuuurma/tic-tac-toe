@@ -77,7 +77,7 @@ describe("applyHostGuestJoin", () => {
     expect(result.gameState.players[PlayerSymbol.O].username).toBe("Guest");
   });
 
-  it("resync payload drops the stale deadline and clamps remaining time (DESIGN-resync-rollback)", () => {
+  it("resync payload drops the stale deadline and clamps remaining time (ARCHITECTURE.md \"Resync and rollback\")", () => {
     const first = applyHostGuestJoin(waitingHostState(), PlayerSymbol.X, {
       displayName: "Guest",
       preferredColor: Color.RED,

@@ -6,7 +6,7 @@ import { t } from "@/i18n/language";
 
 /**
  * Turn-clock controller for local play, extracted from useLocalGame
- * (mirroring peer-room/turnTimer.ts — the local hook is its own
+ * (mirroring room-protocol/turnTimer.ts — the local hook is its own
  * authority, so there is no role gate and no wire broadcast).
  *
  * The deadline lives on the game state; this interval only maintains
@@ -71,7 +71,7 @@ export function startLocalTurnTimer(deps: LocalTurnTimerDeps) {
   tickRef.current = window.setInterval(() => {
     // Updaters must stay pure (StrictMode double-invokes them), so the
     // impure work — Date.now() and the random forced move — runs here
-    // off the latest snapshot, matching peer-room turnTimer. The
+    // off the latest snapshot, matching room-protocol turnTimer. The
     // updater then only applies the precomputed result when the state
     // is still the snapshot we decided from; a concurrent commit
     // (click, AI move) makes the next tick recompute fresh.

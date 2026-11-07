@@ -47,7 +47,7 @@ import type { PeerRole, PeerRoomState } from "@/lib/room-protocol/state";
  * button. Stored on the host only; the guest cannot edit a peer's identity.
  */
 /**
- * Re-exported for the peer-room's callers. The declaration lives in
+ * Re-exported for the room-protocol's callers. The declaration lives in
  * game/constants.ts as `PlayerSettings` — this file carried a byte-identical
  * copy under this name, and the settings sheet a third.
  */
@@ -178,7 +178,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     [broadcastGameState],
   );
 
-  // Turn clock + host/guest protocols live in peer-room modules
+  // Turn clock + host/guest protocols live in room-protocol modules
   // (god-hook decomposition); this hook is the composition root.
   const turnTimerDeps = useCallback(
     () => ({ stateRef, roleRef, tickRef, setState, broadcastGameState }),

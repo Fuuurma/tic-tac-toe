@@ -114,7 +114,7 @@ One convention, so a reader can find the test for a module without guessing:
 
 - **Colocated.** A test sits beside the module it tests, named `<module>.test.ts` (or `.tsx` when it renders). `src/game/ai.behavior.test.ts` tests `src/game/ai.ts`.
 - **Suffixed variants are the norm, not an exception.** A module with more than one suite keeps them apart by suffix rather than by directory: `peer.wire.hostile.test.ts`, `peer.integration.test.ts`, `ai.selfplay.test.ts`, `ai.bench.test.ts`, `usePeerRoom.rematchTimeout.test.tsx`, `board.render.test.tsx`. The suffix names the *angle* (hostile input, cross-module integration, self-play, benchmark), so the suite that guards a risk is findable by the risk.
-- **A test named after another module is a bug in the test.** `peerProtocol.test.ts` lived under `src/__tests__/` and tested `hooks/peer-room/*`; it is now `lib/room-protocol/protocol.test.ts`. If the file you are editing has no same-named test, check for a suffixed variant before concluding it is untested.
+- **A test named after another module is a bug in the test.** `peerProtocol.test.ts` lived under `src/__tests__/` and tested `hooks/peer-room/*`; it is now `src/lib/room-protocol/protocol.test.ts`. If the file you are editing has no same-named test, check for a suffixed variant before concluding it is untested.
 - **`src/__tests__/` is only for repo-level pins** — tests whose subject is the repository rather than a module: the AGENTS.md path inventory guard, package/CI metadata pins, the Vite chunk map. Nothing that tests `src/` code belongs there; that is what colocation is for.
 - A module covered only through a sibling's suite is acceptable but say so: `usePeerRoom.ts` is exercised by nine `room-protocol` suites rather than a colocated one, because its behaviour is the protocol's.
 
@@ -135,7 +135,7 @@ One convention, so a reader can find the test for a module without guessing:
 - Selectable tiles (radio/option chips) take their selected/unselected styling from `pickerTileClass(selected, weight?)` in `src/lib/pickerClasses.ts`, never by hand: the recipe had been written out at nine sites and drifted into four selected variants. Compose site-specific extras on top with `cn()`, and see that module's doc for the two surfaces that are deliberately not tiles (`pickerDisclosure` is a trigger; the game-mode tiles are a card surface).
 - Use `useCallback`/`useMemo` for event handlers and expensive computations
 - Pure game logic in `src/game/` must not import React
-- Game message types are a discriminated union in `src/lib/peer.ts` (the filename is historical; transport is WebSocket-only)
+- Game message types are a discriminated union in `src/lib/peer.wire.ts`
 
 ### Engineering foundation
 

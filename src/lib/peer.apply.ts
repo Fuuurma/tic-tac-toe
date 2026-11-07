@@ -87,7 +87,7 @@ export const applyHostGuestJoin = (
   const guestSymbol = oppositeSymbol(hostSymbol);
   if (state.gameStatus !== GameStatus.WAITING) {
     const guest = state.players[guestSymbol];
-    // Resync (docs/DESIGN-resync-rollback): the stored deadline was
+    // Resync (ARCHITECTURE.md "Resync and rollback"): the stored deadline was
     // computed on the host clock before any disconnect, so a guest gone
     // for minutes would honor a stale/expired timer. Send the REMAINING
     // time instead — the guest's synthesis path (now +
