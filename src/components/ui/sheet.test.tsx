@@ -78,3 +78,25 @@ describe("Sheet inline phone overlay (F793)", () => {
     expect(container.firstElementChild?.tagName).toBe("DIV");
   });
 });
+
+describe("Sheet focus indicator (F809)", () => {
+  it("gives the focused panel a visible keyboard focus ring", () => {
+    stubPointerWidth(false);
+
+    const { container } = render(
+      <Sheet open onClose={() => {}} title="How to play" closeLabel="Close help">
+        <p>Rules</p>
+      </Sheet>,
+    );
+
+    // The open effect focuses the panel itself; the shared outline-none
+    // base would leave keyboard users with no indicator without a
+    // focus-visible ring — the same recipe the repo's other controls use.
+    // ring-inset keeps it visible on the phone sheet, which sits flush
+    // against the viewport edges.
+    const dialog = container.querySelector("dialog");
+    expect(dialog?.className).toContain("focus-visible:ring-2");
+    expect(dialog?.className).toContain("focus-visible:ring-inset");
+    expect(dialog?.className).toContain("focus-visible:ring-primary");
+  });
+});

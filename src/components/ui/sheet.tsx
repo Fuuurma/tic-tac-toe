@@ -221,6 +221,11 @@ export function Sheet({
     // completes; author display otherwise overrides the UA's dialog rule.
     isVisible ? "flex" : "hidden",
     "glass sheet-surface flex-col overflow-hidden p-0 text-foreground shadow-2xl outline-none",
+    // The open effect focuses the panel itself, so keyboard users need a
+    // visible indicator here — the same ring recipe as the repo's other
+    // controls. ring-inset keeps it on-screen where the phone sheet sits
+    // flush against the viewport edges.
+    "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
     // Phone geometry.
     "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:m-0 max-sm:w-full max-sm:max-w-none",
     full
