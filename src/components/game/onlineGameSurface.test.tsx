@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { OnlineGameSurface } from "./onlineGameSurface";
 import { freshGameState, type GameState } from "@/game/logic";
 import {
+  COLOR_RGB,
   Color,
   GameModes,
   GameStatus,
@@ -143,6 +144,30 @@ describe("OnlineGameSurface phone layout", () => {
         screen.getByRole("button", { name }).className.split(/\s+/),
       ).toContain("max-sm:h-12");
     }
+  });
+});
+
+describe("OnlineGameSurface player-color scope (F344)", () => {
+  // F344: the status banners, queue strip and warm-up handoff read
+  // var(--player-color), but nothing in this surface scoped it — a
+  // non-blue player saw the :root blue default on every accent. The
+  // surface root now carries the configured player's colour; deeper
+  // consumers still set their own.
+  it("scopes --player-color to the configured player colour", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "waiting", roomId: "FRIEND-1" }),
+    );
+    const { container } = render(
+      <OnlineGameSurface
+        config={{ ...config, color: Color.RED, onlineAction: "create" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.style.getPropertyValue("--player-color")).toBe(
+      COLOR_RGB[Color.RED],
+    );
   });
 });
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AI_Difficulty,
   type AI_Difficulty as AI_DifficultyType,
+  COLOR_RGB,
   Color,
   GameModes,
   PlayerSymbol,
@@ -264,7 +265,15 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     // (PlayersPanel `max-sm:contents`), so `order` stacks status, players,
     // banners, board, then the action bar. Banners sit directly above the
     // board; with no game yet they are the only content and centre.
-    <div className="relative flex w-full max-w-md flex-col items-stretch gap-2 max-sm:h-full max-sm:max-w-none max-sm:justify-center sm:gap-3">
+    // F344: the status/queue banners and warm-up handoff read
+    // var(--player-color) but nothing in this surface scoped it, so a
+    // non-blue player saw the :root blue default. Scope it once here —
+    // deeper consumers (player cards, winning cells, the confirm dialog)
+    // still set their own.
+    <div
+      className="relative flex w-full max-w-md flex-col items-stretch gap-2 max-sm:h-full max-sm:max-w-none max-sm:justify-center sm:gap-3"
+      style={{ "--player-color": COLOR_RGB[config.color] } as React.CSSProperties}
+    >
       <div className="flex flex-col gap-2 empty:hidden max-sm:order-4 max-sm:px-4">
         {/* Status banners — always on top so the user sees them first.
             A room code is an invitation token for a specific person, so it
