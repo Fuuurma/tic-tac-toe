@@ -202,11 +202,29 @@ const isWellFormedUtf16 = (value: string): boolean => {
   return true;
 };
 
+/**
+ * F813: the F795 character gate lives in identity.ts on the typed/saved-name
+ * path — wire frames never pass through it, so a hostile peer could carry
+ * C0/C1 controls into the opponent's UI verbatim. Reject (never sanitize,
+ * per F469) the same blocks that gate owns: <0x20 and DEL+C1 0x7F–0x9F.
+ * `<`/`>` stay legal here: HTML-injection filtering belongs to the input
+ * gate, not the wire. Control characters are all BMP, so charCodeAt sees
+ * every one; surrogate pairs read >0x9F and pass to isWellFormedUtf16.
+ */
+const hasNoControlCharacters = (value: string): boolean => {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) return false;
+  }
+  return true;
+};
+
 const isBoundedDisplayName = (value: unknown): value is string =>
   typeof value === "string" &&
   value.length > 0 &&
   value.length <= PEER_MAX_NAME_LENGTH &&
-  isWellFormedUtf16(value);
+  isWellFormedUtf16(value) &&
+  hasNoControlCharacters(value);
 
 // Identifiers travel to the relay and into logs the same way display names
 // do, so they get the same lone-surrogate check. Without it a crafted id

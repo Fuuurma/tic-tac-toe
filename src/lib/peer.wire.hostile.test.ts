@@ -152,6 +152,61 @@ describe("isPeerMessage hostile frames", () => {
     expect(isPeerMessage(frame)).toBe(false);
   });
 
+  // F813: F795's character gate lives in identity.ts on the typed/saved-name
+  // path — wire frames never pass through it, so a hostile peer could carry
+  // C0/C1 controls into the opponent's UI verbatim. The wire rejects (never
+  // sanitizes, per F469) the same blocks: <0x20 and DEL+C1 0x7F–0x9F.
+  it("rejects join display names containing C0/C1 control characters (F813)", () => {
+    for (const displayName of [
+      "Al\u0000ice",
+      "Al\u001fice",
+      "Al\u007fice",
+      "Al\u0085ice",
+      "Al\u009fice",
+    ]) {
+      expect(
+        isPeerMessage({ type: "join", displayName, guestId: "guest:1" }),
+      ).toBe(false);
+    }
+    // Sweep both blocks so one missed endpoint cannot reopen the hole.
+    for (let cp = 0x00; cp <= 0x1f; cp += 1) {
+      expect(
+        isPeerMessage({
+          type: "join",
+          displayName: `A${String.fromCharCode(cp)}lice`,
+          guestId: "guest:1",
+        }),
+      ).toBe(false);
+    }
+    for (let cp = 0x7f; cp <= 0x9f; cp += 1) {
+      expect(
+        isPeerMessage({
+          type: "join",
+          displayName: `A${String.fromCharCode(cp)}lice`,
+          guestId: "guest:1",
+        }),
+      ).toBe(false);
+    }
+    // Ordinary names — accented, spaced, emoji — still pass.
+    for (const displayName of ["Alice", "Zoë Sørën", "Alice\u{1F600}"]) {
+      expect(
+        isPeerMessage({ type: "join", displayName, guestId: "guest:1" }),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects gameState usernames containing C0/C1 control characters (F813)", () => {
+    for (const username of ["Al\u0007ice", "Al\u0085ice", "Al\u009fice"]) {
+      const frame = validMessage();
+      (
+        frame.gameState.players[PlayerSymbol.X] as unknown as {
+          username: string;
+        }
+      ).username = username;
+      expect(isPeerMessage(frame)).toBe(false);
+    }
+  });
+
   it("rejects join frames that spoof invalid preferred colors", () => {
     expect(
       isPeerMessage({
