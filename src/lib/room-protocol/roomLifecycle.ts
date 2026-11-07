@@ -76,6 +76,9 @@ export interface RoomLifecycleDeps {
   waitingForHostTimeoutRef: {
     current: ReturnType<typeof setTimeout> | null;
   };
+  /** The absolute deadline behind that timer (relayEvents, F712) —
+   *  room-scoped for the same reason. */
+  waitingForHostDeadlineAtRef: { current: number | null };
 }
 
 /** Graceful teardown: notify the peer/relay BEFORE closing the socket.
@@ -232,6 +235,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     clearTimeout(deps.waitingForHostTimeoutRef.current);
     deps.waitingForHostTimeoutRef.current = null;
   }
+  deps.waitingForHostDeadlineAtRef.current = null;
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -288,6 +292,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
     clearTimeout(deps.waitingForHostTimeoutRef.current);
     deps.waitingForHostTimeoutRef.current = null;
   }
+  deps.waitingForHostDeadlineAtRef.current = null;
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", message: t("mm.enterRoom") });

@@ -98,6 +98,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       pendingGuestStateRef: { current: null as GameState | null },
       syncPendingRef: { current: false },
       waitingForHostTimeoutRef: { current: null },
+      waitingForHostDeadlineAtRef: { current: null },
     };
     return { deps, guestSymbolRef };
   }
@@ -244,6 +245,7 @@ describe("joinAsGuest rematch-flag reset", () => {
           stopTimer: vi.fn(),
           clearRematchTimeout: vi.fn(),
           waitingForHostTimeoutRef: { current: null },
+          waitingForHostDeadlineAtRef: { current: null },
         },
         event,
       );

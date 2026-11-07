@@ -61,6 +61,12 @@ export interface RelayEventDeps {
   waitingForHostTimeoutRef: {
     current: ReturnType<typeof setTimeout> | null;
   };
+  /** F712: the absolute epoch-ms the wait must end by, fixed by the FIRST
+   *  opponent-less welcome. A reconnect's fresh welcome re-arms only the
+   *  remaining wait — per-arm setTimeout alone would hand a flapping
+   *  socket a new HOST_ABSENT_TIMEOUT_MS every cycle and the stranded-peer
+   *  bound would never land. Null when no wait is armed. */
+  waitingForHostDeadlineAtRef: { current: number | null };
 }
 
 /**
@@ -75,16 +81,29 @@ function clearWaitingForHostDeadline(deps: RelayEventDeps) {
     clearTimeout(deps.waitingForHostTimeoutRef.current);
     deps.waitingForHostTimeoutRef.current = null;
   }
+  deps.waitingForHostDeadlineAtRef.current = null;
 }
 
 function armWaitingForHostDeadline(deps: RelayEventDeps) {
-  clearWaitingForHostDeadline(deps);
+  if (deps.waitingForHostDeadlineAtRef.current === null) {
+    deps.waitingForHostDeadlineAtRef.current = Date.now() + HOST_ABSENT_TIMEOUT_MS;
+  }
+  // A pending timeout already counts down to the same absolute deadline —
+  // re-arming would only restart the identical wait.
+  if (deps.waitingForHostTimeoutRef.current !== null) return;
+  const delay = Math.max(0, deps.waitingForHostDeadlineAtRef.current - Date.now());
   deps.waitingForHostTimeoutRef.current = setTimeout(() => {
     deps.waitingForHostTimeoutRef.current = null;
+    // Socket mid-reconnect: keep the transport's retry alive AND keep the
+    // absolute deadline — the next empty welcome re-arms only what is
+    // left, so the bound still lands instead of sliding forward again.
+    if (!deps.roomRef.current?.isConnected()) return;
+    deps.waitingForHostDeadlineAtRef.current = null;
     // The terminal write rides ahead of close() so the socket teardown's
     // synchronous "You left" loses to the disconnected-message guard —
     // the same ordering the peer-left terminal branch relies on
-    // (needs-work 10-02 P1).
+    // (needs-work 10-02 P1). Reaching here means the socket is connected
+    // (the mid-reconnect case returned above), so the sever always lands.
     deps.setState((prev) => {
       if (prev.role === "guest" && prev.status === "connecting") {
         return {
@@ -105,13 +124,8 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
       }
       return prev;
     });
-    // Only sever a live seated socket: while the guest's own reconnect is
-    // in flight the armed deadline is stale (the fresh welcome re-arms
-    // it), and closing here would kill a recovery the relay still owns.
-    if (deps.roomRef.current?.isConnected()) {
-      leaveRoom(deps.roomRef);
-    }
-  }, HOST_ABSENT_TIMEOUT_MS);
+    leaveRoom(deps.roomRef);
+  }, delay);
 }
 
 /** Handles one relay lifecycle event (routed by type in buildRoomClient). */

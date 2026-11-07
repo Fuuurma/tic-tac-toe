@@ -47,6 +47,7 @@ function makeDeps(
     rematchPendingRef: { current: false },
     reconnectResetsRef: { current: { moveCount: -1 } },
     waitingForHostTimeoutRef: { current: null },
+    waitingForHostDeadlineAtRef: { current: null },
     pausedRef: { current: false },
     setState: (updater) => {
       roomState = typeof updater === "function" ? updater(roomState) : updater;
@@ -665,6 +666,73 @@ describe("bounded absent-peer waits", () => {
 
       expect(getRoom().status).toBe("reconnecting");
       expect(room.close).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the original deadline across empty welcomes and reconnects", () => {
+    // A per-arm setTimeout would hand every reconnect's fresh welcome a new
+    // full wait, so a flapping socket could sit in "Waiting for host…"
+    // forever — the exact stranding F712 bound. The deadline is absolute:
+    // fixed by the first opponent-less welcome, re-arms count down only
+    // what is left.
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", {
+        status: "connecting",
+        message: "Waiting for host…",
+      });
+      const room = seatedRoom();
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      expect(getRoom().status).toBe("connecting");
+
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS - 5_000);
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      vi.advanceTimersByTime(5_000);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
+      expect(deps.roomRef.current).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies an expired deadline on the next empty welcome after a mid-wait socket drop", () => {
+    vi.useFakeTimers();
+    try {
+      const game = activeGame({ gameStatus: GameStatus.WAITING });
+      const { deps, getRoom } = makeDeps(game, "guest", { status: "connecting" });
+      let connected = false;
+      const room = {
+        send: vi.fn(() => false),
+        close: vi.fn(),
+        isConnected: () => connected,
+      } as unknown as RoomClient;
+      deps.roomRef.current = room;
+
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      // The deadline fires while the socket is mid-reconnect: it must not
+      // sever the recovering transport, but the absolute deadline stays
+      // armed rather than being granted a fresh wait.
+      getRoom().status = "reconnecting";
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+
+      expect(getRoom().status).toBe("reconnecting");
+      expect(room.close).not.toHaveBeenCalled();
+
+      connected = true;
+      handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
+      vi.advanceTimersByTime(0);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }

@@ -123,6 +123,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // has not seated. Create rooms do not; the host must keep its invite code
   // alive. Room-scoped like the rest: cleared on room entry, leave, unmount.
   const waitingForHostTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // F712: the absolute epoch-ms behind that timer — the first opponent-less
+  // welcome fixes it, so a reconnect's fresh welcome cannot slide the bound
+  // forward by another full timeout per flap.
+  const waitingForHostDeadlineAtRef = useRef<number | null>(null);
   // F738: only quick-match hosts have a bounded wait for an absent guest;
   // Create hosts keep their room code live until the invited guest arrives.
   const quickMatchHostRef = useRef(false);
@@ -348,6 +352,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       stopTimer,
       clearRematchTimeout,
       waitingForHostTimeoutRef,
+      waitingForHostDeadlineAtRef,
     }),
     [broadcastGameState, commitHostState, startTimer, stopTimer, clearRematchTimeout],
   );
@@ -403,6 +408,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       pendingGuestStateRef,
       syncPendingRef,
       waitingForHostTimeoutRef,
+      waitingForHostDeadlineAtRef,
       quickMatchHostRef,
     }),
     [handleGuestData, handleHostData, handleSocial, handleWsEvent, options.hostColor, options.hostDisplayName, options.hostShape, stopTimer, update],
@@ -608,6 +614,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
       clearTimeout(waitingForHostTimeoutRef.current);
       waitingForHostTimeoutRef.current = null;
     }
+    waitingForHostDeadlineAtRef.current = null;
     setState((prev) => ({ ...prev, status: "disconnected", queue: "none", message: t("peer.youLeft"), rematchIncoming: false, rematchOutgoing: false, leftBySelf: true }));
   }, [stopTimer, clearRematchTimeout]);
 
@@ -661,6 +668,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
         clearTimeout(waitingForHostTimeoutRef.current);
         waitingForHostTimeoutRef.current = null;
       }
+      waitingForHostDeadlineAtRef.current = null;
       leaveRoom(roomRef);
       stopTimer();
     };
