@@ -40,6 +40,17 @@ describe("parseMatchmakingResponse", () => {
       status: "matched",
       match,
     });
+    expect(
+      parseMatchmakingResponse({
+        status: "matched",
+        match: { ...match, wsUrl: "wss://relay.example/room-1" },
+        slotToken: "token-123",
+      }),
+    ).toEqual({
+      status: "matched",
+      match: { ...match, wsUrl: "wss://relay.example/room-1" },
+      slotToken: "token-123",
+    });
   });
 
   it("ignores fields the Worker contract does not define", () => {
@@ -232,5 +243,141 @@ describe("pollMatch ticket expiry", () => {
     const err = await mod.pollMatch("tictactoe", "t1").catch((e: unknown) => e);
     expect(err).not.toBeInstanceOf(mod.TicketExpiredError);
     expect(err).toMatchObject({ message: expect.stringContaining("503") });
+  });
+});
+
+describe("matchmaking api requests", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("findMatch posts participant details and parses matched response", async () => {
+    const mod = await import("@/lib/matchmaking");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        status: "waiting",
+        ticket: "t-1",
+        roomId: "r-1",
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await mod.findMatch({
+      game: "ttt",
+      peerId: "p1",
+      displayName: "Player 1",
+      guestId: "g1",
+      baseUrl: "https://api.example",
+    });
+
+    expect(res).toEqual({ status: "waiting", ticket: "t-1", roomId: "r-1" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example/api/matchmaking/ttt/join",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          peerId: "p1",
+          displayName: "Player 1",
+          guestId: "g1",
+        }),
+      }),
+    );
+  });
+
+  it("findMatch throws formatted error on non-ok response", async () => {
+    const mod = await import("@/lib/matchmaking");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        text: async () => "Internal server error",
+      })),
+    );
+
+    await expect(
+      mod.findMatch({
+        game: "ttt",
+        peerId: "p1",
+        displayName: "Player 1",
+        guestId: "g1",
+      }),
+    ).rejects.toThrow("Matchmaking join failed: 500 Internal server error");
+  });
+
+  it("leaveMatch posts ticket with keepalive option", async () => {
+    const mod = await import("@/lib/matchmaking");
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      text: async () => "ok",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await mod.leaveMatch("ttt", "ticket-1", "https://api.example", { keepalive: true });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example/api/matchmaking/ttt/leave",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ ticket: "ticket-1" }),
+        keepalive: true,
+      }),
+    );
+  });
+
+  it("leaveMatch throws formatted error on non-ok response", async () => {
+    const mod = await import("@/lib/matchmaking");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 400,
+        text: async () => "ticket missing",
+      })),
+    );
+
+    await expect(mod.leaveMatch("ttt", "ticket-1")).rejects.toThrow(
+      "Matchmaking leave failed: 400 ticket missing",
+    );
+  });
+
+  it("fetchMatchmakingHealth gets health and parses response", async () => {
+    const mod = await import("@/lib/matchmaking");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: true, game: "ttt", waiting: 2, matches: 1 }),
+      })),
+    );
+
+    const health = await mod.fetchMatchmakingHealth("ttt", "https://api.example");
+    expect(health).toEqual({ game: "ttt", waiting: 2, matches: 1 });
+  });
+
+  it("fetchMatchmakingHealth throws error on failure or malformed payload", async () => {
+    const mod = await import("@/lib/matchmaking");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 502,
+      })),
+    );
+    await expect(mod.fetchMatchmakingHealth("ttt")).rejects.toThrow(
+      "Matchmaking health failed: 502",
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ ok: false }),
+      })),
+    );
+    await expect(mod.fetchMatchmakingHealth("ttt")).rejects.toThrow(
+      "Malformed matchmaking health response",
+    );
   });
 });

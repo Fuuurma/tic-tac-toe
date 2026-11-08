@@ -27,14 +27,40 @@ export type MatchmakingResponse =
   | { status: "waiting"; ticket: string; roomId: string }
   | { status: "matched"; match: Match; slotToken?: string };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
 function isParticipant(value: unknown): value is Match["host"] {
-  if (typeof value !== "object" || value === null) return false;
-  const p = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
   return (
-    typeof p.peerId === "string" &&
-    typeof p.displayName === "string" &&
-    typeof p.guestId === "string"
+    typeof value.peerId === "string" &&
+    typeof value.displayName === "string" &&
+    typeof value.guestId === "string"
   );
+}
+
+function parseMatched(matchRaw: unknown): Match | null {
+  if (!isRecord(matchRaw)) return null;
+  const { roomId, role, host, guest, wsUrl } = matchRaw;
+  const isValidRole = role === "host" || role === "guest";
+  const isValidWsUrl = wsUrl === undefined || typeof wsUrl === "string";
+  if (
+    typeof roomId !== "string" ||
+    !isValidRole ||
+    !isParticipant(host) ||
+    !isParticipant(guest) ||
+    !isValidWsUrl
+  ) {
+    return null;
+  }
+  return wsUrl === undefined
+    ? { roomId, role, host, guest }
+    : { roomId, role, host, guest, wsUrl };
 }
 
 /** The wire is not the type system: a 200 with `{}`, an error body, or a
@@ -42,30 +68,19 @@ function isParticipant(value: unknown): value is Match["host"] {
  *  `response.ticket` (→ `?ticket=undefined` poll loop) and `match.roomId`
  *  (→ crash) verbatim (devin 2026-09-10 finding). */
 export function parseMatchmakingResponse(data: unknown): MatchmakingResponse {
-  if (typeof data !== "object" || data === null) {
+  if (!isRecord(data)) {
     throw new Error("Malformed matchmaking response: not an object");
   }
-  const d = data as Record<string, unknown>;
-  if (d.status === "waiting" && typeof d.ticket === "string" && typeof d.roomId === "string") {
-    return { status: "waiting", ticket: d.ticket, roomId: d.roomId };
+  if (data.status === "waiting" && typeof data.ticket === "string" && typeof data.roomId === "string") {
+    return { status: "waiting", ticket: data.ticket, roomId: data.roomId };
   }
-  if (d.status === "matched" && typeof d.match === "object" && d.match !== null) {
-    const m = d.match as Record<string, unknown>;
-    const { roomId, role, host, guest, wsUrl } = m;
-    if (
-      typeof roomId === "string" &&
-      (role === "host" || role === "guest") &&
-      isParticipant(host) &&
-      isParticipant(guest) &&
-      (wsUrl === undefined || typeof wsUrl === "string")
-    ) {
-      const slotToken = typeof d.slotToken === "string" ? d.slotToken : undefined;
+  if (data.status === "matched") {
+    const match = parseMatched(data.match);
+    if (match) {
+      const slotToken = typeof data.slotToken === "string" ? data.slotToken : undefined;
       return {
         status: "matched",
-        match:
-          wsUrl === undefined
-            ? { roomId, role, host, guest }
-            : { roomId, role, host, guest, wsUrl },
+        match,
         ...(slotToken === undefined ? {} : { slotToken }),
       };
     }
@@ -123,6 +138,31 @@ export const MATCH_POLL_MAX_DELAY_MS = 4_000;
 const MATCHMAKING_TIMEOUT_MS = 10_000;
 const LEAVE_TIMEOUT_MS = 5_000;
 
+function matchmakingEndpoint(game: string, path: string, baseUrl?: string): string {
+  return `${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/${path}`;
+}
+
+function fetchJson(
+  url: string,
+  method: "GET" | "POST",
+  timeoutMs: number,
+  body?: unknown,
+  keepalive = false,
+): Promise<Response> {
+  return fetch(url, {
+    method,
+    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(timeoutMs),
+    keepalive,
+  });
+}
+
+async function throwMatchmakingError(action: string, response: Response): Promise<never> {
+  const body = await response.text();
+  throw new Error(`Matchmaking ${action} failed: ${response.status} ${body}`);
+}
+
 /**
  * The queue no longer knows this ticket: it expired (or was consumed) and
  * no further poll can pair it. Terminal, unlike a 5xx or a hung fetch —
@@ -139,7 +179,7 @@ export class TicketExpiredError extends Error {
 }
 
 export function getMatchPollDelay(attempt: number): number {
-  if (!Number.isInteger(attempt) || attempt < 0) return MATCH_POLL_INITIAL_DELAY_MS;
+  if (!isNonNegativeInteger(attempt)) return MATCH_POLL_INITIAL_DELAY_MS;
   return Math.min(
     MATCH_POLL_INITIAL_DELAY_MS * 2 ** attempt,
     MATCH_POLL_MAX_DELAY_MS,
@@ -167,21 +207,14 @@ export interface MatchmakingHealth {
  * as "count unavailable" rather than as a confident wrong 0.
  */
 export function parseMatchmakingHealth(data: unknown): MatchmakingHealth | null {
-  if (typeof data !== "object" || data === null) return null;
-  const d = data as Record<string, unknown>;
-  if (d.ok !== true || typeof d.game !== "string") return null;
-  const { waiting, matches } = d;
-  if (
-    typeof waiting !== "number" ||
-    typeof matches !== "number" ||
-    !Number.isInteger(waiting) ||
-    !Number.isInteger(matches) ||
-    waiting < 0 ||
-    matches < 0
-  ) {
+  if (!isRecord(data) || data.ok !== true || typeof data.game !== "string") {
     return null;
   }
-  return { game: d.game, waiting, matches };
+  const { waiting, matches } = data;
+  if (!isNonNegativeInteger(waiting) || !isNonNegativeInteger(matches)) {
+    return null;
+  }
+  return { game: data.game, waiting, matches };
 }
 
 /** Players a visitor could plausibly meet: everyone queued plus both
@@ -199,9 +232,10 @@ export async function fetchMatchmakingHealth(
   game: string,
   baseUrl?: string,
 ): Promise<MatchmakingHealth> {
-  const response = await fetch(
-    `${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/health`,
-    { method: "GET", signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS) },
+  const response = await fetchJson(
+    matchmakingEndpoint(game, "health", baseUrl),
+    "GET",
+    MATCHMAKING_TIMEOUT_MS,
   );
   if (!response.ok) {
     throw new Error(`Matchmaking health failed: ${response.status}`);
@@ -214,22 +248,19 @@ export async function fetchMatchmakingHealth(
 }
 
 export async function findMatch(options: FindMatchOptions): Promise<MatchmakingResponse> {
-  const response = await fetch(
-    `${resolveBaseUrl(options.baseUrl)}/api/matchmaking/${options.game}/join`,
+  const response = await fetchJson(
+    matchmakingEndpoint(options.game, "join", options.baseUrl),
+    "POST",
+    MATCHMAKING_TIMEOUT_MS,
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        peerId: options.peerId,
-        displayName: options.displayName,
-        guestId: options.guestId,
-      }),
-      signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS),
+      peerId: options.peerId,
+      displayName: options.displayName,
+      guestId: options.guestId,
     },
   );
 
   if (!response.ok) {
-    throw new Error(`Matchmaking join failed: ${response.status} ${await response.text()}`);
+    await throwMatchmakingError("join", response);
   }
 
   return parseMatchmakingResponse(await response.json());
@@ -240,9 +271,10 @@ export async function pollMatch(
   ticket: string,
   baseUrl?: string,
 ): Promise<MatchmakingResponse> {
-  const response = await fetch(
-    `${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/poll?ticket=${encodeURIComponent(ticket)}`,
-    { method: "GET", signal: AbortSignal.timeout(MATCHMAKING_TIMEOUT_MS) },
+  const response = await fetchJson(
+    matchmakingEndpoint(game, `poll?ticket=${encodeURIComponent(ticket)}`, baseUrl),
+    "GET",
+    MATCHMAKING_TIMEOUT_MS,
   );
 
   if (!response.ok) {
@@ -262,18 +294,18 @@ export async function leaveMatch(
   baseUrl?: string,
   options?: { keepalive?: boolean },
 ): Promise<void> {
-  const response = await fetch(`${resolveBaseUrl(baseUrl)}/api/matchmaking/${game}/leave`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ticket }),
-    signal: AbortSignal.timeout(LEAVE_TIMEOUT_MS),
+  const response = await fetchJson(
+    matchmakingEndpoint(game, "leave", baseUrl),
+    "POST",
+    LEAVE_TIMEOUT_MS,
+    { ticket },
     // `keepalive` lets the request outlive the page — required for the
     // pagehide cancel-on-disconnect path, where an ordinary fetch is
     // killed with the tab before it reaches the Worker.
-    keepalive: options?.keepalive === true,
-  });
+    options?.keepalive === true,
+  );
   if (!response.ok) {
-    throw new Error(`Matchmaking leave failed: ${response.status} ${await response.text()}`);
+    await throwMatchmakingError("leave", response);
   }
 }
 
@@ -289,8 +321,7 @@ export function buildRoomWsUrl(roomId: string, baseUrl?: string): string {
   // RoomClient.openSocket owns it (single writer, devin 09-07 20:05
   // finding 6); a double-set silently overwrote whatever the caller's
   // wsUrl carried.
-  const httpUrl = new URL(`/room/${roomId}`, resolveBaseUrl(baseUrl));
-  const wsUrl = new URL(httpUrl.toString());
-  wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
-  return wsUrl.toString();
+  const url = new URL(`/room/${roomId}`, resolveBaseUrl(baseUrl));
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.toString();
 }
