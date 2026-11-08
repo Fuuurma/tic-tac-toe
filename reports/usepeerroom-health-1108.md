@@ -1,6 +1,7 @@
 # usePeerRoom — mechanical health refactor
 
-**Branch:** `fleet/ttt-usepeerroom-1108` · **Scope:** `src/hooks/usePeerRoom.ts`
+**Landed:** `c9ea19e` on `origin/main` (fast-forward from `09c9d0b`), branch
+`fleet/ttt-usepeerroom-1108`.
 
 ## Finding
 
