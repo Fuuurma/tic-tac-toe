@@ -36,6 +36,12 @@ import { handleGuestMessage } from "@/lib/room-protocol/guestProtocol";
  * `fuurma-matchmaking` Worker. The hook preserves the same public API so the
  * consuming surface (`OnlineGameSurface`) doesn't need to branch.
  *
+ * The hook itself is the composition root: it owns the refs, the state and the
+ * wiring between the protocol modules. Every decision it makes — what a pause
+ * does to the clock, who may request a rematch, which side may move — lives in
+ * a plain function over an explicit dependency bag below, so the rules are
+ * testable without React and the hook stays a wiring diagram.
+ *
  * Spec: hub/migrations/2026-07-games-do-websocket-migration.md
  */
 
@@ -173,22 +179,28 @@ export function isRematchEligibleGame(gameState: GameState): boolean {
 }
 
 /**
+ * The facts a rematch request depends on. Named, because five positional
+ * arguments of which two are booleans is a swap waiting to happen.
+ */
+export interface RematchGate {
+  status: PeerStatus;
+  gameState: GameState;
+  isRematchPending: boolean;
+  isRematchIncoming: boolean;
+  ownSymbol: PlayerSymbol | null;
+}
+
+/**
  * Checks whether a client is eligible to request a rematch.
  */
 export function canRequestRematch(
-  status: PeerStatus,
-  gameState: GameState,
-  isRematchPending: boolean,
-  isRematchIncoming: boolean,
-  ownSymbol: PlayerSymbol | null,
-): ownSymbol is PlayerSymbol {
-  return (
-    status === "connected" &&
-    isRematchEligibleGame(gameState) &&
-    !isRematchPending &&
-    !isRematchIncoming &&
-    ownSymbol !== null
-  );
+  gate: RematchGate,
+): gate is RematchGate & { ownSymbol: PlayerSymbol } {
+  if (gate.status !== "connected") return false;
+  if (!isRematchEligibleGame(gate.gameState)) return false;
+  if (gate.isRematchPending) return false;
+  if (gate.isRematchIncoming) return false;
+  return gate.ownSymbol !== null;
 }
 
 /**
@@ -274,22 +286,426 @@ export function teardownActiveRoom(deps: RoomTeardownDeps, reason: string): void
 }
 
 /**
+ * The facts the turn countdown depends on.
+ */
+export interface TurnTimerGate {
+  role: PeerRole;
+  status: PeerStatus;
+  paused: boolean;
+  hostPaused: boolean;
+  gameState: GameState;
+}
+
+/**
  * Predicate determining whether the turn countdown timer should run.
  */
-export function shouldRunTurnTimer(
-  role: PeerRole,
-  status: PeerStatus,
-  paused: boolean,
-  hostPaused: boolean,
-  gameState: GameState,
-): boolean {
-  return (
-    (role === "host" || role === "guest") &&
-    status === "connected" &&
-    !paused &&
-    !hostPaused &&
-    isGameActive(gameState)
-  );
+export function shouldRunTurnTimer(gate: TurnTimerGate): boolean {
+  if (gate.role !== "host" && gate.role !== "guest") return false;
+  if (gate.status !== "connected") return false;
+  if (gate.paused) return false;
+  if (gate.hostPaused) return false;
+  return isGameActive(gate.gameState);
+}
+
+/**
+ * Starts or stops the turn countdown. The one place that decides which.
+ */
+export function syncTurnTimer(
+  active: boolean,
+  startTimer: () => void,
+  stopTimer: () => void,
+): void {
+  if (active) {
+    startTimer();
+    return;
+  }
+  stopTimer();
+}
+
+export interface IncomingReactionDeps {
+  lastReactionRef: { current: number };
+  setReaction: (reaction: { id: Reaction; at: number } | null) => void;
+}
+
+/**
+ * Shows an incoming reaction, subject to the cooldown window.
+ */
+export function applyIncomingReaction(
+  deps: IncomingReactionDeps,
+  message: PeerMessage,
+): void {
+  const now = Date.now();
+  if (!shouldAcceptReaction(message, deps.lastReactionRef.current, now)) return;
+  deps.lastReactionRef.current = now;
+  deps.setReaction({ id: message.id, at: now });
+}
+
+export interface SendReactionDeps {
+  status: PeerStatus;
+  roomRef: { current: RoomClient | null };
+  lastSentReactionRef: { current: number };
+}
+
+/**
+ * Sends a reaction to the peer, subject to the cooldown window.
+ * Returns whether the reaction went out.
+ */
+export function sendSocialReaction(deps: SendReactionDeps, id: Reaction): boolean {
+  const now = Date.now();
+  if (!canSendReaction(deps.status, deps.lastSentReactionRef.current, now)) return false;
+  const sent = deps.roomRef.current?.send({ type: "social_reaction", id }) ?? false;
+  if (sent) deps.lastSentReactionRef.current = now;
+  return sent;
+}
+
+export interface LocalPauseDeps {
+  pausedRef: { current: boolean };
+  roleRef: { current: PeerRole };
+  roomRef: { current: RoomClient | null };
+  stateRef: { current: GameState };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+  setPausedState: (paused: boolean) => void;
+  stopTimer: () => void;
+  broadcastGameState: (gameState: GameState) => void;
+}
+
+/**
+ * Applies a local pause or resume: mirrors the flag, tells the guest the
+ * clock stopped, and freezes or rebuilds the deadline.
+ */
+export function applyLocalPause(deps: LocalPauseDeps, target: boolean): void {
+  // Repeat calls with the same target must not re-freeze: a second
+  // pause would recompute turnTimeRemaining off the already-stale
+  // deadline and drain it while paused (same guard as useLocalGame).
+  if (deps.pausedRef.current === target) return;
+  deps.pausedRef.current = target;
+  deps.setPausedState(target);
+  // Tell the guest the clock stopped / started. Host-authoritative: a
+  // guest never acts on its own pause here. Without this frame the guest
+  // keeps counting down against a frozen host clock (draining to 0), and
+  // any move it sends is refused — its optimistic mark vanishing with no
+  // explanation is the most confusing thing this protocol can do to a
+  // player. Sent before the isGameActive bail so the guest is never left
+  // believing the game is live when the host has already frozen it.
+  if (deps.roleRef.current === "host") {
+    deps.roomRef.current?.send({ type: "pause", paused: target });
+  }
+  const current = deps.stateRef.current;
+  if (!isGameActive(current)) return;
+  if (target) {
+    freezeLocalClock(deps, current);
+    return;
+  }
+  rebuildLocalClock(deps, current);
+}
+
+/**
+ * Freezes the exact remaining time; the resume branch rebuilds
+ * the deadline from it. Stop the interval now so no tick can
+ * fire before the active-game effect below re-runs off `paused`.
+ */
+function freezeLocalClock(deps: LocalPauseDeps, current: GameState): void {
+  deps.stopTimer();
+  const frozen = freezeGameState(current);
+  if (frozen === current) return;
+  deps.stateRef.current = frozen;
+  deps.setState((prev) => ({ ...prev, gameState: frozen }));
+}
+
+/**
+ * Rebuilds the absolute deadline from the frozen remaining time so
+ * time spent paused doesn't count down the turn. Host-only: the
+ * host owns the authoritative clock and broadcasts the rebuilt
+ * state. A guest resume must NOT rebuild — the guest's deadline
+ * stayed truthful while its display froze (the host clock kept
+ * draining), so Date.now()+frozen would overstate remaining by the
+ * pause duration (F226). Unpausing leaves the real deadline; the
+ * host's next broadcast corrects any drift.
+ */
+function rebuildLocalClock(deps: LocalPauseDeps, current: GameState): void {
+  if (deps.roleRef.current !== "host") return;
+  const rebuilt = rebuildDeadlineGameState(current);
+  if (rebuilt === current) return;
+  deps.stateRef.current = rebuilt;
+  deps.setState((prev) => ({ ...prev, gameState: rebuilt }));
+  deps.broadcastGameState(rebuilt);
+}
+
+export interface HostPauseDeps {
+  hostPausedRef: { current: boolean };
+  stateRef: { current: GameState };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+  setHostPausedState: (paused: boolean) => void;
+  stopTimer: () => void;
+}
+
+/**
+ * Guest-side response to the host's `pause` frame.
+ *
+ * Deliberately does NOT rebuild the deadline, unlike the local
+ * setPaused resume branch: the guest's deadline stayed truthful while the
+ * host's clock was stopped, so `Date.now() + frozen` would overstate the
+ * remaining time by the entire pause duration (F226). The host's resume
+ * frame and its next gameUpdate reconcile the real clock. Here we only
+ * stop the countdown draining and mirror the flag so the board disables
+ * for the same reason it does locally.
+ */
+export function applyHostPauseFrame(deps: HostPauseDeps, paused: boolean): void {
+  if (deps.hostPausedRef.current === paused) return;
+  deps.hostPausedRef.current = paused;
+  deps.setHostPausedState(paused);
+  if (!paused) return;
+  // Unpausing: the active-game effect re-runs off hostPaused and
+  // restarts the interval against the untouched deadline.
+  deps.stopTimer();
+  const current = deps.stateRef.current;
+  if (!isGameActive(current)) return;
+  const frozen = freezeGameState(current);
+  if (frozen === current) return;
+  deps.setState((prev) => ({ ...prev, gameState: frozen }));
+}
+
+export interface RoleMoveDeps {
+  role: PeerRole;
+  status: PeerStatus;
+  pausedRef: { current: boolean };
+  hostSymbolRef: { current: PlayerSymbol | null };
+  guestSymbol: PlayerSymbol | null;
+  roomRef: { current: RoomClient | null };
+  stateRef: { current: GameState };
+  pendingGuestStateRef: { current: GameState | null };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+  applyHostMove: (index: number, actor: PlayerSymbol) => void;
+}
+
+/**
+ * Commits a move for whichever side this client is.
+ */
+export function commitRoleMove(deps: RoleMoveDeps, index: number): void {
+  // Paused = game frozen (mid-game overlays); no move may commit on
+  // either side while the clock can't drain (F225).
+  if (deps.pausedRef.current) return;
+  if (deps.role === "host") {
+    // F249: no move may commit while the socket is down — commitHostState
+    // writes locally and broadcastGameState's send() returns false
+    // silently, so a reconnect-window click would diverge the boards
+    // (same gate the timer effect and the guest's sent-check use).
+    // hostSymbolRef is the single source of truth: it is assigned
+    // synchronously in startAsHost and never cleared, so state.hostSymbol
+    // can only ever lag it, never lead it (F161 — a `?? state.hostSymbol`
+    // fallback was a second null policy for the same concept). Null means
+    // the room was never initialized — never guess X and apply a move
+    // for the wrong side. No-op instead.
+    const hostSymbol = deps.hostSymbolRef.current;
+    if (!canSendHostMove(deps.status, hostSymbol)) return;
+    deps.applyHostMove(index, hostSymbol);
+    return;
+  }
+  if (deps.role === "guest") {
+    dispatchGuestMove(
+      {
+        roomRef: deps.roomRef,
+        stateRef: deps.stateRef,
+        pendingGuestStateRef: deps.pendingGuestStateRef,
+        setState: deps.setState,
+      },
+      index,
+      deps.guestSymbol,
+    );
+  }
+}
+
+export interface RematchRequestDeps {
+  role: PeerRole;
+  status: PeerStatus;
+  gameState: GameState;
+  rematchIncoming: boolean;
+  rematchPendingRef: { current: boolean };
+  hostSymbolRef: { current: PlayerSymbol | null };
+  guestSymbolRef: { current: PlayerSymbol | null };
+  roomRef: { current: RoomClient | null };
+  rematchTimeoutRef: { current: number | null };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+  clearRematchTimeout: () => void;
+  expireRematch: () => void;
+}
+
+/**
+ * Asks the opponent for another game.
+ */
+export function sendRematchRequest(deps: RematchRequestDeps): void {
+  // Either side may ask for another game — it is the same wire message
+  // with the asker's own symbol, so the receiver can name them. This
+  // requires the previous game to be over and the opponent still
+  // connected: without the status check the asker can strand itself in
+  // a pending state after the opponent leaves.
+  const ownSymbol =
+    deps.role === "host" ? deps.hostSymbolRef.current : deps.guestSymbolRef.current;
+  const gate: RematchGate = {
+    status: deps.status,
+    gameState: deps.gameState,
+    isRematchPending: deps.rematchPendingRef.current,
+    isRematchIncoming: deps.rematchIncoming,
+    ownSymbol,
+  };
+  if (!canRequestRematch(gate)) return;
+  // Only one request may be in flight, and only one prompt may be up:
+  // answering someone else's request and asking at the same time would
+  // leave both sides waiting on each other.
+  deps.rematchPendingRef.current = true;
+  deps.roomRef.current?.send({ type: "rematchRequested", requesterSymbol: gate.ownSymbol });
+  deps.clearRematchTimeout();
+  deps.rematchTimeoutRef.current = window.setTimeout(deps.expireRematch, REMATCH_TIMEOUT_MS);
+  deps.setState((prev) => ({
+    ...prev,
+    message: t("peer.waitingAccept"),
+    rematchOutgoing: true,
+  }));
+}
+
+export interface RematchAcceptDeps {
+  role: PeerRole;
+  status: PeerStatus;
+  gameState: GameState;
+  rematchIncoming: boolean;
+  roomRef: { current: RoomClient | null };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+  acceptIncomingRematch: () => void;
+}
+
+/**
+ * Answers an incoming rematch request.
+ */
+export function applyRematchAccept(deps: RematchAcceptDeps): void {
+  // The host owns the room, so accepting a guest's request is a local
+  // reset that the reset path already announces to the room. A guest
+  // asks the host to do it.
+  if (!canAcceptRematch(deps.status, deps.gameState, deps.rematchIncoming)) return;
+  if (deps.role === "host") {
+    deps.acceptIncomingRematch();
+    return;
+  }
+  deps.roomRef.current?.send({ type: "rematchAccept" });
+  deps.setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+}
+
+export interface RematchDeclineDeps {
+  rematchIncoming: boolean;
+  roomRef: { current: RoomClient | null };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+}
+
+/**
+ * Turns down an incoming rematch request.
+ */
+export function applyRematchDecline(deps: RematchDeclineDeps): void {
+  // Either side may turn the other down; declining only clears the
+  // prompt the asker raised.
+  if (!deps.rematchIncoming) return;
+  deps.roomRef.current?.send({ type: "rematchDecline" });
+  deps.setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+}
+
+export interface RematchCancelDeps {
+  rematchPendingRef: { current: boolean };
+  roomRef: { current: RoomClient | null };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+  clearRematchTimeout: () => void;
+}
+
+/**
+ * Withdraws an outgoing rematch request.
+ */
+export function applyRematchCancel(deps: RematchCancelDeps): void {
+  // Whoever asked may withdraw the ask. If no request of ours is
+  // pending there is nothing to cancel — bail out without touching the
+  // wire or local state so a stray tap is a no-op.
+  if (!deps.rematchPendingRef.current) return;
+  deps.rematchPendingRef.current = false;
+  deps.clearRematchTimeout();
+  deps.roomRef.current?.send({ type: "rematchCancel" });
+  deps.setState((prev) => ({ ...prev, message: "", rematchOutgoing: false }));
+}
+
+export interface ExpireRematchDeps {
+  rematchTimeoutRef: { current: number | null };
+  rematchPendingRef: { current: boolean };
+  roomRef: { current: RoomClient | null };
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+}
+
+/**
+ * Gives up on a rematch request nobody answered.
+ */
+export function expireRematchRequest(deps: ExpireRematchDeps): void {
+  deps.rematchTimeoutRef.current = null;
+  if (!deps.rematchPendingRef.current) return;
+  deps.rematchPendingRef.current = false;
+  deps.roomRef.current?.send({ type: "rematchCancel" });
+  deps.setState((prev) => ({
+    ...prev,
+    message: t("peer.rematchExpired"),
+    rematchOutgoing: false,
+  }));
+}
+
+export interface PeerRoomEventDeps {
+  setReaction: (reaction: { id: Reaction; at: number } | null) => void;
+  handleRelayEvent: (event: { type: string; [k: string]: unknown }) => void;
+}
+
+/**
+ * Relay-event entry point: a departed peer takes the reaction overlay with it.
+ */
+export function handlePeerRoomEvent(
+  deps: PeerRoomEventDeps,
+  event: { type: string; [k: string]: unknown },
+): void {
+  if (event.type === "peer-left") deps.setReaction(null);
+  deps.handleRelayEvent(event);
+}
+
+export interface LeaveRoomDeps {
+  setReaction: (reaction: { id: Reaction; at: number } | null) => void;
+  teardown: () => void;
+  pausedRef: { current: boolean };
+  setPausedState: (paused: boolean) => void;
+  hostPausedRef: { current: boolean };
+  setHostPausedState: (paused: boolean) => void;
+  resetRoomScopedRefs: () => void;
+  setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
+}
+
+/**
+ * Leaves the room: closes the connection, clears the pause flags and the
+ * room-scoped protocol state, and tells the surface the user is out.
+ */
+export function leavePeerRoom(deps: LeaveRoomDeps): void {
+  deps.setReaction(null);
+  deps.teardown();
+  deps.pausedRef.current = false;
+  deps.setPausedState(false);
+  deps.hostPausedRef.current = false;
+  deps.setHostPausedState(false);
+  // Room-scoped sync state dies with the room — a fresh room must not
+  // inherit the joined flag or a still-running reply cooldown.
+  // F241: pending identity edits are room-scoped — never let them leak
+  // into the next room's rematch.
+  // The remaining room-scoped values, matching what room ENTRY clears in
+  // roomLifecycle (startAsHost / joinAsGuest). Leaving without these let the
+  // next room inherit a reconnect move-count from the last one — which
+  // suppresses the full-deadline reset a reconnect should get — plus a
+  // rollback snapshot and a sync flag that belong to a room that is gone.
+  deps.resetRoomScopedRefs();
+  deps.setState((prev) => ({
+    ...prev,
+    status: "disconnected",
+    queue: "none",
+    message: t("peer.youLeft"),
+    rematchIncoming: false,
+    rematchOutgoing: false,
+    leftBySelf: true,
+  }));
 }
 
 export function usePeerRoom(options: PeerRoomOptions) {
@@ -299,18 +715,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const lastReactionRef = useRef(0);
   const lastSentReactionRef = useRef(0);
   const handleSocial = useCallback((message: PeerMessage) => {
-    const now = Date.now();
-    if (shouldAcceptReaction(message, lastReactionRef.current, now)) {
-      lastReactionRef.current = now;
-      setReaction({ id: message.id, at: now });
-    }
+    applyIncomingReaction({ lastReactionRef, setReaction }, message);
   }, []);
   const sendReaction = useCallback((id: Reaction) => {
-    const now = Date.now();
-    if (!canSendReaction(state.status, lastSentReactionRef.current, now)) return false;
-    const sent = roomRef.current?.send({ type: "social_reaction", id }) ?? false;
-    if (sent) lastSentReactionRef.current = now;
-    return sent;
+    return sendSocialReaction(
+      { status: state.status, roomRef, lastSentReactionRef },
+      id,
+    );
   }, [state.status]);
   const stateRef = useRef<GameState>(initialState.gameState);
   const hostSymbolRef = useRef<PlayerSymbol | null>(null);
@@ -412,81 +823,30 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   const setPaused = useCallback(
     (target: boolean) => {
-      // Repeat calls with the same target must not re-freeze: a second
-      // pause would recompute turnTimeRemaining off the already-stale
-      // deadline and drain it while paused (same guard as useLocalGame).
-      if (pausedRef.current === target) return;
-      pausedRef.current = target;
-      setPausedState(target);
-      // Tell the guest the clock stopped / started. Host-authoritative: a
-      // guest never acts on its own pause here. Without this frame the guest
-      // keeps counting down against a frozen host clock (draining to 0), and
-      // any move it sends is refused — its optimistic mark vanishing with no
-      // explanation is the most confusing thing this protocol can do to a
-      // player. Sent before the isGameActive bail so the guest is never left
-      // believing the game is live when the host has already frozen it.
-      if (roleRef.current === "host") {
-        roomRef.current?.send({ type: "pause", paused: target });
-      }
-      const current = stateRef.current;
-      if (!isGameActive(current)) return;
-      if (target) {
-        // Freeze the exact remaining time; the resume branch rebuilds
-        // the deadline from it. Stop the interval now so no tick can
-        // fire before the active-game effect below re-runs off `paused`.
-        stopTimer();
-        const frozen = freezeGameState(current);
-        if (frozen !== current) {
-          stateRef.current = frozen;
-          setState((prev) => ({ ...prev, gameState: frozen }));
-        }
-        return;
-      }
-      // Rebuild the absolute deadline from the frozen remaining time so
-      // time spent paused doesn't count down the turn. Host-only: the
-      // host owns the authoritative clock and broadcasts the rebuilt
-      // state. A guest resume must NOT rebuild — the guest's deadline
-      // stayed truthful while its display froze (the host clock kept
-      // draining), so Date.now()+frozen would overstate remaining by the
-      // pause duration (F226). Unpausing leaves the real deadline; the
-      // host's next broadcast corrects any drift.
-      if (roleRef.current !== "host") return;
-      const rebuilt = rebuildDeadlineGameState(current);
-      if (rebuilt !== current) {
-        stateRef.current = rebuilt;
-        setState((prev) => ({ ...prev, gameState: rebuilt }));
-        broadcastGameState(rebuilt);
-      }
+      applyLocalPause(
+        {
+          pausedRef,
+          roleRef,
+          roomRef,
+          stateRef,
+          setState,
+          setPausedState,
+          stopTimer,
+          broadcastGameState,
+        },
+        target,
+      );
     },
     [broadcastGameState, stopTimer],
   );
 
   const hostPausedRef = useRef(false);
-  /** Guest-side response to the host's `pause` frame.
-   *
-   *  Deliberately does NOT rebuild the deadline, unlike the local
-   *  setPaused resume branch: the guest's deadline stayed truthful while the
-   *  host's clock was stopped, so `Date.now() + frozen` would overstate the
-   *  remaining time by the entire pause duration (F226). The host's resume
-   *  frame and its next gameUpdate reconcile the real clock. Here we only
-   *  stop the countdown draining and mirror the flag so the board disables
-   *  for the same reason it does locally. */
   const applyHostPause = useCallback(
     (paused: boolean) => {
-      if (hostPausedRef.current === paused) return;
-      hostPausedRef.current = paused;
-      setHostPausedState(paused);
-      if (paused) {
-        stopTimer();
-        const current = stateRef.current;
-        if (!isGameActive(current)) return;
-        const frozen = freezeGameState(current);
-        if (frozen !== current) {
-          setState((prev) => ({ ...prev, gameState: frozen }));
-        }
-      }
-      // Unpausing: the active-game effect re-runs off hostPaused and
-      // restarts the interval against the untouched deadline.
+      applyHostPauseFrame(
+        { hostPausedRef, stateRef, setState, setHostPausedState, stopTimer },
+        paused,
+      );
     },
     [stopTimer],
   );
@@ -496,11 +856,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
   }, []);
 
   const expireRematch = useCallback(() => {
-    rematchTimeoutRef.current = null;
-    if (!rematchPendingRef.current) return;
-    rematchPendingRef.current = false;
-    roomRef.current?.send({ type: "rematchCancel" });
-    setState((prev) => ({ ...prev, message: t("peer.rematchExpired"), rematchOutgoing: false }));
+    expireRematchRequest({
+      rematchTimeoutRef,
+      rematchPendingRef,
+      roomRef,
+      setState,
+    });
   }, []);
 
   const hostDeps = useCallback(
@@ -565,8 +926,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
   const handleWsEvent = useCallback(
     (event: { type: string; [k: string]: unknown }) => {
-      if (event.type === "peer-left") setReaction(null);
-      handleRelayEvent(relayDeps(), event);
+      handlePeerRoomEvent(
+        {
+          setReaction,
+          handleRelayEvent: (relayEvent) => handleRelayEvent(relayDeps(), relayEvent),
+        },
+        event,
+      );
     },
     [relayDeps],
   );
@@ -657,66 +1023,40 @@ export function usePeerRoom(options: PeerRoomOptions) {
 
   const sendMove = useCallback(
     (index: number) => {
-      // Paused = game frozen (mid-game overlays); no move may commit on
-      // either side while the clock can't drain (F225).
-      if (pausedRef.current) return;
-      if (state.role === "host") {
-        // F249: no move may commit while the socket is down — commitHostState
-        // writes locally and broadcastGameState's send() returns false
-        // silently, so a reconnect-window click would diverge the boards
-        // (same gate the timer effect and the guest's sent-check use).
-        // hostSymbolRef is the single source of truth: it is assigned
-        // synchronously in startAsHost and never cleared, so state.hostSymbol
-        // can only ever lag it, never lead it (F161 — a `?? state.hostSymbol`
-        // fallback was a second null policy for the same concept). Null means
-        // the room was never initialized — never guess X and apply a move
-        // for the wrong side. No-op instead.
-        const hostSymbol = hostSymbolRef.current;
-        if (!canSendHostMove(state.status, hostSymbol)) return;
-        applyHostMove(index, hostSymbol);
-        return;
-      }
-      if (state.role === "guest") {
-        dispatchGuestMove(
-          { roomRef, stateRef, pendingGuestStateRef, setState },
-          index,
-          state.guestSymbol,
-        );
-      }
+      commitRoleMove(
+        {
+          role: state.role,
+          status: state.status,
+          pausedRef,
+          hostSymbolRef,
+          guestSymbol: state.guestSymbol,
+          roomRef,
+          stateRef,
+          pendingGuestStateRef,
+          setState,
+          applyHostMove,
+        },
+        index,
+      );
     },
     [applyHostMove, state.guestSymbol, state.role, state.status],
   );
 
   const requestRematch = useCallback(() => {
-    // Either side may ask for another game — it is the same wire message
-    // with the asker's own symbol, so the receiver can name them. This
-    // requires the previous game to be over and the opponent still
-    // connected: without the status check the asker can strand itself in
-    // a pending state after the opponent leaves.
-    const ownSymbol = state.role === "host" ? hostSymbolRef.current : guestSymbolRef.current;
-    if (
-      !canRequestRematch(
-        state.status,
-        state.gameState,
-        rematchPendingRef.current,
-        state.rematchIncoming,
-        ownSymbol,
-      )
-    ) {
-      return;
-    }
-    // Only one request may be in flight, and only one prompt may be up:
-    // answering someone else's request and asking at the same time would
-    // leave both sides waiting on each other.
-    rematchPendingRef.current = true;
-    roomRef.current?.send({ type: "rematchRequested", requesterSymbol: ownSymbol });
-    clearRematchTimeout();
-    rematchTimeoutRef.current = window.setTimeout(expireRematch, REMATCH_TIMEOUT_MS);
-    setState((prev) => ({
-      ...prev,
-      message: t("peer.waitingAccept"),
-      rematchOutgoing: true,
-    }));
+    sendRematchRequest({
+      role: state.role,
+      status: state.status,
+      gameState: state.gameState,
+      rematchIncoming: state.rematchIncoming,
+      rematchPendingRef,
+      hostSymbolRef,
+      guestSymbolRef,
+      roomRef,
+      rematchTimeoutRef,
+      setState,
+      clearRematchTimeout,
+      expireRematch,
+    });
   }, [
     state.role,
     state.status,
@@ -727,16 +1067,15 @@ export function usePeerRoom(options: PeerRoomOptions) {
   ]);
 
   const acceptRematch = useCallback(() => {
-    // The host owns the room, so accepting a guest's request is a local
-    // reset that the reset path already announces to the room. A guest
-    // asks the host to do it.
-    if (!canAcceptRematch(state.status, state.gameState, state.rematchIncoming)) return;
-    if (state.role === "host") {
-      acceptIncomingRematch(hostDeps());
-      return;
-    }
-    roomRef.current?.send({ type: "rematchAccept" });
-    setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+    applyRematchAccept({
+      role: state.role,
+      status: state.status,
+      gameState: state.gameState,
+      rematchIncoming: state.rematchIncoming,
+      roomRef,
+      setState,
+      acceptIncomingRematch: () => acceptIncomingRematch(hostDeps()),
+    });
   }, [
     state.role,
     state.status,
@@ -746,22 +1085,11 @@ export function usePeerRoom(options: PeerRoomOptions) {
   ]);
 
   const declineRematch = useCallback(() => {
-    // Either side may turn the other down; declining only clears the
-    // prompt the asker raised.
-    if (!state.rematchIncoming) return;
-    roomRef.current?.send({ type: "rematchDecline" });
-    setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+    applyRematchDecline({ rematchIncoming: state.rematchIncoming, roomRef, setState });
   }, [state.rematchIncoming]);
 
   const cancelRematch = useCallback(() => {
-    // Whoever asked may withdraw the ask. If no request of ours is
-    // pending there is nothing to cancel — bail out without touching the
-    // wire or local state so a stray tap is a no-op.
-    if (!rematchPendingRef.current) return;
-    rematchPendingRef.current = false;
-    clearRematchTimeout();
-    roomRef.current?.send({ type: "rematchCancel" });
-    setState((prev) => ({ ...prev, message: "", rematchOutgoing: false }));
+    applyRematchCancel({ rematchPendingRef, roomRef, setState, clearRematchTimeout });
   }, [clearRematchTimeout]);
 
   const teardownDeps = useCallback(
@@ -780,38 +1108,24 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
 
   const leave = useCallback(() => {
-    setReaction(null);
-    teardownActiveRoom(teardownDeps(), "on leave");
-    pausedRef.current = false;
-    setPausedState(false);
-    hostPausedRef.current = false;
-    setHostPausedState(false);
-    // Room-scoped sync state dies with the room — a fresh room must not
-    // inherit the joined flag or a still-running reply cooldown.
-    // F241: pending identity edits are room-scoped — never let them leak
-    // into the next room's rematch.
-    // The remaining room-scoped values, matching what room ENTRY clears in
-    // roomLifecycle (startAsHost / joinAsGuest). Leaving without these let the
-    // next room inherit a reconnect move-count from the last one — which
-    // suppresses the full-deadline reset a reconnect should get — plus a
-    // rollback snapshot and a sync flag that belong to a room that is gone.
-    resetRoomScopedRefs({
-      guestJoinedRef,
-      lastSyncReplyAtRef,
-      hostPendingSettingsRef,
-      reconnectResetsRef,
-      pendingGuestStateRef,
-      syncPendingRef,
+    leavePeerRoom({
+      setReaction,
+      teardown: () => teardownActiveRoom(teardownDeps(), "on leave"),
+      pausedRef,
+      setPausedState,
+      hostPausedRef,
+      setHostPausedState,
+      resetRoomScopedRefs: () =>
+        resetRoomScopedRefs({
+          guestJoinedRef,
+          lastSyncReplyAtRef,
+          hostPendingSettingsRef,
+          reconnectResetsRef,
+          pendingGuestStateRef,
+          syncPendingRef,
+        }),
+      setState,
     });
-    setState((prev) => ({
-      ...prev,
-      status: "disconnected",
-      queue: "none",
-      message: t("peer.youLeft"),
-      rematchIncoming: false,
-      rematchOutgoing: false,
-      leftBySelf: true,
-    }));
   }, [teardownDeps]);
 
   useEffect(() => {
@@ -819,11 +1133,17 @@ export function usePeerRoom(options: PeerRoomOptions) {
     // and a forced-move broadcast is silently dropped (RoomClient.send →
     // false), applying a move locally the peer never sees — permanent
     // host/guest divergence (fleet needs-work 2026-09-07 P1 + 09-08 P2).
-    if (shouldRunTurnTimer(state.role, state.status, paused, hostPaused, stateRef.current)) {
-      startTimer();
-    } else {
-      stopTimer();
-    }
+    syncTurnTimer(
+      shouldRunTurnTimer({
+        role: state.role,
+        status: state.status,
+        paused,
+        hostPaused,
+        gameState: stateRef.current,
+      }),
+      startTimer,
+      stopTimer,
+    );
     return () => stopTimer();
   }, [
     state.role,

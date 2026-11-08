@@ -10,6 +10,7 @@ import {
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import type { PeerMessage } from "@/lib/peer.wire";
+import { SYNC_REPLY_COOLDOWN_MS } from "@/lib/room-protocol/hostProtocol";
 import type { RoomClient } from "@/lib/roomClient";
 import type { PendingPlayerSettings } from "./usePeerRoom";
 import {
@@ -189,21 +190,18 @@ describe("usePeerRoom helpers", () => {
     });
 
     it("evaluates canRequestRematch correctly", () => {
-      expect(
-        canRequestRematch("connected", completedGame, false, false, PlayerSymbol.X),
-      ).toBe(true);
-      expect(
-        canRequestRematch("disconnected", completedGame, false, false, PlayerSymbol.X),
-      ).toBe(false);
-      expect(
-        canRequestRematch("connected", completedGame, true, false, PlayerSymbol.X),
-      ).toBe(false);
-      expect(
-        canRequestRematch("connected", completedGame, false, true, PlayerSymbol.X),
-      ).toBe(false);
-      expect(
-        canRequestRematch("connected", completedGame, false, false, null),
-      ).toBe(false);
+      const gate = {
+        status: "connected" as const,
+        gameState: completedGame,
+        isRematchPending: false,
+        isRematchIncoming: false,
+        ownSymbol: PlayerSymbol.X,
+      };
+      expect(canRequestRematch(gate)).toBe(true);
+      expect(canRequestRematch({ ...gate, status: "disconnected" })).toBe(false);
+      expect(canRequestRematch({ ...gate, isRematchPending: true })).toBe(false);
+      expect(canRequestRematch({ ...gate, isRematchIncoming: true })).toBe(false);
+      expect(canRequestRematch({ ...gate, ownSymbol: null })).toBe(false);
     });
 
     it("evaluates canAcceptRematch correctly", () => {
@@ -253,7 +251,14 @@ describe("usePeerRoom helpers", () => {
       resetRoomScopedRefs(refs);
 
       expect(refs.guestJoinedRef.current).toBe(false);
-      expect(refs.lastSyncReplyAtRef.current).toBeLessThan(0);
+      // The throttle is disarmed: the last reply counts as one full window
+      // ago, so the next pull is answered immediately. The old assertion
+      // ("less than zero") only held while the suite ran in the first
+      // second of the process — `performance.now() - 1000` turns positive
+      // as soon as the suite takes longer than that.
+      expect(refs.lastSyncReplyAtRef.current).toBeLessThanOrEqual(
+        performance.now() - SYNC_REPLY_COOLDOWN_MS,
+      );
       expect(refs.hostPendingSettingsRef.current).toBeNull();
       expect(refs.reconnectResetsRef.current.moveCount).toBe(-1);
       expect(refs.pendingGuestStateRef.current).toBeNull();
@@ -330,17 +335,27 @@ describe("usePeerRoom helpers", () => {
     };
 
     it("returns true only when game is active, connected, and unpaused for host or guest", () => {
-      expect(shouldRunTurnTimer("host", "connected", false, false, activeGame)).toBe(true);
-      expect(shouldRunTurnTimer("guest", "connected", false, false, activeGame)).toBe(true);
-      expect(shouldRunTurnTimer(null, "connected", false, false, activeGame)).toBe(false);
-      expect(shouldRunTurnTimer("host", "reconnecting", false, false, activeGame)).toBe(false);
-      expect(shouldRunTurnTimer("host", "connected", true, false, activeGame)).toBe(false);
-      expect(shouldRunTurnTimer("host", "connected", false, true, activeGame)).toBe(false);
+      const gate = {
+        role: "host" as const,
+        status: "connected" as const,
+        paused: false,
+        hostPaused: false,
+        gameState: activeGame,
+      };
+      expect(shouldRunTurnTimer(gate)).toBe(true);
+      expect(shouldRunTurnTimer({ ...gate, role: "guest" })).toBe(true);
+      expect(shouldRunTurnTimer({ ...gate, role: null })).toBe(false);
+      expect(shouldRunTurnTimer({ ...gate, status: "reconnecting" })).toBe(false);
+      expect(shouldRunTurnTimer({ ...gate, paused: true })).toBe(false);
+      expect(shouldRunTurnTimer({ ...gate, hostPaused: true })).toBe(false);
       expect(
-        shouldRunTurnTimer("host", "connected", false, false, {
-          ...activeGame,
-          gameStatus: GameStatus.COMPLETED,
-          winner: PlayerSymbol.X,
+        shouldRunTurnTimer({
+          ...gate,
+          gameState: {
+            ...activeGame,
+            gameStatus: GameStatus.COMPLETED,
+            winner: PlayerSymbol.X,
+          },
         }),
       ).toBe(false);
     });
