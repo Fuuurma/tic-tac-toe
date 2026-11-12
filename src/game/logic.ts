@@ -235,8 +235,11 @@ export const makeMove = (
     lastMoveIndex: index,
     moveCount: state.moveCount + 1,
     gameStatus: winner ? GameStatus.COMPLETED : GameStatus.ACTIVE,
-    turnTimeRemaining: TURN_DURATION_MS,
-    turnDeadlineAt: now + TURN_DURATION_MS,
+    // F135: a finished game has no turn clock. The dead state is spelled
+    // out rather than omitted — an absent turnTimeRemaining reads as the
+    // full budget to rebuildDeadline, minting a fresh deadline on game-over.
+    turnTimeRemaining: winner ? 0 : TURN_DURATION_MS,
+    turnDeadlineAt: winner ? undefined : now + TURN_DURATION_MS,
     turnNotice: undefined,
   };
 };

@@ -6,6 +6,7 @@ import {
   GameStatus,
   PlayerSymbol,
   PLAYER_CONFIG,
+  TURN_DURATION_MS,
   oppositeSymbol,
   oppositeColor,
 } from "@/game/constants";
@@ -259,6 +260,28 @@ describe("makeMove (3-piece cap rule)", () => {
     expect(2 * s.maxMoves).toBeLessThan(9);
     // And the game stays active until a win, never completing without one.
     expect(s.winner === null).toBe(s.gameStatus === "ACTIVE");
+  });
+});
+
+// F135: a finished game must not carry a live turn clock. The completing
+// move stamped a fresh TURN_DURATION_MS deadline unconditionally; every
+// current consumer gates on isGameActive, but the state itself claimed a
+// running 10s turn on game-over — a lie any future reader would render.
+describe("makeMove turn clock", () => {
+  it("leaves no live deadline on the completing move (F135)", () => {
+    let s = activeState();
+    const t0 = 1_000;
+    for (const move of [0, 3, 1, 4]) s = makeMove(s, move, t0)!;
+    // A live turn still stamps the full budget for the next player.
+    expect(s.turnTimeRemaining).toBe(TURN_DURATION_MS);
+    expect(s.turnDeadlineAt).toBe(t0 + TURN_DURATION_MS);
+
+    s = makeMove(s, 2, t0 + 500)!;
+    expect(s.winner).toBe(PlayerSymbol.X);
+    expect(s.gameStatus).toBe(GameStatus.COMPLETED);
+    // Nothing remains and no deadline exists on the finished game.
+    expect(s.turnTimeRemaining).toBe(0);
+    expect(s.turnDeadlineAt).toBeUndefined();
   });
 });
 
