@@ -21,7 +21,12 @@ export function SocialReactions({ ready, reaction, send }: { ready: boolean; rea
     return () => { window.clearTimeout(show); window.clearTimeout(hide); };
   }, [reaction, muted]);
   const index = reaction ? REACTIONS.indexOf(reaction.id) : -1;
-  return <div className="relative z-10 flex items-center justify-end gap-2 px-3 max-sm:order-3">
+  // z-30: the picker's `absolute z-50` dropdown competes inside THIS
+  // stacking context, so the row's own z-index is the layer the open menu
+  // paints at. It must out-stack PlayersPanel's z-20 root (the panel was
+  // swallowing the menu's clicks) and stay under the sheet overlays at
+  // z-50.
+  return <div className="relative z-30 flex items-center justify-end gap-2 px-3 max-sm:order-3">
     <span role="status" aria-live="polite" className="text-sm">{!muted && visible && index >= 0 ? `${icons[index]} ${labels.labels[index]}` : notice}</span>
     <button type="button" className="rounded-lg border px-3 py-2 text-sm" onClick={() => { const next = !muted; setMuted(next); try { localStorage.setItem(KEY, next ? "1" : "0"); } catch { /* storage unavailable */ } }} aria-pressed={muted}>{muted ? labels.unmute : labels.mute}</button>
     <details className="relative">

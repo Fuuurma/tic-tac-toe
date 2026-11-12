@@ -729,3 +729,39 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
     expect(onExit).toHaveBeenCalled();
   });
 });
+
+describe("OnlineGameSurface reactions picker stacking", () => {
+  // The picker's dropdown is `absolute z-50`, but z-index competes inside
+  // the nearest stacking context — the reactions row's own `relative z-*`.
+  // The row sat at z-10 while PlayersPanel's root is z-20, so the open menu
+  // painted under the panel and the panel ate its clicks (the quick-match
+  // spec caught it). The row must out-stack the panel yet stay under the
+  // sheet overlays at z-50.
+  const zIndex = (el: Element): number => {
+    const match = el.className.match(/\bz-\[(\d+)\]|\bz-(\d+)\b/);
+    return match ? Number(match[1] ?? match[2]) : 0;
+  };
+
+  it("stacks the reactions row above the players panel, below sheet overlays", () => {
+    mocks.usePeerRoom.mockReturnValue(makePeer("host"));
+    const { container } = render(
+      <OnlineGameSurface config={config} onExit={vi.fn()} />,
+    );
+
+    const surface = container.firstElementChild as HTMLElement;
+    const reactionsRow = screen
+      .getByRole("button", { name: "Mute reactions" })
+      .parentElement as HTMLElement;
+    const toolbar = screen.getByRole("toolbar", { name: "Game actions" });
+    const panel = [...surface.children].find(
+      (el): el is HTMLElement =>
+        el instanceof HTMLElement && el.contains(toolbar),
+    );
+    expect(panel).toBeTruthy();
+
+    const panelZ = zIndex(panel as HTMLElement);
+    expect(panelZ).toBeGreaterThan(0);
+    expect(zIndex(reactionsRow)).toBeGreaterThan(panelZ);
+    expect(zIndex(reactionsRow)).toBeLessThan(50);
+  });
+});

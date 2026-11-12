@@ -63,6 +63,17 @@ test("quick match pairs two players", async ({ browser }) => {
   await guestPage.getByRole("button", { name: "Mute reactions" }).click();
   await expect(guestPage.getByRole("status").filter({ hasText: "Hello!" })).toHaveCount(0);
 
+  // The picker must stay clickable at phone width too: the guest (390px)
+  // opens it and sends a reaction the host sees. Muting is receive-side
+  // only, so it does not block sending.
+  await guestPage.getByText("Reactions", { exact: true }).click();
+  const goodLuck = guestPage.getByRole("button", { name: "🍀 Good luck!" });
+  await expect(goodLuck).toBeEnabled();
+  await goodLuck.click();
+  await expect(
+    hostPage.getByRole("status").filter({ hasText: "Good luck!" }),
+  ).toBeVisible();
+
   // Host plays top-left
   await hostPage.getByRole("button", { name: "Row 1 column 1" }).click();
   await expect(
