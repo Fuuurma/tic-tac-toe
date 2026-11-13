@@ -202,6 +202,22 @@ export function Sheet({
     };
   }, [isVisible, inline]);
 
+  // Backdrop dismissal is a pointer affordance, not a control: keyboard users
+  // already have Esc (the dialog's cancel event on the modal path, the
+  // keydown effect above on the inline path) and the header close button.
+  // The click listeners therefore live on the elements themselves rather
+  // than as JSX handlers on elements that are not interactive.
+  useEffect(() => {
+    const backdrop: HTMLElement | null =
+      inline && !phoneOverlay ? scrimRef.current : dialogRef.current;
+    if (!backdrop) return;
+    const onBackdropClick = (event: MouseEvent) => {
+      if (event.target === event.currentTarget) onCloseRef.current();
+    };
+    backdrop.addEventListener("click", onBackdropClick);
+    return () => backdrop.removeEventListener("click", onBackdropClick);
+  }, [isVisible, inline, phoneOverlay]);
+
   const finishExitAnimation = (event: AnimationEvent<HTMLDialogElement>) => {
     if (event.target !== event.currentTarget || !isExiting) return;
     if (event.animationName === "sheet-down" || event.animationName === "pop-out") {
@@ -335,9 +351,6 @@ export function Sheet({
           "fixed inset-0 z-50 flex justify-center bg-overlay-scrim transition-opacity duration-[340ms] sm:absolute sm:duration-[220ms]",
           isExiting && "opacity-0",
         )}
-        onClick={(e) => {
-          if (e.target === scrimRef.current) onClose();
-        }}
       >
         <dialog
           ref={dialogRef}
@@ -362,10 +375,6 @@ export function Sheet({
       onCancel={(e) => {
         e.preventDefault();
         onCloseRef.current();
-      }}
-      onClick={(e) => {
-        // A modal dialog's backdrop click targets the dialog element itself.
-        if (e.target === dialogRef.current) onClose();
       }}
       onAnimationEnd={finishExitAnimation}
       className={cn(panelClass, "backdrop:bg-overlay-scrim", isExiting && "sheet-exiting")}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Sheet } from "./sheet";
 
 /**
@@ -76,6 +76,46 @@ describe("Sheet inline phone overlay (F793)", () => {
     expect(showModal).not.toHaveBeenCalled();
     // Inline presentation: the dialog sits inside the scrim wrapper.
     expect(container.firstElementChild?.tagName).toBe("DIV");
+  });
+});
+
+describe("Sheet backdrop dismissal", () => {
+  // The backdrop click is a pointer affordance on a non-interactive
+  // element; these pin that it still dismisses while clicks inside the
+  // panel do not.
+  it("closes on a backdrop click but not on a click inside the panel (modal)", () => {
+    stubPointerWidth(false);
+    const onClose = vi.fn();
+
+    const { container } = render(
+      <Sheet open onClose={onClose} title="How to play" closeLabel="Close help">
+        <p>Rules</p>
+      </Sheet>,
+    );
+
+    fireEvent.click(screen.getByText("Rules"));
+    expect(onClose).not.toHaveBeenCalled();
+
+    // A modal dialog's backdrop click targets the dialog element itself.
+    fireEvent.click(container.querySelector("dialog") as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on a scrim click but not on a click inside the panel (inline)", () => {
+    stubPointerWidth(false);
+    const onClose = vi.fn();
+
+    const { container } = render(
+      <Sheet open onClose={onClose} inline title="How to play" closeLabel="Close help">
+        <p>Rules</p>
+      </Sheet>,
+    );
+
+    fireEvent.click(screen.getByText("Rules"));
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(container.firstElementChild as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
