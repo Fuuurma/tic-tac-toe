@@ -10,3 +10,7 @@ trustPolicyIgnoreAfter: 43200
 overrides:
   "sharp": "^0.35.4"
   "brace-expansion": "^5.0.12"
+  # GHSA-g3hv-75wg-m249 (moderate, dev-only): globparts amplification DoS;
+  # patched >=11.0.1. eslint 10.x's own floor (^10.2.6) cannot reach it,
+  # so pin the floor here like sharp and brace-expansion.
+  "minimatch": "^11.0.8"
