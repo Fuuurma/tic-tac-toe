@@ -1,9 +1,10 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
   TURN_DURATION_MS,
   type AI_Difficulty as AI_DifficultyType,
+  type Color,
   GameMode,
   GameModes,
   GameStatus,
@@ -22,7 +23,7 @@ import { SymbolShapeRenderer } from "./symbolShapeRenderer";
 import { cn } from "@/lib/utils";
 import { getDifficultyLabel, getModeLabel, t, useStrings } from "@/i18n/language";
 import { Check as CheckIcon, Copy as CopyIcon } from "lucide";
-import { Crown, Flame, LogOut, Pencil, RotateCcw, Settings2 } from "lucide-react";
+import { Crown, Flame, LogOut, Pencil, RotateCcw, Settings2, type LucideIcon } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
 import { ThinkingOrb } from "thinking-orbs";
 
@@ -135,25 +136,8 @@ export function PlayersPanel({
   const freshGame = gameState.moveCount === 0;
   const showExit = showExitStored && !freshGame;
   const showNewGame = showNewGameStored && !freshGame;
-  const [copiedRoom, setCopiedRoom] = useState(false);
-  const [copyError, setCopyError] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
-
-  const copyRoomCode = async () => {
-    if (!roomCode) return;
-    try {
-      await navigator.clipboard.writeText(roomCode);
-      setCopyError(false);
-      setCopiedRoom(true);
-      window.setTimeout(() => setCopiedRoom(false), COPY_FLASH_MS);
-    } catch {
-      // The other two copy affordances on this screen both say when the
-      // clipboard refused; this one used to fail silently, leaving the reader
-      // pressing a button that appeared to work.
-      setCopyError(true);
-    }
-  };
+  const panelSize = usePanelSize(panelRef);
 
   // Subscribes so a language switch re-renders the HUD.
   useStrings();
@@ -173,20 +157,10 @@ export function PlayersPanel({
   // Confirm close through isActive without calling onCancel, so discard both
   // stored prompts as the round ends or a fresh round starts. Adjusting this
   // state during render avoids the set-state-in-effect cascading render.
-  const [previousLifecycle, setPreviousLifecycle] = useState({
-    isActive,
-    freshGame,
+  useConfirmReset(isActive, freshGame, () => {
+    setShowExit(false);
+    setShowNewGame(false);
   });
-  if (
-    previousLifecycle.isActive !== isActive ||
-    previousLifecycle.freshGame !== freshGame
-  ) {
-    setPreviousLifecycle({ isActive, freshGame });
-    if (!isActive || freshGame) {
-      setShowExit(false);
-      setShowNewGame(false);
-    }
-  }
 
   // The panel owns only the pause caused by these confirmation sheets. When
   // round state invalidates one, release that pause in the parent as well.
@@ -214,35 +188,14 @@ export function PlayersPanel({
     };
   }, [freshGame, isActive]);
 
-  const activePlayer = gameState.players[gameState.currentPlayer];
-  const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
-  const activeLabel = isAITurn
-    ? t("game.thinking", { name: activePlayer.username || t("settings.aiFallback") })
-    : t("game.turn", { name: activePlayer.username || t("game.playerFallback") });
+  const { isAITurn, activeLabel } = useActivePlayer(gameState);
 
-  const humanPlayer = Object.values(gameState.players).find(
-    (p) => p.type !== PlayerTypes.COMPUTER,
-  );
-  const humanColor = humanPlayer ? COLOR_RGB[humanPlayer.color] : "255 255 255";
-
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
-
-    const updateSize = () => {
-      const { width, height } = panel.getBoundingClientRect();
-      setPanelSize((current) =>
-        current.width === width && current.height === height
-          ? current
-          : { width, height },
-      );
-    };
-
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(panel);
-    return () => observer.disconnect();
-  }, []);
+  // The panel owns only the pause a confirmation sheet causes; arming and
+  // releasing it is one fact, so the click and confirm paths share it.
+  const setConfirmPause = (paused: boolean) => {
+    confirmPauseRef.current = paused;
+    onPauseChange?.(paused);
+  };
 
   // A fresh game (moveCount 0) has nothing to confirm either, and `showNewGame`
   // / `showExit` deliberately suppress the dialog for it. Arming the pause here
@@ -255,8 +208,7 @@ export function PlayersPanel({
       return;
     }
     setShowNewGame(true);
-    confirmPauseRef.current = true;
-    onPauseChange?.(true);
+    setConfirmPause(true);
   };
 
   const handleExitClick = () => {
@@ -265,8 +217,29 @@ export function PlayersPanel({
       return;
     }
     setShowExit(true);
-    confirmPauseRef.current = true;
-    onPauseChange?.(true);
+    setConfirmPause(true);
+  };
+
+  const handleExitConfirm = () => {
+    setShowExit(false);
+    setConfirmPause(false);
+    onExit();
+  };
+
+  const handleExitCancel = () => {
+    setShowExit(false);
+    setConfirmPause(false);
+  };
+
+  const handleNewGameConfirm = () => {
+    setShowNewGame(false);
+    setConfirmPause(false);
+    onNewGame?.();
+  };
+
+  const handleNewGameCancel = () => {
+    setShowNewGame(false);
+    setConfirmPause(false);
   };
 
   return (
@@ -288,282 +261,43 @@ export function PlayersPanel({
       )}
     >
       {isActive && (
-        <>
-          {/* Phones drop the bump-tab ring and mask: the ring pokes above
-              the HUD into the status bar, and the number carries the time. */}
-          <div
-            aria-hidden="true"
-            className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-2xl !border-0 max-sm:hidden"
-            style={{
-              WebkitMaskImage:
-                "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
-              maskImage:
-                "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
-              WebkitMaskSize: "100% 48px, 100% calc(100% - 24px)",
-              maskSize: "100% 48px, 100% calc(100% - 24px)",
-              WebkitMaskPosition: "0 0, 0 24px",
-              maskPosition: "0 0, 0 24px",
-              WebkitMaskRepeat: "no-repeat",
-              maskRepeat: "no-repeat",
-            }}
-          />
-          {panelSize.width > 0 && panelSize.height > 0 && (
-            <svg
-              aria-hidden="true"
-              viewBox={`0 0 ${panelSize.width} ${panelSize.height + 12}`}
-              preserveAspectRatio="none"
-              className={cn(
-                "pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible max-sm:hidden",
-                getTimerColor(seconds),
-              )}
-            >
-              <path
-                d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
-                pathLength={100}
-                fill="none"
-                stroke="rgb(var(--glass-border) / 0.28)"
-                strokeWidth="2"
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
-                key={`${gameState.moveCount}-${gameState.currentPlayer}`}
-                d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
-                pathLength={100}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeDasharray="100 100"
-                strokeLinecap="butt"
-                vectorEffect="non-scaling-stroke"
-                className="animate-countdown-border"
-                style={
-                  {
-                    "--timer-duration": `${TURN_DURATION_MS}ms`,
-                    // Freeze the ring with the clock. `animation-play-state`
-                    // holds the current offset instead of restarting the
-                    // animation, so the ring resumes exactly where the
-                    // number left off.
-                    animationPlayState: paused ? "paused" : "running",
-                  } as React.CSSProperties
-                }
-              />
-            </svg>
-          )}
-          <div
-            role="timer"
-            aria-label={t("game.timer", { seconds })}
-            className={cn(
-              "pointer-events-none absolute left-1/2 top-3 z-[3] flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
-              // On phones the clock is an inline chip above the header, not a
-              // disc on the ring, so it does not cover the status line.
-              "max-sm:right-4 max-sm:left-auto max-sm:top-[max(0.75rem,var(--inset-top))] max-sm:h-11 max-sm:w-14 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-lg max-sm:glass-cell",
-              getTimerColor(seconds),
-            )}
-          >
-            <span className="font-mono text-base font-bold tabular-nums">
-              {seconds}
-            </span>
-          </div>
-        </>
+        <TurnTimerOverlay
+          panelSize={panelSize}
+          seconds={seconds}
+          paused={paused}
+          turnKey={`${gameState.moveCount}-${gameState.currentPlayer}`}
+        />
       )}
       {/* z-20, above the z-10 player-card grid: the record breakdown
           popover is anchored in this header and would otherwise be painted
           under the cards, which come later in the DOM at the same level. */}
       <div className="relative z-20 mb-3 flex items-center justify-between gap-2 max-sm:contents sm:mb-3.5">
-        <div
-          className={cn(
-            "min-w-0 flex-1 max-sm:order-1 max-sm:flex-none max-sm:px-4 max-sm:pt-[max(0.75rem,var(--inset-top))]",
-            // Phones: the mark, then the title over the record, the whole
-            // block as tall as the 44px clock beside it so the three line up
-            // and the cards below start a full gap clear of the clock.
-            "max-sm:grid max-sm:grid-cols-[auto_1fr] max-sm:items-center",
-            isActive && "sm:max-w-[calc(50%-2rem)] max-sm:pr-22",
-          )}
-        >
-          <GameMark size="sm" className="sm:hidden max-sm:col-start-1 max-sm:row-span-2 max-sm:mr-3" />
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:col-start-2 max-sm:gap-y-0 max-sm:text-base max-sm:leading-5">
-            <span className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground">
-              {getGameModeLabel(gameMode ?? gameState.gameMode)}
-            </span>
-            {roomCode && (
-              <button
-                type="button"
-                onClick={copyRoomCode}
-                className="glass-cell inline-flex max-w-40 min-h-11 min-w-0 items-center gap-1 rounded-md px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide text-foreground max-sm:text-xs transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                title={t("game.copyRoomTitle", { code: roomCode })}
-                aria-label={t("game.copyRoomAria", { code: roomCode })}
-              >
-                <span className="sr-only">{t("game.roomCodeSr")}</span>
-                <span className="truncate">{roomCode}</span>
-                {copiedRoom && (
-                  <span role="status" aria-live="polite" className="sr-only">
-                    {t("game.copied")}
-                  </span>
-                )}
-                {copyError && (
-                  <span role="status" aria-live="polite" className="text-[10px] font-normal normal-case tracking-normal text-destructive">
-                    {t("online.copyFail")}
-                  </span>
-                )}
-                <MorphIcon
-                  icon={copiedRoom ? CheckIcon : CopyIcon}
-                  className={`size-3 shrink-0 ${copiedRoom ? "text-emerald-500" : "text-muted-foreground"}`}
-                  aria-hidden="true"
-                />
-              </button>
-            )}
-            {stats && stats.totalGames > 0 && (
-              // The chip and its breakdown share one hover target: the
-              // numbers are what someone points at, so they must open it too.
-              <RecordBreakdown
-                stats={stats}
-                gameMode={gameMode ?? gameState.gameMode}
-              >
-                <span
-                  role="status"
-                  aria-label={t("game.record", { wins: stats.wins, losses: stats.losses })}
-                  className="font-medium normal-case tracking-normal text-muted-foreground"
-                >
-                  <span className="text-emerald-600 dark:text-emerald-400">{t("game.wins", { count: stats.wins })}</span>
-                  <span className="mx-0.5 text-muted-foreground/50">·</span>
-                  <span className="text-red-500">{t("game.losses", { count: stats.losses })}</span>
-                  {stats.currentWinStreak > 1 && (
-                    <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
-                      · <Flame className="size-3" aria-hidden="true" />
-                      {stats.currentWinStreak}
-                    </span>
-                  )}
-                </span>
-              </RecordBreakdown>
-            )}
-          </div>
-          {isActive && (
-            <div
-              role="status"
-              className={cn(
-                // A peer-supplied notice runs up to PEER_MAX_ERROR_LENGTH (200 chars).
-                // `truncate` cut it to a couple of glyphs on a 320px phone, so
-                // the player saw what looked like an empty status line. Two
-                // clamped lines keep the HUD compact and still carry the start
-                // of the message; the full text is announced by the status role.
-                "mt-1 line-clamp-2 text-xs max-sm:col-start-2 sm:text-sm",
-                // An explicit status message is alert-worthy; the default
-                // turn label is not. Key off message presence, not copy.
-                message
-                  ? "font-medium text-amber-600 dark:text-amber-400"
-                  : "text-muted-foreground",
-                // Phones: the highlighted player card already says whose
-                // turn it is, so the default label is screen-reader-only.
-                // An explicit message always stays visible.
-                !message && "max-sm:sr-only max-sm:mt-0",
-              )}
-            >
-              {message || activeLabel}
-            </div>
-          )}
-        </div>
-        <div
-          role="toolbar"
-          aria-label={t("game.actions")}
-          className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]"
-        >
-          {onOpenSettings && (
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={onOpenSettings}
-              aria-label={t("settings.open")}
-              className={HUD_ACTION}
-            >
-              <Settings2
-                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
-                aria-hidden="true"
-              />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("settings.open")}</span>}
-            </Button>
-          )}
-          {onEditIdentity && (
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={onEditIdentity}
-              aria-label={t("game.editSettings")}
-              className={HUD_ACTION}
-            >
-              <Pencil
-                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
-                aria-hidden="true"
-              />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.edit")}</span>}
-            </Button>
-          )}
-          {onNewGame && (
-            <Button
-              variant="glass"
-              size="sm"
-              onClick={handleNewGameClick}
-              aria-label={isGameOver ? t("game.again") : t("game.restartTitle")}
-              className={cn(HUD_ACTION, isGameOver && "max-sm:font-semibold max-sm:text-foreground")}
-              // Game over: the restart is the next thing a phone player wants,
-              // so it takes the win tint in the bar — in the WINNER's colour,
-              // like the line and the card. A fixed emerald was a third
-              // "someone won" green that belonged to nobody; a draw stays neutral.
-              style={
-                winnerColor
-                  ? ({ "--glass-tint": COLOR_RGB[winnerColor], "--glass-alpha": "0.22" } as React.CSSProperties)
-                  : undefined
-              }
-            >
-              <RotateCcw
-                className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
-                aria-hidden="true"
-              />
-              {isGameOver && <span className={HUD_ACTION_LABEL}>{t("game.again")}</span>}
-            </Button>
-          )}
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={handleExitClick}
-            aria-label={exitLabel}
-            className={cn(HUD_ACTION, "hover:text-red-500")}
-            style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
-          >
-            <LogOut
-              className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
-              aria-hidden="true"
-            />
-            {isGameOver && <span className={HUD_ACTION_LABEL}>{isOnline ? t("game.leaveConfirm") : t("game.exitConfirm")}</span>}
-          </Button>
-        </div>
+        <PanelHeading
+          isActive={isActive}
+          gameMode={gameMode ?? gameState.gameMode}
+          stats={stats}
+          roomCode={roomCode}
+          message={message}
+          activeLabel={activeLabel}
+        />
+        <HudToolbar
+          onOpenSettings={onOpenSettings}
+          onEditIdentity={onEditIdentity}
+          onNewGameClick={onNewGame ? handleNewGameClick : undefined}
+          onExitClick={handleExitClick}
+          isGameOver={isGameOver}
+          isOnline={isOnline}
+          exitLabel={exitLabel}
+          winnerColor={winnerColor}
+        />
       </div>
 
-      <div className="no-touch-select relative z-10 grid grid-cols-2 gap-2.5 max-sm:order-2 max-sm:px-4 max-sm:pt-3">
-        <PlayerCard
-          playerSymbol={PlayerSymbol.X}
-          player={gameState.players[PlayerSymbol.X]}
-          isCurrent={gameState.currentPlayer === PlayerSymbol.X && isActive}
-          isWinner={gameState.winner === PlayerSymbol.X}
-          isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
-          aiDifficultyLabel={
-            gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? getDifficultyLabel(aiDifficulty)
-              : undefined
-          }
-        />
-        <PlayerCard
-          playerSymbol={PlayerSymbol.O}
-          player={gameState.players[PlayerSymbol.O]}
-          isCurrent={gameState.currentPlayer === PlayerSymbol.O && isActive}
-          isWinner={gameState.winner === PlayerSymbol.O}
-          isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
-          aiDifficultyLabel={
-            gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
-              ? getDifficultyLabel(aiDifficulty)
-              : undefined
-          }
-        />
-      </div>
+      <PlayerCardGrid
+        gameState={gameState}
+        isActive={isActive}
+        isAITurn={isAITurn}
+        aiDifficulty={aiDifficulty}
+      />
 
       {!isActive && gameState.winner && (
         <div className="relative z-10 mt-3 max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3">
@@ -578,6 +312,504 @@ export function PlayersPanel({
         </div>
       )}
 
+      <ConfirmDialogs
+        gameState={gameState}
+        showExit={showExit}
+        showNewGame={showNewGame}
+        isActive={isActive}
+        exitLabel={exitLabel}
+        isOnline={isOnline}
+        onExitConfirm={handleExitConfirm}
+        onExitCancel={handleExitCancel}
+        onNewGameConfirm={handleNewGameConfirm}
+        onNewGameCancel={handleNewGameCancel}
+      />
+    </div>
+  );
+}
+
+function useConfirmReset(
+  isActive: boolean,
+  freshGame: boolean,
+  reset: () => void,
+) {
+  const [previousLifecycle, setPreviousLifecycle] = useState({
+    isActive,
+    freshGame,
+  });
+  if (
+    previousLifecycle.isActive !== isActive ||
+    previousLifecycle.freshGame !== freshGame
+  ) {
+    setPreviousLifecycle({ isActive, freshGame });
+    if (!isActive || freshGame) {
+      reset();
+    }
+  }
+}
+
+function useActivePlayer(gameState: GameState) {
+  const activePlayer = gameState.players[gameState.currentPlayer];
+  const isAITurn = activePlayer.type === PlayerTypes.COMPUTER;
+  const activeLabel = isAITurn
+    ? t("game.thinking", { name: activePlayer.username || t("settings.aiFallback") })
+    : t("game.turn", { name: activePlayer.username || t("game.playerFallback") });
+  return { isAITurn, activeLabel };
+}
+
+function usePanelSize(panelRef: RefObject<HTMLDivElement | null>) {
+  const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const updateSize = () => {
+      const { width, height } = panel.getBoundingClientRect();
+      setPanelSize((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      );
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [panelRef]);
+
+  return panelSize;
+}
+
+function TurnTimerOverlay({
+  panelSize,
+  seconds,
+  paused,
+  turnKey,
+}: {
+  panelSize: { width: number; height: number };
+  seconds: number;
+  paused?: boolean;
+  turnKey: string;
+}) {
+  return (
+    <>
+      {/* Phones drop the bump-tab ring and mask: the ring pokes above
+          the HUD into the status bar, and the number carries the time. */}
+      <div
+        aria-hidden="true"
+        className="glass pointer-events-none !absolute inset-x-0 -top-3 bottom-0 !rounded-2xl !border-0 max-sm:hidden"
+        style={{
+          WebkitMaskImage:
+            "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
+          maskImage:
+            "radial-gradient(circle 24px at 50% 24px, black 99%, transparent 100%), linear-gradient(black 0 0)",
+          WebkitMaskSize: "100% 48px, 100% calc(100% - 24px)",
+          maskSize: "100% 48px, 100% calc(100% - 24px)",
+          WebkitMaskPosition: "0 0, 0 24px",
+          maskPosition: "0 0, 0 24px",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+        }}
+      />
+      {panelSize.width > 0 && panelSize.height > 0 && (
+        <svg
+          aria-hidden="true"
+          viewBox={`0 0 ${panelSize.width} ${panelSize.height + 12}`}
+          preserveAspectRatio="none"
+          className={cn(
+            "pointer-events-none absolute -top-3 left-0 z-[2] h-[calc(100%+0.75rem)] w-full overflow-visible max-sm:hidden",
+            getTimerColor(seconds),
+          )}
+        >
+          <path
+            d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
+            pathLength={100}
+            fill="none"
+            stroke="rgb(var(--glass-border) / 0.28)"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            key={turnKey}
+            d={getTimerBorderPath(panelSize.width, panelSize.height + 12)}
+            pathLength={100}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeDasharray="100 100"
+            strokeLinecap="butt"
+            vectorEffect="non-scaling-stroke"
+            className="animate-countdown-border"
+            style={
+              {
+                "--timer-duration": `${TURN_DURATION_MS}ms`,
+                // Freeze the ring with the clock. `animation-play-state`
+                // holds the current offset instead of restarting the
+                // animation, so the ring resumes exactly where the
+                // number left off.
+                animationPlayState: paused ? "paused" : "running",
+              } as React.CSSProperties
+            }
+          />
+        </svg>
+      )}
+      <div
+        role="timer"
+        aria-label={t("game.timer", { seconds })}
+        className={cn(
+          "pointer-events-none absolute left-1/2 top-3 z-[3] flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
+          // On phones the clock is an inline chip above the header, not a
+          // disc on the ring, so it does not cover the status line.
+          "max-sm:right-4 max-sm:left-auto max-sm:top-[max(0.75rem,var(--inset-top))] max-sm:h-11 max-sm:w-14 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-lg max-sm:glass-cell",
+          getTimerColor(seconds),
+        )}
+      >
+        <span className="font-mono text-base font-bold tabular-nums">
+          {seconds}
+        </span>
+      </div>
+    </>
+  );
+}
+
+interface PanelHeadingProps {
+  isActive: boolean;
+  gameMode: GameMode;
+  stats?: GameStats;
+  roomCode?: string;
+  message: string;
+  activeLabel: string;
+}
+
+function PanelHeading({
+  isActive,
+  gameMode,
+  stats,
+  roomCode,
+  message,
+  activeLabel,
+}: PanelHeadingProps) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 flex-1 max-sm:order-1 max-sm:flex-none max-sm:px-4 max-sm:pt-[max(0.75rem,var(--inset-top))]",
+        // Phones: the mark, then the title over the record, the whole
+        // block as tall as the 44px clock beside it so the three line up
+        // and the cards below start a full gap clear of the clock.
+        "max-sm:grid max-sm:grid-cols-[auto_1fr] max-sm:items-center",
+        isActive && "sm:max-w-[calc(50%-2rem)] max-sm:pr-22",
+      )}
+    >
+      <GameMark size="sm" className="sm:hidden max-sm:col-start-1 max-sm:row-span-2 max-sm:mr-3" />
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:col-start-2 max-sm:gap-y-0 max-sm:text-base max-sm:leading-5">
+        <span className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground">
+          {getGameModeLabel(gameMode)}
+        </span>
+        <RoomCodeButton roomCode={roomCode} />
+        <RecordChip stats={stats} gameMode={gameMode} />
+      </div>
+      {isActive && (
+        <div
+          role="status"
+          className={cn(
+            // A peer-supplied notice runs up to PEER_MAX_ERROR_LENGTH (200 chars).
+            // `truncate` cut it to a couple of glyphs on a 320px phone, so
+            // the player saw what looked like an empty status line. Two
+            // clamped lines keep the HUD compact and still carry the start
+            // of the message; the full text is announced by the status role.
+            "mt-1 line-clamp-2 text-xs max-sm:col-start-2 sm:text-sm",
+            // An explicit status message is alert-worthy; the default
+            // turn label is not. Key off message presence, not copy.
+            message
+              ? "font-medium text-amber-600 dark:text-amber-400"
+              : "text-muted-foreground",
+            // Phones: the highlighted player card already says whose
+            // turn it is, so the default label is screen-reader-only.
+            // An explicit message always stays visible.
+            !message && "max-sm:sr-only max-sm:mt-0",
+          )}
+        >
+          {message || activeLabel}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RoomCodeButton({ roomCode }: { roomCode?: string }) {
+  const [copiedRoom, setCopiedRoom] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+
+  const copyRoomCode = async () => {
+    if (!roomCode) return;
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopyError(false);
+      setCopiedRoom(true);
+      window.setTimeout(() => setCopiedRoom(false), COPY_FLASH_MS);
+    } catch {
+      // The other two copy affordances on this screen both say when the
+      // clipboard refused; this one used to fail silently, leaving the reader
+      // pressing a button that appeared to work.
+      setCopyError(true);
+    }
+  };
+
+  if (!roomCode) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={copyRoomCode}
+      className="glass-cell inline-flex max-w-40 min-h-11 min-w-0 items-center gap-1 rounded-md px-3 py-1.5 font-mono text-[11px] font-semibold tracking-wide text-foreground max-sm:text-xs transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      title={t("game.copyRoomTitle", { code: roomCode })}
+      aria-label={t("game.copyRoomAria", { code: roomCode })}
+    >
+      <span className="sr-only">{t("game.roomCodeSr")}</span>
+      <span className="truncate">{roomCode}</span>
+      {copiedRoom && (
+        <span role="status" aria-live="polite" className="sr-only">
+          {t("game.copied")}
+        </span>
+      )}
+      {copyError && (
+        <span role="status" aria-live="polite" className="text-[10px] font-normal normal-case tracking-normal text-destructive">
+          {t("online.copyFail")}
+        </span>
+      )}
+      <MorphIcon
+        icon={copiedRoom ? CheckIcon : CopyIcon}
+        className={`size-3 shrink-0 ${copiedRoom ? "text-emerald-500" : "text-muted-foreground"}`}
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
+function RecordChip({
+  stats,
+  gameMode,
+}: {
+  stats?: GameStats;
+  gameMode: GameMode;
+}) {
+  if (!stats || stats.totalGames <= 0) return null;
+  return (
+    // The chip and its breakdown share one hover target: the
+    // numbers are what someone points at, so they must open it too.
+    <RecordBreakdown
+      stats={stats}
+      gameMode={gameMode}
+    >
+      <span
+        role="status"
+        aria-label={t("game.record", { wins: stats.wins, losses: stats.losses })}
+        className="font-medium normal-case tracking-normal text-muted-foreground"
+      >
+        <span className="text-emerald-600 dark:text-emerald-400">{t("game.wins", { count: stats.wins })}</span>
+        <span className="mx-0.5 text-muted-foreground/50">·</span>
+        <span className="text-red-500">{t("game.losses", { count: stats.losses })}</span>
+        {stats.currentWinStreak > 1 && (
+          <span className="ml-1 inline-flex items-center gap-0.5 text-amber-500">
+            · <Flame className="size-3" aria-hidden="true" />
+            {stats.currentWinStreak}
+          </span>
+        )}
+      </span>
+    </RecordBreakdown>
+  );
+}
+
+interface HudActionButtonProps {
+  icon: LucideIcon;
+  /** The visible word shown once the game ends; aria-hidden via the icon. */
+  label: string;
+  ariaLabel: string;
+  onClick: () => void;
+  isGameOver: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+function HudActionButton({
+  icon: Icon,
+  label,
+  ariaLabel,
+  onClick,
+  isGameOver,
+  className,
+  style,
+}: HudActionButtonProps) {
+  return (
+    <Button
+      variant="glass"
+      size="sm"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={cn(HUD_ACTION, className)}
+      style={style}
+    >
+      <Icon
+        className={cn("size-4", isGameOver ? "max-sm:size-5" : "max-sm:size-7")}
+        aria-hidden="true"
+      />
+      {isGameOver && <span className={HUD_ACTION_LABEL}>{label}</span>}
+    </Button>
+  );
+}
+
+interface HudToolbarProps {
+  onOpenSettings?: () => void;
+  onEditIdentity?: () => void;
+  onNewGameClick?: () => void;
+  onExitClick: () => void;
+  isGameOver: boolean;
+  isOnline: boolean;
+  exitLabel: string;
+  winnerColor: Color | null;
+}
+
+function HudToolbar({
+  onOpenSettings,
+  onEditIdentity,
+  onNewGameClick,
+  onExitClick,
+  isGameOver,
+  isOnline,
+  exitLabel,
+  winnerColor,
+}: HudToolbarProps) {
+  return (
+    <div
+      role="toolbar"
+      aria-label={t("game.actions")}
+      className="flex shrink-0 justify-end gap-1.5 max-sm:order-9 max-sm:mt-auto max-sm:justify-stretch max-sm:gap-2 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,var(--inset-bottom))]"
+    >
+      {onOpenSettings && (
+        <HudActionButton
+          icon={Settings2}
+          label={t("settings.open")}
+          ariaLabel={t("settings.open")}
+          onClick={onOpenSettings}
+          isGameOver={isGameOver}
+        />
+      )}
+      {onEditIdentity && (
+        <HudActionButton
+          icon={Pencil}
+          label={t("game.edit")}
+          ariaLabel={t("game.editSettings")}
+          onClick={onEditIdentity}
+          isGameOver={isGameOver}
+        />
+      )}
+      {onNewGameClick && (
+        <HudActionButton
+          icon={RotateCcw}
+          label={t("game.again")}
+          ariaLabel={isGameOver ? t("game.again") : t("game.restartTitle")}
+          onClick={onNewGameClick}
+          isGameOver={isGameOver}
+          className={isGameOver ? "max-sm:font-semibold max-sm:text-foreground" : undefined}
+          // Game over: the restart is the next thing a phone player wants,
+          // so it takes the win tint in the bar — in the WINNER's colour,
+          // like the line and the card. A fixed emerald was a third
+          // "someone won" green that belonged to nobody; a draw stays neutral.
+          style={
+            winnerColor
+              ? ({ "--glass-tint": COLOR_RGB[winnerColor], "--glass-alpha": "0.22" } as React.CSSProperties)
+              : undefined
+          }
+        />
+      )}
+      <HudActionButton
+        icon={LogOut}
+        label={isOnline ? t("game.leaveConfirm") : t("game.exitConfirm")}
+        ariaLabel={exitLabel}
+        onClick={onExitClick}
+        isGameOver={isGameOver}
+        className="hover:text-red-500"
+        style={{ "--glass-sweep-color": "239 68 68" } as React.CSSProperties}
+      />
+    </div>
+  );
+}
+
+function PlayerCardGrid({
+  gameState,
+  isActive,
+  isAITurn,
+  aiDifficulty,
+}: {
+  gameState: GameState;
+  isActive: boolean;
+  isAITurn: boolean;
+  aiDifficulty?: AI_DifficultyType;
+}) {
+  return (
+    <div className="no-touch-select relative z-10 grid grid-cols-2 gap-2.5 max-sm:order-2 max-sm:px-4 max-sm:pt-3">
+      <PlayerCard
+        playerSymbol={PlayerSymbol.X}
+        player={gameState.players[PlayerSymbol.X]}
+        isCurrent={gameState.currentPlayer === PlayerSymbol.X && isActive}
+        isWinner={gameState.winner === PlayerSymbol.X}
+        isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
+        aiDifficultyLabel={
+          gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
+            ? getDifficultyLabel(aiDifficulty)
+            : undefined
+        }
+      />
+      <PlayerCard
+        playerSymbol={PlayerSymbol.O}
+        player={gameState.players[PlayerSymbol.O]}
+        isCurrent={gameState.currentPlayer === PlayerSymbol.O && isActive}
+        isWinner={gameState.winner === PlayerSymbol.O}
+        isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
+        aiDifficultyLabel={
+          gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
+            ? getDifficultyLabel(aiDifficulty)
+            : undefined
+        }
+      />
+    </div>
+  );
+}
+
+interface ConfirmDialogsProps {
+  gameState: GameState;
+  showExit: boolean;
+  showNewGame: boolean;
+  isActive: boolean;
+  exitLabel: string;
+  isOnline: boolean;
+  onExitConfirm: () => void;
+  onExitCancel: () => void;
+  onNewGameConfirm: () => void;
+  onNewGameCancel: () => void;
+}
+
+function ConfirmDialogs({
+  gameState,
+  showExit,
+  showNewGame,
+  isActive,
+  exitLabel,
+  isOnline,
+  onExitConfirm,
+  onExitCancel,
+  onNewGameConfirm,
+  onNewGameCancel,
+}: ConfirmDialogsProps) {
+  const humanPlayer = Object.values(gameState.players).find(
+    (p) => p.type !== PlayerTypes.COMPUTER,
+  );
+  const humanColor = humanPlayer ? COLOR_RGB[humanPlayer.color] : "255 255 255";
+
+  return (
+    <>
       <Confirm
         isOpen={showExit && isActive}
         title={exitLabel}
@@ -585,36 +817,18 @@ export function PlayersPanel({
         confirmText={isOnline ? t("game.leaveConfirm") : t("game.exitConfirm")}
         destructive
         playerColor={humanColor}
-        onConfirm={() => {
-          setShowExit(false);
-          confirmPauseRef.current = false;
-          onPauseChange?.(false);
-          onExit();
-        }}
-        onCancel={() => {
-          setShowExit(false);
-          confirmPauseRef.current = false;
-          onPauseChange?.(false);
-        }}
+        onConfirm={onExitConfirm}
+        onCancel={onExitCancel}
       />
       <Confirm
         isOpen={showNewGame && isActive}
         title={isActive ? t("game.restartTitle") : t("game.againTitle")}
         confirmText={isActive ? t("game.restart") : t("game.again")}
         playerColor={humanColor}
-        onConfirm={() => {
-          setShowNewGame(false);
-          confirmPauseRef.current = false;
-          onPauseChange?.(false);
-          onNewGame?.();
-        }}
-        onCancel={() => {
-          setShowNewGame(false);
-          confirmPauseRef.current = false;
-          onPauseChange?.(false);
-        }}
+        onConfirm={onNewGameConfirm}
+        onCancel={onNewGameCancel}
       />
-    </div>
+    </>
   );
 }
 
