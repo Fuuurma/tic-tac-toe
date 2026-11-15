@@ -37,7 +37,7 @@ a DOM and the protocol testable without React.
 - src/lib/identity.ts — generated guest identity, localStorage-backed
 - src/lib/storage.ts — the one browser-storage guard (SSR and private-mode safe)
 - src/components — game board and lobby surfaces
-- src/components/backgroundField.ts — the heat-field model for `BackgroundPattern`; the one pure module kept beside its single consumer
+- src/components/backgroundField.ts + backgroundPatternDraw.ts + backgroundPatternEngine.ts — the heat-field model, the symbol-drawing primitives and the canvas engine for `BackgroundPattern`; the pure modules kept beside their single consumer
 - src/components/game/queuePlay.tsx — play the computer while a quick-match search runs or a created room waits (invite, wait strip, warm-up game, opponent-found handoff); shares `LocalBoard` and `useRecordLocalResult` with the local surface
 - src/lib/room-protocol/waitPhase.ts — pure derivation of the wait phase (`searching | matched | ended | null`) for Quick (from `PeerRoomState.queue`) and a created room (from its connection states)
 - e2e/ — Playwright smoke tests
