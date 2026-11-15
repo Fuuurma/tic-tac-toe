@@ -110,84 +110,139 @@ const validate = (payload: LobbyFormPayload): string | null => {
   return null;
 };
 
+type SavedPreferences = ReturnType<typeof loadPreferences>;
+
+const initialPlayerColor = (prefs: SavedPreferences): Color =>
+  prefs.color ?? PLAYER_CONFIG[PlayerSymbol.X].defaultColor;
+
+const initialPlayerShape = (prefs: SavedPreferences): SymbolShape =>
+  prefs.playerShape ?? PLAYER_CONFIG[PlayerSymbol.X].defaultShape;
+
+const initialOpponentColor = (prefs: SavedPreferences): Color => {
+  const playerColor = initialPlayerColor(prefs);
+  return prefs.opponentColor && prefs.opponentColor !== playerColor
+    ? prefs.opponentColor
+    : oppositeColor(playerColor);
+};
+
+const initialOpponentShape = (prefs: SavedPreferences): SymbolShape =>
+  prefs.opponentShape ?? PLAYER_CONFIG[PlayerSymbol.O].defaultShape;
+
+const initialAI_Difficulty = (prefs: SavedPreferences): AI_DifficultyType =>
+  prefs.aiDifficulty ?? AI_Difficulty.NORMAL;
+
+const initialOpponentName = (prefs: SavedPreferences): string =>
+  prefs.opponentName ?? t("lobby.defaultAI");
+
+// An invite link (?room=) asks for Online, but a build with no backend
+// cannot honour it: fall back to Computer with the reason showing under
+// the mode selector instead of stranding the visitor on a dead mode.
+const initialGameMode = (roomId: string): GameMode =>
+  roomId && !ONLINE_UNAVAILABLE ? GameModes.ONLINE : GameModes.VS_COMPUTER;
+
+// Default to an action that can actually run: an invite opens Join,
+// otherwise Quick, unless Quick itself is dead (dev without a
+// matchmaking URL), in which case Create is the live default.
+const initialOnlineAction = (roomId: string): TurnAction =>
+  roomId && !ONLINE_UNAVAILABLE
+    ? "join"
+    : !MATCHMAKING_CONFIGURED
+      ? "create"
+      : "quick";
+
+const quickMatchBlockReason = (): string | null =>
+  !ONLINE_UNAVAILABLE && !MATCHMAKING_CONFIGURED ? t("lobby.quickUnavailable") : null;
+
+// Online availability is decided up front, on the selectors, never on
+// Start. A production build with no VITE_MATCHMAKING_URL cannot reach
+// the relay either, so Quick, Create, and Join are all dead: the Online
+// tile itself is disabled and says why (the tap used to escalate to the
+// app-wide ErrorBoundary, or dial the visitor's own 127.0.0.1). Local
+// dev still reaches a relay at its 127.0.0.1 default, so there only
+// Quick Match, which needs the matchmaking service, is blocked.
+// Proven-unreachable relay (never had a successful read) disables
+// Online the same way a missing backend does. The build flag wins when
+// both apply; unknown (poll in flight) stays enabled, never flickering.
+const lobbyDisabledModes = (serverDown: boolean): Partial<Record<GameMode, string>> | undefined => {
+  const onlineModeReason = ONLINE_UNAVAILABLE ? t("lobby.onlineModeUnavailable") : null;
+  const serverDownReason =
+    serverDown && !ONLINE_UNAVAILABLE ? t("lobby.onlineDown") : null;
+  const onlineDisabledReason = onlineModeReason ?? serverDownReason;
+  return onlineDisabledReason
+    ? ({ [GameModes.ONLINE]: onlineDisabledReason } as Partial<Record<GameMode, string>>)
+    : undefined;
+};
+
+const lobbyStartGate = ({
+  payload,
+  isValid,
+  gameMode,
+  onlineAction,
+  onlineRoomId,
+  quickMatchReason,
+}: {
+  payload: LobbyFormPayload;
+  isValid: boolean;
+  gameMode: GameMode;
+  onlineAction: TurnAction;
+  onlineRoomId: string;
+  quickMatchReason: string | null;
+}) => {
+  const onlineUnavailable =
+    gameMode === GameModes.ONLINE &&
+    (ONLINE_UNAVAILABLE || (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
+  const startDisabled = !isValid || onlineUnavailable;
+  const startTitle = onlineUnavailable ? t("lobby.backendMissing") : undefined;
+  // The room-code field already shows its own error inline; repeating it
+  // under the button would say the same thing twice on one screen.
+  const roomFieldError =
+    gameMode === GameModes.ONLINE && onlineAction !== "quick" && onlineRoomId.trim()
+      ? getRoomCodeError(onlineAction, onlineRoomId.trim())
+      : null;
+  const validationError = startDisabled ? validate(payload) : null;
+  const startReason = onlineUnavailable
+    ? (ONLINE_UNAVAILABLE ? t("lobby.backendMissing") : quickMatchReason)
+    : validationError !== roomFieldError
+      ? validationError
+      : null;
+  return { onlineUnavailable, startDisabled, startTitle, roomFieldError, startReason };
+};
+
 export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: LobbyFormProps) {
   // Subscribes so a language switch re-renders the whole form.
   useStrings();
-  const [displayName, setDisplayName] = useState<string>(
-    () => getOrCreateGuestIdentity().displayName,
-  );
-  // Appearance + opponent picks persist across sessions (tic-tac-toe:preferences).
-  const [initialPrefs] = useState(loadPreferences);
-  const [color, setColor] = useState<Color>(
-    initialPrefs.color ?? PLAYER_CONFIG[PlayerSymbol.X].defaultColor,
-  );
-  const [playerShape, setPlayerShape] = useState<SymbolShape>(
-    initialPrefs.playerShape ?? PLAYER_CONFIG[PlayerSymbol.X].defaultShape,
-  );
-  const [opponentColor, setOpponentColor] = useState<Color>(() => {
-    const playerColor = initialPrefs.color ?? PLAYER_CONFIG[PlayerSymbol.X].defaultColor;
-    return initialPrefs.opponentColor && initialPrefs.opponentColor !== playerColor
-      ? initialPrefs.opponentColor
-      : oppositeColor(playerColor);
-  });
-  const [opponentShape, setOpponentShape] = useState<SymbolShape>(
-    initialPrefs.opponentShape ?? PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
-  );
-  // An invite link (?room=) asks for Online, but a build with no backend
-  // cannot honour it: fall back to Computer with the reason showing under
-  // the mode selector instead of stranding the visitor on a dead mode.
-  const [gameMode, setGameMode] = useState<GameMode>(
-    initialRoomId && !ONLINE_UNAVAILABLE ? GameModes.ONLINE : GameModes.VS_COMPUTER,
-  );
-  const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(
-    initialPrefs.aiDifficulty ?? AI_Difficulty.NORMAL,
-  );
-  const [opponentName, setOpponentName] = useState<string>(
-    initialPrefs.opponentName ?? t("lobby.defaultAI"),
-  );
-  const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
-  const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
-  // Default to an action that can actually run: an invite opens Join,
-  // otherwise Quick, unless Quick itself is dead (dev without a
-  // matchmaking URL), in which case Create is the live default.
-  // Which dead match-type tile the visitor tapped: its reason shows on
-  // demand. Picking a live action clears it.
-  const [explainedAction, setExplainedAction] = useState<TurnAction | null>(
-    null,
-  );
-  const actionDeadReason = (action: TurnAction): string | null =>
-    action === "quick"
-      ? quickMatchReason
-      : ONLINE_UNAVAILABLE
-        ? t("lobby.backendMissing")
-        : null;
-  const chooseOnlineAction = (action: TurnAction) => {
-    const dead = actionDeadReason(action);
-    if (dead) {
-      setExplainedAction((cur) => (cur === action ? null : action));
-    } else {
-      setExplainedAction(null);
-      setOnlineAction(action);
-    }
-  };
-  const [onlineAction, setOnlineAction] = useState<TurnAction>(
-    initialRoomId && !ONLINE_UNAVAILABLE
-      ? "join"
-      : !MATCHMAKING_CONFIGURED
-        ? "create"
-        : "quick",
-  );
+  const {
+    displayName,
+    color,
+    playerShape,
+    opponentColor,
+    opponentShape,
+    gameMode,
+    aiDifficulty,
+    opponentName,
+    opponentType,
+    playerSettings,
+    opponentSettings,
+    handlePlayerSettingsChange,
+    handleOpponentSettingsChange,
+    handleGameModeChange,
+    playerCount,
+    serverDown,
+  } = useLobbyPlayers(initialRoomId);
+  const {
+    onlineRoomId,
+    setOnlineRoomId,
+    onlineAction,
+    explainedAction,
+    actionDeadReason,
+    chooseOnlineAction,
+    quickMatchReason,
+  } = useOnlineMatch(initialRoomId);
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
-
-  // Live Online population, plus reachability. Subscribed whenever the
-  // lobby is up (not only in Online mode): answering "is anyone playing?"
-  // before Quick Match is pressed is the whole point, and a missing relay
-  // must read as unreachable on arrival instead of silently enabled tiles.
-  const { count: playerCount, serverDown } = usePlayerCount(true, undefined, true);
 
   const payload: LobbyFormPayload = useMemo(
     () => ({
@@ -225,44 +280,188 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
 
   const isValid = useMemo(() => validate(payload) === null, [payload]);
 
-  // Online availability is decided up front, on the selectors, never on
-  // Start. A production build with no VITE_MATCHMAKING_URL cannot reach
-  // the relay either, so Quick, Create, and Join are all dead: the Online
-  // tile itself is disabled and says why (the tap used to escalate to the
-  // app-wide ErrorBoundary, or dial the visitor's own 127.0.0.1). Local
-  // dev still reaches a relay at its 127.0.0.1 default, so there only
-  // Quick Match, which needs the matchmaking service, is blocked.
-  const onlineModeReason = ONLINE_UNAVAILABLE ? t("lobby.onlineModeUnavailable") : null;
-  const quickMatchReason =
-    !ONLINE_UNAVAILABLE && !MATCHMAKING_CONFIGURED ? t("lobby.quickUnavailable") : null;
-  // Proven-unreachable relay (never had a successful read) disables
-  // Online the same way a missing backend does. The build flag wins when
-  // both apply; unknown (poll in flight) stays enabled, never flickering.
-  const serverDownReason =
-    serverDown && !ONLINE_UNAVAILABLE ? t("lobby.onlineDown") : null;
-  const onlineDisabledReason = onlineModeReason ?? serverDownReason;
-  const disabledModes = onlineDisabledReason
-    ? ({ [GameModes.ONLINE]: onlineDisabledReason } as Partial<Record<GameMode, string>>)
-    : undefined;
-
-  const onlineUnavailable =
-    gameMode === GameModes.ONLINE &&
-    (ONLINE_UNAVAILABLE || (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
-  const startDisabled = !isValid || onlineUnavailable;
-  const startTitle = onlineUnavailable ? t("lobby.backendMissing") : undefined;
+  const disabledModes = lobbyDisabledModes(serverDown);
+  const {
+    onlineUnavailable,
+    startDisabled,
+    startTitle,
+    roomFieldError,
+    startReason,
+  } = lobbyStartGate({
+    payload,
+    isValid,
+    gameMode,
+    onlineAction,
+    onlineRoomId,
+    quickMatchReason,
+  });
   const startReasonId = useId();
-  // The room-code field already shows its own error inline; repeating it
-  // under the button would say the same thing twice on one screen.
-  const roomFieldError =
-    gameMode === GameModes.ONLINE && onlineAction !== "quick" && onlineRoomId.trim()
-      ? getRoomCodeError(onlineAction, onlineRoomId.trim())
-      : null;
-  const validationError = startDisabled ? validate(payload) : null;
-  const startReason = onlineUnavailable
-    ? (ONLINE_UNAVAILABLE ? t("lobby.backendMissing") : quickMatchReason)
-    : validationError !== roomFieldError
-      ? validationError
-      : null;
+
+  const startGame = useCallback(() => {
+    const err = validate(payload);
+    if (err) {
+      setError(err);
+      return false;
+    }
+    setError(null);
+    saveDisplayName(payload.displayName);
+    onStart(payload);
+    return true;
+  }, [payload, onStart]);
+
+  const handleSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      startGame();
+    },
+    [startGame],
+  );
+
+  const aiDifficultyLabel = getDifficultyLabel(aiDifficulty);
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      // Adaptive height. `max-h-full` + `my-auto` against the stretched app
+      // wrapper means a short form centers at its natural size — no stretched
+      // card wrapped around a void — while a tall one (Online adds the
+      // match-type row and a room-code field) fills the phone and scrolls
+      // instead of pushing Start below the fold.
+      className="flex max-h-full w-full max-w-md flex-col max-sm:h-full max-sm:max-w-none sm:my-auto"
+      style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
+    >
+      {/* On phones the glass panel is the screen itself: no floating border,
+          radius or shadow. */}
+      <Card
+        variant="glass"
+        className="lobby-screen-glass flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0 max-sm:rounded-none max-sm:border-0 max-sm:shadow-none"
+      >
+        <LobbyCardHeader onOpenPreferences={() => setPreferencesOpen(true)} />
+        <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-0 sm:px-6">
+          <div className="flex flex-col gap-3 sm:gap-3.5">
+          {error && (
+            <div
+              role="alert"
+              className="glass-cell rounded-lg border-destructive/30 px-3.5 py-2.5 text-sm text-destructive sm:text-xs"
+            >
+              {error}
+            </div>
+          )}
+
+          <PlayerSummaryCard
+            settings={playerSettings}
+            onEdit={() => {
+              setSettingsTab("player");
+              setSettingsOpen(true);
+            }}
+          />
+
+          {gameMode !== GameModes.ONLINE && (
+            <OpponentSummaryCard
+              opponentName={payload.opponentName}
+              opponentColor={opponentColor}
+              opponentShape={opponentShape}
+              opponentType={opponentType}
+              aiDifficultyLabel={aiDifficultyLabel}
+              onEdit={() => {
+                setSettingsTab("opponent");
+                setSettingsOpen(true);
+              }}
+            />
+          )}
+
+          <GameModeSelector
+            selectedMode={gameMode}
+            onModeChange={handleGameModeChange}
+            disabledModes={disabledModes}
+          />
+
+          {gameMode === GameModes.ONLINE && (
+            <OnlineMatchSection
+              playerCount={playerCount}
+              onlineAction={onlineAction}
+              explainedAction={explainedAction}
+              onChooseAction={chooseOnlineAction}
+              deadReason={actionDeadReason}
+              onlineRoomId={onlineRoomId}
+              onRoomIdChange={setOnlineRoomId}
+              roomFieldError={roomFieldError}
+            />
+          )}
+          </div>
+        </CardContent>
+        <LobbyCardFooter
+          color={color}
+          gameMode={gameMode}
+          onlineAction={onlineAction}
+          startDisabled={startDisabled}
+          startTitle={startTitle}
+          startReasonId={startReasonId}
+          startReason={startReason}
+          onlineUnavailable={onlineUnavailable}
+        />
+      </Card>
+
+      <SettingsSheet
+        isOpen={settingsOpen}
+        gameMode={gameMode}
+        tab={settingsTab}
+        onTabChange={setSettingsTab}
+        player={playerSettings}
+        opponent={opponentSettings}
+        onPlayerChange={handlePlayerSettingsChange}
+        onOpponentChange={handleOpponentSettingsChange}
+        onClose={() => setSettingsOpen(false)}
+      />
+
+      {/* App preferences: theme, language and the learning rows. A separate
+          surface from the player form above, which is a setup task. */}
+      <PreferencesSheet
+        isOpen={preferencesOpen}
+        onClose={() => setPreferencesOpen(false)}
+        onHowToPlay={() => {
+          setPreferencesOpen(false);
+          setHowToPlayOpen(true);
+        }}
+        onReplayTutorial={
+          onReplayTutorial
+            ? () => {
+                setPreferencesOpen(false);
+                onReplayTutorial();
+              }
+            : undefined
+        }
+      />
+
+      <HelpDrawer
+        isOpen={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
+        onReplayTutorial={onReplayTutorial}
+      />
+    </form>
+  );
+}
+
+function useLobbyPlayers(initialRoomId: string) {
+  // Appearance + opponent picks persist across sessions (tic-tac-toe:preferences).
+  const [initialPrefs] = useState(loadPreferences);
+  const [displayName, setDisplayName] = useState<string>(
+    () => getOrCreateGuestIdentity().displayName,
+  );
+  const [color, setColor] = useState<Color>(() => initialPlayerColor(initialPrefs));
+  const [playerShape, setPlayerShape] = useState<SymbolShape>(() => initialPlayerShape(initialPrefs));
+  const [opponentColor, setOpponentColor] = useState<Color>(() => initialOpponentColor(initialPrefs));
+  const [opponentShape, setOpponentShape] = useState<SymbolShape>(() => initialOpponentShape(initialPrefs));
+  const [gameMode, setGameMode] = useState<GameMode>(() => initialGameMode(initialRoomId));
+  const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(() => initialAI_Difficulty(initialPrefs));
+  const [opponentName, setOpponentName] = useState<string>(() => initialOpponentName(initialPrefs));
+  const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
+
+  // Live Online population, plus reachability. Subscribed whenever the
+  // lobby is up (not only in Online mode): answering "is anyone playing?"
+  // before Quick Match is pressed is the whole point, and a missing relay
+  // must read as unreachable on arrival instead of silently enabled tiles.
+  const { count: playerCount, serverDown } = usePlayerCount(true, undefined, true);
 
   const playerSettings: PlayerSettings = useMemo(
     () => ({ displayName, color, playerShape }),
@@ -347,300 +546,287 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     setOpponentName(t("lobby.defaultAI"));
     setOpponentType(PlayerTypes.COMPUTER);
   }
-  const startGame = useCallback(() => {
-    const err = validate(payload);
-    if (err) {
-      setError(err);
-      return false;
-    }
-    setError(null);
-    saveDisplayName(payload.displayName);
-    onStart(payload);
-    return true;
-  }, [payload, onStart]);
 
-  const handleSubmit = useCallback(
-    (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      startGame();
-    },
-    [startGame],
+  return {
+    displayName,
+    color,
+    playerShape,
+    opponentColor,
+    opponentShape,
+    gameMode,
+    aiDifficulty,
+    opponentName,
+    opponentType,
+    playerSettings,
+    opponentSettings,
+    handlePlayerSettingsChange,
+    handleOpponentSettingsChange,
+    handleGameModeChange,
+    playerCount,
+    serverDown,
+  };
+}
+
+function useOnlineMatch(initialRoomId: string) {
+  const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
+  // Which dead match-type tile the visitor tapped: its reason shows on
+  // demand. Picking a live action clears it.
+  const [explainedAction, setExplainedAction] = useState<TurnAction | null>(
+    null,
+  );
+  const [onlineAction, setOnlineAction] = useState<TurnAction>(() =>
+    initialOnlineAction(initialRoomId),
   );
 
-  const aiDifficultyLabel = getDifficultyLabel(aiDifficulty);
+  const quickMatchReason = quickMatchBlockReason();
+  const actionDeadReason = (action: TurnAction): string | null =>
+    action === "quick"
+      ? quickMatchReason
+      : ONLINE_UNAVAILABLE
+        ? t("lobby.backendMissing")
+        : null;
+  const chooseOnlineAction = (action: TurnAction) => {
+    const dead = actionDeadReason(action);
+    if (dead) {
+      setExplainedAction((cur) => (cur === action ? null : action));
+    } else {
+      setExplainedAction(null);
+      setOnlineAction(action);
+    }
+  };
 
+  return {
+    onlineRoomId,
+    setOnlineRoomId,
+    onlineAction,
+    explainedAction,
+    actionDeadReason,
+    chooseOnlineAction,
+    quickMatchReason,
+  };
+}
+
+function LobbyCardHeader({ onOpenPreferences }: { onOpenPreferences: () => void }) {
   return (
-    <form
-      onSubmit={handleSubmit}
-      // Adaptive height. `max-h-full` + `my-auto` against the stretched app
-      // wrapper means a short form centers at its natural size — no stretched
-      // card wrapped around a void — while a tall one (Online adds the
-      // match-type row and a room-code field) fills the phone and scrolls
-      // instead of pushing Start below the fold.
-      className="flex max-h-full w-full max-w-md flex-col max-sm:h-full max-sm:max-w-none sm:my-auto"
-      style={{ "--player-color": COLOR_RGB[color] } as React.CSSProperties}
-    >
-      {/* On phones the glass panel is the screen itself: no floating border,
-          radius or shadow. */}
-      <Card
-        variant="glass"
-        className="lobby-screen-glass flex min-h-0 flex-1 flex-col gap-0 overflow-clip py-0 max-sm:rounded-none max-sm:border-0 max-sm:shadow-none"
+    <CardHeader className="flex-row items-center gap-3 px-4 pb-3 pt-4 text-left sm:px-6 sm:pb-5 sm:pt-7">
+      <GameMark />
+      <div className="min-w-0 flex-1">
+        <h1 className="inline-flex w-fit max-w-full flex-col font-display leading-none">
+          <span
+            aria-hidden="true"
+            className="flex w-full items-center gap-1.5 text-lg font-bold tracking-[0.1em] text-muted-foreground sm:gap-2 sm:text-xl"
+          >
+            <span>Tic</span>
+            <span>Tac</span>
+            <span className="bg-linear-to-r from-muted-foreground from-45% to-muted-foreground/25 bg-clip-text text-transparent">
+              Toe
+            </span>
+          </span>
+          {/* The word does what it says: its tail fades toward the card —
+              but the floor stays legible (/60, not /25), otherwise the
+              tail vanishes on light glass and reads as a clipped word. */}
+          <span
+            aria-hidden="true"
+            className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/60 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[1.625rem]"
+          >
+            Disappear
+          </span>
+          <span className="sr-only">Tic Tac Toe Disappear</span>
+        </h1>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {/* One control for theme, language, help and the tutorial. It
+            opens on the App tab because that is what the masthead icon
+            promises; the lobby's identity setup is reached from the
+            summary cards below. */}
+        <button
+          type="button"
+          onClick={onOpenPreferences}
+          aria-label={t("settings.open")}
+          title={t("settings.open")}
+          className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+        >
+          <Settings2 className="size-4.5" aria-hidden="true" />
+        </button>
+      </div>
+    </CardHeader>
+  );
+}
+
+function OnlineMatchSection({
+  playerCount,
+  onlineAction,
+  explainedAction,
+  onChooseAction,
+  deadReason,
+  onlineRoomId,
+  onRoomIdChange,
+  roomFieldError,
+}: {
+  playerCount: PlayerCount | null;
+  onlineAction: TurnAction;
+  explainedAction: TurnAction | null;
+  onChooseAction: (action: TurnAction) => void;
+  deadReason: (action: TurnAction) => string | null;
+  onlineRoomId: string;
+  onRoomIdChange: (value: string) => void;
+  roomFieldError: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <OnlinePopulation count={playerCount} />
+      <div
+        role="radiogroup"
+        aria-label={t("lobby.matchType")}
+        className="flex flex-col gap-2 sm:grid sm:grid-cols-3"
+        onKeyDown={handleRadioGroupKeyDown}
       >
-        <CardHeader className="flex-row items-center gap-3 px-4 pb-3 pt-4 text-left sm:px-6 sm:pb-5 sm:pt-7">
-          <GameMark />
-          <div className="min-w-0 flex-1">
-            <h1 className="inline-flex w-fit max-w-full flex-col font-display leading-none">
-              <span
-                aria-hidden="true"
-                className="flex w-full items-center gap-1.5 text-lg font-bold tracking-[0.1em] text-muted-foreground sm:gap-2 sm:text-xl"
-              >
-                <span>Tic</span>
-                <span>Tac</span>
-                <span className="bg-linear-to-r from-muted-foreground from-45% to-muted-foreground/25 bg-clip-text text-transparent">
-                  Toe
-                </span>
-              </span>
-              {/* The word does what it says: its tail fades toward the card —
-                  but the floor stays legible (/60, not /25), otherwise the
-                  tail vanishes on light glass and reads as a clipped word. */}
-              <span
-                aria-hidden="true"
-                className="mt-0.5 block w-fit bg-linear-to-r from-foreground from-45% to-foreground/60 bg-clip-text pb-0.5 text-[1.375rem] font-extrabold tracking-[-0.03em] text-transparent max-[359px]:text-[1.25rem] min-[400px]:text-[1.5rem] sm:text-[1.625rem]"
-              >
-                Disappear
-              </span>
-              <span className="sr-only">Tic Tac Toe Disappear</span>
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {/* One control for theme, language, help and the tutorial. It
-                opens on the App tab because that is what the masthead icon
-                promises; the lobby's identity setup is reached from the
-                summary cards below. */}
-            <button
-              type="button"
-              onClick={() => setPreferencesOpen(true)}
-              aria-label={t("settings.open")}
-              title={t("settings.open")}
-              className="glass-interactive flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
-            >
-              <Settings2 className="size-4.5" aria-hidden="true" />
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-0 sm:px-6">
-          <div className="flex flex-col gap-3 sm:gap-3.5">
-          {error && (
-            <div
-              role="alert"
-              className="glass-cell rounded-lg border-destructive/30 px-3.5 py-2.5 text-sm text-destructive sm:text-xs"
-            >
-              {error}
-            </div>
-          )}
+        <OnlineOption
+          active={onlineAction === "quick"}
+          icon={<Play className="size-5 shrink-0" aria-hidden="true" />}
+          label={t("lobby.action.quick")}
+          onClick={() => onChooseAction("quick")}
+          disabledReason={deadReason("quick") ?? undefined}
+          explained={explainedAction === "quick"}
+        />
+        <OnlineOption
+          active={onlineAction === "create"}
+          icon={<Plus className="size-5 shrink-0" aria-hidden="true" />}
+          label={t("lobby.action.create")}
+          onClick={() => onChooseAction("create")}
+          disabledReason={deadReason("create") ?? undefined}
+          explained={explainedAction === "create"}
+        />
+        <OnlineOption
+          active={onlineAction === "join"}
+          icon={<LogIn className="size-5 shrink-0" aria-hidden="true" />}
+          label={t("lobby.action.join")}
+          onClick={() => onChooseAction("join")}
+          disabledReason={deadReason("join") ?? undefined}
+          explained={explainedAction === "join"}
+        />
+      </div>
+      {onlineAction === "create" && (
+        <Field
+          id="room"
+          label={t("lobby.roomCustom")}
+          inputMode="text"
+          autoCapitalize="none"
+          enterKeyHint="go"
+          icon={<Hash className="h-3.5 w-3.5" />}
+          value={onlineRoomId}
+          placeholder={t("lobby.roomCustomPlaceholder")}
+          maxLength={64}
+          hint={t("lobby.roomCustomHint")}
+          error={roomFieldError ?? undefined}
+          onChange={onRoomIdChange}
+        />
+      )}
+      {onlineAction === "join" && (
+        <Field
+          id="room"
+          label={t("lobby.roomCode")}
+          inputMode="text"
+          autoCapitalize="none"
+          enterKeyHint="go"
+          icon={<Hash className="h-3.5 w-3.5" />}
+          value={onlineRoomId}
+          placeholder={t("lobby.roomCodePlaceholder")}
+          maxLength={64}
+          hint={t("lobby.roomJoinHint")}
+          error={roomFieldError ?? undefined}
+          onChange={onRoomIdChange}
+        />
+      )}
+    </div>
+  );
+}
 
-          <PlayerSummaryCard
-            settings={playerSettings}
-            onEdit={() => {
-              setSettingsTab("player");
-              setSettingsOpen(true);
-            }}
-          />
-
-          {gameMode !== GameModes.ONLINE && (
-            <OpponentSummaryCard
-              opponentName={payload.opponentName}
-              opponentColor={opponentColor}
-              opponentShape={opponentShape}
-              opponentType={opponentType}
-              aiDifficultyLabel={aiDifficultyLabel}
-              onEdit={() => {
-                setSettingsTab("opponent");
-                setSettingsOpen(true);
-              }}
-            />
-          )}
-
-          <GameModeSelector
-            selectedMode={gameMode}
-            onModeChange={handleGameModeChange}
-            disabledModes={disabledModes}
-          />
-
-          {gameMode === GameModes.ONLINE && (
-            <div className="flex flex-col gap-3">
-              <OnlinePopulation count={playerCount} />
-              <div
-                role="radiogroup"
-                aria-label={t("lobby.matchType")}
-                className="flex flex-col gap-2 sm:grid sm:grid-cols-3"
-                onKeyDown={handleRadioGroupKeyDown}
-              >
-                <OnlineOption
-                  active={onlineAction === "quick"}
-                  icon={<Play className="size-5 shrink-0" aria-hidden="true" />}
-                  label={t("lobby.action.quick")}
-                  onClick={() => chooseOnlineAction("quick")}
-                  disabledReason={actionDeadReason("quick") ?? undefined}
-                  explained={explainedAction === "quick"}
-                />
-                <OnlineOption
-                  active={onlineAction === "create"}
-                  icon={<Plus className="size-5 shrink-0" aria-hidden="true" />}
-                  label={t("lobby.action.create")}
-                  onClick={() => chooseOnlineAction("create")}
-                  disabledReason={actionDeadReason("create") ?? undefined}
-                  explained={explainedAction === "create"}
-                />
-                <OnlineOption
-                  active={onlineAction === "join"}
-                  icon={<LogIn className="size-5 shrink-0" aria-hidden="true" />}
-                  label={t("lobby.action.join")}
-                  onClick={() => chooseOnlineAction("join")}
-                  disabledReason={actionDeadReason("join") ?? undefined}
-                  explained={explainedAction === "join"}
-                />
-              </div>
-              {onlineAction === "create" && (
-                <Field
-                  id="room"
-                  label={t("lobby.roomCustom")}
-                  inputMode="text"
-                  autoCapitalize="none"
-                  enterKeyHint="go"
-                  icon={<Hash className="h-3.5 w-3.5" />}
-                  value={onlineRoomId}
-                  placeholder={t("lobby.roomCustomPlaceholder")}
-                  maxLength={64}
-                  hint={t("lobby.roomCustomHint")}
-                  error={roomFieldError ?? undefined}
-                  onChange={setOnlineRoomId}
-                />
-              )}
-              {onlineAction === "join" && (
-                <Field
-                  id="room"
-                  label={t("lobby.roomCode")}
-                  inputMode="text"
-                  autoCapitalize="none"
-                  enterKeyHint="go"
-                  icon={<Hash className="h-3.5 w-3.5" />}
-                  value={onlineRoomId}
-                  placeholder={t("lobby.roomCodePlaceholder")}
-                  maxLength={64}
-                  hint={t("lobby.roomJoinHint")}
-                  error={roomFieldError ?? undefined}
-                  onChange={setOnlineRoomId}
-                />
-              )}
-            </div>
-          )}
-          </div>
-        </CardContent>
-        <CardFooter
+function LobbyCardFooter({
+  color,
+  gameMode,
+  onlineAction,
+  startDisabled,
+  startTitle,
+  startReasonId,
+  startReason,
+  onlineUnavailable,
+}: {
+  color: Color;
+  gameMode: GameMode;
+  onlineAction: TurnAction;
+  startDisabled: boolean;
+  startTitle: string | undefined;
+  startReasonId: string;
+  startReason: string | null;
+  onlineUnavailable: boolean;
+}) {
+  return (
+    <CardFooter
+      className={cn(
+        // Phones: the CTA sits in thumb reach above the home indicator.
+        "flex flex-col gap-2 px-4 pb-[max(1rem,var(--inset-bottom))] pt-2 sm:px-6 sm:pb-6 sm:pt-1",
+        // A wide-but-short window (a rotated tablet, or any desktop
+        // window under 560px tall) is past the `sm:h-auto` breakpoint,
+        // so the card sizes to its content and outgrows the scrollport
+        // instead of stretching. Pinning the footer to the bottom of
+        // that scrollport keeps Start in thumb reach while the settings
+        // above scroll underneath. `overflow-clip` on the Card is what
+        // allows this: `overflow-hidden` would establish a scroll
+        // container and the footer would stick to a box that never
+        // scrolls. On phones this is inert — the footer simply sits
+        // below the scrolling content already.
+        "landscape-short:sticky landscape-short:bottom-0",
+        "landscape-short:border-t landscape-short:border-border/60",
+        "landscape-short:bg-background/80 landscape-short:backdrop-blur-md",
+        "landscape-short:pb-[max(1.25rem,var(--inset-bottom))]",
+      )}
+    >
+      <Button
+        type="submit"
+        size="lg"
+        variant="glass"
+        disabled={startDisabled}
+        title={startTitle}
+        aria-describedby={startReason ? startReasonId : undefined}
+        className={cn(
+          "h-12 w-full text-base font-bold sm:h-14",
+          startDisabled && "cursor-not-allowed opacity-50",
+        )}
+        style={ctaStyle(color)}
+      >
+        {gameMode === GameModes.ONLINE ? (
+          <>
+            <KeyRound className="h-5 w-5" aria-hidden="true" />
+            {onlineAction === "quick"
+              ? t("lobby.quickMatch")
+              : onlineAction === "create"
+                ? t("lobby.createRoom")
+                : t("lobby.joinRoom")}
+          </>
+        ) : (
+          <>
+            <Play className="h-5 w-5" aria-hidden="true" />
+            {t("lobby.start")}
+          </>
+        )}
+      </Button>
+      {/* Says why Start is disabled. On desktop the text stays out of the
+          layout (sr-only) so the 1280x800 view is unchanged, but it is still
+          the button's accessible description. */}
+      {startReason && (
+        <p
+          id={startReasonId}
+          role={onlineUnavailable ? "status" : undefined}
           className={cn(
-            // Phones: the CTA sits in thumb reach above the home indicator.
-            "flex flex-col gap-2 px-4 pb-[max(1rem,var(--inset-bottom))] pt-2 sm:px-6 sm:pb-6 sm:pt-1",
-            // A wide-but-short window (a rotated tablet, or any desktop
-            // window under 560px tall) is past the `sm:h-auto` breakpoint,
-            // so the card sizes to its content and outgrows the scrollport
-            // instead of stretching. Pinning the footer to the bottom of
-            // that scrollport keeps Start in thumb reach while the settings
-            // above scroll underneath. `overflow-clip` on the Card is what
-            // allows this: `overflow-hidden` would establish a scroll
-            // container and the footer would stick to a box that never
-            // scrolls. On phones this is inert — the footer simply sits
-            // below the scrolling content already.
-            "landscape-short:sticky landscape-short:bottom-0",
-            "landscape-short:border-t landscape-short:border-border/60",
-            "landscape-short:bg-background/80 landscape-short:backdrop-blur-md",
-            "landscape-short:pb-[max(1.25rem,var(--inset-bottom))]",
+            "text-center text-sm text-muted-foreground",
+            onlineUnavailable ? "sm:text-xs sm:text-white/60" : "sm:sr-only",
           )}
         >
-          <Button
-            type="submit"
-            size="lg"
-            variant="glass"
-            disabled={startDisabled}
-            title={startTitle}
-            aria-describedby={startReason ? startReasonId : undefined}
-            className={cn(
-              "h-12 w-full text-base font-bold sm:h-14",
-              startDisabled && "cursor-not-allowed opacity-50",
-            )}
-            style={ctaStyle(color)}
-          >
-            {gameMode === GameModes.ONLINE ? (
-              <>
-                <KeyRound className="h-5 w-5" aria-hidden="true" />
-                {onlineAction === "quick"
-                  ? t("lobby.quickMatch")
-                  : onlineAction === "create"
-                    ? t("lobby.createRoom")
-                    : t("lobby.joinRoom")}
-              </>
-            ) : (
-              <>
-                <Play className="h-5 w-5" aria-hidden="true" />
-                {t("lobby.start")}
-              </>
-            )}
-          </Button>
-          {/* Says why Start is disabled. On desktop the text stays out of the
-              layout (sr-only) so the 1280x800 view is unchanged, but it is still
-              the button's accessible description. */}
-          {startReason && (
-            <p
-              id={startReasonId}
-              role={onlineUnavailable ? "status" : undefined}
-              className={cn(
-                "text-center text-sm text-muted-foreground",
-                onlineUnavailable ? "sm:text-xs sm:text-white/60" : "sm:sr-only",
-              )}
-            >
-              {startReason}
-            </p>
-          )}
-        </CardFooter>
-      </Card>
-
-      <SettingsSheet
-        isOpen={settingsOpen}
-        gameMode={gameMode}
-        tab={settingsTab}
-        onTabChange={setSettingsTab}
-        player={playerSettings}
-        opponent={opponentSettings}
-        onPlayerChange={handlePlayerSettingsChange}
-        onOpponentChange={handleOpponentSettingsChange}
-        onClose={() => setSettingsOpen(false)}
-      />
-
-      {/* App preferences: theme, language and the learning rows. A separate
-          surface from the player form above, which is a setup task. */}
-      <PreferencesSheet
-        isOpen={preferencesOpen}
-        onClose={() => setPreferencesOpen(false)}
-        onHowToPlay={() => {
-          setPreferencesOpen(false);
-          setHowToPlayOpen(true);
-        }}
-        onReplayTutorial={
-          onReplayTutorial
-            ? () => {
-                setPreferencesOpen(false);
-                onReplayTutorial();
-              }
-            : undefined
-        }
-      />
-
-      <HelpDrawer
-        isOpen={howToPlayOpen}
-        onClose={() => setHowToPlayOpen(false)}
-        onReplayTutorial={onReplayTutorial}
-      />
-    </form>
+          {startReason}
+        </p>
+      )}
+    </CardFooter>
   );
 }
 
