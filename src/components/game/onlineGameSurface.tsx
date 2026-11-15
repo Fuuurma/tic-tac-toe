@@ -1,5 +1,13 @@
 import { SocialReactions } from "./socialReactions";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import {
   AI_Difficulty,
   type AI_Difficulty as AI_DifficultyType,
@@ -15,7 +23,11 @@ import { COPY_FLASH_MS, GameStatus } from "@/game/constants";
 import { Board } from "./board";
 import { PlayersPanel } from "./playersPanel";
 import { Button } from "@/components/ui/button";
-import { usePeerRoom, type PeerStatus } from "@/hooks/usePeerRoom";
+import {
+  usePeerRoom,
+  type PeerRoomState,
+  type PeerStatus,
+} from "@/hooks/usePeerRoom";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
 import { useGameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
@@ -27,11 +39,13 @@ import {
 } from "@/components/lobby/playerSettingsSheet";
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
-import { waitPhase } from "@/lib/room-protocol/waitPhase";
+import { waitPhase, type WaitPhase } from "@/lib/room-protocol/waitPhase";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
 import { t, useStrings } from "@/i18n/language";
+
+type PeerRoom = ReturnType<typeof usePeerRoom>;
 
 interface OnlineGameSurfaceProps {
   config: {
@@ -60,6 +74,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // a searching state worth watching. `queue` says "still in line"; `status`
   // cannot, since a paired host building its room holds `creating` too.
   const { count: playerCount } = usePlayerCount(isQuick && peer.state.queue === "searching");
+  const playerWaiting = playerCount?.waiting;
 
   // Connection effect: runs when the action or room ID changes.
   // The cleanup leaves the room before re-connecting, so changing the action
@@ -87,74 +102,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     };
   }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, leave]);
 
-  const localSymbol: PlayerSymbol | null =
-    peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
+  useRecordOnlineResult(peer);
 
-  // Record online game results (fleet audit 2026-09-02 P2-6: online
-  // wins/losses were silently dropped — useGameStats was only wired in
-  // LocalGameSurface).
-  const { recordWin, recordLoss } = useGameStats();
-  // F474: one result per terminal episode. The old dedupe keyed on
-  // moveCount, which is host-controlled — a host resending the same
-  // terminal frame with a different accepted moveCount inflated the
-  // guest's tally. Re-arm only on a genuinely live frame (gameStart /
-  // rematch / WAITING), so reconnect and resync replays of the same
-  // terminal state cannot recount.
-  const resultRecorded = useRef(false);
-  useEffect(() => {
-    const terminal =
-      peer.state.gameState.winner !== null ||
-      peer.state.gameState.gameStatus === GameStatus.COMPLETED;
-    if (!terminal) {
-      resultRecorded.current = false;
-      return;
-    }
-    if (
-      resultRecorded.current ||
-      localSymbol === null ||
-      peer.state.gameState.winner === null
-    ) {
-      return;
-    }
-    resultRecorded.current = true;
-    if (peer.state.gameState.winner === localSymbol) {
-      recordWin({ gameMode: GameModes.ONLINE });
-    } else {
-      recordLoss({ gameMode: GameModes.ONLINE });
-    }
-  }, [
-    peer.state.gameState.winner,
-    peer.state.gameState.gameStatus,
-    localSymbol,
-    recordWin,
-    recordLoss,
-  ]);
-
-  const previewPlayer: PlayerSymbol | undefined =
-    localSymbol !== null && peer.state.gameState.currentPlayer === localSymbol
-      ? peer.state.gameState.currentPlayer
-      : undefined;
-  const previewColor: Color | undefined =
-    localSymbol !== null
-      ? peer.state.gameState.players[localSymbol]?.color
-      : undefined;
-  // Stable across a turn-clock tick, so Board's memo actually holds. Fresh
-  // object literals here failed every comparison and re-rendered all nine
-  // cells once a second for nothing.
-  const boardColors = useMemo(
-    () => ({
-      [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
-      [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
-    }),
-    [peer.state.gameState.players],
-  );
-  const boardShapes = useMemo(
-    () => ({
-      [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].shape,
-      [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].shape,
-    }),
-    [peer.state.gameState.players],
-  );
   const gameStatusShowsGame = ["connected", "reconnecting", "disconnected"].includes(
     peer.state.status,
   );
@@ -200,65 +149,24 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     />
   );
 
-  const message = onlineMessage(peer.state.status, peer.state.message);
-
-  // Online rematch is terminal-only: requestRematch no-ops mid-game for both
-  // roles, so don't offer "Start a new game" until the game is over. While
-  // the opponent's request is on screen the labeled Accept/Decline prompt
-  // IS the answer, so asking again would be a second, contradictory offer.
-  const isOnlineGameOver =
-    peer.state.gameState.winner !== null ||
-    peer.state.gameState.gameStatus !== GameStatus.ACTIVE;
-  const canRequestRematch =
-    peer.state.status === "connected" &&
-    isOnlineGameOver &&
-    !peer.state.rematchIncoming &&
-    !peer.state.rematchOutgoing;
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [panelPaused, setPanelPaused] = useState(false);
+  const overlaysPaused = settingsOpen || preferencesOpen || howToPlayOpen;
   // Mid-game overlays pause the turn clock like local play does: without
   // this the host's 10s timer keeps running (and can force a random move)
   // while the Settings sheet, Help drawer, or exit/rematch confirm is open.
   const setPeerPaused = peer.setPaused;
   useEffect(() => {
-    setPeerPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPaused);
-  }, [settingsOpen, preferencesOpen, howToPlayOpen, panelPaused, setPeerPaused]);
+    setPeerPaused(overlaysPaused || panelPaused);
+  }, [overlaysPaused, panelPaused, setPeerPaused]);
+
   // Seed from the live host player data; the next rematch picks the values
   // up via `peer.updatePendingSettings`. We refresh the buffered values each
   // time the user opens the sheet so they always edit the latest identity.
-  const hostSymbol =
-    peer.state.role === "host" ? peer.state.hostSymbol : peer.state.guestSymbol;
-  const hostPlayerFromState =
-    hostSymbol && peer.state.role === "host"
-      ? peer.state.gameState.players[hostSymbol]
-      : null;
-  const [pendingPlayerSettings, setPendingPlayerSettings] = useState<PlayerSettings>(
-    hostPlayerFromState
-      ? {
-          displayName: hostPlayerFromState.username,
-          color: hostPlayerFromState.color,
-          playerShape: hostPlayerFromState.shape,
-        }
-      : {
-          displayName: config.displayName,
-          color: config.color,
-          playerShape: config.playerShape,
-        },
-  );
-
-  const handleOpenSettings = () => {
-    if (hostPlayerFromState) {
-      setPendingPlayerSettings({
-        displayName: hostPlayerFromState.username,
-        color: hostPlayerFromState.color,
-        playerShape: hostPlayerFromState.shape,
-      });
-    }
-    setSettingsOpen(true);
-  };
+  const { pendingPlayerSettings, setPendingPlayerSettings, openSettings } =
+    usePendingPlayerSettings(peer, config, setSettingsOpen);
 
   return (
     // Phones: the column fills the screen and the HUD dissolves into it
@@ -280,162 +188,57 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             belongs to "create a room" only. Quick match is paired by the
             service; surfacing its internal room id would hand out a join key
             for a match nobody asked to be in. */}
-        {peer.state.status === "waiting" && isCreate && !warmupVisible && (
-          <>
-            <RoomIdShare
-              roomId={peer.state.roomId}
-              shareUrl={shareUrl}
-              onCancel={leaveAndExit}
-            />
-            <div className="glass flex flex-col items-center gap-2 p-3 max-sm:gap-3 max-sm:p-5">
-              {warmupInvite}
-              <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-center max-sm:text-sm">
-                {t("queue.roomKept")}
-              </p>
-            </div>
-          </>
-        )}
-        {isQuick && phase === "searching" && !warmupVisible && (
-          <OnlineConnectionState
-            message={t("online.finding")}
-            detail={quickMatchDetail(playerCount?.waiting)}
-            hint={t("queue.keepSpot")}
-            cancelLabel={t("online.cancelSearch")}
-            onCancel={leaveAndExit}
-          >
-            {warmupInvite}
-          </OnlineConnectionState>
-        )}
-        {isQuick && phase === "matched" && !warmupVisible && (
-          <OnlineConnectionState
-            message={t("queue.matchedTitle")}
-            hint={t("queue.matchedBody")}
-            cancelLabel={t("queue.cancel")}
-            onCancel={leaveAndExit}
-          />
-        )}
-        {warmupVisible && phase !== null && (
-          <QueueStrip
-            phase={phase}
-            detail={isQuick ? quickStripDetail(playerCount?.waiting) : undefined}
-            message={peer.state.message || t("online.connectFail")}
-            title={isQuick ? undefined : t("queue.roomWaiting")}
-            leaveLabel={isQuick ? undefined : t("queue.closeRoom")}
-            invite={
-              isQuick
-                ? undefined
-                : {
-                    url: shareUrl,
-                    shareTitle: t("online.shareTitle"),
-                    shareText: t("online.shareText", { code: peer.state.roomId }),
-                  }
-            }
-            onLeave={leaveAndExit}
-            // Only a search can be run again; a closed room is made from setup.
-            onSearchAgain={
-              isQuick
-                ? () => {
-                    void peer.startQuickMatch();
-                  }
-                : undefined
-            }
-          />
-        )}
-        {peer.state.status === "creating" && !isQuick && (
-          <OnlineConnectionState
-            message={t("online.creating")}
-            onCancel={leaveAndExit}
-          />
-        )}
-        {peer.state.status === "connecting" && !warmupVisible && (!isQuick || phase === null) && (
-          <OnlineConnectionState
-            // relayEvents already writes the accurate reason here ("Waiting
-            // for host…", a relay rejection, a room-not-found). A hardcoded
-            // string threw it away, so a join that fails for a knowable
-            // reason spun on "Joining room…" indefinitely with no way to tell
-            // a slow host from a dead room.
-            message={peer.state.message || t("online.joining")}
-            onCancel={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
-        )}
-        {peer.state.status === "reconnecting" && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2 text-amber-950 dark:text-amber-50"
-          >
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {peer.state.message || t("online.reconnecting")}
-            </span>
-            <span className="text-[11px] text-muted-foreground max-sm:text-xs">
-              {t("online.roomOpen")}
-            </span>
-            <Button
-              size="sm"
-              variant="glass"
-              onClick={() => peer.retryReconnect()}
-              className="w-full sm:w-auto max-sm:h-12"
-            >
-              {t("online.retry")}
-            </Button>
-          </div>
-        )}
-        {peer.state.status === "error" && !warmupVisible && (
-          <div
-            role="alert"
-            className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
-          >
-            <span className="text-xs text-destructive">
-              {peer.state.message || t("online.connectFail")}
-            </span>
-            <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
-              {config.onlineAction === "quick" && (
-                <Button
-                  size="sm"
-                  variant="glass"
-                  onClick={() => {
-                    void peer.startQuickMatch();
-                  }}
-                  className="w-full sm:w-auto max-sm:h-12"
-                >
-                  {t("online.tryAgain")}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="glass"
-                onClick={onExit}
-                className="w-full sm:w-auto max-sm:h-12"
-              >
-                {t("online.backSetup")}
-              </Button>
-            </div>
-          </div>
-        )}
-        {peer.state.status === "disconnected" && peer.state.message && !warmupVisible && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2"
-          >
-            <span className="text-xs font-medium text-amber-950 dark:text-amber-50">
-              {peer.state.message}
-            </span>
-            <Button
-              size="sm"
-              variant="glass"
-              onClick={onExit}
-              className="w-full sm:w-auto max-sm:h-12"
-            >
-              {t("online.backSetup")}
-            </Button>
-          </div>
-        )}
-
+        <RoomWaitBanner
+          peer={peer}
+          isCreate={isCreate}
+          warmupVisible={warmupVisible}
+          shareUrl={shareUrl}
+          warmupInvite={warmupInvite}
+          onCancel={leaveAndExit}
+        />
+        <QuickSearchBanner
+          isQuick={isQuick}
+          phase={phase}
+          warmupVisible={warmupVisible}
+          playerWaiting={playerWaiting}
+          warmupInvite={warmupInvite}
+          onCancel={leaveAndExit}
+        />
+        <QuickMatchedBanner
+          isQuick={isQuick}
+          phase={phase}
+          warmupVisible={warmupVisible}
+          onCancel={leaveAndExit}
+        />
+        <WarmupQueueStrip
+          peer={peer}
+          phase={phase}
+          isQuick={isQuick}
+          warmupVisible={warmupVisible}
+          playerWaiting={playerWaiting}
+          shareUrl={shareUrl}
+          onLeave={leaveAndExit}
+        />
+        <RoomCreatingBanner peer={peer} isQuick={isQuick} onCancel={leaveAndExit} />
+        <RoomConnectingBanner
+          peer={peer}
+          isQuick={isQuick}
+          phase={phase}
+          warmupVisible={warmupVisible}
+          onCancel={leaveAndExit}
+        />
+        <ReconnectingBanner peer={peer} />
+        <ConnectionErrorBanner
+          peer={peer}
+          warmupVisible={warmupVisible}
+          isQuick={isQuick}
+          onExit={onExit}
+        />
+        <DisconnectedBanner
+          peer={peer}
+          warmupVisible={warmupVisible}
+          onExit={onExit}
+        />
       </div>
 
       {warmupVisible && (
@@ -454,82 +257,613 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
 
       {/* Game area — below the status banners */}
       {showGame && (
-        <>
-          <SocialReactions ready={peer.state.status === "connected"} reaction={peer.reaction} send={peer.sendReaction} />
-          <PlayersPanel
-            gameState={peer.state.gameState}
-            message={message}
-            gameMode={GameModes.ONLINE}
-            roomCode={
-              // Same rule as the share banner: the HUD's copyable chip is a
-              // join credential, and a quick match was never something the
-              // opponent was invited to.
-              config.onlineAction === "quick" ? undefined : peer.state.roomId || undefined
-            }
-            onNewGame={
-              // Either side may ask for another game; the receiver answers
-              // with Accept or Decline. Both roles get the same controls.
-              canRequestRematch ? () => peer.requestRematch() : undefined
-            }
-            onOpenSettings={() => setPreferencesOpen(true)}
-            onEditIdentity={peer.state.role === "host" ? handleOpenSettings : undefined}
-            onPauseChange={setPanelPaused}
-            paused={peer.paused || peer.hostPaused || settingsOpen || preferencesOpen || howToPlayOpen}
-            onAcceptRematch={
-              peer.state.rematchIncoming ? () => peer.acceptRematch() : undefined
-            }
-            onDeclineRematch={
-              peer.state.rematchIncoming ? () => peer.declineRematch() : undefined
-            }
-            onCancelRematch={
-              peer.state.rematchOutgoing ? () => peer.cancelRematch() : undefined
-            }
-            onRequestRematch={
-              canRequestRematch && !peer.state.rematchOutgoing
-                ? () => peer.requestRematch()
-                : undefined
-            }
-            onExit={() => {
-              peer.leave();
-              onExit();
-            }}
-          />
-
-          <div className="flex min-h-0 flex-1 flex-col justify-center max-sm:order-5">
-            <Board
-              board={peer.state.gameState.board}
-              colors={boardColors}
-              shapes={boardShapes}
-              winningCombination={peer.state.gameState.winningCombination}
-              nextToRemove={peer.state.gameState.nextToRemove}
-              previewPlayer={previewPlayer}
-              previewColor={previewColor}
-              previewShape={previewPlayer ? peer.state.gameState.players[previewPlayer].shape : undefined}
-              disabled={
-                peer.paused ||
-                peer.hostPaused ||
-                peer.state.status !== "connected" ||
-                localSymbol === null ||
-                peer.state.gameState.currentPlayer !== localSymbol ||
-                peer.state.gameState.gameStatus !== "ACTIVE"
-              }
-              disabledReason={
-                peer.paused || peer.hostPaused
-                  ? t("app.boardPaused")
-                  : peer.state.status !== "connected"
-                    ? t("game.notConnected")
-                    : peer.state.gameState.currentPlayer !== localSymbol
-                      ? t("game.waitingOpponent")
-                      : peer.state.gameState.gameStatus !== "ACTIVE"
-                        ? t("app.boardGameOver")
-                        : undefined
-              }
-              showVanish
-              onCellClick={peer.sendMove}
-            />
-          </div>
-        </>
+        <OnlineGameArea
+          peer={peer}
+          onlineAction={config.onlineAction}
+          overlaysPaused={overlaysPaused}
+          onOpenSettings={() => setPreferencesOpen(true)}
+          onEditIdentity={openSettings}
+          onPauseChange={setPanelPaused}
+          onExit={onExit}
+        />
       )}
+      <OnlineSheets
+        peer={peer}
+        settingsOpen={settingsOpen}
+        preferencesOpen={preferencesOpen}
+        howToPlayOpen={howToPlayOpen}
+        pendingPlayerSettings={pendingPlayerSettings}
+        setPendingPlayerSettings={setPendingPlayerSettings}
+        setSettingsOpen={setSettingsOpen}
+        setPreferencesOpen={setPreferencesOpen}
+        setHowToPlayOpen={setHowToPlayOpen}
+      />
+    </div>
+  );
+}
+
+function useRecordOnlineResult(peer: PeerRoom) {
+  const localSymbol = localPlayerSymbol(peer.state);
+  // Record online game results (fleet audit 2026-09-02 P2-6: online
+  // wins/losses were silently dropped — useGameStats was only wired in
+  // LocalGameSurface).
+  const { recordWin, recordLoss } = useGameStats();
+  // F474: one result per terminal episode. The old dedupe keyed on
+  // moveCount, which is host-controlled — a host resending the same
+  // terminal frame with a different accepted moveCount inflated the
+  // guest's tally. Re-arm only on a genuinely live frame (gameStart /
+  // rematch / WAITING), so reconnect and resync replays of the same
+  // terminal state cannot recount.
+  const resultRecorded = useRef(false);
+  useEffect(() => {
+    const terminal =
+      peer.state.gameState.winner !== null ||
+      peer.state.gameState.gameStatus === GameStatus.COMPLETED;
+    if (!terminal) {
+      resultRecorded.current = false;
+      return;
+    }
+    if (
+      resultRecorded.current ||
+      localSymbol === null ||
+      peer.state.gameState.winner === null
+    ) {
+      return;
+    }
+    resultRecorded.current = true;
+    if (peer.state.gameState.winner === localSymbol) {
+      recordWin({ gameMode: GameModes.ONLINE });
+    } else {
+      recordLoss({ gameMode: GameModes.ONLINE });
+    }
+  }, [
+    peer.state.gameState.winner,
+    peer.state.gameState.gameStatus,
+    localSymbol,
+    recordWin,
+    recordLoss,
+  ]);
+}
+
+function usePendingPlayerSettings(
+  peer: PeerRoom,
+  config: OnlineGameSurfaceProps["config"],
+  setSettingsOpen: (open: boolean) => void,
+) {
+  const hostPlayerFromState = hostPlayerFor(peer.state);
+  const [pendingPlayerSettings, setPendingPlayerSettings] = useState<PlayerSettings>(
+    hostPlayerFromState
+      ? {
+          displayName: hostPlayerFromState.username,
+          color: hostPlayerFromState.color,
+          playerShape: hostPlayerFromState.shape,
+        }
+      : {
+          displayName: config.displayName,
+          color: config.color,
+          playerShape: config.playerShape,
+        },
+  );
+
+  const openSettings = () => {
+    if (hostPlayerFromState) {
+      setPendingPlayerSettings({
+        displayName: hostPlayerFromState.username,
+        color: hostPlayerFromState.color,
+        playerShape: hostPlayerFromState.shape,
+      });
+    }
+    setSettingsOpen(true);
+  };
+
+  return { pendingPlayerSettings, setPendingPlayerSettings, openSettings };
+}
+
+/** The symbol this client plays, whichever side of the room it holds. */
+function localPlayerSymbol(state: PeerRoomState): PlayerSymbol | null {
+  return state.role === "host" ? state.hostSymbol : state.guestSymbol;
+}
+
+function hostPlayerFor(state: PeerRoomState) {
+  const localSymbol = localPlayerSymbol(state);
+  return localSymbol && state.role === "host"
+    ? state.gameState.players[localSymbol]
+    : null;
+}
+
+// Online rematch is terminal-only: requestRematch no-ops mid-game for both
+// roles, so don't offer "Start a new game" until the game is over. While
+// the opponent's request is on screen the labeled Accept/Decline prompt
+// IS the answer, so asking again would be a second, contradictory offer.
+function canRequestOnlineRematch(state: PeerRoomState): boolean {
+  const isOnlineGameOver =
+    state.gameState.winner !== null ||
+    state.gameState.gameStatus !== GameStatus.ACTIVE;
+  return (
+    state.status === "connected" &&
+    isOnlineGameOver &&
+    !state.rematchIncoming &&
+    !state.rematchOutgoing
+  );
+}
+
+// Either side may ask for another game; the receiver answers with Accept or
+// Decline. Both roles get the same controls.
+function onlineRematchProps(peer: PeerRoom, canRequestRematch: boolean) {
+  return {
+    onNewGame: canRequestRematch ? () => peer.requestRematch() : undefined,
+    onAcceptRematch: peer.state.rematchIncoming
+      ? () => peer.acceptRematch()
+      : undefined,
+    onDeclineRematch: peer.state.rematchIncoming
+      ? () => peer.declineRematch()
+      : undefined,
+    onCancelRematch: peer.state.rematchOutgoing
+      ? () => peer.cancelRematch()
+      : undefined,
+    onRequestRematch:
+      canRequestRematch && !peer.state.rematchOutgoing
+        ? () => peer.requestRematch()
+        : undefined,
+  };
+}
+
+function boardPreview(state: PeerRoomState, localSymbol: PlayerSymbol | null) {
+  const player =
+    localSymbol !== null && state.gameState.currentPlayer === localSymbol
+      ? state.gameState.currentPlayer
+      : undefined;
+  return {
+    player,
+    color:
+      localSymbol !== null
+        ? state.gameState.players[localSymbol]?.color
+        : undefined,
+    shape: player ? state.gameState.players[player].shape : undefined,
+  };
+}
+
+function isBoardInputDisabled(
+  peer: PeerRoom,
+  localSymbol: PlayerSymbol | null,
+): boolean {
+  return (
+    peer.paused ||
+    peer.hostPaused ||
+    peer.state.status !== "connected" ||
+    localSymbol === null ||
+    peer.state.gameState.currentPlayer !== localSymbol ||
+    peer.state.gameState.gameStatus !== "ACTIVE"
+  );
+}
+
+function boardDisabledReason(
+  peer: PeerRoom,
+  localSymbol: PlayerSymbol | null,
+): string | undefined {
+  return peer.paused || peer.hostPaused
+    ? t("app.boardPaused")
+    : peer.state.status !== "connected"
+      ? t("game.notConnected")
+      : peer.state.gameState.currentPlayer !== localSymbol
+        ? t("game.waitingOpponent")
+        : peer.state.gameState.gameStatus !== "ACTIVE"
+          ? t("app.boardGameOver")
+          : undefined;
+}
+
+// Same rule as the share banner: the HUD's copyable chip is a join
+// credential, and a quick match was never something the opponent was
+// invited to.
+function onlineRoomCode(
+  onlineAction: TurnAction,
+  roomId: string,
+): string | undefined {
+  return onlineAction === "quick" ? undefined : roomId || undefined;
+}
+
+function onlineSurfacePaused(peer: PeerRoom, overlaysPaused: boolean): boolean {
+  return peer.paused || peer.hostPaused || overlaysPaused;
+}
+
+function OnlineGameArea({
+  peer,
+  onlineAction,
+  overlaysPaused,
+  onOpenSettings,
+  onEditIdentity,
+  onPauseChange,
+  onExit,
+}: {
+  peer: PeerRoom;
+  onlineAction: TurnAction;
+  overlaysPaused: boolean;
+  onOpenSettings: () => void;
+  onEditIdentity: () => void;
+  onPauseChange: (paused: boolean) => void;
+  onExit: () => void;
+}) {
+  const localSymbol = localPlayerSymbol(peer.state);
+  const message = onlineMessage(peer.state.status, peer.state.message);
+  const canRequestRematch = canRequestOnlineRematch(peer.state);
+  const rematch = onlineRematchProps(peer, canRequestRematch);
+  const preview = boardPreview(peer.state, localSymbol);
+  // Stable across a turn-clock tick, so Board's memo actually holds. Fresh
+  // object literals here failed every comparison and re-rendered all nine
+  // cells once a second for nothing.
+  const boardColors = useMemo(
+    () => ({
+      [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].color,
+      [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].color,
+    }),
+    [peer.state.gameState.players],
+  );
+  const boardShapes = useMemo(
+    () => ({
+      [PlayerSymbol.X]: peer.state.gameState.players[PlayerSymbol.X].shape,
+      [PlayerSymbol.O]: peer.state.gameState.players[PlayerSymbol.O].shape,
+    }),
+    [peer.state.gameState.players],
+  );
+
+  return (
+    <>
+      <SocialReactions ready={peer.state.status === "connected"} reaction={peer.reaction} send={peer.sendReaction} />
+      <PlayersPanel
+        gameState={peer.state.gameState}
+        message={message}
+        gameMode={GameModes.ONLINE}
+        roomCode={onlineRoomCode(onlineAction, peer.state.roomId)}
+        onNewGame={rematch.onNewGame}
+        onOpenSettings={onOpenSettings}
+        onEditIdentity={peer.state.role === "host" ? onEditIdentity : undefined}
+        onPauseChange={onPauseChange}
+        paused={onlineSurfacePaused(peer, overlaysPaused)}
+        onAcceptRematch={rematch.onAcceptRematch}
+        onDeclineRematch={rematch.onDeclineRematch}
+        onCancelRematch={rematch.onCancelRematch}
+        onRequestRematch={rematch.onRequestRematch}
+        onExit={() => {
+          peer.leave();
+          onExit();
+        }}
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col justify-center max-sm:order-5">
+        <Board
+          board={peer.state.gameState.board}
+          colors={boardColors}
+          shapes={boardShapes}
+          winningCombination={peer.state.gameState.winningCombination}
+          nextToRemove={peer.state.gameState.nextToRemove}
+          previewPlayer={preview.player}
+          previewColor={preview.color}
+          previewShape={preview.shape}
+          disabled={isBoardInputDisabled(peer, localSymbol)}
+          disabledReason={boardDisabledReason(peer, localSymbol)}
+          showVanish
+          onCellClick={peer.sendMove}
+        />
+      </div>
+    </>
+  );
+}
+
+function RoomWaitBanner({
+  peer,
+  isCreate,
+  warmupVisible,
+  shareUrl,
+  warmupInvite,
+  onCancel,
+}: {
+  peer: PeerRoom;
+  isCreate: boolean;
+  warmupVisible: boolean;
+  shareUrl: string;
+  warmupInvite: ReactNode;
+  onCancel: () => void;
+}) {
+  if (peer.state.status !== "waiting" || !isCreate || warmupVisible) return null;
+  return (
+    <>
+      <RoomIdShare
+        roomId={peer.state.roomId}
+        shareUrl={shareUrl}
+        onCancel={onCancel}
+      />
+      <div className="glass flex flex-col items-center gap-2 p-3 max-sm:gap-3 max-sm:p-5">
+        {warmupInvite}
+        <p className="text-[11px] leading-tight text-muted-foreground max-sm:text-center max-sm:text-sm">
+          {t("queue.roomKept")}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function QuickSearchBanner({
+  isQuick,
+  phase,
+  warmupVisible,
+  playerWaiting,
+  warmupInvite,
+  onCancel,
+}: {
+  isQuick: boolean;
+  phase: WaitPhase | null;
+  warmupVisible: boolean;
+  playerWaiting: number | undefined;
+  warmupInvite: ReactNode;
+  onCancel: () => void;
+}) {
+  if (!isQuick || phase !== "searching" || warmupVisible) return null;
+  return (
+    <OnlineConnectionState
+      message={t("online.finding")}
+      detail={quickMatchDetail(playerWaiting)}
+      hint={t("queue.keepSpot")}
+      cancelLabel={t("online.cancelSearch")}
+      onCancel={onCancel}
+    >
+      {warmupInvite}
+    </OnlineConnectionState>
+  );
+}
+
+function QuickMatchedBanner({
+  isQuick,
+  phase,
+  warmupVisible,
+  onCancel,
+}: {
+  isQuick: boolean;
+  phase: WaitPhase | null;
+  warmupVisible: boolean;
+  onCancel: () => void;
+}) {
+  if (!isQuick || phase !== "matched" || warmupVisible) return null;
+  return (
+    <OnlineConnectionState
+      message={t("queue.matchedTitle")}
+      hint={t("queue.matchedBody")}
+      cancelLabel={t("queue.cancel")}
+      onCancel={onCancel}
+    />
+  );
+}
+
+function WarmupQueueStrip({
+  peer,
+  phase,
+  isQuick,
+  warmupVisible,
+  playerWaiting,
+  shareUrl,
+  onLeave,
+}: {
+  peer: PeerRoom;
+  phase: WaitPhase | null;
+  isQuick: boolean;
+  warmupVisible: boolean;
+  playerWaiting: number | undefined;
+  shareUrl: string;
+  onLeave: () => void;
+}) {
+  if (!warmupVisible || phase === null) return null;
+  return (
+    <QueueStrip
+      phase={phase}
+      detail={isQuick ? quickStripDetail(playerWaiting) : undefined}
+      message={peer.state.message || t("online.connectFail")}
+      title={isQuick ? undefined : t("queue.roomWaiting")}
+      leaveLabel={isQuick ? undefined : t("queue.closeRoom")}
+      invite={
+        isQuick
+          ? undefined
+          : {
+              url: shareUrl,
+              shareTitle: t("online.shareTitle"),
+              shareText: t("online.shareText", { code: peer.state.roomId }),
+            }
+      }
+      onLeave={onLeave}
+      // Only a search can be run again; a closed room is made from setup.
+      onSearchAgain={
+        isQuick
+          ? () => {
+              void peer.startQuickMatch();
+            }
+          : undefined
+      }
+    />
+  );
+}
+
+function RoomCreatingBanner({
+  peer,
+  isQuick,
+  onCancel,
+}: {
+  peer: PeerRoom;
+  isQuick: boolean;
+  onCancel: () => void;
+}) {
+  if (peer.state.status !== "creating" || isQuick) return null;
+  return (
+    <OnlineConnectionState
+      message={t("online.creating")}
+      onCancel={onCancel}
+    />
+  );
+}
+
+function RoomConnectingBanner({
+  peer,
+  isQuick,
+  phase,
+  warmupVisible,
+  onCancel,
+}: {
+  peer: PeerRoom;
+  isQuick: boolean;
+  phase: WaitPhase | null;
+  warmupVisible: boolean;
+  onCancel: () => void;
+}) {
+  if (
+    peer.state.status !== "connecting" ||
+    warmupVisible ||
+    (isQuick && phase !== null)
+  ) {
+    return null;
+  }
+  return (
+    <OnlineConnectionState
+      // relayEvents already writes the accurate reason here ("Waiting
+      // for host…", a relay rejection, a room-not-found). A hardcoded
+      // string threw it away, so a join that fails for a knowable
+      // reason spun on "Joining room…" indefinitely with no way to tell
+      // a slow host from a dead room.
+      message={peer.state.message || t("online.joining")}
+      onCancel={onCancel}
+    />
+  );
+}
+
+function ReconnectingBanner({ peer }: { peer: PeerRoom }) {
+  if (peer.state.status !== "reconnecting") return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2 text-amber-950 dark:text-amber-50"
+    >
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        {peer.state.message || t("online.reconnecting")}
+      </span>
+      <span className="text-[11px] text-muted-foreground max-sm:text-xs">
+        {t("online.roomOpen")}
+      </span>
+      <Button
+        size="sm"
+        variant="glass"
+        onClick={() => peer.retryReconnect()}
+        className="w-full sm:w-auto max-sm:h-12"
+      >
+        {t("online.retry")}
+      </Button>
+    </div>
+  );
+}
+
+function ConnectionErrorBanner({
+  peer,
+  warmupVisible,
+  isQuick,
+  onExit,
+}: {
+  peer: PeerRoom;
+  warmupVisible: boolean;
+  isQuick: boolean;
+  onExit: () => void;
+}) {
+  if (peer.state.status !== "error" || warmupVisible) return null;
+  return (
+    <div
+      role="alert"
+      className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
+    >
+      <span className="text-xs text-destructive">
+        {peer.state.message || t("online.connectFail")}
+      </span>
+      <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
+        {isQuick && (
+          <Button
+            size="sm"
+            variant="glass"
+            onClick={() => {
+              void peer.startQuickMatch();
+            }}
+            className="w-full sm:w-auto max-sm:h-12"
+          >
+            {t("online.tryAgain")}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={onExit}
+          className="w-full sm:w-auto max-sm:h-12"
+        >
+          {t("online.backSetup")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function DisconnectedBanner({
+  peer,
+  warmupVisible,
+  onExit,
+}: {
+  peer: PeerRoom;
+  warmupVisible: boolean;
+  onExit: () => void;
+}) {
+  if (
+    peer.state.status !== "disconnected" ||
+    !peer.state.message ||
+    warmupVisible
+  ) {
+    return null;
+  }
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2"
+    >
+      <span className="text-xs font-medium text-amber-950 dark:text-amber-50">
+        {peer.state.message}
+      </span>
+      <Button
+        size="sm"
+        variant="glass"
+        onClick={onExit}
+        className="w-full sm:w-auto max-sm:h-12"
+      >
+        {t("online.backSetup")}
+      </Button>
+    </div>
+  );
+}
+
+function OnlineSheets({
+  peer,
+  settingsOpen,
+  preferencesOpen,
+  howToPlayOpen,
+  pendingPlayerSettings,
+  setPendingPlayerSettings,
+  setSettingsOpen,
+  setPreferencesOpen,
+  setHowToPlayOpen,
+}: {
+  peer: PeerRoom;
+  settingsOpen: boolean;
+  preferencesOpen: boolean;
+  howToPlayOpen: boolean;
+  pendingPlayerSettings: PlayerSettings;
+  setPendingPlayerSettings: Dispatch<SetStateAction<PlayerSettings>>;
+  setSettingsOpen: (open: boolean) => void;
+  setPreferencesOpen: (open: boolean) => void;
+  setHowToPlayOpen: (open: boolean) => void;
+}) {
+  return (
+    <>
       <SettingsSheet
         isOpen={settingsOpen && peer.state.role === "host"}
         gameMode={GameModes.ONLINE}
@@ -573,7 +907,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         }}
       />
       <HelpDrawer inline isOpen={howToPlayOpen} onClose={() => setHowToPlayOpen(false)} />
-    </div>
+    </>
   );
 }
 
