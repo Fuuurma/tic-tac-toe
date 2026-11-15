@@ -7,6 +7,7 @@ import {
   type AnimationEvent,
   type CSSProperties,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -86,18 +87,19 @@ export function Sheet({
 }: SheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = `${useId()}-title`;
   const onCloseRef = useRef(onClose);
-  const [isPresent, setIsPresent] = useState(open);
-  const [previousOpen, setPreviousOpen] = useState(open);
-  if (open !== previousOpen) {
-    setPreviousOpen(open);
-    if (open) setIsPresent(true);
-  }
-  const isVisible = open || isPresent;
-  const isExiting = !open && isPresent;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  const { isVisible, isExiting, finishExitAnimation } = useSheetPresence(open);
+  const isPhone = useIsPhone();
+  // F793: mirrors Tailwind's sm boundary. A phone inline sheet is a
+  // full-screen overlay, so it gets the modal path (top layer, Esc,
+  // background inert); the desktop inline sheet stays an embedded,
+  // non-modal panel.
+  const phoneOverlay = inline && isPhone;
   const drag = useDragToDismiss({
     onDismiss: onClose,
     enabled: open,
@@ -111,119 +113,17 @@ export function Sheet({
   // that expand) or that overflows a short landscape phone keeps the drag on
   // its header only.
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [bodyFits, setBodyFits] = useState(false);
-  useLayoutEffect(() => {
-    const body = bodyRef.current;
-    if (!body || !isVisible || !dragFromBody) return;
-    const measure = () => setBodyFits(body.scrollHeight <= body.clientHeight + 1);
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [isVisible, dragFromBody]);
+  const bodyFits = useBodyFits(bodyRef, isVisible, dragFromBody);
   const dragAnywhere = dragFromBody && bodyFits;
 
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  // F793: mirrors Tailwind's sm boundary. A phone inline sheet is a
-  // full-screen overlay, so it gets the modal path (top layer, Esc,
-  // background inert); the desktop inline sheet stays an embedded,
-  // non-modal panel.
-  const [isPhone, setIsPhone] = useState(() => queryPhone());
-  useEffect(() => {
-    // jsdom (and very old browsers) ship no matchMedia; the desktop
-    // inline layout is the safe default there.
-    if (typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(max-width: 639px)");
-    const onChange = (event: MediaQueryListEvent) => setIsPhone(event.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  const phoneOverlay = inline && isPhone;
-
-  useEffect(() => {
-    if (open || !isPresent) return;
-    const timeoutId = window.setTimeout(
-      () => setIsPresent(false),
-      EXIT_ANIMATION_FALLBACK_MS,
-    );
-    return () => window.clearTimeout(timeoutId);
-  }, [open, isPresent]);
-
-  useLayoutEffect(() => {
-    const dlg = dialogRef.current;
-    if (!dlg || (inline && !phoneOverlay)) return;
-    if (isVisible && !dlg.open) {
-      dlg.showModal();
-      // The panel, not the first field: focusing an input on open pops the
-      // phone keyboard over a sheet the player has not read yet.
-      dlg.focus();
-    } else if (!isVisible && dlg.open) {
-      dlg.close();
-    }
-  }, [isVisible, inline, phoneOverlay]);
-
-  // Non-modal (inline) dialogs get no Esc, focus trap or focus restore from
-  // the platform, so the inline path supplies them.
-  useEffect(() => {
-    if (!isVisible || !inline) return;
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      const dlg = dialogRef.current;
-      if (e.key !== "Tab" || !dlg) return;
-      const focusable = dlg.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && (document.activeElement === first || document.activeElement === dlg)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      const previousFocus = previousFocusRef.current;
-      if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
-      previousFocusRef.current = null;
-    };
-  }, [isVisible, inline]);
-
-  // Backdrop dismissal is a pointer affordance, not a control: keyboard users
-  // already have Esc (the dialog's cancel event on the modal path, the
-  // keydown effect above on the inline path) and the header close button.
-  // The click listeners therefore live on the elements themselves rather
-  // than as JSX handlers on elements that are not interactive.
-  useEffect(() => {
-    const backdrop: HTMLElement | null =
-      inline && !phoneOverlay ? scrimRef.current : dialogRef.current;
-    if (!backdrop) return;
-    const onBackdropClick = (event: MouseEvent) => {
-      if (event.target === event.currentTarget) onCloseRef.current();
-    };
-    backdrop.addEventListener("click", onBackdropClick);
-    return () => backdrop.removeEventListener("click", onBackdropClick);
-  }, [isVisible, inline, phoneOverlay]);
-
-  const finishExitAnimation = (event: AnimationEvent<HTMLDialogElement>) => {
-    if (event.target !== event.currentTarget || !isExiting) return;
-    if (event.animationName === "sheet-down" || event.animationName === "pop-out") {
-      setIsPresent(false);
-    }
-  };
+  useSheetChrome({
+    dialogRef,
+    scrimRef,
+    onCloseRef,
+    isVisible,
+    inline,
+    phoneOverlay,
+  });
 
   const full = size === "full";
   const panelStyle = {
@@ -257,89 +157,23 @@ export function Sheet({
   );
 
   const panel = (
-    // The drag surface is this wrapper, not the dialog: pointer capture would
-    // otherwise retarget the click that follows a drag to the dialog itself,
-    // which the backdrop-click check reads as a tap on the scrim and closes.
-    <div
-      className="flex min-h-0 flex-1 flex-col"
-      style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
-      {...(dragAnywhere ? drag.handleProps : {})}
+    <SheetPanel
+      title={title}
+      titleId={titleId}
+      closeLabel={closeLabel}
+      onClose={onClose}
+      full={full}
+      compactMobile={compactMobile}
+      hideClose={hideClose}
+      dragAnywhere={dragAnywhere}
+      handleProps={drag.handleProps}
+      bodyRef={bodyRef}
+      bodyClassName={bodyClassName}
+      footer={footer}
+      footerClassName={footerClassName}
     >
-      <div
-        className={cn(
-          "flex shrink-0 select-none flex-col px-5 pb-3",
-          full ? "pt-[max(0.5rem,var(--inset-top))] sm:pt-5" : "pt-2 sm:pt-5",
-          // With the title and X gone, the grabber is the whole handle: give
-          // it the 44px a thumb needs instead of the ~34px it measured.
-          compactMobile && "max-sm:min-h-11",
-        )}
-        style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
-        {...(dragAnywhere ? {} : drag.handleProps)}
-      >
-        <div
-          aria-hidden="true"
-          className="mx-auto mb-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"
-        />
-        <div
-          className={cn(
-            "flex min-h-11 items-center justify-between gap-3",
-            compactMobile && "max-sm:min-h-0",
-          )}
-        >
-          <h2
-            id={titleId}
-            className={cn(
-              "min-w-0 truncate text-lg font-bold tracking-tight",
-              compactMobile && "max-sm:sr-only",
-            )}
-          >
-            {title}
-          </h2>
-          <div
-            className={cn(
-              "flex shrink-0 items-center gap-2",
-              compactMobile && "max-sm:hidden",
-            )}
-          >
-            {!hideClose && (
-              <button
-                ref={closeRef}
-                type="button"
-                onClick={onClose}
-                aria-label={closeLabel}
-                className="glass-interactive flex size-11 items-center justify-center rounded-lg text-muted-foreground"
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-      <div
-        ref={bodyRef}
-        // touch-action stops propagating at the nearest scroll container, and
-        // this is one: without it here a swipe that starts on the content is
-        // claimed by the browser as a pan and the drag is cancelled.
-        style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
-        className={cn(
-          "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-5",
-          !footer && "pb-[max(1.25rem,var(--inset-bottom))]",
-          bodyClassName,
-        )}
-      >
-        {children}
-      </div>
-      {footer && (
-        <div
-          className={cn(
-            "sheet-footer flex shrink-0 flex-col gap-2 px-5 pt-3 pb-[max(1rem,var(--inset-bottom))] sm:pb-5",
-            footerClassName,
-          )}
-        >
-          {footer}
-        </div>
-      )}
-    </div>
+      {children}
+    </SheetPanel>
   );
 
   if (inline && !phoneOverlay) {
@@ -382,5 +216,313 @@ export function Sheet({
     >
       {panel}
     </dialog>
+  );
+}
+
+function useIsPhone(): boolean {
+  const [isPhone, setIsPhone] = useState(() => queryPhone());
+  useEffect(() => {
+    // jsdom (and very old browsers) ship no matchMedia; the desktop
+    // inline layout is the safe default there.
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const onChange = (event: MediaQueryListEvent) => setIsPhone(event.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isPhone;
+}
+
+function useSheetPresence(open: boolean) {
+  const [isPresent, setIsPresent] = useState(open);
+  const [previousOpen, setPreviousOpen] = useState(open);
+  if (open !== previousOpen) {
+    setPreviousOpen(open);
+    if (open) setIsPresent(true);
+  }
+  const isVisible = open || isPresent;
+  const isExiting = !open && isPresent;
+
+  useEffect(() => {
+    if (open || !isPresent) return;
+    const timeoutId = window.setTimeout(
+      () => setIsPresent(false),
+      EXIT_ANIMATION_FALLBACK_MS,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [open, isPresent]);
+
+  const finishExitAnimation = (event: AnimationEvent<HTMLDialogElement>) => {
+    if (event.target !== event.currentTarget || !isExiting) return;
+    if (event.animationName === "sheet-down" || event.animationName === "pop-out") {
+      setIsPresent(false);
+    }
+  };
+
+  return { isVisible, isExiting, finishExitAnimation };
+}
+
+function useBodyFits(
+  bodyRef: RefObject<HTMLDivElement | null>,
+  isVisible: boolean,
+  dragFromBody: boolean,
+): boolean {
+  const [bodyFits, setBodyFits] = useState(false);
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body || !isVisible || !dragFromBody) return;
+    const measure = () => setBodyFits(body.scrollHeight <= body.clientHeight + 1);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [bodyRef, isVisible, dragFromBody]);
+  return bodyFits;
+}
+
+interface SheetChromeOptions {
+  dialogRef: RefObject<HTMLDialogElement | null>;
+  scrimRef: RefObject<HTMLDivElement | null>;
+  onCloseRef: RefObject<() => void>;
+  isVisible: boolean;
+  inline: boolean;
+  phoneOverlay: boolean;
+}
+
+function useSheetChrome({
+  dialogRef,
+  scrimRef,
+  onCloseRef,
+  isVisible,
+  inline,
+  phoneOverlay,
+}: SheetChromeOptions) {
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    const dlg = dialogRef.current;
+    if (!dlg || (inline && !phoneOverlay)) return;
+    if (isVisible && !dlg.open) {
+      dlg.showModal();
+      // The panel, not the first field: focusing an input on open pops the
+      // phone keyboard over a sheet the player has not read yet.
+      dlg.focus();
+    } else if (!isVisible && dlg.open) {
+      dlg.close();
+    }
+  }, [dialogRef, isVisible, inline, phoneOverlay]);
+
+  // Non-modal (inline) dialogs get no Esc, focus trap or focus restore from
+  // the platform, so the inline path supplies them.
+  useEffect(() => {
+    if (!isVisible || !inline) return;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      const dlg = dialogRef.current;
+      if (e.key !== "Tab" || !dlg) return;
+      const focusable = dlg.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === dlg)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      const previousFocus = previousFocusRef.current;
+      if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
+      previousFocusRef.current = null;
+    };
+  }, [dialogRef, isVisible, inline, onCloseRef]);
+
+  // Backdrop dismissal is a pointer affordance, not a control: keyboard users
+  // already have Esc (the dialog's cancel event on the modal path, the
+  // keydown effect above on the inline path) and the header close button.
+  // The click listeners therefore live on the elements themselves rather
+  // than as JSX handlers on elements that are not interactive.
+  useEffect(() => {
+    const backdrop: HTMLElement | null =
+      inline && !phoneOverlay ? scrimRef.current : dialogRef.current;
+    if (!backdrop) return;
+    const onBackdropClick = (event: MouseEvent) => {
+      if (event.target === event.currentTarget) onCloseRef.current();
+    };
+    backdrop.addEventListener("click", onBackdropClick);
+    return () => backdrop.removeEventListener("click", onBackdropClick);
+  }, [dialogRef, scrimRef, isVisible, inline, phoneOverlay, onCloseRef]);
+}
+
+type SheetDragHandleProps = ReturnType<typeof useDragToDismiss>["handleProps"];
+
+interface SheetHeaderProps {
+  title: ReactNode;
+  titleId: string;
+  closeLabel: string;
+  onClose: () => void;
+  hideClose: boolean;
+  compactMobile: boolean;
+  full: boolean;
+  dragAnywhere: boolean;
+  handleProps: SheetDragHandleProps;
+}
+
+function SheetHeader({
+  title,
+  titleId,
+  closeLabel,
+  onClose,
+  hideClose,
+  compactMobile,
+  full,
+  dragAnywhere,
+  handleProps,
+}: SheetHeaderProps) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 select-none flex-col px-5 pb-3",
+        full ? "pt-[max(0.5rem,var(--inset-top))] sm:pt-5" : "pt-2 sm:pt-5",
+        // With the title and X gone, the grabber is the whole handle: give
+        // it the 44px a thumb needs instead of the ~34px it measured.
+        compactMobile && "max-sm:min-h-11",
+      )}
+      style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
+      {...(dragAnywhere ? {} : handleProps)}
+    >
+      <div
+        aria-hidden="true"
+        className="mx-auto mb-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20 sm:hidden"
+      />
+      <div
+        className={cn(
+          "flex min-h-11 items-center justify-between gap-3",
+          compactMobile && "max-sm:min-h-0",
+        )}
+      >
+        <h2
+          id={titleId}
+          className={cn(
+            "min-w-0 truncate text-lg font-bold tracking-tight",
+            compactMobile && "max-sm:sr-only",
+          )}
+        >
+          {title}
+        </h2>
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-2",
+            compactMobile && "max-sm:hidden",
+          )}
+        >
+          {!hideClose && (
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              aria-label={closeLabel}
+              className="glass-interactive flex size-11 items-center justify-center rounded-lg text-muted-foreground"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SheetPanelProps {
+  title: ReactNode;
+  titleId: string;
+  closeLabel: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  full: boolean;
+  compactMobile: boolean;
+  hideClose: boolean;
+  dragAnywhere: boolean;
+  handleProps: SheetDragHandleProps;
+  bodyRef: RefObject<HTMLDivElement | null>;
+  bodyClassName?: string;
+  footerClassName?: string;
+}
+
+function SheetPanel({
+  title,
+  titleId,
+  closeLabel,
+  onClose,
+  children,
+  footer,
+  full,
+  compactMobile,
+  hideClose,
+  dragAnywhere,
+  handleProps,
+  bodyRef,
+  bodyClassName,
+  footerClassName,
+}: SheetPanelProps) {
+  return (
+    // The drag surface is this wrapper, not the dialog: pointer capture would
+    // otherwise retarget the click that follows a drag to the dialog itself,
+    // which the backdrop-click check reads as a tap on the scrim and closes.
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
+      {...(dragAnywhere ? handleProps : {})}
+    >
+      <SheetHeader
+        title={title}
+        titleId={titleId}
+        closeLabel={closeLabel}
+        onClose={onClose}
+        hideClose={hideClose}
+        compactMobile={compactMobile}
+        full={full}
+        dragAnywhere={dragAnywhere}
+        handleProps={handleProps}
+      />
+      <div
+        ref={bodyRef}
+        // touch-action stops propagating at the nearest scroll container, and
+        // this is one: without it here a swipe that starts on the content is
+        // claimed by the browser as a pan and the drag is cancelled.
+        style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-5",
+          !footer && "pb-[max(1.25rem,var(--inset-bottom))]",
+          bodyClassName,
+        )}
+      >
+        {children}
+      </div>
+      {footer && (
+        <div
+          className={cn(
+            "sheet-footer flex shrink-0 flex-col gap-2 px-5 pt-3 pb-[max(1rem,var(--inset-bottom))] sm:pb-5",
+            footerClassName,
+          )}
+        >
+          {footer}
+        </div>
+      )}
+    </div>
   );
 }
