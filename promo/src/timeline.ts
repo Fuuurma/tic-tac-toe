@@ -53,7 +53,7 @@ export const HOOK = scene(vs, 0, Math.max(0, firstVanish - 1.0), Math.min(firstV
 export const PLAY = scene(
   vs,
   HOOK.frames - OVERLAP,
-  Math.max(0, event(vs, "gameStart") - 0.2),
+  event(vs, "gameStart"), // the board is up; no flash of the lobby
   Math.min(vs.durationSec, event(vs, "win") + 2.0),
   8.4,
 );
@@ -75,6 +75,5 @@ export const MOMENTS = {
   playVanish: PLAY.at(event(vs, "disappear")),
   playWin: PLAY.at(event(vs, "win")),
   onlineReady: ONLINE.at(event(online, "roomReady")),
-  onlineCopied: ONLINE.at(event(online, "copied")),
   onlineJoined: ONLINE.at(event(online, "joined")),
 };

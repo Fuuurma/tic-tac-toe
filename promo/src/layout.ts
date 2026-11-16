@@ -21,8 +21,10 @@ export interface Layout {
   hookCaption: Box & { kicker: number; headline: number; align: "left" | "center" };
   /** The zoomed board in the hook. */
   board: Box;
-  /** The phone screen in the gameplay scenes. */
-  phone: Box;
+  /** The game screen, cropped to the HUD and the board. */
+  game: { box: Box; view: View };
+  /** The whole phone screen, for flows that use all of it. */
+  full: Box;
   endScale: number;
 }
 
@@ -32,7 +34,8 @@ export const VERTICAL: Layout = {
   hookCaption: { x: 80, y: 190, w: 920, h: 360, kicker: 52, headline: 104, align: "left" },
   caption: { x: 80, y: 150, w: 920, h: 320, kicker: 44, headline: 88, align: "left" },
   board: { x: 60, y: 700, w: 960, h: 960 },
-  phone: { x: 110, y: 520, w: 860, h: 1300 },
+  game: { box: { x: 130, y: 520, w: 820, h: 1340 }, view: { x: 0, y: 0.035, w: 1 } },
+  full: { x: 230, y: 520, w: 620, h: 1342 },
   endScale: 1,
 };
 
@@ -42,9 +45,13 @@ export const SQUARE: Layout = {
   hookCaption: { x: 180, y: 60, w: 720, h: 220, kicker: 40, headline: 72, align: "left" },
   caption: { x: 72, y: 0, w: 430, h: 1080, kicker: 34, headline: 64, align: "left" },
   board: { x: 180, y: 300, w: 720, h: 720 },
-  phone: { x: 540, y: 56, w: 480, h: 968 },
+  game: { box: { x: 560, y: 56, w: 447, h: 968 }, view: { x: 0, y: 0, w: 1 } },
+  full: { x: 560, y: 56, w: 447, h: 968 },
   endScale: 0.78,
 };
+
+/** The whole screen. */
+export const FULL_VIEW: View = { x: 0, y: 0, w: 1 };
 
 /** Board crop: the 3x3 well with a little air (measured from the capture). */
 export const BOARD_VIEW: View = { x: 0.025, y: 0.305, w: 0.95 };

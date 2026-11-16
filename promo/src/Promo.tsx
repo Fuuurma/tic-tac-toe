@@ -4,7 +4,7 @@ import { Backdrop } from "./components/Backdrop";
 import { Caption } from "./components/Caption";
 import { EndCard } from "./components/EndCard";
 import { PhoneClip } from "./components/PhoneClip";
-import { BOARD_VIEW, type Layout, type View } from "./layout";
+import { BOARD_VIEW, FULL_VIEW, type Layout } from "./layout";
 import { END, HOOK, MOMENTS, ONLINE, OVERLAP, PLAY } from "./timeline";
 
 loadBrandFonts();
@@ -21,9 +21,6 @@ const Fade: React.FC<{ frames: number; fadeIn: boolean; fadeOut: boolean; childr
   const b = fadeOut ? interpolate(frame, [frames - OVERLAP, frames], [1, 0], { extrapolateLeft: "clamp" }) : 1;
   return <AbsoluteFill style={{ opacity: Math.min(a, b) }}>{children}</AbsoluteFill>;
 };
-
-/** The game screen: the HUD and the board, the bottom bar trimmed off. */
-const GAME_VIEW: View = { x: 0, y: 0.045, w: 1 };
 
 /** Hook: the board fills the frame, then eases back as the scene ends. */
 const HookBoard: React.FC<{ layout: Layout }> = ({ layout }) => {
@@ -65,7 +62,7 @@ export const Promo: React.FC<{ layout: Layout }> = ({ layout }) => {
       <Sequence from={PLAY.from} durationInFrames={PLAY.frames}>
         <Fade frames={PLAY.frames} fadeIn fadeOut>
           <Rise>
-            <PhoneClip scene={PLAY} view={GAME_VIEW} box={layout.phone} radius={56} />
+            <PhoneClip scene={PLAY} view={layout.game.view} box={layout.game.box} radius={56} />
           </Rise>
           <Caption
             box={layout.caption}
@@ -83,14 +80,14 @@ export const Promo: React.FC<{ layout: Layout }> = ({ layout }) => {
       <Sequence from={ONLINE.from} durationInFrames={ONLINE.frames}>
         <Fade frames={ONLINE.frames} fadeIn fadeOut>
           <Rise>
-            <PhoneClip scene={ONLINE} view={GAME_VIEW} box={layout.phone} radius={56} />
+            <PhoneClip scene={ONLINE} view={FULL_VIEW} box={layout.full} radius={64} />
           </Rise>
           <Caption
             box={layout.caption}
             kicker="Play a friend online"
             cues={[
               { at: 4, text: "Open a room." },
-              { at: MOMENTS.onlineCopied - 4, text: "Send the link." },
+              { at: MOMENTS.onlineReady - 4, text: "Send the link." },
               { at: MOMENTS.onlineJoined - 2, text: "They're in. Your move." },
             ]}
             sceneFrames={ONLINE.frames}
