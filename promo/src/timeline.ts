@@ -44,16 +44,18 @@ function scene(clip: ClipMeta, from: number, srcStart: number, srcEnd: number, m
 const vs = vsComputer as ClipMeta;
 const online = onlineInvite as ClipMeta;
 
-// Hook: start a beat before the first vanish so it lands around 1s in.
+// Hook: start a beat before the first vanish so it lands around 1s in, and
+// cut before the winning move so the gameplay scene keeps its payoff.
 const firstVanish = event(vs, "disappear");
-export const HOOK = scene(vs, 0, Math.max(0, firstVanish - 0.9), firstVanish + 1.6, 2.5);
+const winTap = vs.taps.filter((t) => t.t <= event(vs, "win")).at(-1)?.t ?? event(vs, "win");
+export const HOOK = scene(vs, 0, Math.max(0, firstVanish - 1.0), Math.min(firstVanish + 1.5, winTap - 0.15), 2.5);
 
 export const PLAY = scene(
   vs,
   HOOK.frames - OVERLAP,
   Math.max(0, event(vs, "gameStart") - 0.2),
   Math.min(vs.durationSec, event(vs, "win") + 2.0),
-  7.6,
+  8.4,
 );
 
 const onlineFirstTap = online.taps[0]?.t ?? 0;
@@ -62,7 +64,7 @@ export const ONLINE = scene(
   PLAY.from + PLAY.frames - OVERLAP,
   Math.max(0, onlineFirstTap - 0.35),
   online.durationSec - 0.2,
-  6.2,
+  7.0,
 );
 
 export const END = { from: ONLINE.from + ONLINE.frames - OVERLAP, frames: Math.round(3.6 * FPS) };

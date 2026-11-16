@@ -39,9 +39,9 @@ export const VERTICAL: Layout = {
 export const SQUARE: Layout = {
   width: 1080,
   height: 1080,
-  hookCaption: { x: 72, y: 72, w: 936, h: 200, kicker: 40, headline: 72, align: "left" },
+  hookCaption: { x: 180, y: 60, w: 720, h: 220, kicker: 40, headline: 72, align: "left" },
   caption: { x: 72, y: 0, w: 430, h: 1080, kicker: 34, headline: 64, align: "left" },
-  board: { x: 250, y: 300, w: 720, h: 720 },
+  board: { x: 180, y: 300, w: 720, h: 720 },
   phone: { x: 540, y: 56, w: 480, h: 968 },
   endScale: 0.78,
 };

@@ -12,6 +12,7 @@
 
 import { spawn, execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
@@ -28,7 +29,9 @@ const WORKER_URL = "http://127.0.0.1:8787";
 const VIEWPORT = { width: 390, height: 844 };
 const DPR = 3;
 const FPS = 30;
-const OUTPUT_WIDTH = 1080; // 1170 css*3 scaled to the video width
+const OUTPUT_WIDTH = 1080; // Chrome scales the 1170px frames down at the source
+const OUTPUT_HEIGHT = Math.round((OUTPUT_WIDTH * VIEWPORT.height) / VIEWPORT.width);
+const ROOM_CODE = "friday-night";
 
 const LINES = [
   [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -119,17 +122,20 @@ class Recorder {
     rmSync(this.dir, { recursive: true, force: true });
     mkdirSync(this.dir, { recursive: true });
     this.cdp = await this.page.context().newCDPSession(this.page);
-    this.cdp.on("Page.screencastFrame", async ({ data, metadata, sessionId }) => {
+    this.writes = [];
+    // Ack first and write asynchronously: a synchronous write per 3x frame
+    // starved the event loop, and the driving script fell seconds behind.
+    this.cdp.on("Page.screencastFrame", ({ data, metadata, sessionId }) => {
+      this.cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
       const file = join(this.dir, `${String(this.frames.length).padStart(5, "0")}.jpg`);
-      writeFileSync(file, Buffer.from(data, "base64"));
       this.frames.push({ file, t: metadata.timestamp });
-      await this.cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
+      this.writes.push(writeFile(file, Buffer.from(data, "base64")));
     });
     await this.cdp.send("Page.startScreencast", {
       format: "jpeg",
-      quality: 92,
-      maxWidth: VIEWPORT.width * DPR,
-      maxHeight: VIEWPORT.height * DPR,
+      quality: 90,
+      maxWidth: OUTPUT_WIDTH,
+      maxHeight: OUTPUT_HEIGHT,
       everyNthFrame: 1,
     });
     // Screencast timestamps are wall-clock seconds; anchor events to them.
@@ -161,14 +167,20 @@ class Recorder {
     await sleep(600);
     await this.cdp.send("Page.stopScreencast");
     await sleep(100);
+    await Promise.all(this.writes);
     const end = Date.now() / 1000;
+    // Resample to constant frame rate on the frames' own timestamps: each
+    // output frame shows the newest capture painted by then. Frames arrive
+    // only when the page paints, often faster than 30 fps.
+    const t0 = this.frames[0].t;
     const lines = [];
-    this.frames.forEach((f, i) => {
-      const next = i + 1 < this.frames.length ? this.frames[i + 1].t : end;
-      lines.push(`file '${f.file}'`, `duration ${Math.max(next - f.t, 1 / FPS).toFixed(4)}`);
-    });
+    let i = 0;
+    for (let k = 0; t0 + k / FPS <= end; k++) {
+      while (i + 1 < this.frames.length && this.frames[i + 1].t <= t0 + k / FPS) i++;
+      lines.push(`file '${this.frames[i].file}'`, `duration ${(1 / FPS).toFixed(6)}`);
+    }
     // The concat demuxer ignores the last duration unless the file repeats.
-    lines.push(`file '${this.frames.at(-1).file}'`);
+    lines.push(`file '${this.frames[i].file}'`);
     const list = join(this.dir, "list.txt");
     writeFileSync(list, lines.join("\n"));
     mkdirSync(outDir, { recursive: true });
@@ -201,11 +213,15 @@ class Recorder {
 
 const board = (page) => page.getByRole("group", { name: "Tic Tac Toe game board" });
 
+/** The board as marks, plus which cells take a tap right now. */
 async function readBoard(page) {
-  const labels = await board(page)
+  const cells = await board(page)
     .getByRole("button")
-    .evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? ""));
-  return labels.map((l) => (l.endsWith("by X") ? "X" : l.endsWith("by O") ? "O" : null));
+    .evaluateAll((els) => els.map((e) => ({ label: e.getAttribute("aria-label") ?? "", enabled: !e.disabled })));
+  return {
+    marks: cells.map(({ label }) => (label.endsWith("by X") ? "X" : label.endsWith("by O") ? "O" : null)),
+    open: cells.map(({ label, enabled }) => enabled && label.endsWith(", empty")),
+  };
 }
 
 const cellLocator = (page, i) =>
@@ -218,8 +234,8 @@ const lineOf = (marks) => LINES.some((l) => l.every((c) => marks.includes(c)));
  * disappears", so a candidate is judged on the marks that survive placing it.
  * `allowWin` holds the finish back until the clip has shown a mark vanish.
  */
-function chooseMove(cells, mine, theirs, allowWin) {
-  const empty = cells.flatMap((c, i) => (c === null ? [i] : []));
+function chooseMove(open, mine, theirs, allowWin) {
+  const empty = open.flatMap((ok, i) => (ok ? [i] : []));
   const after = (list, c) => [...list, c].slice(-3);
   const wins = empty.filter((c) => lineOf(after(mine, c)));
   if (wins.length && allowWin) return wins[0];
@@ -255,16 +271,15 @@ async function captureVsComputer(browser) {
     for (let turn = 0; turn < 40 && !outcome; turn++) {
       // Wait for the AI to move or for our turn to open up.
       const deadline = Date.now() + 8000;
-      let cells;
+      let state;
       for (;;) {
-        cells = await readBoard(page);
+        state = await readBoard(page);
         if (await page.getByRole("button", { name: "Play again" }).isVisible()) break;
-        const empty = cells.findIndex((c) => c === null);
-        if (empty >= 0 && (await cellLocator(page, empty).isEnabled())) break;
+        if (state.open.some(Boolean)) break;
         if (Date.now() > deadline) break;
-        await sleep(60);
+        await sleep(40);
       }
-      cells.forEach((c, i) => {
+      state.marks.forEach((c, i) => {
         if (c === "O" && prev[i] !== "O") theirs.push(i);
       });
       if (await page.getByRole("button", { name: "Play again" }).isVisible()) {
@@ -273,12 +288,12 @@ async function captureVsComputer(browser) {
       }
       await sleep(450 + (turn % 3) * 120); // a human beat before tapping
       const vanished = mine.length >= 3;
-      const move = chooseMove(cells, mine, theirs, mine.length >= 3);
+      const move = chooseMove(state.open, mine, theirs, mine.length >= 3);
       if (vanished) rec.mark("disappear");
       await rec.tap(cellLocator(page, move));
       mine.push(move);
       await sleep(250);
-      prev = await readBoard(page);
+      prev = (await readBoard(page)).marks;
       if (lineOf(mine.slice(-3))) {
         rec.mark("win");
         outcome = "win";
@@ -316,36 +331,48 @@ async function captureOnlineInvite(browser) {
   await sleep(600);
   await rec.tap(host.getByRole("radio", { name: "Create", exact: true }));
   await sleep(500);
+  // A named room reads on camera; the default code is a UUID.
+  const codeField = host.getByLabel("Custom room code (optional)");
+  await rec.tap(codeField);
+  await codeField.pressSequentially(ROOM_CODE, { delay: 55 });
+  await sleep(400);
   await rec.tap(host.getByRole("button", { name: "Create Room" }));
   await host.getByText("Room ready").waitFor({ timeout: 30_000 });
   rec.mark("roomReady");
   await sleep(900);
-  await rec.tap(host.getByRole("button", { name: "Copy link" }));
+  await rec.tap(host.getByRole("button", { name: "Copy invite link" }));
   rec.mark("copied");
-  const code = ((await host.getByText(/^Room code \S+/).textContent()) ?? "")
-    .replace(/^Room code\s+/, "")
-    .trim();
-  await sleep(1400);
+  await sleep(700);
 
-  await guest.goto(`${BASE_URL}/?room=${code}`);
+  await guest.goto(`${BASE_URL}/?room=${ROOM_CODE}`);
   await guest.getByRole("radio", { name: "Join", exact: true }).click().catch(() => {});
   await guest.getByRole("button", { name: "Join Room" }).click();
-  await host.getByText("Opponent joined").waitFor({ timeout: 30_000 });
+  // The handoff overlay lasts only as long as connecting does, so it can
+  // come and go between polls; the board is the definitive arrival.
+  try {
+    await host.getByText("Opponent joined").or(board(host)).first().waitFor({ timeout: 30_000 });
+  } catch (err) {
+    await guest.screenshot({ path: join(framesRoot, "guest-failure.png") });
+    await host.screenshot({ path: join(framesRoot, "host-failure.png") });
+    throw err;
+  }
   rec.mark("joined");
   await board(host).waitFor({ timeout: 30_000 });
   rec.mark("board");
-  await sleep(1500);
+  await sleep(600);
 
   // One opening move each, so the clip ends on a live online board.
   const hostFirst = await cellLocator(host, 4).isEnabled();
   if (hostFirst) {
     await rec.tap(cellLocator(host, 4));
-    await sleep(900);
-    await cellLocator(guest, 0).click();
-  } else {
     await sleep(700);
     await cellLocator(guest, 0).click();
-    await sleep(800);
+    rec.mark("guestMove");
+  } else {
+    await sleep(500);
+    await cellLocator(guest, 0).click();
+    rec.mark("guestMove");
+    await sleep(700);
     await rec.tap(cellLocator(host, 4));
   }
   rec.mark("moves");
@@ -371,7 +398,11 @@ async function main() {
   );
   try {
     await waitForServer(BASE_URL);
-    const browser = await chromium.launch();
+    // Metal-backed ANGLE, so backdrop blur and the symbol field render on
+    // the GPU as they do on a phone, not in SwiftShader.
+    const browser = await chromium.launch({
+      args: ["--use-angle=metal", "--enable-gpu-rasterization", "--ignore-gpu-blocklist"],
+    });
     try {
       if (!only || only === "vs-computer") await captureVsComputer(browser);
       if (wantOnline) await captureOnlineInvite(browser);

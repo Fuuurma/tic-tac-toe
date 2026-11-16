@@ -8,7 +8,7 @@
   "scripts": {
     "capture": "node capture/capture.mjs",
     "studio": "remotion studio src/index.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc6 --noEmit",
     "render:vertical": "remotion render src/index.ts PromoVertical out/ttt-promo-vertical-1080x1920.mp4 --codec=h264 --crf=20",
     "render:square": "remotion render src/index.ts PromoSquare out/ttt-promo-square-1080x1080.mp4 --codec=h264 --crf=20",
     "render": "pnpm render:vertical && pnpm render:square",
