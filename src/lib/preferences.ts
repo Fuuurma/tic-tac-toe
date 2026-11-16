@@ -21,16 +21,19 @@ export type AppTheme = "light" | "dark";
 export type Locale = "en" | "es";
 
 /**
- * Theme, player appearance, and opponent choices from the Settings sheet,
- * persisted as one JSON blob so future sessions reopen with the same setup.
- * The display name lives under the identity key instead (saveDisplayName)
- * because the guest-identity seam already owns its validation and fallback.
+ * Theme, app sound, player appearance, and opponent choices from the
+ * Settings sheet, persisted as one JSON blob so future sessions reopen with
+ * the same setup. The display name lives under the identity key instead
+ * (saveDisplayName) because the guest-identity seam already owns its
+ * validation and fallback.
  *
  * Every field is validated against its enum on read: a hand-edited or stale
  * localStorage blob degrades to defaults, never to a broken render.
  */
 interface GamePreferences {
   theme?: AppTheme;
+  /** Absent means sound is on — the cue set is opt-out, not opt-in. */
+  soundMuted?: boolean;
   color?: Color;
   playerShape?: SymbolShape;
   opponentColor?: Color;
@@ -72,6 +75,7 @@ export function loadPreferences(
   const prefs = raw as Record<string, unknown>;
   const out: GamePreferences = {};
   if (isTheme(prefs.theme)) out.theme = prefs.theme;
+  if (typeof prefs.soundMuted === "boolean") out.soundMuted = prefs.soundMuted;
   if (isColor(prefs.color)) out.color = prefs.color;
   const playerShape = readShape(prefs.playerShape);
   if (playerShape) out.playerShape = playerShape;

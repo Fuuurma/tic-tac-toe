@@ -119,12 +119,15 @@ export const en = {
   "settings.installApp": "Install app",
   "settings.appearance": "Appearance",
   "settings.language": "Language",
+  "settings.sound": "Sound",
   "settings.learn": "Learn",
   "settings.howToPlay": "How to play",
   "theme.light": "Light",
   "theme.dark": "Dark",
   "theme.toDark": "Switch to dark theme",
   "theme.toLight": "Switch to light theme",
+  "sound.mute": "Mute sound",
+  "sound.unmute": "Unmute sound",
 
   "sheet.close": "Close",
 
@@ -141,6 +144,7 @@ export const en = {
   "game.againTitle": "Play again",
   "game.restart": "Restart",
   "game.again": "Play again",
+  "game.tryNext": "Try {difficulty} next",
   "game.help": "Help",
   "game.edit": "Edit",
   "game.editSettings": "Edit player settings",

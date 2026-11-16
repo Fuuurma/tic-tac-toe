@@ -15,6 +15,7 @@ import {
 import { getDifficultyLabel, t } from "@/i18n/language";
 import { npcNameSession } from "@/game/npc-names";
 import { useGameStats } from "@/hooks/useGameStats";
+import { useGameSounds } from "@/hooks/useGameSounds";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { loadPreferences } from "@/lib/preferences";
@@ -304,6 +305,7 @@ export function QueueWarmup({
   );
   const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } =
     useLocalGame(input);
+  useGameSounds(gameState);
   const gameStats = useGameStats();
   useRecordLocalResult(gameState, humanSymbol, gameStats);
 

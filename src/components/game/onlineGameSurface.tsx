@@ -28,6 +28,7 @@ import {
   type PeerRoomState,
   type PeerStatus,
 } from "@/hooks/usePeerRoom";
+import { useGameSounds } from "@/hooks/useGameSounds";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
 import { useGameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
@@ -490,6 +491,7 @@ function OnlineGameArea({
   onExit: () => void;
 }) {
   const localSymbol = localPlayerSymbol(peer.state);
+  useGameSounds(peer.state.gameState);
   const message = onlineMessage(peer.state.status, peer.state.message);
   const canRequestRematch = canRequestOnlineRematch(peer.state);
   const rematch = onlineRematchProps(peer, canRequestRematch);

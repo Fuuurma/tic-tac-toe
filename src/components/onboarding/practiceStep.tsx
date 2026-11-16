@@ -9,6 +9,7 @@ import { humanMoveCount, type LessonStage } from "@/game/tutorial";
 import { Button } from "@/components/ui/button";
 import { t, useStrings } from "@/i18n/language";
 import { Board } from "@/components/game/board";
+import { useGameSounds } from "@/hooks/useGameSounds";
 import { useTutorialGame } from "@/hooks/useTutorialGame";
 import { cn } from "@/lib/utils";
 import type { Profile } from "./profileStep";
@@ -105,6 +106,7 @@ export function PracticeStep({
   // reads the live locale through the module translator.
   useStrings();
   const { state, stage, hint, aiToMove, place } = useTutorialGame(profile);
+  useGameSounds(state);
   const { currentPlayer, players, moves } = state;
 
   // Stable identities: Board and BoardCell are memoized on these.

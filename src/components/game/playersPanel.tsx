@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
+  AI_Difficulty,
   COLOR_BG_CLASSES,
   COLOR_RGB,
   TURN_DURATION_MS,
@@ -48,6 +49,13 @@ interface PlayersPanelProps {
   onDeclineRematch?: () => void;
   onCancelRematch?: () => void;
   onRequestRematch?: () => void;
+  /**
+   * Post-win progression for vs Computer: called with the NEXT tier up
+   * (Easy→Normal, Normal→Hard) when the human just won below Hard. The
+   * surface owns persisting the choice and dealing the new game; surfaces
+   * without that flow (warm-up, online, vs Friend) omit it and get no nudge.
+   */
+  onTryNextDifficulty?: (difficulty: AI_DifficultyType) => void;
   onPauseChange?: (paused: boolean) => void;
   /**
    * True while a mid-game overlay freezes the clock. The countdown ring is a
@@ -124,6 +132,7 @@ export function PlayersPanel({
   onDeclineRematch,
   onCancelRematch,
   onRequestRematch,
+  onTryNextDifficulty,
   onPauseChange,
   paused,
 }: PlayersPanelProps) {
@@ -152,6 +161,23 @@ export function PlayersPanel({
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? t("game.leave") : t("game.exit");
+
+  // The post-win "try a harder AI" nudge exists only for a vs-Computer win
+  // below Hard: Easy won offers Normal, Normal won offers Hard, a Hard win
+  // is the top of the ladder and gets nothing. The tier read is the one the
+  // finished game was dealt at (F578), not a live settings selection.
+  const vsComputer = (gameMode ?? gameState.gameMode) === GameModes.VS_COMPUTER;
+  const humanWonVsComputer =
+    vsComputer &&
+    gameState.winner !== null &&
+    gameState.players[gameState.winner].type === PlayerTypes.HUMAN;
+  const beatenTier = gameState.aiDifficulty ?? AI_Difficulty.NORMAL;
+  const nextTier =
+    humanWonVsComputer && beatenTier !== AI_Difficulty.HARD
+      ? beatenTier === AI_Difficulty.EASY
+        ? AI_Difficulty.NORMAL
+        : AI_Difficulty.HARD
+      : null;
 
   // Confirmations belong to the active round. A host terminal frame can make
   // Confirm close through isActive without calling onCancel, so discard both
@@ -309,6 +335,21 @@ export function PlayersPanel({
             onCancelRematch={onCancelRematch}
             onRequestRematch={onRequestRematch}
           />
+          {nextTier && onTryNextDifficulty && (
+            // The progression offer sits under the result line, quieter
+            // than "Play again" in the bar: same difficulty is the default,
+            // climbing is the invitation.
+            <div className="mt-2 flex justify-center">
+              <Button
+                type="button"
+                variant="glass"
+                size="sm"
+                onClick={() => onTryNextDifficulty(nextTier)}
+              >
+                {t("game.tryNext", { difficulty: getDifficultyLabel(nextTier) })}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

@@ -132,7 +132,7 @@ export function useLocalGame(input: LocalGameInput) {
     [],
   );
 
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback((overrides?: Partial<LocalGameInput>) => {
     // Stop the timer first to prevent a stale interval tick from
     // decrementing the fresh game's turnTimeRemaining before the
     // active-game effect restarts the interval.
@@ -147,10 +147,14 @@ export function useLocalGame(input: LocalGameInput) {
     // the wrong player.
     const newSymbol = randomPlayerSymbol();
     setHumanSymbol(newSymbol);
+    // Overrides let one click change the next match's setup — the post-win
+    // "try a harder AI" path passes a new aiDifficulty here. The persona
+    // re-draw reads the OVERRIDDEN input so the new tier's name pool applies.
+    const nextInput = { ...input, ...overrides };
     // A rematch is a new match: the computer opponent re-draws its persona
     // (a name the player typed is theirs and survives).
     setGameState(
-      buildInitialState({ ...input, opponentName: nextComputerOpponentName(input) }, newSymbol),
+      buildInitialState({ ...nextInput, opponentName: nextComputerOpponentName(nextInput) }, newSymbol),
     );
     // The fresh game is ACTIVE again, so gameIsActive stays true and the
     // active-game effect never re-runs to restart the interval stopped

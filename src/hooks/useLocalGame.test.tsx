@@ -318,6 +318,24 @@ describe("useLocalGame AI difficulty source (F578)", () => {
     });
     expect(result.current.gameState.aiDifficulty).toBe(AI_Difficulty.HARD);
   });
+
+  it("deals a one-shot reset at the overridden difficulty (F10)", () => {
+    // The post-win "Try Hard next" button must start the new match AT the
+    // offered tier in the same commit — not one render behind the settings
+    // update that persists it.
+    const { result } = renderHook(() =>
+      useLocalGame(makeComputerInput({ aiDifficulty: AI_Difficulty.EASY })),
+    );
+    expect(result.current.gameState.aiDifficulty).toBe(AI_Difficulty.EASY);
+
+    act(() => {
+      result.current.handleReset({ aiDifficulty: AI_Difficulty.HARD });
+    });
+
+    expect(result.current.gameState.aiDifficulty).toBe(AI_Difficulty.HARD);
+    expect(result.current.gameState.gameStatus).toBe(GameStatus.ACTIVE);
+    expect(result.current.gameState.moveCount).toBe(0);
+  });
 });
 
 describe("useLocalGame computer persona (roster)", () => {

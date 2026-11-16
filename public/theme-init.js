@@ -1,5 +1,5 @@
 (() => {
-  let theme = "light";
+  let theme = null;
 
   try {
     const stored = localStorage.getItem("tic-tac-toe:preferences");
@@ -8,7 +8,19 @@
       theme = preferences.theme;
     }
   } catch {
-    // Private browsing or blocked storage falls back to the light default.
+    // Private browsing or blocked storage leaves theme unset, so the
+    // system preference below still applies.
+  }
+
+  // No saved choice means follow the OS, so a dark-mode first-time visitor
+  // gets dark on the very first paint instead of a light flash. An explicit
+  // pick in Settings is the only thing that overrides it.
+  if (theme === null) {
+    theme =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
   }
 
   document.documentElement.dataset.theme = theme;

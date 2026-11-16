@@ -536,3 +536,88 @@ describe("PlayersPanel win state", () => {
     expect(status.className).toContain("sr-only");
   });
 });
+
+describe("PlayersPanel try-next-difficulty (F10)", () => {
+  // Beating Easy or Normal offers the next tier as a secondary action; the
+  // offer keys on the COMPLETED game's own aiDifficulty, not live settings,
+  // and only when the human side won a vs-Computer match.
+  const wonVsComputer = (
+    tier: AI_Difficulty,
+    winner: PlayerSymbol = PlayerSymbol.X,
+  ): GameState => {
+    const state = freshGameState();
+    state.gameMode = GameModes.VS_COMPUTER;
+    state.gameStatus = GameStatus.COMPLETED;
+    state.winner = winner;
+    state.aiDifficulty = tier;
+    state.players[PlayerSymbol.X].username = "Ada";
+    state.players[PlayerSymbol.O].type = PlayerTypes.COMPUTER;
+    return state;
+  };
+
+  const renderPanel = (
+    state: GameState,
+    onTryNextDifficulty = vi.fn(),
+  ) =>
+    render(
+      <PlayersPanel
+        gameState={state}
+        message=""
+        onExit={vi.fn()}
+        onNewGame={vi.fn()}
+        onTryNextDifficulty={onTryNextDifficulty}
+      />,
+    );
+
+  it("offers Normal after an Easy win and fires the callback", () => {
+    const onTry = vi.fn();
+    renderPanel(wonVsComputer(AI_Difficulty.EASY), onTry);
+
+    fireEvent.click(screen.getByRole("button", { name: "Try Normal next" }));
+    expect(onTry).toHaveBeenCalledWith(AI_Difficulty.NORMAL);
+  });
+
+  it("offers Hard after a Normal win", () => {
+    const onTry = vi.fn();
+    renderPanel(wonVsComputer(AI_Difficulty.NORMAL), onTry);
+
+    fireEvent.click(screen.getByRole("button", { name: "Try Hard next" }));
+    expect(onTry).toHaveBeenCalledWith(AI_Difficulty.HARD);
+  });
+
+  it("offers nothing after a Hard win — there is no tier above", () => {
+    renderPanel(wonVsComputer(AI_Difficulty.HARD));
+
+    expect(screen.queryByRole("button", { name: /Try .* next/ })).toBeNull();
+  });
+
+  it("offers nothing when the computer won", () => {
+    renderPanel(
+      wonVsComputer(AI_Difficulty.EASY, PlayerSymbol.O),
+    );
+
+    expect(screen.queryByRole("button", { name: /Try .* next/ })).toBeNull();
+  });
+
+  it("offers nothing outside vs-Computer, even with a handler", () => {
+    const state = wonVsComputer(AI_Difficulty.EASY);
+    state.gameMode = GameModes.VS_FRIEND;
+    state.players[PlayerSymbol.O].type = PlayerTypes.HUMAN;
+    renderPanel(state);
+
+    expect(screen.queryByRole("button", { name: /Try .* next/ })).toBeNull();
+  });
+
+  it("renders no action when the surface wires no handler", () => {
+    render(
+      <PlayersPanel
+        gameState={wonVsComputer(AI_Difficulty.EASY)}
+        message=""
+        onExit={vi.fn()}
+        onNewGame={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Try .* next/ })).toBeNull();
+  });
+});

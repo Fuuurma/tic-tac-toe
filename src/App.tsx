@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
-import { GameModes, PlayerSymbol, PlayerTypes, type GameSetup } from "@/game/constants";
+import { GameModes, PlayerSymbol, PlayerTypes, type AI_Difficulty as AI_DifficultyType, type GameSetup } from "@/game/constants";
 
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
@@ -17,6 +17,7 @@ import {
   type SettingsTab,
 } from "@/components/lobby/playerSettingsSheet";
 import { useLocalGame } from "@/hooks/useLocalGame";
+import { useGameSounds } from "@/hooks/useGameSounds";
 import { useGameStats } from "@/hooks/useGameStats";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { normalizeRoomId } from "@/lib/roomId";
@@ -200,6 +201,20 @@ function LocalGameSurface({
   // The local game's status line renders from `gameState.turnNotice` (see
   // the StatusLine below), so the hook returns no message of its own.
   const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
+  useGameSounds(gameState);
+
+  // The post-win "try a harder AI" path: persist only the tier (the persona
+  // name is the match's, not a setting to freeze) and deal the new game at
+  // it in the same click — handleReset's override keeps this render's stale
+  // input from dealing one more game at the beaten tier.
+  const handleTryNextDifficulty = useCallback(
+    (next: AI_DifficultyType) => {
+      setOpponentSettings((prev) => ({ ...prev, aiDifficulty: next }));
+      savePreferences({ aiDifficulty: next });
+      handleReset({ aiDifficulty: next });
+    },
+    [handleReset],
+  );
   // A rematch re-draws the computer's persona inside the running game state,
   // so the settings sheet must describe the name the match was actually
   // played under, not the lobby-era one this component's state still holds.
@@ -240,6 +255,7 @@ function LocalGameSurface({
           }
           message={gameState.turnNotice ?? ""}
           onNewGame={handleReset}
+          onTryNextDifficulty={handleTryNextDifficulty}
           onExit={() => {
             exit();
             onExit();

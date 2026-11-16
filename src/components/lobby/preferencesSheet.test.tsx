@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PreferencesSheet } from "./preferencesSheet";
 import { resetInstallPromptForTests } from "@/lib/installPrompt";
+import { loadPreferences } from "@/lib/preferences";
 
 // jsdom does not implement the native <dialog> modal methods that Sheet calls.
 if (!HTMLDialogElement.prototype.showModal) {
@@ -76,6 +77,19 @@ describe("PreferencesSheet", () => {
   it("omits the tutorial row when replay is not offered (mid-game)", () => {
     renderSheet();
     expect(screen.queryByRole("button", { name: "Replay tutorial" })).toBeNull();
+  });
+
+  it("owns a persisted sound toggle shaped like the reactions mute", () => {
+    renderSheet();
+
+    const mute = screen.getByRole("button", { name: "Mute sound" });
+    expect(mute.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(mute);
+
+    const unmute = screen.getByRole("button", { name: "Unmute sound" });
+    expect(unmute.getAttribute("aria-pressed")).toBe("true");
+    expect(loadPreferences().soundMuted).toBe(true);
   });
 
   it("shows the install row only while the browser offers a prompt", async () => {

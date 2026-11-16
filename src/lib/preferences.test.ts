@@ -72,6 +72,14 @@ describe("preferences storage", () => {
     });
   });
 
+  it("round-trips the sound mute flag and drops non-booleans", () => {
+    savePreferences({ soundMuted: true });
+    expect(loadPreferences().soundMuted).toBe(true);
+
+    window.localStorage.setItem(KEY, JSON.stringify({ soundMuted: "yes" }));
+    expect(loadPreferences().soundMuted).toBeUndefined();
+  });
+
   it("falls back to empty on corrupted JSON", () => {
     window.localStorage.setItem(KEY, "{not json");
 

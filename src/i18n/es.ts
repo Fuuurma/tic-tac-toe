@@ -120,12 +120,15 @@ export const es: Record<StringKey, string> = {
   "settings.installApp": "Instalar app",
   "settings.appearance": "Apariencia",
   "settings.language": "Idioma",
+  "settings.sound": "Sonido",
   "settings.learn": "Aprender",
   "settings.howToPlay": "Cómo jugar",
   "theme.light": "Claro",
   "theme.dark": "Oscuro",
   "theme.toDark": "Cambiar a tema oscuro",
   "theme.toLight": "Cambiar a tema claro",
+  "sound.mute": "Silenciar sonido",
+  "sound.unmute": "Activar sonido",
 
   "sheet.close": "Cerrar",
 
@@ -142,6 +145,7 @@ export const es: Record<StringKey, string> = {
   "game.againTitle": "Jugar otra vez",
   "game.restart": "Reiniciar",
   "game.again": "Jugar otra vez",
+  "game.tryNext": "Probar {difficulty} a continuación",
   "game.help": "Ayuda",
   "game.edit": "Editar",
   "game.editSettings": "Editar ajustes del jugador",

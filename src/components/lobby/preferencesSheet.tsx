@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
-import { ChevronRight, Download, Settings2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronRight, Download, Settings2, Volume2, VolumeX } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "./languageSwitcher";
 import { ThemeSegmented } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
 import { useInstallPrompt } from "@/lib/installPrompt";
+import { isSoundMuted, playSound, setSoundMuted } from "@/lib/sound";
 
 /**
  * App preferences: the settings that are not about who is playing.
@@ -56,6 +57,9 @@ export function PreferencesSheet({
           </Row>
           <Row label={t("settings.language")}>
             <LanguageSwitcher className={SEGMENTED_WIDTH} />
+          </Row>
+          <Row label={t("settings.sound")}>
+            <SoundToggle />
           </Row>
           <Group label={t("settings.learn")}>
             <LinkRow label={t("settings.howToPlay")} onClick={onHowToPlay} />
@@ -136,6 +140,34 @@ function LinkRow({
       {icon ?? (
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       )}
+    </button>
+  );
+}
+
+/**
+ * The persisted sound switch, shaped like the reactions mute it sits beside
+ * in spirit: one button whose label is the action it performs, `aria-pressed`
+ * carrying the state. Unmuting plays a tick so the player hears the app is
+ * audible again — silent when the AudioContext has not been gesture-unlocked
+ * yet, which is the browser's policy, not a failure.
+ */
+function SoundToggle() {
+  const [muted, setMuted] = useState(() => isSoundMuted());
+  const Icon = muted ? VolumeX : Volume2;
+  return (
+    <button
+      type="button"
+      aria-pressed={muted}
+      onClick={() => {
+        const next = !muted;
+        setMuted(next);
+        setSoundMuted(next);
+        if (!next) playSound("turn");
+      }}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-sm font-semibold text-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary max-sm:min-h-11"
+    >
+      <Icon className="size-4" aria-hidden="true" />
+      {muted ? t("sound.unmute") : t("sound.mute")}
     </button>
   );
 }
