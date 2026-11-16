@@ -17,9 +17,11 @@ export const COLORS = {
   o: "#f53131", // palette red chip
 } as const;
 
+// Quoted: an unquoted family containing "3" is not a valid CSS identifier,
+// so the whole declaration drops and the captions fall back to a serif.
 export const FONTS = {
-  display: "Syne Variable, Syne, sans-serif", // wordmark only
-  body: "Source Sans 3 Variable, Source Sans 3, sans-serif",
+  display: '"Syne Variable", sans-serif', // wordmark only
+  body: '"Source Sans 3 Variable", sans-serif',
 } as const;
 
 /** Standard ease-out for entrances; one curve family throughout. */

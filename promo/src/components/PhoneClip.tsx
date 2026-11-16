@@ -5,6 +5,25 @@ import { FPS, type Scene } from "../timeline";
 
 const VIEWPORT = { w: 390, h: 844 };
 const TAP_SEC = 0.5;
+const LEAD_SEC = 0.75; // the camera sets off this long before a focus point
+const MOVE_SEC = 0.55;
+
+export interface Focus {
+  t: number;
+  y: number;
+}
+
+/** Screen y the camera centres on at clip time `t`, eased between points. */
+function focusAt(points: Focus[], t: number): number {
+  let y = points[0]?.y ?? 0.5;
+  for (const p of points) {
+    const start = p.t - LEAD_SEC;
+    if (t < start) break;
+    const k = Math.min((t - start) / MOVE_SEC, 1);
+    y = y + (p.y - y) * Easing.bezier(...EASE_OUT)(k);
+  }
+  return y;
+}
 
 /**
  * A window onto a phone capture: `view` picks the part of the screen, `box`
@@ -12,15 +31,22 @@ const TAP_SEC = 0.5;
  * fingertip ring in the capture's own coordinates, so they stay on target at
  * any zoom.
  */
-export const PhoneClip: React.FC<{ scene: Scene; view: View; box: Box; radius: number }> = ({
+export const PhoneClip: React.FC<{ scene: Scene; view: View; box: Box; radius: number; follow?: Focus[] }> = ({
   scene,
-  view,
+  view: baseView,
   box,
   radius,
+  follow,
 }) => {
   const frame = useCurrentFrame();
-  const s = box.w / (view.w * VIEWPORT.w);
+  const s = box.w / (baseView.w * VIEWPORT.w);
   const srcNow = scene.srcStart + (frame / FPS) * scene.rate;
+  // A box shorter than the screen pans to follow the action.
+  const visible = box.h / s / VIEWPORT.h;
+  const view =
+    follow && visible < 1
+      ? { ...baseView, y: Math.min(Math.max(focusAt(follow, srcNow) - visible / 2, 0), 1 - visible) }
+      : baseView;
   const taps = scene.clip.taps.filter((t) => srcNow >= t.t - 0.05 && srcNow <= t.t + TAP_SEC);
 
   return (

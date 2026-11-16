@@ -23,8 +23,6 @@ export interface Layout {
   board: Box;
   /** The game screen, cropped to the HUD and the board. */
   game: { box: Box; view: View };
-  /** The whole phone screen, for flows that use all of it. */
-  full: Box;
   endScale: number;
 }
 
@@ -35,7 +33,6 @@ export const VERTICAL: Layout = {
   caption: { x: 80, y: 150, w: 920, h: 320, kicker: 44, headline: 88, align: "left" },
   board: { x: 60, y: 700, w: 960, h: 960 },
   game: { box: { x: 130, y: 520, w: 820, h: 1340 }, view: { x: 0, y: 0.035, w: 1 } },
-  full: { x: 230, y: 520, w: 620, h: 1342 },
   endScale: 1,
 };
 
@@ -46,7 +43,6 @@ export const SQUARE: Layout = {
   caption: { x: 72, y: 0, w: 430, h: 1080, kicker: 34, headline: 64, align: "left" },
   board: { x: 180, y: 300, w: 720, h: 720 },
   game: { box: { x: 560, y: 56, w: 447, h: 968 }, view: { x: 0, y: 0, w: 1 } },
-  full: { x: 560, y: 56, w: 447, h: 968 },
   endScale: 0.78,
 };
 

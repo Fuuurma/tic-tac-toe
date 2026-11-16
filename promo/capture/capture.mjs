@@ -31,7 +31,6 @@ const DPR = 3;
 const FPS = 30;
 const OUTPUT_WIDTH = 1080; // Chrome scales the 1170px frames down at the source
 const OUTPUT_HEIGHT = Math.round((OUTPUT_WIDTH * VIEWPORT.height) / VIEWPORT.width);
-const ROOM_CODE = "friday-night";
 
 const LINES = [
   [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -331,20 +330,18 @@ async function captureOnlineInvite(browser) {
   await sleep(600);
   await rec.tap(host.getByRole("radio", { name: "Create", exact: true }));
   await sleep(500);
-  // A named room reads on camera; the default code is a UUID.
-  const codeField = host.getByLabel("Custom room code (optional)");
-  await rec.tap(codeField);
-  await codeField.pressSequentially(ROOM_CODE, { delay: 55 });
-  await sleep(400);
   await rec.tap(host.getByRole("button", { name: "Create Room" }));
   await host.getByText("Room ready").waitFor({ timeout: 30_000 });
   rec.mark("roomReady");
   await sleep(900);
   await rec.tap(host.getByRole("button", { name: "Copy invite link" }));
   rec.mark("copied");
+  // The friend opens exactly the link the host just copied.
+  const invite = await host.evaluate(() => navigator.clipboard.readText());
+  if (!invite.startsWith(BASE_URL)) throw new Error(`clipboard held no invite link: ${invite}`);
   await sleep(700);
 
-  await guest.goto(`${BASE_URL}/?room=${ROOM_CODE}`);
+  await guest.goto(invite);
   await guest.getByRole("radio", { name: "Join", exact: true }).click().catch(() => {});
   await guest.getByRole("button", { name: "Join Room" }).click();
   // The handoff overlay lasts only as long as connecting does, so it can

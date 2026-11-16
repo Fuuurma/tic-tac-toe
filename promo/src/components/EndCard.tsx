@@ -6,7 +6,7 @@ export const URL_TEXT = "tic-tac-toe-1ou.pages.dev";
 /**
  * The app's masthead as an end card: the XO mark, "Tic Tac Toe" small and
  * muted over a large Syne "Disappear" whose tail fades (DESIGN.md, Lobby),
- * then the one thing to remember, the URL. Elements arrive 60ms apart.
+ * then the one thing to remember, the URL. Elements arrive 60-130ms apart.
  */
 export const EndCard: React.FC<{ scale: number }> = ({ scale }) => {
   const frame = useCurrentFrame();
@@ -33,28 +33,35 @@ export const EndCard: React.FC<{ scale: number }> = ({ scale }) => {
         transform: `scale(${scale})`,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 40, ...rise(0) }}>
-        <Img src={staticFile("brand/mark.svg")} style={{ width: 196, height: 196, borderRadius: 44, boxShadow: `0 0 0 2px ${COLORS.rim}, 0 30px 80px rgb(0 0 0 / 0.5)` }} />
-        <div style={{ fontFamily: FONTS.display, lineHeight: 0.95 }}>
-          <div style={{ fontSize: 60, fontWeight: 600, color: COLORS.muted, letterSpacing: "0.01em" }}>Tic Tac Toe</div>
-          <div
-            style={{
-              fontSize: 132,
-              fontWeight: 800,
-              letterSpacing: "-0.03em",
-              backgroundImage: `linear-gradient(90deg, ${COLORS.text} 45%, rgb(255 255 255 / 0.28) 100%)`,
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              color: "transparent",
-              paddingBottom: 10,
-            }}
-          >
-            Disappear
-          </div>
+      <Img
+        src={staticFile("brand/mark.svg")}
+        style={{
+          width: 184,
+          height: 184,
+          borderRadius: 42,
+          boxShadow: `0 0 0 2px ${COLORS.rim}, 0 30px 80px rgb(0 0 0 / 0.5)`,
+          ...rise(0),
+        }}
+      />
+      <div style={{ marginTop: 56, fontFamily: FONTS.display, lineHeight: 1, textAlign: "center", ...rise(2) }}>
+        <div style={{ fontSize: 56, fontWeight: 600, color: COLORS.muted, letterSpacing: "0.01em" }}>Tic Tac Toe</div>
+        <div
+          style={{
+            fontSize: 112,
+            fontWeight: 800,
+            letterSpacing: "-0.03em",
+            backgroundImage: `linear-gradient(90deg, ${COLORS.text} 40%, rgb(255 255 255 / 0.3) 100%)`,
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            color: "transparent",
+            paddingBottom: 12,
+          }}
+        >
+          Disappear
         </div>
       </div>
 
-      <div style={{ marginTop: 84, fontSize: 52, fontWeight: 600, color: COLORS.text, ...rise(4) }}>
+      <div style={{ marginTop: 72, fontSize: 52, fontWeight: 600, color: COLORS.text, ...rise(4) }}>
         Free. No sign-up. In your browser.
       </div>
 

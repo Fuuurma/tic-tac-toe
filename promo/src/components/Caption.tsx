@@ -22,11 +22,19 @@ export const Caption: React.FC<{
   cues: Cue[];
   sceneFrames: number;
   still?: boolean;
-}> = ({ box, kicker, cues, sceneFrames, still }) => {
+  /** Frames to hold the kicker back, so it never crosses the last scene's. */
+  delay?: number;
+}> = ({ box, kicker, cues, sceneFrames, still, delay = 0 }) => {
   const frame = useCurrentFrame();
   const ease = Easing.bezier(...EASE_OUT);
   const easeIn = Easing.bezier(...EASE_IN);
-  const kickerIn = still ? 1 : interpolate(frame, [0, ENTER], [0, 1], { extrapolateRight: "clamp", easing: ease });
+  const kickerIn = still
+    ? 1
+    : interpolate(frame, [delay, delay + ENTER], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: ease,
+      });
 
   return (
     <div

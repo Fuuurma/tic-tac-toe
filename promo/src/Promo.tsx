@@ -5,7 +5,7 @@ import { Caption } from "./components/Caption";
 import { EndCard } from "./components/EndCard";
 import { PhoneClip } from "./components/PhoneClip";
 import { BOARD_VIEW, FULL_VIEW, type Layout } from "./layout";
-import { END, HOOK, MOMENTS, ONLINE, OVERLAP, PLAY } from "./timeline";
+import { END, HOOK, MOMENTS, ONLINE, ONLINE_FOCUS, OVERLAP, PLAY } from "./timeline";
 
 loadBrandFonts();
 
@@ -67,8 +67,9 @@ export const Promo: React.FC<{ layout: Layout }> = ({ layout }) => {
           <Caption
             box={layout.caption}
             kicker="Play the computer"
+            delay={OVERLAP}
             cues={[
-              { at: 4, text: "Three marks each." },
+              { at: OVERLAP + 3, text: "Three marks each." },
               { at: Math.max(MOMENTS.playVanish - 6, 30), text: "The oldest one fades." },
               { at: MOMENTS.playWin - 4, text: "Line up three. Win." },
             ]}
@@ -80,13 +81,14 @@ export const Promo: React.FC<{ layout: Layout }> = ({ layout }) => {
       <Sequence from={ONLINE.from} durationInFrames={ONLINE.frames}>
         <Fade frames={ONLINE.frames} fadeIn fadeOut>
           <Rise>
-            <PhoneClip scene={ONLINE} view={FULL_VIEW} box={layout.full} radius={64} />
+            <PhoneClip scene={ONLINE} view={FULL_VIEW} box={layout.game.box} radius={56} follow={ONLINE_FOCUS} />
           </Rise>
           <Caption
             box={layout.caption}
             kicker="Play a friend online"
+            delay={OVERLAP}
             cues={[
-              { at: 4, text: "Open a room." },
+              { at: OVERLAP + 3, text: "Open a room." },
               { at: MOMENTS.onlineReady - 4, text: "Send the link." },
               { at: MOMENTS.onlineJoined - 2, text: "They're in. Your move." },
             ]}

@@ -71,6 +71,16 @@ export const END = { from: ONLINE.from + ONLINE.frames - OVERLAP, frames: Math.r
 
 export const TOTAL_FRAMES = END.from + END.frames;
 
+/**
+ * Where the online camera looks, in clip seconds and screen fractions: each
+ * tap, then the room card once it is up, then the board once the friend is in.
+ */
+export const ONLINE_FOCUS = [
+  ...online.taps.map(({ t, y }) => ({ t, y })),
+  { t: event(online, "roomReady"), y: 0.42 },
+  { t: event(online, "joined"), y: 0.57 },
+].sort((a, b) => a.t - b.t);
+
 export const MOMENTS = {
   playVanish: PLAY.at(event(vs, "disappear")),
   playWin: PLAY.at(event(vs, "win")),
