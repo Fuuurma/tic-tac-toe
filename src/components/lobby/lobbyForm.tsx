@@ -56,6 +56,7 @@ import { HelpDrawer } from "@/components/game/helpDrawer";
 import { ROOM_ID_PATTERN, normalizeRoomId } from "@/lib/roomId";
 import { handleRadioGroupKeyDown } from "@/lib/radioGroup";
 import { usePlayerCount, type PlayerCount } from "@/hooks/usePlayerCount";
+import { npcNameSession } from "@/game/npc-names";
 import { pickerTileClass } from "@/lib/pickerClasses";
 
 /** The lobby's name for the app's launch configuration; declared once in
@@ -131,8 +132,12 @@ const initialOpponentShape = (prefs: SavedPreferences): SymbolShape =>
 const initialAI_Difficulty = (prefs: SavedPreferences): AI_DifficultyType =>
   prefs.aiDifficulty ?? AI_Difficulty.NORMAL;
 
-const initialOpponentName = (prefs: SavedPreferences): string =>
-  prefs.opponentName ?? t("lobby.defaultAI");
+const initialOpponentName = (prefs: SavedPreferences, initialMode: GameMode): string =>
+  // A saved name is the player's own choice; a fresh visitor meets a persona.
+  // Online asks for a human opponent, so the persona is a Computer-mode
+  // default only.
+  prefs.opponentName ??
+  (initialMode === GameModes.ONLINE ? t("lobby.defaultAI") : npcNameSession.pick(initialAI_Difficulty(prefs)));
 
 // An invite link (?room=) asks for Online, but a build with no backend
 // cannot honour it: fall back to Computer with the reason showing under
@@ -454,7 +459,9 @@ function useLobbyPlayers(initialRoomId: string) {
   const [opponentShape, setOpponentShape] = useState<SymbolShape>(() => initialOpponentShape(initialPrefs));
   const [gameMode, setGameMode] = useState<GameMode>(() => initialGameMode(initialRoomId));
   const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(() => initialAI_Difficulty(initialPrefs));
-  const [opponentName, setOpponentName] = useState<string>(() => initialOpponentName(initialPrefs));
+  const [opponentName, setOpponentName] = useState<string>(() =>
+    initialOpponentName(initialPrefs, initialGameMode(initialRoomId)),
+  );
   const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
 
   // Live Online population, plus reachability. Subscribed whenever the
@@ -520,7 +527,9 @@ function useLobbyPlayers(initialRoomId: string) {
       setGameMode(nextMode);
       if (nextMode === GameModes.VS_COMPUTER) {
         setOpponentColor(oppositeColor(color));
-        setOpponentName(t("lobby.defaultAI"));
+        // A fresh persona each time Computer mode is entered — the session's
+        // draw pile guarantees it differs from the last name shown.
+        setOpponentName(npcNameSession.pick(aiDifficulty));
         setOpponentType(PlayerTypes.COMPUTER);
       } else if (nextMode === GameModes.VS_FRIEND) {
         // Hydrate the last saved opponent name so Friend mode reopens with it.
@@ -531,7 +540,7 @@ function useLobbyPlayers(initialRoomId: string) {
         setOpponentType(PlayerTypes.HUMAN);
       }
     },
-    [color],
+    [color, aiDifficulty],
   );
 
   // A picked Online that proves unreachable falls back to Computer with
@@ -543,7 +552,7 @@ function useLobbyPlayers(initialRoomId: string) {
   if (serverDown && !ONLINE_UNAVAILABLE && gameMode === GameModes.ONLINE) {
     setGameMode(GameModes.VS_COMPUTER);
     setOpponentColor(oppositeColor(color));
-    setOpponentName(t("lobby.defaultAI"));
+    setOpponentName(npcNameSession.pick(aiDifficulty));
     setOpponentType(PlayerTypes.COMPUTER);
   }
 

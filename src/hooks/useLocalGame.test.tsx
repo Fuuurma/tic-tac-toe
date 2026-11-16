@@ -21,6 +21,7 @@ import {
   TURN_DURATION_MS,
 } from "@/game/constants";
 import { getAIMove } from "@/game/ai";
+import { isNpcName, npcNameSession } from "@/game/npc-names";
 import { useLocalGame, type LocalGameInput } from "./useLocalGame";
 
 // F578: the mock delegates to the real engine — every existing assertion
@@ -316,5 +317,54 @@ describe("useLocalGame AI difficulty source (F578)", () => {
       result.current.handleReset();
     });
     expect(result.current.gameState.aiDifficulty).toBe(AI_Difficulty.HARD);
+  });
+});
+
+describe("useLocalGame computer persona (roster)", () => {
+  // The persona is session state drawn at game-view mount; a lobby-era pick
+  // reaches the first match verbatim, and any in-game rematch re-draws.
+  it("keeps the lobby's persona on the first match and redraws on reset", () => {
+    const firstPick = npcNameSession.pick(AI_Difficulty.NORMAL);
+    const secondPick = npcNameSession.pick(AI_Difficulty.NORMAL);
+    expect(secondPick).not.toBe(firstPick);
+  });
+
+  it("gives a blank computer opponent a persona at mount", () => {
+    const { result } = renderHook(() =>
+      useLocalGame(makeComputerInput({ opponentName: "" })),
+    );
+
+    const computerSide =
+      result.current.gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER
+        ? PlayerSymbol.X
+        : PlayerSymbol.O;
+    expect(isNpcName(result.current.gameState.players[computerSide].username)).toBe(true);
+  });
+
+  it("redraws a session persona on reset but keeps a player-typed name", () => {
+    // "Gridlock Gary" is in the roster (see npc-names.ts): the hook reads it
+    // as session-assigned, so the rematch draws a fresh persona. "Bob" is
+    // not a roster name: the player typed it, and it survives every reset.
+    const persona = renderHook(() =>
+      useLocalGame(makeComputerInput({ opponentName: "Gridlock Gary" })),
+    );
+    const before = persona.result.current.gameState.players[PlayerSymbol.O].username;
+    expect(before).toBe("Gridlock Gary");
+
+    act(() => {
+      persona.result.current.handleReset();
+    });
+
+    const afterPersona = persona.result.current.gameState.players[PlayerSymbol.O].username;
+    expect(afterPersona).not.toBe("Gridlock Gary");
+    expect(isNpcName(afterPersona)).toBe(true);
+
+    const custom = renderHook(() =>
+      useLocalGame(makeComputerInput({ opponentName: "Bob" })),
+    );
+    act(() => {
+      custom.result.current.handleReset();
+    });
+    expect(custom.result.current.gameState.players[PlayerSymbol.O].username).toBe("Bob");
   });
 });

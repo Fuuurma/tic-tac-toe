@@ -20,6 +20,7 @@ import {
   isValidMove,
   makeMove,
 } from "@/game/logic";
+import { isNpcName, npcNameSession } from "@/game/npc-names";
 import { getAIMove } from "@/game/ai";
 import {
   commitLocalMove,
@@ -40,10 +41,22 @@ export interface LocalGameInput {
 }
 
 function buildInitialState(input: LocalGameInput, humanSymbol: PlayerSymbol): GameState {
+  // A vs-computer opponent with no name at all is a caller bug upstream —
+  // the lobby always supplies one — so give the blank a persona instead of
+  // rendering an empty username across every panel. A name that is already
+  // here (persona or player-typed) passes through untouched, so mounting a
+  // game never re-rolls the lobby's pick.
+  const opponentType =
+    input.opponentType ??
+    (input.gameMode === GameModes.VS_COMPUTER ? PlayerTypes.COMPUTER : PlayerTypes.HUMAN);
+  const opponentName =
+    input.opponentName === "" && opponentType === PlayerTypes.COMPUTER
+      ? npcNameSession.pick(input.aiDifficulty ?? AI_Difficulty.NORMAL)
+      : input.opponentName;
   return createInitialGameState({
     gameMode: input.gameMode,
-    playerXName: humanSymbol === PlayerSymbol.X ? input.playerName : input.opponentName,
-    playerOName: humanSymbol === PlayerSymbol.O ? input.playerName : input.opponentName,
+    playerXName: humanSymbol === PlayerSymbol.X ? input.playerName : opponentName,
+    playerOName: humanSymbol === PlayerSymbol.O ? input.playerName : opponentName,
     playerColor: input.playerColor,
     opponentColor: input.opponentColor,
     playerShape: input.playerShape,
@@ -52,6 +65,23 @@ function buildInitialState(input: LocalGameInput, humanSymbol: PlayerSymbol): Ga
     aiDifficulty: input.aiDifficulty,
     opponentType: input.opponentType,
   });
+}
+
+/**
+ * The opponent's name for the match a reset is about to start: a roster
+ * persona unless the player named the opponent themselves (a typed name is
+ * never silently replaced); re-drawn per match so back-to-back rematches
+ * face different personas.
+ */
+function nextComputerOpponentName(input: LocalGameInput): string {
+  const opponentType =
+    input.opponentType ??
+    (input.gameMode === GameModes.VS_COMPUTER ? PlayerTypes.COMPUTER : PlayerTypes.HUMAN);
+  if (opponentType !== PlayerTypes.COMPUTER) return input.opponentName;
+  if (input.opponentName === "" || isNpcName(input.opponentName)) {
+    return npcNameSession.pick(input.aiDifficulty ?? AI_Difficulty.NORMAL);
+  }
+  return input.opponentName;
 }
 
 export function useLocalGame(input: LocalGameInput) {
@@ -117,7 +147,11 @@ export function useLocalGame(input: LocalGameInput) {
     // the wrong player.
     const newSymbol = randomPlayerSymbol();
     setHumanSymbol(newSymbol);
-    setGameState(buildInitialState(input, newSymbol));
+    // A rematch is a new match: the computer opponent re-draws its persona
+    // (a name the player typed is theirs and survives).
+    setGameState(
+      buildInitialState({ ...input, opponentName: nextComputerOpponentName(input) }, newSymbol),
+    );
     // The fresh game is ACTIVE again, so gameIsActive stays true and the
     // active-game effect never re-runs to restart the interval stopped
     // above — without this the reset game's turns never expire.

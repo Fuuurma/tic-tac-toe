@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures";
 import { skipOnboarding } from "./skipOnboarding";
 import { onlineSmokeEnabled } from "./matchmaking";
+import { isNpcName, NPC_NAMES } from "../src/game/npc-names";
 
 async function openPlayerSettings(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "Edit your player settings" }).click();
@@ -203,12 +204,20 @@ test("the computer plays on its own turn, including the opening one", async ({ p
   // The computer's opening move is the regression this pins: its setTimeout
   // lands in the same batch as the turn clock's first tick, and the commit
   // used to be dropped, leaving the AI to sit there until the 10s timeout.
-  const computerOpens = await page.evaluate(() =>
-    [...document.querySelectorAll("[role=group]")].some((group) =>
-      /^AI,/.test(group.getAttribute("aria-label") ?? "") &&
-      /current turn/i.test(group.getAttribute("aria-label") ?? ""),
-    ),
-  );
+  // The computer's card carries the difficulty label — the only card that
+  // does — and its aria label leads with the session persona, so presence
+  // of a persona-named card with "current turn" betrays who opens.
+  const computerOpens = await page.evaluate((roster: string[]) => {
+    const labels = [...document.querySelectorAll("[role=group]")].map((group) =>
+      group.getAttribute("aria-label") ?? "",
+    );
+    return labels.some(
+      (label) =>
+        /, (Easy|Normal|Hard)(,|$)/.test(label) &&
+        /current turn/i.test(label) &&
+        roster.includes(label.split(",")[0]?.trim() ?? ""),
+    );
+  }, NPC_NAMES);
 
   if (!computerOpens) {
     await page.locator('button[aria-label$=", empty"]').first().click();
@@ -219,6 +228,35 @@ test("the computer plays on its own turn, including the opening one", async ({ p
     timeout: 3_000,
   });
   await expect(page.getByText(/ran out of time/i)).toHaveCount(0);
+});
+
+test("the computer plays under its persona name", async ({ page }) => {
+  await fillLobby(page, { name: "Persona Player", color: "blue", mode: "vs Computer" });
+
+  // Before the game starts the lobby card already names the opponent: the
+  // persona the session drew, never the bare "AI" label.
+  const lobbyCard = page.getByRole("button", { name: "Edit opponent settings" });
+  await expect(lobbyCard).toBeVisible();
+  const lobbyName = ((await lobbyCard.textContent()) ?? "").split("(")[0]!.trim();
+  expect(isNpcName(lobbyName)).toBe(true);
+
+  await page.getByRole("button", { name: "Start Game" }).click();
+  await expect(page.getByRole("group", { name: "Tic Tac Toe game board" })).toBeVisible();
+
+  // In the game, the computer card carries the same persona in its aria.
+  const computerCard = page.locator(
+    '[role=group][aria-label*=", Easy"], [role=group][aria-label*=", Normal"], [role=group][aria-label*=", Hard"]',
+  );
+  const cardLabel = await computerCard.first().getAttribute("aria-label", { timeout: 5_000 });
+  const persona = (cardLabel ?? "").split(",")[0]!.trim();
+  expect(isNpcName(persona)).toBe(true);
+
+  // And the turn line speaks it: while the computer is on the clock the
+  // status reads "{persona} thinking" (the 700ms+ move delay gives the
+  // poll a wide window; the exchange cycle repeats it either way).
+  await expect(
+    page.getByText(new RegExp(`${persona.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} thinking`)),
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 test("record breakdown breaks the record down by mode and difficulty", async ({ page }) => {

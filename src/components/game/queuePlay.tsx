@@ -13,6 +13,7 @@ import {
   COPY_FLASH_MS,
 } from "@/game/constants";
 import { getDifficultyLabel, t } from "@/i18n/language";
+import { npcNameSession } from "@/game/npc-names";
 import { useGameStats } from "@/hooks/useGameStats";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
@@ -246,7 +247,11 @@ export function QueueStrip({
 function warmupOpponent(playerColor: Color) {
   const prefs = loadPreferences();
   return {
-    name: prefs.opponentName ?? t("lobby.defaultAI"),
+    // Same rule as the lobby: a saved name is the player's choice; the
+    // absence of one draws a session persona rather than a bare "AI".
+    name:
+      prefs.opponentName ??
+      npcNameSession.pick(prefs.aiDifficulty ?? AI_Difficulty.NORMAL),
     color:
       prefs.opponentColor && prefs.opponentColor !== playerColor
         ? prefs.opponentColor

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
-import { GameModes, type GameSetup } from "@/game/constants";
+import { GameModes, PlayerSymbol, PlayerTypes, type GameSetup } from "@/game/constants";
 
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
@@ -200,6 +200,16 @@ function LocalGameSurface({
   // The local game's status line renders from `gameState.turnNotice` (see
   // the StatusLine below), so the hook returns no message of its own.
   const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } = useLocalGame(input);
+  // A rematch re-draws the computer's persona inside the running game state,
+  // so the settings sheet must describe the name the match was actually
+  // played under, not the lobby-era one this component's state still holds.
+  const sheetOpponent = useMemo<OpponentSettings>(() => {
+    if (config.gameMode !== GameModes.VS_COMPUTER) return opponentSettings;
+    const computerSide =
+      gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER ? PlayerSymbol.X : PlayerSymbol.O;
+    const runningName = gameState.players[computerSide].username;
+    return runningName ? { ...opponentSettings, opponentName: runningName } : opponentSettings;
+  }, [config.gameMode, gameState, opponentSettings]);
   const gameStats = useGameStats();
   const { stats } = gameStats;
   useRecordLocalResult(gameState, humanSymbol, gameStats);
@@ -260,7 +270,7 @@ function LocalGameSurface({
         tab={settingsTab}
         onTabChange={setSettingsTab}
         player={playerSettings}
-        opponent={opponentSettings}
+        opponent={sheetOpponent}
         onPlayerChange={handlePlayerSettingsChange}
         onOpponentChange={handleOpponentSettingsChange}
         onClose={() => setSettingsOpen(false)}
