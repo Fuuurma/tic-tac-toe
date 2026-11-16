@@ -1,0 +1,969 @@
+{
+  "results": [
+    {
+      "name": "onboarding-welcome",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          },
+          {
+            "w": 59,
+            "h": 28,
+            "label": "English"
+          },
+          {
+            "w": 62,
+            "h": 28,
+            "label": "Español"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "onboarding-profile",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          },
+          {
+            "w": 59,
+            "h": 28,
+            "label": "English"
+          },
+          {
+            "w": 62,
+            "h": 28,
+            "label": "Español"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-default",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-settings",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-players",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-online-quick",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-help",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "help": "Scrollable region must have keyboard access",
+          "nodes": [
+            ".pb-5"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "game-mid",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "game-over-win",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          },
+          {
+            "w": 24,
+            "h": 24,
+            "label": "Show record breakdown"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "confirm-exit",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-default",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "game-mid",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "lobby-settings",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-default",
+      "tag": "phone-dark",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "game-mid",
+      "tag": "phone-dark",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "lobby-settings",
+      "tag": "phone-dark",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-default",
+      "tag": "desktop-light",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "game-mid",
+      "tag": "desktop-light",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [
+          {
+            "fs": 11,
+            "text": "vs Friend",
+            "tag": "span"
+          }
+        ],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "lobby-settings",
+      "tag": "desktop-light",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "lobby-default",
+      "tag": "desktop-dark",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "game-mid",
+      "tag": "desktop-dark",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [
+          {
+            "fs": 11,
+            "text": "vs Friend",
+            "tag": "span"
+          }
+        ],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "lobby-settings",
+      "tag": "desktop-dark",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [],
+      "ok": true
+    },
+    {
+      "name": "online-waiting",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "online-connected",
+      "tag": "phone-light",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          },
+          {
+            "w": 112,
+            "h": 38,
+            "label": "Mute reactions"
+          },
+          {
+            "w": 98,
+            "h": 38,
+            "label": "Reactions available when connected"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "👋 Hello!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🍀 Good luck!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "👏 Nice move!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "😮 Wow!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "😅 Oops!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🤔 Thinking…"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🙏 Thanks!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🤝 Good game!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "✨ Well played!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🔄 Rematch?"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "online-connected",
+      "tag": "phone-dark",
+      "metrics": {
+        "vw": 390,
+        "vh": 844,
+        "hScroll": false,
+        "scrollW": 390,
+        "wideEls": [],
+        "smallText": [],
+        "tinyTargets": [
+          {
+            "w": 1,
+            "h": 1,
+            "label": "Skip to main content"
+          },
+          {
+            "w": 112,
+            "h": 38,
+            "label": "Mute reactions"
+          },
+          {
+            "w": 98,
+            "h": 38,
+            "label": "Reactions available when connected"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "👋 Hello!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🍀 Good luck!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "👏 Nice move!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "😮 Wow!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "😅 Oops!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🤔 Thinking…"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🙏 Thanks!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🤝 Good game!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "✨ Well played!"
+          },
+          {
+            "w": 174,
+            "h": 36,
+            "label": "🔄 Rematch?"
+          }
+        ],
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "online-connected",
+      "tag": "desktop-light",
+      "metrics": {
+        "vw": 1440,
+        "vh": 900,
+        "hScroll": false,
+        "scrollW": 1440,
+        "wideEls": [],
+        "smallText": [
+          {
+            "fs": 11,
+            "text": "Online",
+            "tag": "span"
+          }
+        ],
+        "tinyTargets": null,
+        "unlabeled": []
+      },
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "help": "Page should contain a level-one heading",
+          "nodes": [
+            "html"
+          ],
+          "count": 1
+        }
+      ],
+      "ok": true
+    },
+    {
+      "name": "motion-check",
+      "tag": "reducedMotion=reduce",
+      "metrics": {
+        "anim": []
+      },
+      "ok": true
+    },
+    {
+      "name": "motion-check",
+      "tag": "reducedMotion=no-preference",
+      "metrics": {
+        "anim": [
+          {
+            "tag": "button",
+            "cls": "inline-flex items-center justify-center gap-2 roun",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "button",
+            "cls": "inline-flex items-center justify-center gap-2 roun",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "button",
+            "cls": "inline-flex items-center justify-center gap-2 roun",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "button",
+            "cls": "inline-flex items-center justify-center gap-2 roun",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "div",
+            "cls": "flex min-w-0 items-center gap-2.5 rounded-xl borde",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "div",
+            "cls": "flex min-w-0 items-center gap-2.5 rounded-xl borde",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "dialog",
+            "cls": "hidden glass sheet-surface flex-col overflow-hidde",
+            "ad": 0.34,
+            "td": "0"
+          },
+          {
+            "tag": "button",
+            "cls": "inline-flex items-center justify-center gap-2 roun",
+            "ad": 0,
+            "td": "0.15"
+          },
+          {
+            "tag": "button",
+            "cls": "inline-flex items-center justify-center gap-2 roun",
+            "ad": 0,
+            "td": "0.15"
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "name": "keyboard-lobby",
+      "tag": "phone-light",
+      "metrics": {
+        "focusTrail": [
+          {
+            "tag": "a",
+            "label": "Skip to main content",
+            "outline": "1px",
+            "ring": null
+          },
+          {
+            "tag": "button",
+            "label": "Settings",
+            "outline": "1px",
+            "ring": "rgba(0, 0, 0, 0.12) 0px 8px 32px 0px, rgba(0, 0, 0, 0.06) 0p"
+          },
+          {
+            "tag": "button",
+            "label": "Edit your player settings",
+            "outline": "1px",
+            "ring": "rgba(0, 0, 0, 0.12) 0px 8px 32px 0px, rgba(0, 0, 0, 0.06) 0p"
+          },
+          {
+            "tag": "button",
+            "label": "Edit opponent settings",
+            "outline": "1px",
+            "ring": "rgba(0, 0, 0, 0.12) 0px 8px 32px 0px, rgba(0, 0, 0, 0.06) 0p"
+          },
+          {
+            "tag": "button",
+            "label": "vs Computer",
+            "outline": null,
+            "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+          },
+          {
+            "tag": "button",
+            "label": "Start Game",
+            "outline": null,
+            "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+          },
+          {
+            "tag": "a",
+            "label": "Skip to main content",
+            "outline": "1px",
+            "ring": null
+          },
+          {
+            "tag": "button",
+            "label": "Settings",
+            "outline": "1px",
+            "ring": "rgba(0, 0, 0, 0.12) 0px 8px 32px 0px, rgba(0, 0, 0, 0.06) 0p"
+          },
+          {
+            "tag": "button",
+            "label": "Edit your player settings",
+            "outline": "1px",
+            "ring": "rgba(0, 0, 0, 0.12) 0px 8px 32px 0px, rgba(0, 0, 0, 0.06) 0p"
+          },
+          {
+            "tag": "button",
+            "label": "Edit opponent settings",
+            "outline": "1px",
+            "ring": "rgba(0, 0, 0, 0.12) 0px 8px 32px 0px, rgba(0, 0, 0, 0.06) 0p"
+          },
+          {
+            "tag": "button",
+            "label": "vs Computer",
+            "outline": null,
+            "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+          },
+          {
+            "tag": "button",
+            "label": "Start Game",
+            "outline": null,
+            "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+          }
+        ]
+      },
+      "ok": true
+    },
+    {
+      "name": "keyboard-board",
+      "tag": "phone-light",
+      "metrics": {
+        "boardFocused": true,
+        "cellActivated": true
+      },
+      "ok": true
+    }
+  ],
+  "consoleLog": []
+}

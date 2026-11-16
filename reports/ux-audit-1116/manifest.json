@@ -1,0 +1,910 @@
+{
+  "manifest": [
+    {
+      "file": "onboarding-welcome-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-profile-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-practice-start-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-practice-mid-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-practice-won-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-ready-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-welcome-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-profile-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-practice-start-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-practice-mid-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-practice-won-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "onboarding-ready-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-default-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-vs-friend-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-you-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-opponent-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-settings-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-help-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-quick-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-create-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-join-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-invite-join-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-default-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-vs-friend-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-you-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-opponent-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-settings-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-help-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-quick-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-create-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-join-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-invite-join-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-default-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-vs-friend-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-you-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-opponent-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-difficulty-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-settings-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-help-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-quick-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-create-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-join-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-invite-join-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-default-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-vs-friend-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-you-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-opponent-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-players-difficulty-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-settings-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-help-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-quick-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-create-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-join-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-invite-join-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-start-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-mid-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-newgame-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-exit-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-settings-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-players-edit-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-help-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-record-breakdown-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-win-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-easy-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-normal-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-hard-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-lose-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-start-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-mid-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-newgame-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-exit-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-settings-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-players-edit-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-help-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-record-breakdown-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-win-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-easy-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-normal-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-hard-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-lose-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-start-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-mid-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-newgame-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-exit-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-settings-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-players-edit-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-help-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-record-breakdown-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-win-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-easy-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-normal-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-hard-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-lose-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-start-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-friend-mid-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-newgame-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-confirm-exit-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-settings-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-players-edit-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-help-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-record-breakdown-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-win-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-easy-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-normal-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-vs-computer-hard-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "game-over-lose-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-lobby-quick-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-quick-search-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-error-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-lobby-quick-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-quick-search-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-error-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-lobby-quick-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-quick-search-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-error-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-lobby-quick-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-quick-search-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-error-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-handoff-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-host-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-handoff-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-host-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-handoff-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-host-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-warmup-handoff-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-host-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-fail-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-fail-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-fail-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-fail-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-warmup-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-lobby-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-joining-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-connected-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-guest-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-warmup-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-lobby-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-joining-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-connected-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-guest-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-warmup-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-lobby-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-joining-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-connected-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-guest-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-ready-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-warmup-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-lobby-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-joining-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-room-connected-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-game-guest-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-badroom-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-badroom-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-badroom-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "online-guest-badroom-desktop-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-down-phone-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-down-phone-dark.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-down-desktop-light.png",
+      "ok": true
+    },
+    {
+      "file": "lobby-online-down-desktop-dark.png",
+      "ok": true
+    }
+  ],
+  "consoleLog": [
+    {
+      "tag": "online-down-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-down-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "game-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+    },
+    {
+      "tag": "online-guest-phone-light",
+      "type": "warning",
+      "text": "WebSocket connection to 'ws://127.0.0.1:8787/room/FRIEND99?game=tictactoe' failed: WebSocket is closed before the connection is established."
+    },
+    {
+      "tag": "online-err-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-err-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-guest-phone-dark",
+      "type": "warning",
+      "text": "WebSocket connection to 'ws://127.0.0.1:8787/room/FRIEND99?game=tictactoe' failed: WebSocket is closed before the connection is established."
+    },
+    {
+      "tag": "online-err-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-err-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-guest-desktop-light",
+      "type": "warning",
+      "text": "WebSocket connection to 'ws://127.0.0.1:8787/room/FRIEND99?game=tictactoe' failed: WebSocket is closed before the connection is established."
+    },
+    {
+      "tag": "online-err-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-err-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-guest-desktop-dark",
+      "type": "warning",
+      "text": "WebSocket connection to 'ws://127.0.0.1:8787/room/FRIEND99?game=tictactoe' failed: WebSocket is closed before the connection is established."
+    },
+    {
+      "tag": "online-err-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "online-err-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    },
+    {
+      "tag": "down-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-phone-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-phone-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-desktop-light",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    },
+    {
+      "tag": "down-desktop-dark",
+      "type": "error",
+      "text": "Failed to load resource: net::ERR_FAILED"
+    }
+  ]
+}
