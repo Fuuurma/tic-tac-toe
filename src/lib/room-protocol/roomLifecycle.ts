@@ -14,7 +14,8 @@ import { createInitialGameState, freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { isPeerMessage, migrateLegacyShapes } from "@/lib/peer.wire";
 import { chooseGuestColor } from "@/lib/peer.apply";
-import { generateRoomId } from "@/lib/roomId";
+import { canonicalRoomId, generateFriendRoomCode } from "@/lib/roomId";
+import { FuurmaError } from "@fuurma/online-client";
 import type { PeerMessage } from "@/lib/peer.wire";
 import {
   buildRoomWsUrl,
@@ -199,7 +200,34 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
   return client;
 }
 
+/** Connect attempts allowed for an auto-generated friend code. Codes are
+ *  6 chars over a 32-char alphabet, so a collision needs a live room in
+ *  the same slot — a handful of fresh draws makes "code in use"
+ *  effectively unreachable, and the bound keeps a broken relay from
+ *  looping forever. */
+const FRIEND_ROOM_CODE_ATTEMPTS = 3;
+
+/** The relay's "host seat already taken" refusal as the SDK reports it:
+ *  FuurmaError code `role-conflict` (wire code `role-taken`), with a
+ *  message-text fallback for errors that only carry wording. */
+function isRoomCodeConflict(err: unknown): boolean {
+  return (
+    (err instanceof FuurmaError && err.code === "role-conflict") ||
+    (err instanceof Error && err.message.toLowerCase().includes("already in use"))
+  );
+}
+
 export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, wsUrl?: string, slotToken?: string) {
+  startHostAttempt(deps, providedRoomId, wsUrl, slotToken, 0);
+}
+
+function startHostAttempt(
+  deps: RoomLifecycleDeps,
+  providedRoomId: string | undefined,
+  wsUrl: string | undefined,
+  slotToken: string | undefined,
+  attempt: number,
+) {
   const {
     roomRef,
     stateRef,
@@ -236,7 +264,11 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     deps.waitingForHostTimeoutRef.current = null;
   }
   deps.waitingForHostDeadlineAtRef.current = null;
-  const roomId = providedRoomId ?? generateRoomId();
+  // Friend rooms get a short human code; a custom id the user typed and a
+  // matchmade id are both canonicalized to the wire spelling (whitespace
+  // out, uppercase) so join entry can stay case-insensitive.
+  const autoCode = providedRoomId == null;
+  const roomId = autoCode ? generateFriendRoomCode() : canonicalRoomId(providedRoomId);
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
   const waitingGame = createInitialGameState({
@@ -273,7 +305,21 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId);
   const room = buildRoomClient(deps, resolvedUrl, "host", slotToken);
   room.connect().catch((err) => {
-    update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
+    // A generated friend code can land on a live room; the relay refuses
+    // the host seat. The user never picked this id, so retry with a fresh
+    // code instead of surfacing an error they cannot act on. A custom or
+    // matchmade id was chosen or allocated — report the conflict rather
+    // than swap it out from under them.
+    if (autoCode && attempt + 1 < FRIEND_ROOM_CODE_ATTEMPTS && isRoomCodeConflict(err)) {
+      startHostAttempt(deps, undefined, undefined, undefined, attempt + 1);
+      return;
+    }
+    update({
+      status: "error",
+      message: isRoomCodeConflict(err)
+        ? t("mm.codeInUse")
+        : `Room connect failed: ${(err as Error).message}`,
+    });
   });
 }
 
@@ -293,8 +339,8 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
     deps.waitingForHostTimeoutRef.current = null;
   }
   deps.waitingForHostDeadlineAtRef.current = null;
-  const trimmed = roomId.trim();
-  if (!trimmed) {
+  const code = canonicalRoomId(roomId);
+  if (!code) {
     update({ status: "error", message: t("mm.enterRoom") });
     return;
   }
@@ -314,10 +360,10 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const waitingState: GameState = { ...freshGameState(), gameMode: GameModes.ONLINE };
   deps.stateRef.current = waitingState;
   deps.pendingGuestStateRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false, leftBySelf: false });
+  update({ role: "guest", status: "connecting", roomId: code, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false, leftBySelf: false });
   roleRef.current = "guest";
 
-  const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
+  const resolvedUrl = wsUrl ?? buildRoomWsUrl(code);
   const room = buildRoomClient(deps, resolvedUrl, "guest", slotToken);
   room.connect().catch((err) => {
     update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });

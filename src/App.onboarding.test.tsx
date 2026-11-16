@@ -57,7 +57,9 @@ describe("who gets onboarding", () => {
     render(<App />);
     expect(inLobby()).toBe(true);
     expect(onWelcome()).toBe(false);
-    expect((screen.getByLabelText(/^Room code/) as HTMLInputElement).value).toBe("friday-game");
+    // The invite link folds to the wire spelling: join is case-insensitive,
+    // so the field shows the canonical uppercase code the relay keys on.
+    expect((screen.getByLabelText(/^Room code/) as HTMLInputElement).value).toBe("FRIDAY-GAME");
   });
 
   it("does not create an identity before the visitor has chosen one", () => {

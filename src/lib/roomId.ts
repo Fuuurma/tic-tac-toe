@@ -1,21 +1,26 @@
+import { generateRoomCode } from "@fuurma/online-client";
+
 export const ROOM_ID_PATTERN = /^[a-zA-Z0-9_-]{4,64}$/;
 
+/**
+ * The one spelling a room code takes on the wire. The relay keys rooms by
+ * the exact string, so the invite link, the join field and a custom create
+ * code all fold here: whitespace out, case up. Entry is case-insensitive
+ * because every path canonicalizes the same way — and a code pasted with
+ * stray spaces still lands.
+ */
+export const canonicalRoomId = (value: string | null | undefined): string =>
+  (value ?? "").replace(/\s+/g, "").toUpperCase();
+
 export const normalizeRoomId = (value: string | null | undefined): string => {
-  const roomId = value?.trim() ?? "";
+  const roomId = canonicalRoomId(value);
   return ROOM_ID_PATTERN.test(roomId) ? roomId : "";
 };
 
-const fallbackRoomId = (): string =>
-  `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`.padEnd(32, "0").slice(0, 32);
-
 /**
- * A fresh room id. `crypto.randomUUID` where it exists, a padded double
- * `Math.random` otherwise — it lived in `lib/peer.ts`, next to the wire
- * protocol, while this module owned the pattern that validates it.
+ * A friend-room invite code: six characters from the shared unambiguous
+ * alphabet (the same set Gambit ships — no 0/O or 1/I/L confusables),
+ * uppercase by construction. Quick-match rooms keep their worker-issued
+ * ids; this is only for codes a person reads aloud, dictates or types.
  */
-export const generateRoomId = (): string => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return fallbackRoomId();
-};
+export const generateFriendRoomCode = (): string => generateRoomCode();

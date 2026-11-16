@@ -61,10 +61,10 @@ export const es: Record<StringKey, string> = {
   "lobby.action.join": "Unirse",
   "lobby.roomCustom": "Código de sala personalizado (opcional)",
   "lobby.roomCustomPlaceholder": "Déjalo vacío para generar uno",
-  "lobby.roomCustomHint": "De 4 a 64 letras, números, guiones o guiones bajos.",
+  "lobby.roomCustomHint": "De 4 a 64 letras, números, guiones o guiones bajos. Las letras se guardan en mayúsculas.",
   "lobby.roomCode": "Código de sala",
-  "lobby.roomCodePlaceholder": "p. ej., partida-viernes",
-  "lobby.roomJoinHint": "Usa el código que te ha pasado tu amigo.",
+  "lobby.roomCodePlaceholder": "p. ej., K7Q2MX",
+  "lobby.roomJoinHint": "Usa el código que te ha pasado tu amigo. No distingue mayúsculas.",
   "lobby.help": "Cómo jugar",
   "lobby.onlineModeUnavailable": "El modo en línea no está disponible en esta versión.",
   "lobby.quickUnavailable":

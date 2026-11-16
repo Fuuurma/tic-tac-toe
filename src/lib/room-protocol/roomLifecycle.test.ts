@@ -1,10 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { RoomClient } from "@/lib/roomClient";
+import { FuurmaError } from "@fuurma/online-client";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState, type GameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
+import { t } from "@/i18n/language";
 import type { PlayerSettings } from "@/game/constants";
 
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
@@ -58,50 +60,51 @@ describe("leaveRoom", () => {
   });
 });
 
+function lifecycleDeps(
+  rematchPendingRef: { current: boolean },
+  hostPendingSettingsRef = { current: null as PlayerSettings | null },
+) {
+  const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
+  const deps: RoomLifecycleDeps = {
+    roomRef: { current: null },
+    stateRef: {
+      current: createInitialGameState({
+        gameMode: GameModes.ONLINE,
+        playerXName: "Host",
+        playerOName: "Guest",
+        playerColor: Color.BLUE,
+        opponentColor: Color.RED,
+      }),
+    },
+    roleRef: { current: null },
+    quickMatchHostRef: { current: false },
+    hostSymbolRef: { current: null },
+    guestSymbolRef,
+    hostDisplayName: "Host",
+    hostColor: "blue" as never,
+    setState: vi.fn(),
+    update: vi.fn(),
+    handleWsEvent: vi.fn(),
+    handleHostData: vi.fn(),
+    handleGuestData: vi.fn(),
+    stopTimer: vi.fn(),
+    rematchPendingRef,
+    lastSyncReplyAtRef: { current: 0 },
+    guestJoinedRef: { current: false },
+    hostPendingSettingsRef,
+    reconnectResetsRef: { current: { moveCount: -1 } },
+    pendingGuestStateRef: { current: null as GameState | null },
+    syncPendingRef: { current: false },
+    waitingForHostTimeoutRef: { current: null },
+    waitingForHostDeadlineAtRef: { current: null },
+  };
+  return { deps, guestSymbolRef };
+}
+
 describe("joinAsGuest rematch-flag reset", () => {
   // needs-work 2026-09-10 P2: rematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
   // would be honored against a game that never asked for one.
-  function lifecycleDeps(
-    rematchPendingRef: { current: boolean },
-    hostPendingSettingsRef = { current: null as PlayerSettings | null },
-  ) {
-    const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
-    const deps: RoomLifecycleDeps = {
-      roomRef: { current: null },
-      stateRef: {
-        current: createInitialGameState({
-          gameMode: GameModes.ONLINE,
-          playerXName: "Host",
-          playerOName: "Guest",
-          playerColor: Color.BLUE,
-          opponentColor: Color.RED,
-        }),
-      },
-      roleRef: { current: null },
-      quickMatchHostRef: { current: false },
-      hostSymbolRef: { current: null },
-      guestSymbolRef,
-      hostDisplayName: "Host",
-      hostColor: "blue" as never,
-      setState: vi.fn(),
-      update: vi.fn(),
-      handleWsEvent: vi.fn(),
-      handleHostData: vi.fn(),
-      handleGuestData: vi.fn(),
-      stopTimer: vi.fn(),
-      rematchPendingRef,
-      lastSyncReplyAtRef: { current: 0 },
-      guestJoinedRef: { current: false },
-      hostPendingSettingsRef,
-      reconnectResetsRef: { current: { moveCount: -1 } },
-      pendingGuestStateRef: { current: null as GameState | null },
-      syncPendingRef: { current: false },
-      waitingForHostTimeoutRef: { current: null },
-      waitingForHostDeadlineAtRef: { current: null },
-    };
-    return { deps, guestSymbolRef };
-  }
 
   it("F241: clears stale pending identity settings on room entry", () => {
     const rematchPendingRef = { current: false };
@@ -431,5 +434,112 @@ describe("joinAsGuest rematch-flag reset", () => {
         .mock.calls[0]?.[0] as (prev: never) => { message: string };
       expect(updater(relaySaid).message).toBe("El anfitrión cerró la sala");
     });
+  });
+});
+
+describe("friend-room codes", () => {
+  const FRIEND_CODE = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
+
+  const roomIdsWritten = (deps: RoomLifecycleDeps): string[] =>
+    (deps.update as unknown as { mock: { calls: unknown[][] } }).mock.calls
+      .map(([patch]) => (patch as { roomId?: string }).roomId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+  const codeConflict = () =>
+    new FuurmaError("role-conflict", "That room code is already in use", {
+      terminal: true,
+    });
+
+  it("generates a 6-char unambiguous code when no room id is provided", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    startAsHost(deps, undefined, "ws://127.0.0.1:1");
+    const [roomId] = roomIdsWritten(deps);
+    expect(roomId).toMatch(FRIEND_CODE);
+  });
+
+  it("retries with a fresh code when the relay reports the code in use", async () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const connect = vi
+      .spyOn(RoomClient.prototype, "connect")
+      .mockRejectedValueOnce(codeConflict())
+      .mockResolvedValue({ role: "host", opponent: null } as never);
+    try {
+      startAsHost(deps, undefined, "ws://relay.test/room");
+      await vi.waitFor(() => expect(connect).toHaveBeenCalledTimes(2));
+      const ids = roomIdsWritten(deps);
+      expect(ids).toHaveLength(2);
+      expect(ids[0]).toMatch(FRIEND_CODE);
+      expect(ids[1]).toMatch(FRIEND_CODE);
+      expect(ids[1]).not.toBe(ids[0]);
+    } finally {
+      connect.mockRestore();
+    }
+  });
+
+  it("stops after the attempt budget and surfaces the conflict", async () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const connect = vi
+      .spyOn(RoomClient.prototype, "connect")
+      .mockRejectedValue(codeConflict());
+    try {
+      startAsHost(deps, undefined, "ws://relay.test/room");
+      await vi.waitFor(() => expect(connect).toHaveBeenCalledTimes(3));
+      expect(connect).toHaveBeenCalledTimes(3);
+      expect(deps.update).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "error", message: t("mm.codeInUse") }),
+      );
+    } finally {
+      connect.mockRestore();
+    }
+  });
+
+  it("does not swap a custom code on collision — it canonicalizes and reports instead", async () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const connect = vi
+      .spyOn(RoomClient.prototype, "connect")
+      .mockRejectedValue(codeConflict());
+    try {
+      startAsHost(deps, "my-room", "ws://relay.test/room");
+      await vi.waitFor(() => expect(connect).toHaveBeenCalledTimes(1));
+      expect(connect).toHaveBeenCalledTimes(1);
+      expect(roomIdsWritten(deps)).toEqual(["MY-ROOM"]);
+      expect(deps.update).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "error", message: t("mm.codeInUse") }),
+      );
+    } finally {
+      connect.mockRestore();
+    }
+  });
+
+  it("does not retry a matchmade room id on collision", async () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const connect = vi
+      .spyOn(RoomClient.prototype, "connect")
+      .mockRejectedValue(codeConflict());
+    try {
+      startAsHost(deps, "A".repeat(32), "ws://relay.test/room", "slot-token");
+      await vi.waitFor(() => expect(connect).toHaveBeenCalledTimes(1));
+      expect(connect).toHaveBeenCalledTimes(1);
+    } finally {
+      connect.mockRestore();
+    }
+  });
+});
+
+describe("joinAsGuest room-code canonicalization", () => {
+  it("trims, strips spaces and uppercases the entered code", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    joinAsGuest(deps, " k7q 2mx ", "ws://127.0.0.1:1");
+    expect(deps.update).toHaveBeenCalledWith(
+      expect.objectContaining({ roomId: "K7Q2MX" }),
+    );
+  });
+
+  it("leaves an already-canonical code untouched", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    joinAsGuest(deps, "FRIDAY-GAME", "ws://127.0.0.1:1");
+    expect(deps.update).toHaveBeenCalledWith(
+      expect.objectContaining({ roomId: "FRIDAY-GAME" }),
+    );
   });
 });
