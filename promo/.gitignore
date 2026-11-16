@@ -1,0 +1,3 @@
+node_modules
+# Intermediate capture frames; the assembled clips in public/captures are committed.
+capture/.frames
