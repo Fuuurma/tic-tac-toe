@@ -383,7 +383,16 @@ test.describe("on a phone", () => {
       });
 
     await touch("touchStart", y0);
-    for (let i = 1; i <= 5; i++) await touch("touchMove", y0 + i * 12);
+    // CDP answers each dispatch as fast as it can, so un-paced moves land
+    // 15-50ms apart — 240-800px/s, inside the sheet's flick band, and the
+    // release then dismisses instead of springing back. The wait is part of
+    // the gesture, not a sync crutch: it is what makes this a drag and not
+    // a flick. The long drag below needs no pacing — it clears the 96px
+    // distance threshold, so timing cannot change its outcome.
+    for (let i = 1; i <= 5; i++) {
+      if (i > 1) await page.waitForTimeout(80);
+      await touch("touchMove", y0 + i * 12);
+    }
     await expect.poll(async () => Math.round((await top()) - rest)).toBeGreaterThan(40);
     await touch("touchEnd", y0 + 60);
     // A short drag springs back and leaves the sheet open.
