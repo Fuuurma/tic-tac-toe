@@ -116,6 +116,40 @@ describe("PlayersPanel in-play HUD economy", () => {
   });
 });
 
+describe("PlayersPanel page heading (F5, F7)", () => {
+  const renderPanel = (state: GameState) =>
+    render(
+      <PlayersPanel
+        gameState={state}
+        gameMode={GameModes.ONLINE}
+        message=""
+        onExit={vi.fn()}
+        onNewGame={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+  it("renders the mode title as the page's level-one heading", () => {
+    // ux-audit-1116 F5 (axe page-has-heading-one): the mode title was a
+    // styled span, so every game surface lacked an h1.
+    renderPanel(activeOnlineState());
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Online" }),
+    ).toBeTruthy();
+  });
+
+  it("keeps the HUD mode row at the 12px text minimum", () => {
+    // ux-audit-1116 F7 / DESIGN.md "Minimums: 12px text": the row ran at
+    // text-[11px] on desktop.
+    renderPanel(activeOnlineState());
+
+    const row = screen.getByRole("heading", { level: 1 }).parentElement;
+    expect(row?.className).toContain("text-xs");
+    expect(row?.className).not.toContain("text-[11px]");
+  });
+});
+
 describe("PlayersPanel terminal rematch CTA", () => {
   it("renders a labeled Rematch button that fires onRequestRematch (host)", () => {
     const onRequestRematch = vi.fn();

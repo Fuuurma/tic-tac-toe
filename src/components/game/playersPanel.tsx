@@ -503,10 +503,13 @@ function PanelHeading({
       )}
     >
       <GameMark size="sm" className="sm:hidden max-sm:col-start-1 max-sm:row-span-2 max-sm:mr-3" />
-      <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:col-start-2 max-sm:gap-y-0 max-sm:text-base max-sm:leading-5">
-        <span className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-muted-foreground max-sm:col-start-2 max-sm:gap-y-0 max-sm:text-base max-sm:leading-5">
+        {/* ux-audit-1116 F5: the mode title is the game surface's h1 —
+            screen readers lose page context without it (axe
+            page-has-heading-one). Styled identically to the old span. */}
+        <h1 className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground">
           {getGameModeLabel(gameMode)}
-        </span>
+        </h1>
         <RoomCodeButton roomCode={roomCode} />
         <RecordChip stats={stats} gameMode={gameMode} />
       </div>

@@ -171,6 +171,36 @@ describe("OnlineGameSurface player-color scope (F344)", () => {
   });
 });
 
+describe("OnlineGameSurface page heading (F5)", () => {
+  // ux-audit-1116 F5 (axe page-has-heading-one): in-game states get their
+  // h1 from the PlayersPanel mode title, but the waiting states render
+  // banners only — the surface owes the page a level-one heading there too.
+  it("renders a level-one heading while waiting, before any panel mounts", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", { status: "waiting", roomId: "FRIEND-1" }),
+    );
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "create" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Online" }),
+    ).toBeTruthy();
+  });
+
+  it("keeps exactly one level-one heading once the game panel mounts", () => {
+    mocks.usePeerRoom.mockReturnValue(makePeer("host"));
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(
+      screen.getAllByRole("heading", { level: 1, name: "Online" }),
+    ).toHaveLength(1);
+  });
+});
+
 describe("OnlineGameSurface terminal rematch affordances", () => {
   it("offers Play again to a guest too — either side may ask", () => {
     // This used to be host-only: a guest's accept was dropped unless the

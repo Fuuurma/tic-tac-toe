@@ -43,7 +43,7 @@ import { waitPhase, type WaitPhase } from "@/lib/room-protocol/waitPhase";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
-import { t, useStrings } from "@/i18n/language";
+import { getModeLabel, t, useStrings } from "@/i18n/language";
 
 type PeerRoom = ReturnType<typeof usePeerRoom>;
 
@@ -182,6 +182,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       className="relative flex w-full max-w-md flex-col items-stretch gap-2 max-sm:h-full max-sm:max-w-none max-sm:justify-center sm:gap-3"
       style={{ "--player-color": COLOR_RGB[config.color] } as React.CSSProperties}
     >
+      {/* ux-audit-1116 F5: the waiting and error states render banners
+          only — no PlayersPanel — so the surface still owes the page a
+          level-one heading. Once the panel mounts it carries the h1. */}
+      {!showGame && !warmupVisible && (
+        <h1 className="sr-only">{getModeLabel(GameModes.ONLINE)}</h1>
+      )}
       <div className="flex flex-col gap-2 empty:hidden max-sm:order-4 max-sm:px-4">
         {/* Status banners — always on top so the user sees them first.
             A room code is an invitation token for a specific person, so it

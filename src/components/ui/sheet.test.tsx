@@ -119,6 +119,50 @@ describe("Sheet backdrop dismissal", () => {
   });
 });
 
+describe("Sheet compact mobile close (F2)", () => {
+  it("keeps the labeled close control outside any max-sm:hidden ancestor", () => {
+    stubPointerWidth(true);
+
+    render(
+      <Sheet
+        open
+        onClose={() => {}}
+        compactMobile
+        title="Settings"
+        closeLabel="Close settings"
+      >
+        <p>Rows</p>
+      </Sheet>,
+    );
+
+    // ux-audit-1116 F2: compactMobile sr-onlys the title and used to
+    // max-sm:hidden the whole control cluster, leaving a phone sheet with
+    // no labeled exit (swipe grabber, backdrop sliver, or Esc only). The
+    // 44px X is the visible dismiss affordance and must render.
+    const close = screen.getByRole("button", { name: "Close settings" });
+    expect(close.closest('[class*="max-sm:hidden"]')).toBeNull();
+  });
+});
+
+describe("Sheet scrollable body (F6)", () => {
+  it("exposes the body as a named, keyboard-focusable region", () => {
+    stubPointerWidth(false);
+
+    render(
+      <Sheet open onClose={() => {}} title="How to play" closeLabel="Close help">
+        <p>Rules</p>
+      </Sheet>,
+    );
+
+    // ux-audit-1116 F6 (axe scrollable-region-focusable, serious): the
+    // overflow-y-auto body had no tabIndex, so keyboard users could not
+    // scroll the tips list. It is a named region focused like any scroll
+    // container.
+    const body = screen.getByRole("region", { name: "How to play" });
+    expect(body.getAttribute("tabindex")).toBe("0");
+  });
+});
+
 describe("Sheet focus indicator (F809)", () => {
   it("gives the focused panel a visible keyboard focus ring", () => {
     stubPointerWidth(false);

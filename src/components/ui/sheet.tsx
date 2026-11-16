@@ -42,9 +42,10 @@ const EXIT_ANIMATION_FALLBACK_MS = 400;
  *
  * `compactMobile` strips the phone header chrome for sheets whose body is
  * self-describing (tabs and content already say what it is): the title
- * goes sr-only (the dialog keeps its accessible name), the X hides, and
- * the row collapses, leaving the drag handle as the swipe affordance.
- * Dismissal stays via swipe, Esc, and backdrop tap. Desktop is untouched.
+ * goes sr-only (the dialog keeps its accessible name) and the row keeps
+ * only the 44px close X — the labeled exit a phone sheet still needs
+ * (ux-audit-1116 F2). Dismissal stays via the X, swipe, Esc, and
+ * backdrop tap. Desktop is untouched.
  */
 interface SheetProps {
   open: boolean;
@@ -397,8 +398,8 @@ function SheetHeader({
       className={cn(
         "flex shrink-0 select-none flex-col px-5 pb-3",
         full ? "pt-[max(0.5rem,var(--inset-top))] sm:pt-5" : "pt-2 sm:pt-5",
-        // With the title and X gone, the grabber is the whole handle: give
-        // it the 44px a thumb needs instead of the ~34px it measured.
+        // compactMobile keeps the grabber as the swipe affordance; the
+        // header stays at least 44px so the drag target is thumb-sized.
         compactMobile && "max-sm:min-h-11",
       )}
       style={{ touchAction: DRAG_HANDLE_TOUCH_ACTION }}
@@ -411,7 +412,10 @@ function SheetHeader({
       <div
         className={cn(
           "flex min-h-11 items-center justify-between gap-3",
-          compactMobile && "max-sm:min-h-0",
+          // compactMobile: the title is sr-only, so the close X is the
+          // row's only visible item — end-align it where the title's
+          // justify-between would otherwise leave it at the left edge.
+          compactMobile && "max-sm:min-h-0 max-sm:justify-end",
         )}
       >
         <h2
@@ -423,12 +427,7 @@ function SheetHeader({
         >
           {title}
         </h2>
-        <div
-          className={cn(
-            "flex shrink-0 items-center gap-2",
-            compactMobile && "max-sm:hidden",
-          )}
-        >
+        <div className="flex shrink-0 items-center gap-2">
           {!hideClose && (
             <button
               ref={closeRef}
@@ -505,6 +504,12 @@ function SheetPanel({
         // this is one: without it here a swipe that starts on the content is
         // claimed by the browser as a pan and the drag is cancelled.
         style={dragAnywhere ? { touchAction: DRAG_HANDLE_TOUCH_ACTION } : undefined}
+        // ux-audit-1116 F6 (axe scrollable-region-focusable): the body
+        // scrolls, so keyboard users need it focusable; the region takes
+        // the sheet title as its accessible name.
+        role="region"
+        aria-labelledby={titleId}
+        tabIndex={0}
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-5 pb-5",
           !footer && "pb-[max(1.25rem,var(--inset-bottom))]",

@@ -1,0 +1,96 @@
+{
+  "slice": "TTT-UX-FIX3",
+  "findings": [
+    "F2",
+    "F5",
+    "F6",
+    "F7"
+  ],
+  "base": "http://127.0.0.1:3113",
+  "closeX": [
+    {
+      "name": "lobby-help-phone-light",
+      "closeX": {
+        "x": 326,
+        "y": 234,
+        "width": 44,
+        "height": 44
+      }
+    },
+    {
+      "name": "lobby-help-desktop-light",
+      "closeX": {
+        "x": 879,
+        "y": 122.125,
+        "width": 44,
+        "height": 44
+      }
+    }
+  ],
+  "axe": [
+    {
+      "name": "game-vs-friend-start-phone-light",
+      "violations": []
+    },
+    {
+      "name": "game-vs-friend-mid-phone-light",
+      "violations": []
+    },
+    {
+      "name": "game-vs-friend-mid-phone-dark",
+      "violations": []
+    },
+    {
+      "name": "lobby-settings-phone-light",
+      "violations": []
+    },
+    {
+      "name": "lobby-help-phone-light",
+      "violations": []
+    },
+    {
+      "name": "lobby-help-phone-dark",
+      "violations": []
+    },
+    {
+      "name": "game-help-phone-light",
+      "violations": []
+    },
+    {
+      "name": "online-waiting-phone-light",
+      "violations": []
+    },
+    {
+      "name": "game-vs-friend-start-desktop-light",
+      "violations": []
+    },
+    {
+      "name": "game-vs-friend-mid-desktop-light",
+      "violations": []
+    },
+    {
+      "name": "game-vs-friend-mid-desktop-dark",
+      "violations": []
+    },
+    {
+      "name": "lobby-settings-desktop-light",
+      "violations": []
+    },
+    {
+      "name": "lobby-help-desktop-light",
+      "violations": []
+    },
+    {
+      "name": "lobby-help-desktop-dark",
+      "violations": []
+    },
+    {
+      "name": "game-help-desktop-light",
+      "violations": []
+    },
+    {
+      "name": "online-waiting-desktop-light",
+      "violations": []
+    }
+  ]
+}
