@@ -1,0 +1,144 @@
+{
+  "base": "http://localhost:3117",
+  "states": [
+    {
+      "state": "onboarding-welcome",
+      "tag": "phone",
+      "shot": "/Users/sergi/Projects/worktrees/ttt-ux-fix1/reports/ux-audit-1116/after/onboarding-welcome-phone.png",
+      "measured": [
+        {
+          "sel": "[role=\"group\"] button:has-text(\"English\")",
+          "w": 59,
+          "h": 44
+        },
+        {
+          "sel": "[role=\"group\"] button:has-text(\"Español\")",
+          "w": 62,
+          "h": 44
+        }
+      ],
+      "axe": []
+    },
+    {
+      "state": "online-game-host",
+      "tag": "phone",
+      "shot": "/Users/sergi/Projects/worktrees/ttt-ux-fix1/reports/ux-audit-1116/after/online-game-host-phone.png",
+      "reactionsOpenShot": "/Users/sergi/Projects/worktrees/ttt-ux-fix1/reports/ux-audit-1116/after/online-game-host-reactions-phone.png",
+      "measured": [
+        {
+          "sel": "button:has-text(\"Mute reactions\")",
+          "w": 112,
+          "h": 44
+        },
+        {
+          "sel": "summary[aria-label=\"Reactions\"]",
+          "w": 83,
+          "h": 44
+        }
+      ],
+      "measuredMenu": [
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        },
+        {
+          "sel": "details[open] .grid button",
+          "w": 174,
+          "h": 44
+        }
+      ],
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "nodes": 1
+        },
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "nodes": 1
+        }
+      ]
+    },
+    {
+      "state": "onboarding-welcome",
+      "tag": "desktop",
+      "shot": "/Users/sergi/Projects/worktrees/ttt-ux-fix1/reports/ux-audit-1116/after/onboarding-welcome-desktop.png",
+      "measured": [
+        {
+          "sel": "[role=\"group\"] button:has-text(\"English\")",
+          "w": 59,
+          "h": 28
+        },
+        {
+          "sel": "[role=\"group\"] button:has-text(\"Español\")",
+          "w": 62,
+          "h": 28
+        }
+      ],
+      "axe": []
+    },
+    {
+      "state": "online-game-host",
+      "tag": "desktop",
+      "shot": "/Users/sergi/Projects/worktrees/ttt-ux-fix1/reports/ux-audit-1116/after/online-game-host-desktop.png",
+      "reactionsOpenShot": null,
+      "measured": [
+        {
+          "sel": "button:has-text(\"Mute reactions\")",
+          "w": 112,
+          "h": 38
+        }
+      ],
+      "measuredMenu": "menu open failed: TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting",
+      "axe": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "nodes": 1
+        }
+      ]
+    }
+  ]
+}

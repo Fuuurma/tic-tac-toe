@@ -40,7 +40,7 @@ export function LanguageSwitcher({
             onClick={() => setLocale(value)}
             className={cn(
               "rounded-md font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-              size === "sm" ? "px-2.5 py-1.5" : "px-3.5 py-2 max-sm:min-h-11",
+              size === "sm" ? "px-2.5 py-1.5 max-sm:min-h-11" : "px-3.5 py-2 max-sm:min-h-11",
               active
                 ? "bg-[rgb(var(--player-color)/0.15)] text-foreground shadow-sm ring-1 ring-[rgb(var(--player-color)/0.35)]"
                 : "text-muted-foreground hover:text-foreground",
