@@ -1,0 +1,28 @@
+{
+  "name": "tic-tac-toe-promo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Launch promo video for Tic Tac Toe Disappear. Not part of the app bundle or the app gates.",
+  "packageManager": "pnpm@10.30.2",
+  "scripts": {
+    "capture": "node capture/capture.mjs",
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc6 --noEmit",
+    "render:vertical": "remotion render src/index.ts PromoVertical out/ttt-promo-vertical-1080x1920.mp4 --codec=h264 --crf=20",
+    "render:square": "remotion render src/index.ts PromoSquare out/ttt-promo-square-1080x1080.mp4 --codec=h264 --crf=20",
+    "render": "pnpm render:vertical && pnpm render:square",
+    "stills": "node scripts/stills.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.543",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.543"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@types/react": "^19.2.17",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}

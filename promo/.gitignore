@@ -1,0 +1,5 @@
+node_modules
+# Intermediate capture frames; the assembled clips in public/captures are committed.
+capture/.frames
+# The root ignores every out/; the rendered cuts and stills here are deliverables.
+!out

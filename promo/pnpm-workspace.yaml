@@ -1,0 +1,5 @@
+# promo/ is its own pnpm root so its install never touches the app's
+# lockfile, bundle or gates. Same supply-chain policy as the app.
+minimumReleaseAge: 1440
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200
