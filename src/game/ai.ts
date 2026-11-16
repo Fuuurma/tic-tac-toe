@@ -23,11 +23,27 @@ const EASY_MOVE_WEIGHTS = [3, 2, 3, 2, 5, 2, 3, 2, 3] as const;
 interface SearchOptions {
   depth: number;
   randomizeTies: boolean;
+  stats?: AiSearchStats;
 }
 
 interface SearchContext {
   player: PlayerSymbol;
   path: Set<string>;
+  nodes: number;
+}
+
+/**
+ * Deterministic measure of what one getAIMove call cost. Wall-clock move
+ * times move with host contention — a shared CI node running parallel
+ * suites pushed a healthy Hard move past its ceiling (ai.bench.test.ts) —
+ * while the node count is a property of the search itself: identical on
+ * every machine, and it rises for exactly the regressions a bench exists
+ * to catch (an extra ply multiplies it, weaker ordering or lost pruning
+ * inflates it). EASY never searches, so its count is always 0.
+ */
+export interface AiSearchStats {
+  /** minimax positions visited by this call; set on return. */
+  nodes: number;
 }
 
 const stateKey = (state: GameState): string =>
@@ -179,6 +195,7 @@ const minimax = (
   depth: number,
   context: SearchContext,
 ): number => {
+  context.nodes += 1;
   const { winner } = checkWinner(state.board);
   if (winner !== null) return scoreTerminal(winner, context.player, depth);
   if (depth === 0) return evaluateNonTerminal(state, context.player);
@@ -225,6 +242,7 @@ const pickBest = (
   const context: SearchContext = {
     player,
     path: new Set([rootKey]),
+    nodes: 0,
   };
   let bestScore = -Infinity;
   let bestMoves: number[] = [];
@@ -244,6 +262,7 @@ const pickBest = (
     }
   }
 
+  if (options.stats) options.stats.nodes = context.nodes;
   if (!options.randomizeTies || bestMoves.length === 1) return bestMoves[0];
   return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 };
@@ -267,11 +286,13 @@ export const getAIMove = (
   state: GameState,
   difficulty: AI_Difficulty,
   aiSymbol: PlayerSymbol,
+  stats?: AiSearchStats,
 ): number | null => {
   // Hard guard: only run the AI on its own turn, and only while a game
   // is still in progress. Without this, the dispatcher happily returns
   // a legal move for the wrong player or while the board is full, which
   // a caller can mistake for an authoritative turn.
+  if (stats) stats.nodes = 0;
   if (
     !isGameActive(state) ||
     state.currentPlayer !== aiSymbol
@@ -285,11 +306,13 @@ export const getAIMove = (
       return pickBest(state, aiSymbol, {
         depth: MINIMAX_DEPTH_NORMAL,
         randomizeTies: true,
+        stats,
       });
     case AI_Difficulty.HARD:
       return pickBest(state, aiSymbol, {
         depth: MINIMAX_DEPTH_HARD,
         randomizeTies: false,
+        stats,
       });
     default:
       return easyMove(state);

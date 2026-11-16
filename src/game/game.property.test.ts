@@ -87,6 +87,9 @@ describe("game-rule properties", () => {
     );
   });
 
+  // Real depth-8 searches inside fc.assert: ~0.5s idle, seconds on a loaded
+  // shared host — past vitest's 5s default (the TTT-AI-TIMING-RED1 flake).
+  // Same 30s hang-guard the selfplay suite uses for AI-heavy tests.
   it("the AI never emits an occupied or illegal cell on any generated state", () => {
     fc.assert(
       fc.property(moveSeq, fc.constantFrom(PlayerSymbol.X, PlayerSymbol.O), (moves, ai) => {
@@ -103,7 +106,7 @@ describe("game-rule properties", () => {
         }
       }),
     );
-  });
+  }, 30_000);
 
   it("checkWinner is board-symmetric — a win survives every dihedral transform", () => {
     const cell = fc.constantFrom(PlayerSymbol.X, PlayerSymbol.O, null);
@@ -152,7 +155,7 @@ describe("game-rule properties", () => {
         expect(winning).toContain(move);
       }),
     );
-  });
+  }, 30_000);
 });
 
 const isGameActiveFor = (s: GameState, ai: PlayerSymbol): boolean =>
