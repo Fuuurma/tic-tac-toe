@@ -99,7 +99,9 @@ test("a returning player never sees it", async ({ page }) => {
 
 test("an invited friend goes straight to their room", async ({ page }) => {
   await page.goto("/?room=friday-game");
-  await expect(page.getByLabel(/^Room code/)).toHaveValue("friday-game");
+  // Join is case-insensitive; the field shows the canonical uppercase code
+  // the relay keys on (canonicalRoomId, TTT-UX-FIX2).
+  await expect(page.getByLabel(/^Room code/)).toHaveValue("FRIDAY-GAME");
   await expect(page.getByRole("button", { name: "Get started" })).toHaveCount(0);
 });
 
