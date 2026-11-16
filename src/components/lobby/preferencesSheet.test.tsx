@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PreferencesSheet } from "./preferencesSheet";
+import { resetInstallPromptForTests } from "@/lib/installPrompt";
 
 // jsdom does not implement the native <dialog> modal methods that Sheet calls.
 if (!HTMLDialogElement.prototype.showModal) {
@@ -21,6 +22,7 @@ describe("PreferencesSheet", () => {
     cleanup();
     window.localStorage.clear();
     delete document.documentElement.dataset.theme;
+    resetInstallPromptForTests();
   });
 
   const renderSheet = (props: { onReplayTutorial?: () => void } = {}) =>
@@ -74,5 +76,39 @@ describe("PreferencesSheet", () => {
   it("omits the tutorial row when replay is not offered (mid-game)", () => {
     renderSheet();
     expect(screen.queryByRole("button", { name: "Replay tutorial" })).toBeNull();
+  });
+
+  it("shows the install row only while the browser offers a prompt", async () => {
+    renderSheet();
+    expect(screen.queryByRole("button", { name: "Install app" })).toBeNull();
+
+    const offer = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(offer, {
+      prompt: vi.fn().mockResolvedValue(undefined),
+      userChoice: Promise.resolve({ outcome: "accepted" }),
+    });
+    await act(async () => {
+      window.dispatchEvent(offer);
+    });
+
+    expect(screen.getByRole("button", { name: "Install app" })).toBeTruthy();
+  });
+
+  it("hands the deferred prompt to the browser on tap", async () => {
+    const offer = new Event("beforeinstallprompt", { cancelable: true });
+    const prompt = vi.fn().mockResolvedValue(undefined);
+    Object.assign(offer, { prompt, userChoice: Promise.resolve({ outcome: "accepted" }) });
+    await act(async () => {
+      window.dispatchEvent(offer);
+    });
+
+    renderSheet();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Install app" }));
+    });
+
+    expect(prompt).toHaveBeenCalledTimes(1);
+    // The offer is consumed: the row goes away rather than dead-ending.
+    expect(screen.queryByRole("button", { name: "Install app" })).toBeNull();
   });
 });

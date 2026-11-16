@@ -116,6 +116,7 @@ export const en = {
 
   "settings.open": "Settings",
   "settings.app": "App",
+  "settings.installApp": "Install app",
   "settings.appearance": "Appearance",
   "settings.language": "Language",
   "settings.learn": "Learn",

@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { ChevronRight, Settings2 } from "lucide-react";
+import { ChevronRight, Download, Settings2 } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "./languageSwitcher";
 import { ThemeSegmented } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
+import { useInstallPrompt } from "@/lib/installPrompt";
 
 /**
  * App preferences: the settings that are not about who is playing.
@@ -33,6 +34,9 @@ export function PreferencesSheet({
 }) {
   // Subscribes so a language switch re-renders the labels.
   useStrings();
+  // The browser decides whether an install is on offer; the row exists only
+  // while it does (never on iOS, which has no beforeinstallprompt).
+  const { state: installState, promptInstall } = useInstallPrompt();
 
   return (
     <Sheet
@@ -59,6 +63,20 @@ export function PreferencesSheet({
               <LinkRow label={t("help.replay")} onClick={onReplayTutorial} />
             )}
           </Group>
+          {installState === "available" && (
+            <Group label={t("settings.app")}>
+              <LinkRow
+                label={t("settings.installApp")}
+                icon={
+                  <Download
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                }
+                onClick={() => void promptInstall()}
+              />
+            </Group>
+          )}
         </div>
       )}
     </Sheet>
@@ -99,7 +117,15 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** A row whose whole width is the action. */
-function LinkRow({ label, onClick }: { label: string; onClick: () => void }) {
+function LinkRow({
+  label,
+  onClick,
+  icon,
+}: {
+  label: string;
+  onClick: () => void;
+  icon?: ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -107,7 +133,9 @@ function LinkRow({ label, onClick }: { label: string; onClick: () => void }) {
       className="flex min-h-14 w-full items-center justify-between gap-3 border-b border-border/60 text-left text-sm font-semibold text-foreground transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
     >
       {label}
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      {icon ?? (
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
     </button>
   );
 }

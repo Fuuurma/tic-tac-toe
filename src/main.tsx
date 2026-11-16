@@ -4,11 +4,13 @@ import App from "@/App";
 import { ErrorBoundary } from "@/components/errorBoundary";
 import { initLocale } from "@/i18n/language";
 import { installGlobalErrorHandlers } from "@/lib/errorReporting";
+import { registerServiceWorker } from "@/lib/serviceWorker";
 import "@fontsource-variable/syne";
 import "@fontsource-variable/source-sans-3";
 import "@/index.css";
 
 installGlobalErrorHandlers();
+registerServiceWorker();
 // Saved language (or the browser's, for Spanish-first visitors) before
 // anything renders, so the first paint is already in the right language.
 initLocale();
