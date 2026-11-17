@@ -251,6 +251,14 @@ test("the computer plays under its persona name", async ({ page }) => {
   const persona = (cardLabel ?? "").split(",")[0]!.trim();
   expect(isNpcName(persona)).toBe(true);
 
+  // The first move is random: when the human is dealt it, the computer
+  // cannot think until the human moves, so "{persona} thinking" would
+  // never appear. Pass the turn first. The computer card's own aria
+  // carries ", current turn" exactly while it is the one to move.
+  if (!/current turn/i.test(cardLabel ?? "")) {
+    await page.locator('button[aria-label$=", empty"]').first().click();
+  }
+
   // And the turn line speaks it: while the computer is on the clock the
   // status reads "{persona} thinking" (the 700ms+ move delay gives the
   // poll a wide window; the exchange cycle repeats it either way).
