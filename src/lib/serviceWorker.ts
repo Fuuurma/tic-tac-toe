@@ -11,10 +11,19 @@ export function registerServiceWorker(): void {
   if (!import.meta.env.PROD) return;
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
 
+  const reportRegistrationError = (error: unknown) => {
+    reportError(error, { source: "serviceWorker.register" });
+  };
+
   const register = () => {
-    navigator.serviceWorker.register("/sw.js").catch((error: unknown) => {
-      reportError(error, { source: "serviceWorker.register" });
-    });
+    // register() can also throw synchronously (a broken or locked-down
+    // implementation), and that throw would otherwise escape the boot path
+    // before `.catch` ever exists to take the rejection.
+    try {
+      navigator.serviceWorker.register("/sw.js").catch(reportRegistrationError);
+    } catch (error) {
+      reportRegistrationError(error);
+    }
   };
 
   // After `load` so the worker's install fetches never compete with the
