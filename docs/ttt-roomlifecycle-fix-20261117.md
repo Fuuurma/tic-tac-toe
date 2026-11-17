@@ -60,5 +60,10 @@ stays green.
 
 ## Land
 
-Branch `fleet/ttt-roomlifecycle-fix`, landed via `sf-orch land`
-(fast-forward onto `origin/main`) after the gates above went green.
+Branch `fleet/ttt-roomlifecycle-fix` rebased onto `origin/main@89536d2`
+(the TTT-AI-NAMES docs commit that landed mid-task; docs-only, clean
+rebase) and landed as `f342832` via `sf_tools/sf_git_push_land`
+(`HEAD:main` fast-forward, ancestry verified against the fetched
+`origin/main` tip). `sf-orch land` refuses while the dispatch's derived
+review hold is live, so the worker-side push_land is the land path here;
+gates above re-ran green on the rebased tree before the push.
