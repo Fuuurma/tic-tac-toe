@@ -49,7 +49,9 @@ Other gates: `pnpm lint` clean; `pnpm build` clean (`tsc -b && vite build`,
 3741 modules transformed).
 
 Note: `vitest.config.ts` still uses `__dirname` and emits a configLoader
-warning — baseline, out of scope for this test-only slice.
+warning — baseline, out of scope for this test-only slice. (Fixed the same
+day: `vitest.config.ts` now uses `import.meta.dirname`, so the warning is
+gone. See `reports/vitest-config-dirname-1117.md`.)
 
 ## State
 
