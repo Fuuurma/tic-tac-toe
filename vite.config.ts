@@ -13,7 +13,7 @@ const VENDOR_CHUNKS: Record<string, string> = {
   "thinking-orbs": "thinking-orbs",
 };
 
-const SW_TEMPLATE_PATH = path.resolve(__dirname, "scripts/service-worker.js");
+const SW_TEMPLATE_PATH = path.resolve(import.meta.dirname, "scripts/service-worker.js");
 const SW_PRECACHE_MARKER =
   '/*__PRECACHE_MANIFEST__*/ { cache: "ttt-shell-dev", urls: [] }';
 // Pages consumes these as config; they are not app resources to precache.
@@ -44,10 +44,10 @@ function pwaServiceWorker(): Plugin {
     name: "ttt:pwa-service-worker",
     apply: "build",
     closeBundle() {
-      const distDir = path.resolve(__dirname, "dist");
+      const distDir = path.resolve(import.meta.dirname, "dist");
       const files = new Map<string, number>();
       walkStaticFiles(distDir, "", files);
-      walkStaticFiles(path.resolve(__dirname, "public"), "", files);
+      walkStaticFiles(path.resolve(import.meta.dirname, "public"), "", files);
 
       const version = createHash("sha256")
         .update([...files.entries()].map(([url, size]) => `${url}:${size}`).join("\n"))
@@ -86,7 +86,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), pwaServiceWorker()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(import.meta.dirname, "src"),
     },
   },
   build: {
