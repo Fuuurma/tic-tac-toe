@@ -142,8 +142,13 @@ test("a searching player can fill the wait with the computer, then is handed to 
   // The relay seats the host, the rival's socket arrives, and the rival
   // introduces itself: only that last frame starts the real game, so only
   // then does it replace the warm-up.
+  //
+  // The socket dial and the DOM updates above are independent deliveries:
+  // the "Opponent found" render can be observed before Playwright's
+  // routeWebSocket callback has run, so the relay is polled for like
+  // openRoom does rather than read once.
+  await expect.poll(() => queue.relay()).not.toBeNull();
   const relay = queue.relay();
-  expect(relay).not.toBeNull();
   const send = (frame: object) => relay!.send(JSON.stringify(frame));
   send({ type: "welcome", role: "host", opponent: null });
   await expect(page.getByText("Opponent found")).toBeVisible();
