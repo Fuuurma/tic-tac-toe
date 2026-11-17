@@ -1,6 +1,7 @@
 // Deliberately NOT the `./fixtures` test: these specs need a browser that has
 // never seen the app, which is who onboarding is for.
 import { expect, test, type Page } from "@playwright/test";
+import { onlineSmokeEnabled } from "./matchmaking";
 
 const WIN = "Three in a row. You win!";
 
@@ -98,6 +99,11 @@ test("a returning player never sees it", async ({ page }) => {
 });
 
 test("an invited friend goes straight to their room", async ({ page }) => {
+  // The room join lives behind the Online tile, which is disabled without a
+  // reachable matchmaking Worker — the same reachability gate as the online
+  // specs in smoke.spec.ts, so this skips cleanly where no Worker runs and
+  // executes in CI where the sibling Worker is up.
+  test.skip(!(await onlineSmokeEnabled()), "Room join needs a reachable matchmaking Worker");
   await page.goto("/?room=friday-game");
   // Join is case-insensitive; the field shows the canonical uppercase code
   // the relay keys on (canonicalRoomId, TTT-UX-FIX2).

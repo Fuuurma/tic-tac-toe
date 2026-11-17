@@ -251,17 +251,30 @@ test("the computer plays under its persona name", async ({ page }) => {
   const persona = (cardLabel ?? "").split(",")[0]!.trim();
   expect(isNpcName(persona)).toBe(true);
 
-  // The first move is random: when the human is dealt it, the computer
-  // cannot think until the human moves, so "{persona} thinking" would
-  // never appear. Pass the turn first. The computer card's own aria
-  // carries ", current turn" exactly while it is the one to move.
-  if (!/current turn/i.test(cardLabel ?? "")) {
-    await page.locator('button[aria-label$=", empty"]').first().click();
-  }
+  // The first move is random: whoever was dealt it, let the opening settle
+  // before steering. When the computer opens, the "{persona} thinking"
+  // status line lives only for the 700ms+ think delay from mount, and on a
+  // loaded machine the board check and card read above can outlive it — the
+  // opening move then commits first and the old assert-while-thinking race
+  // timed out on a line that had already turned into "your turn". Waiting
+  // for the human's turn (enabled empty cells) makes the pass below start a
+  // fresh think window instead of racing the opening one.
+  await expect
+    .poll(
+      () =>
+        page
+          .locator("button:not(:disabled)")
+          .evaluateAll((cells) =>
+            cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
+          ),
+      { timeout: 5_000 },
+    )
+    .toBeGreaterThan(0);
+  await page.locator('button[aria-label$=", empty"]').first().click();
 
   // And the turn line speaks it: while the computer is on the clock the
   // status reads "{persona} thinking" (the 700ms+ move delay gives the
-  // poll a wide window; the exchange cycle repeats it either way).
+  // poll a wide window, and the pass above starts that window fresh).
   await expect(
     page.getByText(new RegExp(`${persona.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} thinking`)),
   ).toBeVisible({ timeout: 10_000 });
