@@ -27,6 +27,15 @@ matchmaking and a per-room Durable Object WebSocket relay. No account is require
 - [DESIGN.md](DESIGN.md) — the visual contract: direction, references, tokens, motion
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Pages release runbook and the Worker's contract
 
+## Promo video
+
+20.7 s launch promo, silent with captions:
+
+- [Vertical cut](promo/out/ttt-promo-vertical-1080x1920.mp4) — 1080x1920, for Reels, TikTok, Shorts
+- [Square cut](promo/out/ttt-promo-square-1080x1080.mp4) — 1080x1080, for feed posts
+
+Source, captures and re-render steps: [promo/README.md](promo/README.md).
+
 ## Commands
 
 ```bash
@@ -83,6 +92,7 @@ src/components/         board, lobby, panels, selectors, online surface
   components/ui/        button, card primitives
 e2e/                    Playwright smoke tests
 public/                 static assets and Cloudflare Pages config
+promo/                  launch promo video — Remotion package, own pnpm root
 ```
 
 ## Before launch
