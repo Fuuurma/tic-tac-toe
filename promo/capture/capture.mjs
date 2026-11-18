@@ -226,7 +226,10 @@ async function readBoard(page) {
 const cellLocator = (page, i) =>
   board(page).getByRole("button", { name: new RegExp(`^Row ${Math.floor(i / 3) + 1} column ${(i % 3) + 1},`) });
 
-const lineOf = (marks) => LINES.some((l) => l.every((c) => marks.includes(c)));
+const lineOf = (marks) => {
+  const cells = new Set(marks);
+  return LINES.some((l) => l.every((c) => cells.has(c)));
+};
 
 /**
  * Picks the human's move. The rule is "three marks each, the oldest
@@ -238,11 +241,12 @@ function chooseMove(open, mine, theirs, allowWin) {
   const after = (list, c) => [...list, c].slice(-3);
   const wins = empty.filter((c) => lineOf(after(mine, c)));
   if (wins.length && allowWin) return wins[0];
+  const winSet = new Set(wins);
   const blocks = empty.filter((c) => lineOf(after(theirs, c)));
-  const safe = empty.filter((c) => !wins.includes(c));
-  const pool = blocks.filter((c) => !wins.includes(c));
+  const safe = new Set(empty.filter((c) => !winSet.has(c)));
+  const pool = blocks.filter((c) => !winSet.has(c));
   if (pool.length) return pool[0];
-  for (const c of [4, 0, 8, 2, 6, 1, 3, 5, 7]) if (safe.includes(c)) return c;
+  for (const c of [4, 0, 8, 2, 6, 1, 3, 5, 7]) if (safe.has(c)) return c;
   return empty[0];
 }
 
