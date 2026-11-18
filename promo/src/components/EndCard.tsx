@@ -1,7 +1,6 @@
 import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { COLORS, EASE_OUT, FONTS } from "../brand";
-
-export const URL_TEXT = "tic-tac-toe-1ou.pages.dev";
+import { URL_TEXT } from "./endCardText";
 
 /**
  * The app's masthead as an end card: the XO mark, "Tic Tac Toe" small and
