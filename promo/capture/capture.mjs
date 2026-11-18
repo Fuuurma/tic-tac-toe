@@ -319,10 +319,11 @@ async function captureVsComputer(browser) {
 }
 
 async function captureOnlineInvite(browser) {
-  const hostCtx = await newPhoneContext(browser, { name: "You", seed: 7 });
-  const guestCtx = await newPhoneContext(browser, { name: "Maya" });
-  const host = await hostCtx.newPage();
-  const guest = await guestCtx.newPage();
+  const [hostCtx, guestCtx] = await Promise.all([
+    newPhoneContext(browser, { name: "You", seed: 7 }),
+    newPhoneContext(browser, { name: "Maya" }),
+  ]);
+  const [host, guest] = await Promise.all([hostCtx.newPage(), guestCtx.newPage()]);
   await host.goto(BASE_URL);
   await host.getByRole("radio", { name: "Online" }).waitFor();
   await sleep(900);

@@ -84,21 +84,24 @@ async function captureWelcome(viewport) {
   await page.getByRole("button", { name: "English" }).waitFor({ timeout: 15_000 });
   const file = join(OUT, `onboarding-welcome-${viewport.tag}.png`);
   await page.screenshot({ path: file, fullPage: true });
-  const measured = await measure(page, [
-    '[role="group"] button:has-text("English")',
-    '[role="group"] button:has-text("Español")',
+  const [measured, axe] = await Promise.all([
+    measure(page, [
+      '[role="group"] button:has-text("English")',
+      '[role="group"] button:has-text("Español")',
+    ]),
+    axeRun(page),
   ]);
-  const axe = await axeRun(page);
   results.states.push({ state: "onboarding-welcome", tag: viewport.tag, shot: file, measured, axe });
   await browser.close();
 }
 
 async function captureOnlineHost(viewport) {
   const browser = await chromium.launch();
-  const hostCtx = await newContext(browser, { width: 1280, height: 720 }, true);
-  const guestCtx = await newContext(browser, { width: 1280, height: 720 }, true);
-  const hostPage = await hostCtx.newPage();
-  const guestPage = await guestCtx.newPage();
+  const [hostCtx, guestCtx] = await Promise.all([
+    newContext(browser, { width: 1280, height: 720 }, true),
+    newContext(browser, { width: 1280, height: 720 }, true),
+  ]);
+  const [hostPage, guestPage] = await Promise.all([hostCtx.newPage(), guestCtx.newPage()]);
 
   const configure = async (page, name) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
