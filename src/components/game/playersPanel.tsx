@@ -109,6 +109,27 @@ const getTimerBorderPath = (width: number, height: number): string => {
   ].join(" ");
 };
 
+/** The post-win "try a harder AI" nudge exists only for a vs-Computer win
+ *  below Hard: Easy won offers Normal, Normal won offers Hard, a Hard win
+ *  is the top of the ladder and gets nothing. The tier read is the one the
+ *  finished game was dealt at (F578), not a live settings selection. */
+const getNextDifficultyOffer = (
+  gameMode: GameMode | undefined,
+  gameState: GameState,
+): AI_DifficultyType | null => {
+  const vsComputer = (gameMode ?? gameState.gameMode) === GameModes.VS_COMPUTER;
+  const humanWonVsComputer =
+    vsComputer &&
+    gameState.winner !== null &&
+    gameState.players[gameState.winner].type === PlayerTypes.HUMAN;
+  const beatenTier = gameState.aiDifficulty ?? AI_Difficulty.NORMAL;
+  return humanWonVsComputer && beatenTier !== AI_Difficulty.HARD
+    ? beatenTier === AI_Difficulty.EASY
+      ? AI_Difficulty.NORMAL
+      : AI_Difficulty.HARD
+    : null;
+};
+
 /** HUD actions: 44px icon squares on desktop; on phones, equal-width
  *  buttons in the bottom bar. While the game runs the icon alone carries
  *  the action (bigger, no words); the words return when the game ends.
@@ -136,20 +157,15 @@ export function PlayersPanel({
   onPauseChange,
   paused,
 }: PlayersPanelProps) {
-  // Stored flags + derived read: a fresh game (moveCount 0) must not
-  // re-open a confirm stored from the previous game. Resetting via effect
-  // trips react-hooks/set-state-in-effect; deriving keeps the reset exact.
-  const [showExitStored, setShowExit] = useState(false);
-  const [showNewGameStored, setShowNewGame] = useState(false);
-  const confirmPauseRef = useRef(false);
-  const freshGame = gameState.moveCount === 0;
-  const showExit = showExitStored && !freshGame;
-  const showNewGame = showNewGameStored && !freshGame;
   const panelRef = useRef<HTMLDivElement>(null);
   const panelSize = usePanelSize(panelRef);
 
   // Subscribes so a language switch re-renders the HUD.
   useStrings();
+
+  // A fresh game (moveCount 0) has nothing to confirm: the confirm flow
+  // suppresses its stored prompts for it (see useConfirmFlow).
+  const freshGame = gameState.moveCount === 0;
   const seconds = formatTime(gameState.turnTimeRemaining);
   const isActive =
     gameState.gameStatus === GameStatus.ACTIVE && gameState.winner === null;
@@ -161,112 +177,22 @@ export function PlayersPanel({
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? t("game.leave") : t("game.exit");
-
-  // The post-win "try a harder AI" nudge exists only for a vs-Computer win
-  // below Hard: Easy won offers Normal, Normal won offers Hard, a Hard win
-  // is the top of the ladder and gets nothing. The tier read is the one the
-  // finished game was dealt at (F578), not a live settings selection.
-  const vsComputer = (gameMode ?? gameState.gameMode) === GameModes.VS_COMPUTER;
-  const humanWonVsComputer =
-    vsComputer &&
-    gameState.winner !== null &&
-    gameState.players[gameState.winner].type === PlayerTypes.HUMAN;
-  const beatenTier = gameState.aiDifficulty ?? AI_Difficulty.NORMAL;
-  const nextTier =
-    humanWonVsComputer && beatenTier !== AI_Difficulty.HARD
-      ? beatenTier === AI_Difficulty.EASY
-        ? AI_Difficulty.NORMAL
-        : AI_Difficulty.HARD
-      : null;
-
-  // Confirmations belong to the active round. A host terminal frame can make
-  // Confirm close through isActive without calling onCancel, so discard both
-  // stored prompts as the round ends or a fresh round starts. Adjusting this
-  // state during render avoids the set-state-in-effect cascading render.
-  useConfirmReset(isActive, freshGame, () => {
-    setShowExit(false);
-    setShowNewGame(false);
-  });
-
-  // The panel owns only the pause caused by these confirmation sheets. When
-  // round state invalidates one, release that pause in the parent as well.
-  const onPauseChangeRef = useRef(onPauseChange);
-  // The latest handler is assigned in the commit phase, not in the render body
-  // (the same fix as board.tsx / F760): a parent that passes a fresh inline
-  // callback every render must not make this effect re-run, or its cleanup
-  // releases the pause the confirmation is holding.
-  useEffect(() => {
-    onPauseChangeRef.current = onPauseChange;
-  }, [onPauseChange]);
-
-  useEffect(() => {
-    if ((!isActive || freshGame) && confirmPauseRef.current) {
-      confirmPauseRef.current = false;
-      onPauseChangeRef.current?.(false);
-    }
-
-    // The transport-error view can unmount this panel while the room stays mounted.
-    return () => {
-      if (confirmPauseRef.current) {
-        confirmPauseRef.current = false;
-        onPauseChangeRef.current?.(false);
-      }
-    };
-  }, [freshGame, isActive]);
+  const nextTier = getNextDifficultyOffer(gameMode, gameState);
 
   const { isAITurn, activeLabel } = useActivePlayer(gameState);
 
-  // The panel owns only the pause a confirmation sheet causes; arming and
-  // releasing it is one fact, so the click and confirm paths share it.
-  const setConfirmPause = (paused: boolean) => {
-    confirmPauseRef.current = paused;
-    onPauseChange?.(paused);
-  };
-
-  // A fresh game (moveCount 0) has nothing to confirm either, and `showNewGame`
-  // / `showExit` deliberately suppress the dialog for it. Arming the pause here
-  // would then strand the game: only the dialog disarms it, so the timer stays
-  // frozen and the board stays disabled with no visible pause state.
-  const handleNewGameClick = () => {
-    if (!onNewGame) return;
-    if (isGameOver || freshGame) {
-      onNewGame();
-      return;
-    }
-    setShowNewGame(true);
-    setConfirmPause(true);
-  };
-
-  const handleExitClick = () => {
-    if (isGameOver || freshGame) {
-      onExit();
-      return;
-    }
-    setShowExit(true);
-    setConfirmPause(true);
-  };
-
-  const handleExitConfirm = () => {
-    setShowExit(false);
-    setConfirmPause(false);
-    onExit();
-  };
-
-  const handleExitCancel = () => {
-    setShowExit(false);
-    setConfirmPause(false);
-  };
-
-  const handleNewGameConfirm = () => {
-    setShowNewGame(false);
-    setConfirmPause(false);
-    onNewGame?.();
-  };
-
-  const handleNewGameCancel = () => {
-    setShowNewGame(false);
-    setConfirmPause(false);
-  };
+  // Both confirmation sheets (exit + new game): stored flags, the pause they
+  // arm, and the handlers the HUD and dialog buttons hit.
+  const {
+    showExit,
+    showNewGame,
+    handleNewGameClick,
+    handleExitClick,
+    handleExitConfirm,
+    handleExitCancel,
+    handleNewGameConfirm,
+    handleNewGameCancel,
+  } = useConfirmFlow({ isActive, isGameOver, freshGame, onNewGame, onExit, onPauseChange });
 
   return (
     <div
@@ -367,6 +293,144 @@ export function PlayersPanel({
       />
     </div>
   );
+}
+
+/** Both confirmation sheets (exit + new game) as one flow: the stored
+ *  flags, their derived visibility, and the handlers the HUD buttons and
+ *  dialog buttons hit. Extracted from PlayersPanel so the panel stays
+ *  render-only orchestration. */
+function useConfirmFlow({
+  isActive,
+  isGameOver,
+  freshGame,
+  onNewGame,
+  onExit,
+  onPauseChange,
+}: {
+  isActive: boolean;
+  isGameOver: boolean;
+  freshGame: boolean;
+  onNewGame?: () => void;
+  onExit: () => void;
+  onPauseChange?: (paused: boolean) => void;
+}) {
+  // Stored flags + derived read: a fresh game (moveCount 0) must not
+  // re-open a confirm stored from the previous game. Resetting via effect
+  // trips react-hooks/set-state-in-effect; deriving keeps the reset exact.
+  const [showExitStored, setShowExit] = useState(false);
+  const [showNewGameStored, setShowNewGame] = useState(false);
+  const showExit = showExitStored && !freshGame;
+  const showNewGame = showNewGameStored && !freshGame;
+
+  // Confirmations belong to the active round. A host terminal frame can make
+  // Confirm close through isActive without calling onCancel, so discard both
+  // stored prompts as the round ends or a fresh round starts. Adjusting this
+  // state during render avoids the set-state-in-effect cascading render.
+  useConfirmReset(isActive, freshGame, () => {
+    setShowExit(false);
+    setShowNewGame(false);
+  });
+
+  // The panel owns only the pause a confirmation sheet causes; arming and
+  // releasing it is one fact, so the click and confirm paths share it.
+  const { setConfirmPause } = useConfirmPause(isActive, freshGame, onPauseChange);
+
+  // A fresh game (moveCount 0) has nothing to confirm either, and `showNewGame`
+  // / `showExit` deliberately suppress the dialog for it. Arming the pause here
+  // would then strand the game: only the dialog disarms it, so the timer stays
+  // frozen and the board stays disabled with no visible pause state.
+  const handleNewGameClick = () => {
+    if (!onNewGame) return;
+    if (isGameOver || freshGame) {
+      onNewGame();
+      return;
+    }
+    setShowNewGame(true);
+    setConfirmPause(true);
+  };
+
+  const handleExitClick = () => {
+    if (isGameOver || freshGame) {
+      onExit();
+      return;
+    }
+    setShowExit(true);
+    setConfirmPause(true);
+  };
+
+  const handleExitConfirm = () => {
+    setShowExit(false);
+    setConfirmPause(false);
+    onExit();
+  };
+
+  const handleExitCancel = () => {
+    setShowExit(false);
+    setConfirmPause(false);
+  };
+
+  const handleNewGameConfirm = () => {
+    setShowNewGame(false);
+    setConfirmPause(false);
+    onNewGame?.();
+  };
+
+  const handleNewGameCancel = () => {
+    setShowNewGame(false);
+    setConfirmPause(false);
+  };
+
+  return {
+    showExit,
+    showNewGame,
+    handleNewGameClick,
+    handleExitClick,
+    handleExitConfirm,
+    handleExitCancel,
+    handleNewGameConfirm,
+    handleNewGameCancel,
+  };
+}
+
+/** The pause a confirmation sheet holds: armed when a sheet opens, released
+ *  when it closes, when round state invalidates it, and on unmount — the
+ *  parent's clock and board follow it either way. */
+function useConfirmPause(
+  isActive: boolean,
+  freshGame: boolean,
+  onPauseChange?: (paused: boolean) => void,
+) {
+  const confirmPauseRef = useRef(false);
+  // The latest handler is assigned in the commit phase, not in the render body
+  // (the same fix as board.tsx / F760): a parent that passes a fresh inline
+  // callback every render must not make this effect re-run, or its cleanup
+  // releases the pause the confirmation is holding.
+  const onPauseChangeRef = useRef(onPauseChange);
+  useEffect(() => {
+    onPauseChangeRef.current = onPauseChange;
+  }, [onPauseChange]);
+
+  useEffect(() => {
+    if ((!isActive || freshGame) && confirmPauseRef.current) {
+      confirmPauseRef.current = false;
+      onPauseChangeRef.current?.(false);
+    }
+
+    // The transport-error view can unmount this panel while the room stays mounted.
+    return () => {
+      if (confirmPauseRef.current) {
+        confirmPauseRef.current = false;
+        onPauseChangeRef.current?.(false);
+      }
+    };
+  }, [freshGame, isActive]);
+
+  const setConfirmPause = (paused: boolean) => {
+    confirmPauseRef.current = paused;
+    onPauseChange?.(paused);
+  };
+
+  return { setConfirmPause };
 }
 
 function useConfirmReset(
