@@ -1,24 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { AI_Difficulty } from "./constants";
 import { sanitizeDisplayName } from "@/lib/identity";
+import type { Locale } from "@/lib/preferences";
 import {
   BANNED_NAME_FRAGMENTS,
   NPC_NAME_MAX_LENGTH,
   NPC_NAME_TIERS,
+  NPC_NAMES,
   createNpcNameSession,
   isNpcName,
 } from "./npc-names";
 
-const ALL_NAMES: readonly string[] = Object.values(NPC_NAME_TIERS).flat();
+const LOCALES = ["en", "es"] as const satisfies readonly Locale[];
+const ALL_NAMES: readonly string[] = NPC_NAMES;
 
 describe("npc name roster", () => {
-  it("carries at least 300 names", () => {
-    expect(ALL_NAMES.length).toBeGreaterThanOrEqual(300);
+  it("carries the authored cast: 60 names across two locales", () => {
+    expect(ALL_NAMES.length).toBe(60);
   });
 
-  it("gives every difficulty a non-empty tier of at least 100 names", () => {
-    for (const difficulty of Object.values(AI_Difficulty)) {
-      expect(NPC_NAME_TIERS[difficulty].length).toBeGreaterThanOrEqual(100);
+  it("gives every locale and difficulty a tier of exactly 10 names", () => {
+    for (const locale of LOCALES) {
+      for (const difficulty of Object.values(AI_Difficulty)) {
+        expect(
+          NPC_NAME_TIERS[locale][difficulty].length,
+          `${locale}/${difficulty} should hold the authored ten`,
+        ).toBe(10);
+      }
     }
   });
 
@@ -32,7 +40,7 @@ describe("npc name roster", () => {
     }
   });
 
-  it("has no duplicate names across tiers", () => {
+  it("has no duplicate names across the whole cast", () => {
     expect(new Set(ALL_NAMES).size).toBe(ALL_NAMES.length);
   });
 
@@ -61,32 +69,38 @@ describe("npc name roster", () => {
 describe("npcNameSession", () => {
   it("picks from the requested difficulty's tier", () => {
     const session = createNpcNameSession();
-    for (const difficulty of Object.values(AI_Difficulty)) {
-      expect(NPC_NAME_TIERS[difficulty]).toContain(session.pick(difficulty));
+    for (const locale of LOCALES) {
+      for (const difficulty of Object.values(AI_Difficulty)) {
+        expect(NPC_NAME_TIERS[locale][difficulty]).toContain(
+          session.pick(locale, difficulty),
+        );
+      }
     }
   });
 
   it("is deterministic under a fixed rng", () => {
     const low = createNpcNameSession(() => 0);
-    expect(low.pick(AI_Difficulty.HARD)).toBe(NPC_NAME_TIERS[AI_Difficulty.HARD][0]);
+    const hardEn = NPC_NAME_TIERS.en[AI_Difficulty.HARD];
+    expect(low.pick("en", AI_Difficulty.HARD)).toBe(hardEn[0]);
 
     const high = createNpcNameSession(() => 0.9999);
-    const hidden = NPC_NAME_TIERS[AI_Difficulty.HARD];
-    expect(high.pick(AI_Difficulty.HARD)).toBe(hidden[hidden.length - 1]);
+    expect(high.pick("en", AI_Difficulty.HARD)).toBe(hardEn[hardEn.length - 1]);
   });
 
-  it("never repeats a name within one session, tiers mixed", () => {
+  it("never repeats a name within one session, locales and tiers mixed", () => {
     const session = createNpcNameSession();
     const order = [
-      AI_Difficulty.EASY,
-      AI_Difficulty.NORMAL,
-      AI_Difficulty.HARD,
+      ["en", AI_Difficulty.EASY],
+      ["es", AI_Difficulty.NORMAL],
+      ["en", AI_Difficulty.HARD],
+      ["es", AI_Difficulty.EASY],
     ] as const;
     const picked = new Set<string>();
-    // Drain the entire roster the way a real player switching difficulty
-    // would: different tiers, one after another, one shared session.
+    // Drain the entire cast the way a real player switching language and
+    // difficulty would: different locales and tiers, one shared session.
     for (let i = 0; picked.size < ALL_NAMES.length; i += 1) {
-      const name = session.pick(order[i % order.length]!);
+      const [locale, difficulty] = order[i % order.length]!;
+      const name = session.pick(locale, difficulty);
       expect(picked.has(name), `"${name}" was picked twice in one session`).toBe(false);
       picked.add(name);
     }
@@ -96,15 +110,15 @@ describe("npcNameSession", () => {
   it("starts over cleanly once the session has used every name", () => {
     const session = createNpcNameSession();
     for (let i = 0; i < ALL_NAMES.length + 5; i += 1) {
-      session.pick(AI_Difficulty.NORMAL);
+      session.pick("en", AI_Difficulty.NORMAL);
     }
     // Past the boundary the pile has forgotten everything; a session longer
     // than the roster restarts rather than dead-ends, and the draw keeps
     // honouring the one guarantee the product can make: the name just shown
     // is not dealt again immediately.
-    let last = session.pick(AI_Difficulty.HARD);
+    let last = session.pick("es", AI_Difficulty.HARD);
     for (let i = 0; i < 20; i += 1) {
-      const name = session.pick(AI_Difficulty.NORMAL);
+      const name = session.pick("en", AI_Difficulty.NORMAL);
       expect(name).not.toBe(last);
       last = name;
     }
@@ -112,9 +126,17 @@ describe("npcNameSession", () => {
 });
 
 describe("isNpcName", () => {
-  it("recognizes roster names from any tier", () => {
+  it("recognizes roster names from any tier and locale", () => {
     expect(isNpcName(ALL_NAMES[0]!)).toBe(true);
     expect(isNpcName(ALL_NAMES[ALL_NAMES.length - 1]!)).toBe(true);
+    expect(isNpcName("Jaque")).toBe(true);
+    expect(isNpcName("Pip")).toBe(true);
+  });
+
+  it("still recognizes the retired gag roster for one release", () => {
+    // A persona saved before the Cast shipped must keep reading as
+    // session-assigned so the rematch redraws instead of freezing it.
+    expect(isNpcName("Gridlock Gary")).toBe(true);
   });
 
   it("rejects non-roster names", () => {
