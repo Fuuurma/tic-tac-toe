@@ -10,6 +10,8 @@ https://tic-tac-toe-1ou.pages.dev
 
 The web client uses the shared `fuurma-matchmaking` Cloudflare Worker for quick
 matchmaking and a per-room Durable Object WebSocket relay. No account is required.
+See the [privacy policy](https://tic-tac-toe-1ou.pages.dev/privacy.html) for what
+the app stores on your device and what it shares.
 
 ## Stack
 

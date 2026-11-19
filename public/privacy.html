@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Privacy policy for Tic Tac Toe Disappear: guest-only play, on-device storage, no analytics or tracking."
+    />
+    <meta name="theme-color" content="#f8fafb" />
+    <title>Privacy — Tic Tac Toe Disappear</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafb;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #475569;
+        --line: #e2e8f0;
+        --accent: #2563eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --surface: #1e293b;
+          --text: #f1f5f9;
+          --muted: #94a3b8;
+          --line: #334155;
+          --accent: #60a5fa;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 3rem 1.25rem 4rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.125rem;
+        margin: 2rem 0 0.5rem;
+      }
+      .lede {
+        color: var(--muted);
+        margin-top: 0;
+      }
+      section {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 0.75rem;
+        padding: 1.25rem 1.5rem;
+        margin-top: 1rem;
+      }
+      ul {
+        margin: 0.5rem 0 0;
+        padding-left: 1.25rem;
+      }
+      li {
+        margin: 0.25rem 0;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.875em;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 0.25rem;
+        padding: 0.05rem 0.3rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      footer {
+        margin-top: 2.5rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy</h1>
+      <p class="lede">
+        Tic Tac Toe Disappear — the three-piece variant. This page states what the
+        app stores, what it shares, and what it never does.
+      </p>
+
+      <section>
+        <h2>No accounts</h2>
+        <p>
+          The game is guest-only: there are no accounts, no sign-up, no email
+          address, and no password. You play under a randomly generated guest id
+          and a display name you can change at any time.
+        </p>
+      </section>
+
+      <section>
+        <h2>What stays on your device</h2>
+        <p>
+          Everything the app remembers is written to your browser's local storage
+          on this device, under <code>tic-tac-toe:</code> keys:
+        </p>
+        <ul>
+          <li><code>tic-tac-toe:guestId</code> — your anonymous guest id.</li>
+          <li><code>tic-tac-toe:displayName</code> — the name shown to opponents.</li>
+          <li>
+            <code>tic-tac-toe:stats:&lt;guestId&gt;</code> — your game stats,
+            keyed by guest id.
+          </li>
+          <li>
+            <code>tic-tac-toe:preferences</code> — theme, sound, colours, shapes,
+            AI difficulty, and opponent name.
+          </li>
+          <li><code>tic-tac-toe:language</code> — the UI language.</li>
+        </ul>
+        <p>
+          Two small flags live under the same prefix: whether the first-run
+          walkthrough was finished or skipped, and whether social-reaction sounds
+          are muted. Nothing is uploaded to a server profile — clearing your
+          browser's site data erases all of it, and there is no account-side copy
+          to delete.
+        </p>
+      </section>
+
+      <section>
+        <h2>What is shared</h2>
+        <p>
+          Online play runs over a WebSocket relay operated for this game. When you
+          join a room, your display name and anonymous guest id travel with your
+          moves so the game can label your pieces — your display name is shared
+          with the opponent in your room only, and nowhere else. Local games
+          against the computer or a friend on the same device never leave the
+          device at all.
+        </p>
+      </section>
+
+      <section>
+        <h2>No analytics, no tracking</h2>
+        <p>
+          There is no third-party analytics or tracking of any kind: no ad
+          networks, no tracking pixels, no behavioural profiles. The app's only
+          network traffic is the game itself — the matchmaking relay that pairs
+          rooms and carries moves between players.
+        </p>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>
+          Questions about this policy or requests about your data:{" "}
+          <a href="mailto:privacy@example.com">privacy@example.com</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Español</h2>
+        <p>
+          Los mismos datos se aplican en español: el juego es solo para invitados,
+          sin cuentas ni registro. Todo lo que recuerda la app (identificador de
+          invitado, nombre, estadísticas, preferencias e idioma) se guarda en el
+          almacenamiento local de tu dispositivo, bajo claves{" "}
+          <code>tic-tac-toe:</code>. Tu nombre visible se comparte únicamente con
+          el rival de tu sala en línea; nada se vende ni se publica. No hay
+          analítica ni seguimiento de terceros: el único tráfico de red es el del
+          propio juego. Contacto:{" "}
+          <a href="mailto:privacy@example.com">privacy@example.com</a>.
+        </p>
+      </section>
+
+      <footer>
+        <a href="/">← Back to the game</a>
+      </footer>
+    </main>
+  </body>
+</html>
