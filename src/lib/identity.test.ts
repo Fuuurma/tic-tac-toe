@@ -1,8 +1,10 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
+import { getLocale } from "@/i18n/language";
 import {
   filterDisplayNameInput,
   generateGuestDisplayName,
   getOrCreateGuestIdentity,
+  GUEST_NAME_POOLS,
   IDENTITY_STORAGE_KEYS,
   sanitizeDisplayName,
   saveDisplayName,
@@ -32,9 +34,10 @@ class MockStorage implements Storage {
 
 describe("sanitizeDisplayName", () => {
   it("returns a fallback for short or empty input", () => {
-    // Fallback is a generated "Adjective Noun" name
-    expect(sanitizeDisplayName("")).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
-    expect(sanitizeDisplayName("a")).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    // Fallback is a generated guest name — one authored entry from the
+    // live locale's pool (identity.personas.test.ts pins the pools).
+    expect(GUEST_NAME_POOLS[getLocale()]).toContain(sanitizeDisplayName(""));
+    expect(GUEST_NAME_POOLS[getLocale()]).toContain(sanitizeDisplayName("a"));
   });
 
   it("strips control characters and limits length", () => {
@@ -48,8 +51,8 @@ describe("sanitizeDisplayName", () => {
   it("strips C1 control characters (U+0080–U+009F)", () => {
     expect(sanitizeDisplayName("Al\u0085ice\u009F")).toBe("Alice");
     // A name that is only C1 controls is empty, not a 20-character string.
-    expect(sanitizeDisplayName("\u0080\u0085\u0090\u009F")).toMatch(
-      /^[A-Z][a-z]+ [A-Z][a-z]+$/,
+    expect(GUEST_NAME_POOLS[getLocale()]).toContain(
+      sanitizeDisplayName("\u0080\u0085\u0090\u009F"),
     );
     // Ordinary accented and non-Latin names still pass.
     expect(sanitizeDisplayName("Zoë Sørën")).toBe("Zoë Sørën");
@@ -65,9 +68,9 @@ describe("sanitizeDisplayName", () => {
   // occupying bytes, and the length check counted them as real characters.
   it("strips zero-width characters that are invisible but counted as length", () => {
     expect(sanitizeDisplayName("Al\u200Bice")).toBe("Alice");
-    expect(sanitizeDisplayName("\u200C\u200D")).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    expect(GUEST_NAME_POOLS[getLocale()]).toContain(sanitizeDisplayName("\u200C\u200D"));
     // A name that is only wide padding must not look like real content.
-    expect(sanitizeDisplayName(" \u200B \u200B ")).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    expect(GUEST_NAME_POOLS[getLocale()]).toContain(sanitizeDisplayName(" \u200B \u200B "));
   });
 
   it("strips the wider invisible-format family, not just the zero-width trio", () => {
@@ -206,19 +209,31 @@ describe("filterDisplayNameInput", () => {
 });
 
 describe("generateGuestDisplayName", () => {
-  it("returns an Adjective Noun style name", () => {
+  it("returns a single-word name from the locale's pool", () => {
     const name = generateGuestDisplayName();
-    expect(name).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+    expect(GUEST_NAME_POOLS[getLocale()]).toContain(name);
+    expect(name).not.toMatch(/\s/);
     expect(name.length).toBeLessThanOrEqual(20);
   });
 
-  it("produces variety across many calls", () => {
-    const names = new Set<string>();
-    for (let i = 0; i < 50; i++) {
-      names.add(generateGuestDisplayName());
+  it("deals every pool entry — the draw is a flat index, not a pairing", () => {
+    // The authored pool replaced the 30x30 adjective+noun geometry; a
+    // stubbed rng sweeping every index must surface all 100 names, which
+    // no combinatorial leftover could prove.
+    const pool = GUEST_NAME_POOLS.en;
+    let draw = 0;
+    const spy = vi
+      .spyOn(Math, "random")
+      .mockImplementation(() => (draw++ + 0.5) / pool.length);
+    try {
+      const names = new Set<string>();
+      for (let i = 0; i < pool.length; i += 1) {
+        names.add(generateGuestDisplayName("en"));
+      }
+      expect(names.size).toBe(pool.length);
+    } finally {
+      spy.mockRestore();
     }
-    // With 30x30 = 900 combinations, 50 calls should produce at least 30 unique names
-    expect(names.size).toBeGreaterThan(30);
   });
 });
 

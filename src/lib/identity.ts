@@ -55,47 +55,69 @@ type GuestIdentity = {
   displayName: string;
 };
 
-const GUEST_NAME_ADJECTIVES = [
-  "Crimson", "Neon", "Silent", "Swift", "Cosmic",
-  "Shadow", "Solar", "Lunar", "Frozen", "Velvet",
-  "Iron", "Golden", "Azure", "Coral", "Jade",
-  "Onyx", "Ruby", "Storm", "Wild", "Clever",
-  "Noble", "Stellar", "Vivid", "Dusk", "Ember",
-  "Frost", "Mystic", "Electric", "Magnetic", "Radiant",
+/**
+ * Player persona pools — docs/ttt-ai-names-design-20261117.md §3.
+ *
+ * The guest display name used to be generated: 30 adjectives x 30 nouns
+ * per locale, 900 combos of vibe descriptions rather than people, and the
+ * ES pool's all-masculine-noun workaround was the tell. The pool is now
+ * authored — each entry is a handle a person would actually pick, native
+ * to its locale rather than translated from the other. A proper noun
+ * declines for nothing, so the gender-agreement problem the pairing
+ * grammar created cannot recur.
+ *
+ * Rules for a name here (identity.personas.test.ts pins them):
+ *   - 2 to 20 characters, one word, survives sanitizeDisplayName.
+ *   - No fragment from BANNED_NAME_FRAGMENTS, in either language.
+ *   - Unique within the pool and across both pools, and disjoint from
+ *     the AI Cast — a player sharing the bot's name is a collision the
+ *     UI cannot explain.
+ */
+const EN_GUEST_NAMES = [
+  "Rowan", "Wren", "Ash", "Eli", "Mae", "Jules", "Remy", "Noor", "Zane", "Blythe",
+  "Coral", "Flint", "Gale", "Harbor", "Indigo", "Lane", "Marlow", "Nell", "Oak", "Quin",
+  "Reed", "Sage", "Tamsin", "Uma", "Vale", "Winter", "Yael", "Zephyr", "Arlo", "Bea",
+  "Clem", "Dove", "Ezra", "Fern", "Gray", "Hope", "Ivo", "Jem", "Kestrel", "Lark",
+  "Milo", "Nova", "Opal", "Piper", "Quill", "Robin", "Skye", "Tess", "Ulric", "Willa",
+  "Xander", "Yara", "Zadie", "Alfie", "Birdie", "Coco", "Dot", "Echo", "Faye", "Gabe",
+  "Hana", "Ike", "June", "Kofi", "Lena", "Mabel", "Nils", "Olive", "Perry", "Quinn",
+  "Rosa", "Sam", "Theo", "Una", "Vicky", "Will", "Xan", "Yuki", "Zara", "Axel",
+  "Blair", "Clara", "Daphne", "Edwin", "Freya", "Greta", "Hazel", "Ivy", "Jasper", "Kira",
+  "Lars", "Margot", "Nadia", "Otto", "Petra", "Rufus", "Stella", "Juniper", "Sorrel", "Wilder",
+] as const;
+
+const ES_GUEST_NAMES = [
+  // Real-name register — nombres y apodos que suenan a gente de verdad.
+  "Lucía", "Pablo", "Carmen", "Diego", "Ana", "Jorge", "Elena", "Mario", "Laura", "Andrés",
+  "Marta", "Sergio", "Julia", "David", "Paula", "Álvaro", "Sara", "Hugo", "Carla", "Adrián",
+  "Daniel", "Alba", "Marcos", "Unai", "Aitor", "Mikel", "Jon", "Eneko", "Xabi", "Asier",
+  "Gorka", "Imanol", "Aritz", "Ibai", "Ekain", "Julen", "Markel", "Unax", "Xabier", "Yeray",
+  "Ainara", "Naiara", "Olatz", "Zuriñe", "Ainhoa", "Iván",
+  // Naturaleza y tiempo.
+  "Brisa", "Ventisca", "Aguacero", "Chubasco", "Nublado", "Llovizna", "Escarcha", "Brasa",
+  "Ceniza", "Roble", "Olivo", "Sauce", "Álamo", "Cerezo", "Membrillo",
+  // Animales.
+  "Ardilla", "Nutria", "Garduña", "Tejón", "Jabalí", "Conejo", "Liebre", "Hurón",
+  "Comadreja", "Musaraña", "Gineta",
+  // Comida.
+  "Churro", "Turrón", "Gazpacho", "Paella", "Tortilla", "Jamón", "Queso", "Uva",
+  "Higo", "Nuez",
+  // Mitología y juego.
+  "Duende", "Genio", "Hada", "Trasgo", "Gnomo", "Sirena", "Nómada", "Juglar",
+  "Corsario", "Gigante",
+  // Frutos secos y fruta.
+  "Almendra", "Castaña", "Albaricoque", "Cereza", "Mandarina", "Dátil", "Avellana", "Bellota",
 ] as const;
 
 /**
- * Spanish handles. Every adjective is gender-invariable (veloz, audaz…),
- * so any pairing with a masculine noun below agrees. Thirty pairs to
- * match the English pool size.
+ * The authored pools by locale. `Record` at the top level so a new locale
+ * fails to compile until this table grows with it — the same exhaustiveness
+ * the Cast's tier table keeps.
  */
-const GUEST_NAME_ADJECTIVES_ES = [
-  "Veloz", "Audaz", "Fugaz", "Brillante", "Valiente",
-  "Salvaje", "Gigante", "Libre", "Fuerte", "Feliz",
-  "Sagaz", "Voraz", "Tenaz", "Sereno", "Fiero",
-  "Bravo", "Sigiloso", "Luminoso", "Nocturno", "Eterno",
-  "Firme", "Leal", "Noble", "Sabio", "Hábil",
-  "Astuto", "Intrépido", "Velado", "Ígneo", "Austero",
-] as const;
-
-const GUEST_NAME_NOUNS = [
-  "Fox", "Wolf", "Raven", "Falcon", "Tiger",
-  "Dragon", "Phoenix", "Cipher", "Echo", "Nova",
-  "Pulse", "Spark", "Blade", "Arrow", "Comet",
-  "Ghost", "Prism", "Atlas", "Orion", "Vega",
-  "Lyra", "Bolt", "Flint", "Sage", "Hawk",
-  "Lynx", "Crow", "Koi", "Panther", "Sparrow",
-] as const;
-
-/** All masculine, so every adjective above pairs correctly. */
-const GUEST_NAME_NOUNS_ES = [
-  "Rayo", "Trueno", "Lobo", "Halcón", "Tigre",
-  "Dragón", "Fénix", "Eco", "Pulso", "Destello",
-  "Cometa", "Fantasma", "Prisma", "Relámpago", "Vendaval",
-  "Colmillo", "Centella", "Lince", "Búho", "Cuervo",
-  "Zorro", "Vértigo", "Sendero", "Volcán", "Océano",
-  "Juglar", "Corsario", "Trovador", "Forastero", "Nómada",
-] as const;
+export const GUEST_NAME_POOLS: Record<Locale, readonly string[]> = {
+  en: EN_GUEST_NAMES,
+  es: ES_GUEST_NAMES,
+};
 
 const generateGuestId = (): string => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -106,13 +128,11 @@ const generateGuestId = (): string => {
 
 export const generateGuestDisplayName = (locale?: Locale): string => {
   // A Spanish handle for Spanish visitors; already-assigned names never
-  // change. Defaults to the live locale so callers stay untouched.
-  const resolved = locale ?? getLocale();
-  const adjectives = resolved === "es" ? GUEST_NAME_ADJECTIVES_ES : GUEST_NAME_ADJECTIVES;
-  const nouns = resolved === "es" ? GUEST_NAME_NOUNS_ES : GUEST_NAME_NOUNS;
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  return `${adjective} ${noun}`;
+  // change. Defaults to the live locale so callers stay untouched. The
+  // draw is a flat index into the authored pool — one name, never a
+  // pairing of parts.
+  const pool = GUEST_NAME_POOLS[locale ?? getLocale()];
+  return pool[Math.floor(Math.random() * pool.length)]!;
 };
 
 const isAllowedCharacter = (character: string): boolean => {
