@@ -10,6 +10,8 @@ https://tic-tac-toe-1ou.pages.dev
 
 The web client uses the shared `fuurma-matchmaking` Cloudflare Worker for quick
 matchmaking and a per-room Durable Object WebSocket relay. No account is required.
+Privacy policy: https://tic-tac-toe-1ou.pages.dev/privacy.html (static page in
+`public/privacy.html`, also served at `/privacy`).
 
 ## Stack
 

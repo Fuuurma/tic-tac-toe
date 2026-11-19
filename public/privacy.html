@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Privacy policy for Tic Tac Toe Disappear — guest-only play, on-device data, no tracking."
+    />
+    <meta name="theme-color" content="#f8fafb" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Privacy — Tic Tac Toe Disappear</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        background: #f8fafb;
+        color: #0f172a;
+        line-height: 1.65;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 3rem 1.25rem 4rem;
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin: 0 0 0.25rem;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin: 2rem 0 0.5rem;
+      }
+      .updated {
+        color: #64748b;
+        font-size: 0.875rem;
+        margin: 0 0 2rem;
+      }
+      code {
+        background: #e2e8f0;
+        border-radius: 0.25rem;
+        padding: 0.1rem 0.35rem;
+        font-size: 0.85em;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin: 0.35rem 0;
+      }
+      a {
+        color: #0369a1;
+      }
+      .back {
+        display: inline-block;
+        margin-top: 2.5rem;
+      }
+      section[lang="es"] {
+        margin-top: 3rem;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 0.5rem;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+        .updated {
+          color: #94a3b8;
+        }
+        code {
+          background: #1e293b;
+        }
+        a {
+          color: #7dd3fc;
+        }
+        section[lang="es"] {
+          border-top-color: #1e293b;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy</h1>
+      <p class="updated">Tic Tac Toe Disappear — last updated 19 November 2026</p>
+
+      <p>
+        Tic Tac Toe Disappear is guest-only: there is no account to create, no
+        sign-up, and no login. Everything the game remembers lives in your
+        browser's local storage on your own device.
+      </p>
+
+      <h2>What is stored on your device</h2>
+      <p>
+        Under the <code>tic-tac-toe:</code> prefix, local storage holds only what
+        the game needs to work:
+      </p>
+      <ul>
+        <li>
+          <code>tic-tac-toe:guestId</code> — a random id that identifies this
+          browser as a guest.
+        </li>
+        <li>
+          <code>tic-tac-toe:displayName</code> — the display name you chose.
+        </li>
+        <li>
+          <code>tic-tac-toe:stats:&lt;guestId&gt;</code> — your game stats
+          (wins, losses, draws).
+        </li>
+        <li>
+          <code>tic-tac-toe:preferences</code> — appearance and opponent
+          settings.
+        </li>
+        <li><code>tic-tac-toe:language</code> — the interface language.</li>
+      </ul>
+      <p>
+        Clearing your browser's site data deletes all of it. None of it syncs to
+        a server profile, because there is no account.
+      </p>
+
+      <h2>What is shared</h2>
+      <p>
+        When you play online, your guest id, display name and moves travel
+        through the shared Cloudflare relay to the opponent in your room — that
+        is how the game reaches them. Your display name is visible to your room
+        opponent only; it is not published, listed, or searchable anywhere. The
+        relay keeps room state only while the room is active and does not build
+        profiles.
+      </p>
+
+      <h2>What is not collected</h2>
+      <p>
+        There is no third-party analytics or tracking, no advertising, no
+        cookies used for tracking, and no sale or sharing of personal data. The
+        app contacts no service other than the game relay itself.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or requests to delete your data: contact
+        <a href="mailto:privacy@example.com">privacy@example.com</a>.
+        <!-- TODO: replace privacy@example.com with the published contact
+             address before store submission
+             (reports/mobile-stores-1116.md, open decision 7). -->
+      </p>
+
+      <a class="back" href="/">&larr; Back to the game</a>
+
+      <section lang="es">
+        <h2>Lo mismo, en español</h2>
+        <p>
+          Tic Tac Toe Disappear es solo para invitados: no hay cuenta que crear
+          ni registro. Todo lo que el juego recuerda se guarda en el
+          almacenamiento local de tu navegador — identificador de invitado,
+          nombre visible, estadísticas, preferencias e idioma — y se borra si
+          limpias los datos del sitio.
+        </p>
+        <p>
+          Al jugar en línea, tu nombre visible y tus jugadas llegan solo al
+          oponente de tu sala a través del relevo de Cloudflare; el nombre no se
+          publica en ningún sitio. No hay analítica ni rastreo de terceros, ni
+          publicidad, ni cookies de seguimiento.
+        </p>
+        <p>
+          Contacto: <a href="mailto:privacy@example.com">privacy@example.com</a>
+          (misma dirección pendiente de confirmar).
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
