@@ -1,13 +1,30 @@
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tokenize, TokenType } from "@csstools/css-tokenizer";
 import ts from "typescript";
 
-export const SOURCE_DIRS = ["src", "scripts"];
+export const SOURCE_DIRS = ["src", "scripts", "e2e", "public"];
+export const SOURCE_FILES = [
+  "eslint.config.js",
+  "playwright.config.ts",
+  "vite.config.ts",
+  "vitest.config.ts",
+  "vitest.setup.ts",
+];
 
-const SCANNABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css"]);
+const SCANNABLE_EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".css",
+]);
 const SKIPPED_DIRS = new Set(["node_modules", "dist"]);
 const COMMENT_KINDS = new Set([
   ts.SyntaxKind.SingleLineCommentTrivia,
@@ -91,6 +108,23 @@ export function inventoryAt(root, dirs) {
   return inventory;
 }
 
+export function inventoryFiles(root, files) {
+  const inventory = {};
+  for (const relative of files) {
+    const full = path.join(root, relative);
+    if (!existsSync(full)) continue;
+    inventoryEntry(full, root, inventory);
+  }
+  return inventory;
+}
+
+function inventoryEntry(full, root, inventory) {
+  const relative = path.relative(root, full).split(path.sep).join("/");
+  const counts = countsOf(collectComments(full, readFileSync(full, "utf8")));
+  if (Object.keys(counts).length === 0) return;
+  inventory[relative] = counts;
+}
+
 function walk(dir, root, inventory) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name.startsWith(".") || SKIPPED_DIRS.has(entry.name)) continue;
@@ -101,10 +135,7 @@ function walk(dir, root, inventory) {
     }
     if (!entry.isFile()) continue;
     if (!SCANNABLE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) continue;
-    const relative = path.relative(root, full).split(path.sep).join("/");
-    const counts = countsOf(collectComments(full, readFileSync(full, "utf8")));
-    if (Object.keys(counts).length === 0) continue;
-    inventory[relative] = counts;
+    inventoryEntry(full, root, inventory);
   }
 }
 
@@ -151,7 +182,10 @@ function runCli() {
     console.error("FAIL: scripts/comment-baseline.json is missing or unreadable");
     return 1;
   }
-  const actual = inventoryAt(root, SOURCE_DIRS);
+  const actual = {
+    ...inventoryAt(root, SOURCE_DIRS),
+    ...inventoryFiles(root, SOURCE_FILES),
+  };
   const { before, now, added } = compareBaseline(baseline, actual);
   if (update) {
     writeFileSync(baselinePath, serializeBaseline(actual));

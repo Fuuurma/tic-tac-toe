@@ -9,8 +9,10 @@ import {
   countsOf,
   fingerprint,
   inventoryAt,
+  inventoryFiles,
   serializeBaseline,
   SOURCE_DIRS,
+  SOURCE_FILES,
 } from "../../scripts/check-comments.mjs";
 import type { Baseline } from "../../scripts/check-comments.mjs";
 
@@ -223,16 +225,23 @@ describe("comment baseline (real tree)", () => {
   const baseline = JSON.parse(
     readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
   ) as Baseline;
+  const actual = {
+    ...inventoryAt(repoRoot, SOURCE_DIRS),
+    ...inventoryFiles(repoRoot, SOURCE_FILES),
+  };
 
-  it("has no added or changed comments under the frozen dirs", () => {
-    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+  it("has no added or changed comments under the frozen scope", () => {
     expect(compareBaseline(baseline, actual).added).toEqual([]);
   });
 
-  it("pins the freeze scope: every key sits under a frozen dir", () => {
+  it("pins the freeze scope: every key sits under a frozen dir or file", () => {
     const keys = Object.keys(baseline);
     expect(
-      keys.every((key) => SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`))),
+      keys.every(
+        (key) =>
+          SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`)) ||
+          SOURCE_FILES.includes(key),
+      ),
     ).toBe(true);
   });
 
@@ -240,5 +249,12 @@ describe("comment baseline (real tree)", () => {
     const keys = Object.keys(baseline);
     expect(keys.some((key) => key.startsWith("src/components/"))).toBe(true);
     expect(keys).toContain("src/index.css");
+  });
+
+  it("covers every tracked source, test and script tree", () => {
+    const keys = Object.keys(baseline);
+    expect(keys.some((key) => key.startsWith("e2e/"))).toBe(true);
+    expect(keys.some((key) => key.startsWith("scripts/"))).toBe(true);
+    expect(keys.some((key) => SOURCE_FILES.includes(key))).toBe(true);
   });
 });
