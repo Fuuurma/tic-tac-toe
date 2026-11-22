@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectComments,
@@ -9,6 +10,8 @@ import {
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
+  type Baseline,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +213,33 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+describe("comment baseline (real tree)", () => {
+  const repoRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+  );
+
+  function committedBaseline(): Baseline {
+    return JSON.parse(
+      readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+    );
+  }
+
+  it("matches the live inventory with no added comments", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(committedBaseline(), actual).added).toEqual([]);
+  });
+
+  it("pins the freeze scope to the core dirs", () => {
+    const keys = Object.keys(committedBaseline());
+    expect(keys.filter((key) => key.startsWith("src/components/"))).toEqual([]);
+    expect(keys).not.toContain("src/index.css");
+    expect(
+      keys.every((key) => SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`))),
+    ).toBe(true);
   });
 });
