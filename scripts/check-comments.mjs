@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { tokenize, TokenType } from "@csstools/css-tokenizer";
 import ts from "typescript";
 
-export const SOURCE_DIRS = ["src", "scripts"];
+export const SOURCE_DIRS = ["src/game", "src/lib", "src/hooks", "src/__tests__", "scripts"];
 
 const SCANNABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css"]);
 const SKIPPED_DIRS = new Set(["node_modules", "dist"]);
@@ -146,8 +146,11 @@ function runCli() {
   try {
     baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
   } catch {
-    console.error("FAIL: scripts/comment-baseline.json is missing or unreadable");
-    return 1;
+    if (!update) {
+      console.error("FAIL: scripts/comment-baseline.json is missing or unreadable");
+      return 1;
+    }
+    baseline = {};
   }
   const actual = inventoryAt(root, SOURCE_DIRS);
   const { before, now, added } = compareBaseline(baseline, actual);
