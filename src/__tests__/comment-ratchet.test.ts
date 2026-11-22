@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectComments,
@@ -9,6 +10,8 @@ import {
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
+  type Baseline,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +213,33 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+describe("frozen comment baseline", () => {
+  const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+  const baseline = JSON.parse(
+    readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+  ) as Baseline;
+
+  it("has no new or changed comments under the frozen directories", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("is scoped to the frozen core directories", () => {
+    const keys = Object.keys(baseline);
+    const frozenPrefixes = [
+      "src/game/",
+      "src/lib/",
+      "src/hooks/",
+      "src/__tests__/",
+      "scripts/",
+    ];
+    expect(keys.filter((key) => !frozenPrefixes.some((prefix) => key.startsWith(prefix)))).toEqual(
+      [],
+    );
+    expect(keys.some((key) => key.startsWith("src/components/"))).toBe(false);
+    expect(keys).not.toContain("src/index.css");
   });
 });
