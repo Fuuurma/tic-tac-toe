@@ -193,7 +193,7 @@ export const es: Record<StringKey, string> = {
     "Consigue 3 de tus marcas en línea, en fila, columna o diagonal. Las casillas ganadoras se iluminan en verde.",
   "help.tip4.title": "Atajos de teclado",
   "help.tip4.body":
-    "Con teclado, pulsa del 1 al 9 para colocar tu marca en la casilla correspondiente. Es de izquierda a derecha y de arriba abajo: el 1 es arriba a la izquierda y el 9 abajo a la derecha.",
+    "Con teclado, pulsa del 1 al 9 para colocar tu marca en la casilla correspondiente, o entra en el tablero con Tab y usa las flechas para elegir casilla. Es de izquierda a derecha y de arriba abajo: el 1 es arriba a la izquierda y el 9 abajo a la derecha.",
   "help.tip5.title": "Temporizador",
   "help.tip5.body":
     "Tienes 10 segundos por turno. Si se acaban, se juega un movimiento aleatorio por ti. Estate atento.",

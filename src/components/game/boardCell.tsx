@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { forwardRef, memo, useEffect, useState } from "react";
 import { COLOR_RGB, Color, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { getShapeLabel, t, useStrings } from "@/i18n/language";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ interface BoardCellProps {
   isHint?: boolean;
   /** Let a retired mark fade out instead of vanishing in one frame. */
   showVanish?: boolean;
+  tabIndex: number;
   onClick: (index: number) => void;
   onHover?: (index: number | null) => void;
 }
@@ -79,45 +80,52 @@ const OCCUPIED_TINT_CLASSES: Record<Color, string> = {
   [Color.GRAY]: "shadow-md shadow-gray-500/20",
 };
 
-export const BoardCell = memo(function BoardCell(props: BoardCellProps) {
-  // Subscribes so a language switch rebuilds the aria label even though no
-  // prop changed (the memo would otherwise hold the old language).
-  useStrings();
-  const ghost = useVanishGhost(props.showVanish ?? false, props.value, props.valueShape, props.valueColor);
-  const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, isHint, onClick, onHover } = props;
+export const BoardCell = memo(
+  forwardRef<HTMLButtonElement, BoardCellProps>(function BoardCell(
+    props: BoardCellProps,
+    ref: React.Ref<HTMLButtonElement>,
+  ) {
+    // Subscribes so a language switch rebuilds the aria label even though no
+    // prop changed (the memo would otherwise hold the old language).
+    useStrings();
+    const ghost = useVanishGhost(props.showVanish ?? false, props.value, props.valueShape, props.valueColor);
+    const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, isHint, onClick, onHover } = props;
 
-  return (
-    <button
-      type="button"
-      aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove, disabledReason, isHint)}
-      aria-keyshortcuts={String(index + 1)}
-      aria-disabled={isDisabled || value !== null}
-      disabled={isDisabled}
-      onClick={() => {
-        if (isDisabled || value !== null) return;
-        onClick(index);
-      }}
-      onMouseEnter={() => onHover?.(index)}
-      onMouseLeave={() => onHover?.(null)}
-      onFocus={() => onHover?.(index)}
-      onBlur={() => onHover?.(null)}
-      className={getBoardCellClassName(props)}
-      style={
-        value && props.valueColor
-          ? ({
-              "--cell-rgb": COLOR_RGB[props.valueColor],
-              // The board sets --player-color to the NEXT player, for the hover
-              // preview. A winning cell must light in the colour of the mark it
-              // holds, which is the winner's.
-              ...(props.isWinningCell ? { "--player-color": COLOR_RGB[props.valueColor] } : {}),
-            } as React.CSSProperties)
-          : undefined
-      }
-    >
-      {renderBoardCellContents(props, ghost)}
-    </button>
-  );
-});
+    return (
+      <button
+        type="button"
+        ref={ref}
+        tabIndex={props.tabIndex}
+        aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove, disabledReason, isHint)}
+        aria-keyshortcuts={String(index + 1)}
+        aria-disabled={isDisabled || value !== null}
+        disabled={isDisabled}
+        onClick={() => {
+          if (isDisabled || value !== null) return;
+          onClick(index);
+        }}
+        onMouseEnter={() => onHover?.(index)}
+        onMouseLeave={() => onHover?.(null)}
+        onFocus={() => onHover?.(index)}
+        onBlur={() => onHover?.(null)}
+        className={getBoardCellClassName(props)}
+        style={
+          value && props.valueColor
+            ? ({
+                "--cell-rgb": COLOR_RGB[props.valueColor],
+                // The board sets --player-color to the NEXT player, for the hover
+                // preview. A winning cell must light in the colour of the mark it
+                // holds, which is the winner's.
+                ...(props.isWinningCell ? { "--player-color": COLOR_RGB[props.valueColor] } : {}),
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        {renderBoardCellContents(props, ghost)}
+      </button>
+    );
+  }),
+);
 
 /**
  * The mark that was just here, kept alive long enough to fade. The engine

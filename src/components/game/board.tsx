@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { COLOR_RGB, Color, PlayerSymbol, SymbolShape } from "@/game/constants";
 import { BoardCell } from "./boardCell";
 import { t, useStrings } from "@/i18n/language";
@@ -53,7 +53,16 @@ export const Board = memo(function Board({
   // Own subscription: memo would otherwise hold the old group label.
   useStrings();
   const [hovered, setHovered] = useState<number | null>(null);
+  const [rovingIndex, setRovingIndex] = useState(() => initialRovingIndex(board, disabled));
   const boardRef = useRef<HTMLDivElement>(null);
+  const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const cellRefCallbacks = useMemo(
+    () =>
+      Array.from({ length: 9 }, (_, index) => (element: HTMLButtonElement | null) => {
+        cellRefs.current[index] = element;
+      }),
+    [],
+  );
   const onCellClickRef = useRef(onCellClick);
   // The latest handler is assigned in the commit phase, not in the render
   // body: a ref mutated during render can tear the handler identity
@@ -105,6 +114,30 @@ export const Board = memo(function Board({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [board, disabled]);
 
+  const indexOfCell = (target: EventTarget | null): number => {
+    if (!(target instanceof Node)) return -1;
+    return cellRefs.current.findIndex(
+      (element) => element !== null && element.contains(target),
+    );
+  };
+
+  const handleBoardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const current = indexOfCell(event.target);
+    if (current < 0) return;
+    const next = boardGridKeyTarget(current, event.key);
+    if (next === null) return;
+    event.preventDefault();
+    if (next === current) return;
+    setRovingIndex(next);
+    cellRefs.current[next]?.focus();
+  };
+
+  const handleBoardFocus = (event: React.FocusEvent<HTMLDivElement>) => {
+    const index = indexOfCell(event.target);
+    if (index >= 0) setRovingIndex(index);
+  };
+
   return (
     // The phone gutter lives here, not in the shell, so the well's
     // `max-w-[var(--board-max)]` measures the inset width.
@@ -125,6 +158,8 @@ export const Board = memo(function Board({
           aria-label={t("board.name")}
           aria-keyshortcuts="1 2 3 4 5 6 7 8 9"
           className="grid h-full w-full grid-rows-3 gap-1.5 sm:gap-2"
+          onKeyDown={handleBoardKeyDown}
+          onFocus={handleBoardFocus}
           style={
             previewColor
               ? ({ "--player-color": COLOR_RGB[previewColor] } as React.CSSProperties)
@@ -156,6 +191,8 @@ export const Board = memo(function Board({
                     previewShape={previewShape}
                     isHint={hintIndex === index}
                     showVanish={showVanish}
+                    tabIndex={index === rovingIndex ? 0 : -1}
+                    ref={cellRefCallbacks[index]}
                     onClick={onCellClick}
                     onHover={setHovered}
                   />
@@ -168,3 +205,32 @@ export const Board = memo(function Board({
     </div>
   );
 });
+
+function initialRovingIndex(board: (PlayerSymbol | null)[], disabled: boolean): number {
+  if (!disabled) {
+    const firstEmpty = board.findIndex((cell) => cell === null);
+    if (firstEmpty !== -1) return firstEmpty;
+  }
+  return 4;
+}
+
+function boardGridKeyTarget(index: number, key: string): number | null {
+  const row = Math.floor(index / 3);
+  const col = index % 3;
+  switch (key) {
+    case "ArrowLeft":
+      return col > 0 ? index - 1 : index;
+    case "ArrowRight":
+      return col < 2 ? index + 1 : index;
+    case "ArrowUp":
+      return row > 0 ? index - 3 : index;
+    case "ArrowDown":
+      return row < 2 ? index + 3 : index;
+    case "Home":
+      return row * 3;
+    case "End":
+      return row * 3 + 2;
+    default:
+      return null;
+  }
+}

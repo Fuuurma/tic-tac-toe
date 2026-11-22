@@ -192,7 +192,7 @@ export const en = {
     "Get 3 of your marks in a row, column, or diagonal. Winning cells light up emerald green.",
   "help.tip4.title": "Keyboard shortcuts",
   "help.tip4.body":
-    "On a keyboard, press 1-9 to place your mark on the matching cell. The layout reads left to right, top to bottom: 1 is top-left, 9 is bottom-right.",
+    "On a keyboard, press 1-9 to place your mark on the matching cell, or Tab into the board and use the arrow keys to pick a cell. The layout reads left to right, top to bottom: 1 is top-left, 9 is bottom-right.",
   "help.tip5.title": "Turn timer",
   "help.tip5.body":
     "You have 10 seconds per turn. Run out and a random legal move is played for you. Stay sharp.",
