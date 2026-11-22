@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectComments,
@@ -9,6 +10,7 @@ import {
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +212,32 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+/**
+ * The freeze is only real if the committed baseline matches the live tree:
+ * this suite re-runs the inventory against the repo itself, so a comment
+ * added under a frozen dir without `--update-baseline` fails here the same
+ * way `node scripts/check-comments.mjs` fails in CI.
+ */
+describe("comment baseline (real tree)", () => {
+  const repoRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../..",
+  );
+  const baseline = JSON.parse(
+    readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+  ) as Record<string, Record<string, number>>;
+
+  it("has no added or changed comments under the frozen dirs", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("is scoped to the frozen core dirs only", () => {
+    const paths = Object.keys(baseline);
+    expect(paths.filter((p) => p.startsWith("src/components/"))).toEqual([]);
+    expect(paths).not.toContain("src/index.css");
   });
 });
