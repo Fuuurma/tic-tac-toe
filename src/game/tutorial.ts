@@ -74,6 +74,7 @@ export const humanMoveCount = (state: GameState): number =>
  */
 export function lessonStage(state: GameState): LessonStage {
   if (state.winner === HUMAN) return "won";
+  if (state.winner === AI) return "vanished";
   const placed = humanMoveCount(state);
   if (placed < FIRST_VANISH_MOVE - 1) return "place";
   if (placed === FIRST_VANISH_MOVE - 1) return "limit";
@@ -102,17 +103,18 @@ export function findWinningMove(state: GameState, symbol: PlayerSymbol): number 
 export function tutorialAIMove(state: GameState): number | null {
   if (!isGameActive(state) || state.currentPlayer !== AI) return null;
 
-  const empty = getValidMoves(state.board);
-  const safe = empty.filter((cell) => makeMove(state, cell)?.winner !== AI);
-  const options = safe.length > 0 ? safe : empty;
+  const safe = getValidMoves(state.board).filter(
+    (cell) => makeMove(state, cell)?.winner !== AI,
+  );
+  if (safe.length === 0) return null;
 
   const threat = findWinningMove(state, HUMAN);
-  if (threat !== null && options.includes(threat)) {
+  if (threat !== null && safe.includes(threat)) {
     if (humanMoveCount(state) < FIRST_VANISH_MOVE) return threat;
-    const looksAway = options.filter((cell) => cell !== threat);
+    const looksAway = safe.filter((cell) => cell !== threat);
     if (looksAway.length > 0) return pickPreferred(looksAway);
   }
-  return pickPreferred(options);
+  return pickPreferred(safe);
 }
 
 const pickPreferred = (cells: number[]): number =>
