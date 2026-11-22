@@ -33,6 +33,7 @@
     "thinking-orbs": "0.1.1"
   },
   "devDependencies": {
+    "@csstools/css-tokenizer": "4.0.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.5",

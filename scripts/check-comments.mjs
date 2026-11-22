@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { tokenize, TokenType } from "@csstools/css-tokenizer";
 import ts from "typescript";
 
 export const SOURCE_DIRS = ["src", "scripts"];
 
-const SCANNABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+const SCANNABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css"]);
 const SKIPPED_DIRS = new Set(["node_modules", "dist"]);
 const COMMENT_KINDS = new Set([
   ts.SyntaxKind.SingleLineCommentTrivia,
@@ -16,6 +17,7 @@ const COMMENT_KINDS = new Set([
 export function collectComments(filePath, source) {
   const extension = path.extname(filePath).toLowerCase();
   if (!SCANNABLE_EXTENSIONS.has(extension)) return [];
+  if (extension === ".css") return collectCssComments(source);
   const jsx = extension === ".tsx" || extension === ".jsx";
   const variant = jsx ? ts.LanguageVariant.JSX : ts.LanguageVariant.Standard;
   const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, variant, source);
@@ -51,6 +53,17 @@ export function collectComments(filePath, source) {
     const start = scanner.getTokenStart();
     const end = scanner.getTokenEnd();
     blocks.push({ text: source.slice(start, end), start, end });
+  }
+  return blocks;
+}
+
+// Token end offsets are inclusive, so the half-open interval is token[3] + 1.
+// The tokenizer never throws on malformed CSS; it emits error tokens instead.
+function collectCssComments(source) {
+  const blocks = [];
+  for (const token of tokenize({ css: source })) {
+    if (token[0] !== TokenType.Comment) continue;
+    blocks.push({ text: source.slice(token[2], token[3] + 1), start: token[2], end: token[3] + 1 });
   }
   return blocks;
 }

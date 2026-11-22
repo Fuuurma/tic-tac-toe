@@ -97,6 +97,31 @@ describe("collectComments", () => {
     const blocks = assertLexemes(source, "a.ts");
     expect(blocks.map((block) => block.text)).toEqual(["// between", "// after"]);
   });
+
+  it("collects a CSS block comment with exact source intervals", () => {
+    const source = "a { color: red; } /* hi */";
+    const blocks = assertLexemes(source, "a.css");
+    expect(blocks).toEqual([{ text: "/* hi */", start: 18, end: 26 }]);
+  });
+
+  it("excludes comment-like text inside CSS strings", () => {
+    const source =
+      "a { content: \"/* fake */\"; }\nb { content: '/* fake */'; }\n/* real */";
+    const blocks = assertLexemes(source, "a.css");
+    expect(blocks).toEqual([{ text: "/* real */", start: 58, end: 68 }]);
+  });
+
+  it("collects a multiline CSS comment as one lexeme", () => {
+    const source = "/* first\n   second */\nx {}";
+    const blocks = assertLexemes(source, "a.css");
+    expect(blocks).toEqual([{ text: "/* first\n   second */", start: 0, end: 21 }]);
+  });
+
+  it("collects an unterminated trailing CSS comment through EOF", () => {
+    const source = "a { color: red; } /* dangling";
+    const blocks = assertLexemes(source, "a.css");
+    expect(blocks).toEqual([{ text: "/* dangling", start: 18, end: 29 }]);
+  });
 });
 
 describe("fingerprint", () => {
@@ -156,6 +181,7 @@ describe("inventoryAt", () => {
     mkdirSync(path.join(src, "node_modules", "dep"), { recursive: true });
     writeFileSync(path.join(src, "dup.ts"), "// dup\n// dup\n");
     writeFileSync(path.join(src, "once.js"), "// once\n");
+    writeFileSync(path.join(src, "style.css"), "a {}\n/* css */\n");
     writeFileSync(path.join(src, "clean.tsx"), "const el = <div />;\n");
     writeFileSync(path.join(src, ".hidden.ts"), "// hidden\n");
     writeFileSync(path.join(src, "dist", "bundled.ts"), "// bundled\n");
@@ -163,9 +189,10 @@ describe("inventoryAt", () => {
 
     const inventory = inventoryAt(root, ["src"]);
 
-    expect(Object.keys(inventory).sort()).toEqual(["src/dup.ts", "src/once.js"]);
+    expect(Object.keys(inventory).sort()).toEqual(["src/dup.ts", "src/once.js", "src/style.css"]);
     expect(inventory["src/dup.ts"]).toEqual({ [fingerprint("// dup")]: 2 });
     expect(inventory["src/once.js"]).toEqual({ [fingerprint("// once")]: 1 });
+    expect(inventory["src/style.css"]).toEqual({ [fingerprint("/* css */")]: 1 });
   });
 });
 
