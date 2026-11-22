@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectComments,
@@ -9,6 +10,8 @@ import {
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
+  type Baseline,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +213,32 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+/**
+ * The freeze itself, against the real tree: the committed baseline must cover
+ * exactly the frozen core, and the live tree must not have drifted from it.
+ * Widening SOURCE_DIRS without regenerating the baseline fails the first test;
+ * regenerating it over unfrozen paths fails the second.
+ */
+describe("comment baseline (real tree)", () => {
+  const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+  const baseline = JSON.parse(
+    readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+  ) as Baseline;
+
+  it("has no added or changed comments under the frozen dirs", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("covers only the frozen core — no components, no top-level src files", () => {
+    const keys = Object.keys(baseline);
+    expect(keys.filter((key) => key.startsWith("src/components/"))).toEqual([]);
+    expect(keys).not.toContain("src/index.css");
+    expect(
+      keys.filter((key) => !SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`))),
+    ).toEqual([]);
   });
 });
