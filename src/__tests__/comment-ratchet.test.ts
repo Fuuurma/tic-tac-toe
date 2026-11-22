@@ -1,14 +1,16 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  type Baseline,
   collectComments,
   compareBaseline,
   countsOf,
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +212,30 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
+
+describe("baseline freeze", () => {
+  const baseline = JSON.parse(
+    readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+  ) as Baseline;
+
+  it("reports no added or changed comments against the committed baseline", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("pins the freeze scope to the core directories", () => {
+    const keys = Object.keys(baseline);
+    // src/components, top-level src files and src/index.css join the freeze
+    // in a later widening, so their absence is pinned rather than implied.
+    const outside = keys.filter(
+      (key) => !SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`)),
+    );
+    expect(outside).toEqual([]);
+    expect(keys.some((key) => key.startsWith("src/components/"))).toBe(false);
+    expect(keys).not.toContain("src/index.css");
   });
 });
