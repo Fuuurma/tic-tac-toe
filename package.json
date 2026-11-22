@@ -12,7 +12,7 @@
     "dev": "vite --host 127.0.0.1 --port 3110 --strictPort",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 3110 --strictPort",
-    "lint": "eslint src e2e vite.config.ts vitest.config.ts playwright.config.ts",
+    "lint": "eslint src e2e vite.config.ts vitest.config.ts playwright.config.ts && node scripts/check-comments.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "VITE_MATCHMAKING_URL=http://127.0.0.1:8787 pnpm build && VITE_MATCHMAKING_URL=http://127.0.0.1:8787 playwright test",

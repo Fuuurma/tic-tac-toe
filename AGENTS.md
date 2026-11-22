@@ -36,7 +36,7 @@ pnpm check
 A change is finished when all four are true, not when the code looks right:
 
 ```bash
-pnpm lint          # eslint src e2e vite.config.ts vitest.config.ts playwright.config.ts
+pnpm lint          # eslint src e2e vite.config.ts vitest.config.ts playwright.config.ts && node scripts/check-comments.mjs — deletion-only comment ratchet
 pnpm test          # vitest run — 807 tests / 72 files
 pnpm build         # tsc -b && vite build
 ```
