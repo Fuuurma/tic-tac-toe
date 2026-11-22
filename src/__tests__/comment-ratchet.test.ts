@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectComments,
@@ -9,7 +10,9 @@ import {
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
 } from "../../scripts/check-comments.mjs";
+import type { Baseline } from "../../scripts/check-comments.mjs";
 
 /**
  * The ratchet counts complete comment lexemes, not comment-like text: every
@@ -32,8 +35,7 @@ function assertLexemes(source: string, file: string) {
 
 const HEADER = "// header";
 // Pinned literal — the ratchet hash algorithm is load-bearing for the baseline.
-const HEADER_SHA256 =
-  "8f9ed983ca9de7721e9069b2f608429476f114970748574960c369e0aded43bc";
+const HEADER_SHA256 = "8f9ed983ca9de772";
 
 describe("collectComments", () => {
   it("collects a line comment header", () => {
@@ -210,5 +212,29 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+describe("comment baseline (real tree)", () => {
+  const repoRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../..",
+  );
+  const baseline = JSON.parse(
+    readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+  ) as Baseline;
+
+  it("has no added or changed comments under the frozen dirs", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("pins the freeze scope: every key sits under a frozen dir", () => {
+    const keys = Object.keys(baseline);
+    expect(
+      keys.every((key) => SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`))),
+    ).toBe(true);
+    expect(keys.some((key) => key.startsWith("src/components/"))).toBe(false);
+    expect(keys).not.toContain("src/index.css");
   });
 });

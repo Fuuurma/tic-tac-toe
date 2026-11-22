@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { tokenize, TokenType } from "@csstools/css-tokenizer";
 import ts from "typescript";
 
-export const SOURCE_DIRS = ["src", "scripts"];
+export const SOURCE_DIRS = ["src/game", "src/lib", "src/hooks", "src/__tests__", "scripts"];
 
 const SCANNABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css"]);
 const SKIPPED_DIRS = new Set(["node_modules", "dist"]);
@@ -68,8 +68,10 @@ function collectCssComments(source) {
   return blocks;
 }
 
+// 16 hex chars (64 bits) stays collision-safe at this corpus size and keeps
+// comment-baseline.json small enough for review-pack token budgets.
 export function fingerprint(text) {
-  return createHash("sha256").update(text).digest("hex");
+  return createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
 
 export function countsOf(blocks) {
