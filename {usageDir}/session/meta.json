@@ -1,0 +1,32 @@
+{
+  "session_id": "a66e788e-4a59-a686-77f6-d8e0c97e92e4",
+  "parent_session_id": null,
+  "start_time": "2026-11-22T14:35:18.533000+00:00",
+  "end_time": "2026-11-22T14:35:19.827000+00:00",
+  "git_commit": null,
+  "git_branch": null,
+  "environment": {
+    "working_directory": "/Users/sergi/.agent-state/sf-peer/worktrees/l_01M81TXGHAR5MZ48F4G2KMGGYT"
+  },
+  "origin_directory": "/Users/sergi/.agent-state/sf-peer/worktrees/l_01M81TXGHAR5MZ48F4G2KMGGYT",
+  "username": "sergi",
+  "child_sessions": [],
+  "loops": [],
+  "title": null,
+  "title_source": "auto",
+  "bumped_at": "2026-11-22T14:35:19.487400+00:00",
+  "pinned_at": null,
+  "archived_at": null,
+  "unseen_at": "2026-11-22T14:35:19.837454+00:00",
+  "seen_at": null,
+  "experiments": null,
+  "config": {
+    "active_model": "zai-glm-5-3-flash",
+    "model_name": "zai-glm-5-3-flash-vibe-free"
+  },
+  "runtime_path": "session_api",
+  "import_provenance": null,
+  "created_worktree": null,
+  "project": null,
+  "artifacts": []
+}
