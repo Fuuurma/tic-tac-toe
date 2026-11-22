@@ -66,7 +66,6 @@ async function fillLobby(
       await page.getByLabel("Room code").fill(options.roomId);
     }
   }
-  // Fill the player name inside the settings sheet.
   await openPlayerSettings(page);
   await page.getByLabel("Your name", { exact: true }).fill(options.name);
   await closePlayerSettings(page);
@@ -765,7 +764,6 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   const hostPage = await host.newPage();
   const guestPage = await guest.newPage();
 
-  // Host creates a private room.
   await fillLobby(hostPage, {
     name: "Host",
     color: "blue",

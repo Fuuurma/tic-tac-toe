@@ -28,11 +28,9 @@ test("quick match pairs two players", async ({ browser }) => {
   const hostPage = await host.newPage();
   const guestPage = await guest.newPage();
 
-  // Host starts a quick match.
   await configureQuickPlayer(hostPage, "Host");
   await hostPage.getByRole("button", { name: "Quick Match" }).click();
 
-  // Guest starts a quick match
   await configureQuickPlayer(guestPage, "Guest");
   await guestPage.setViewportSize({ width: 390, height: 844 });
   await guestPage.getByRole("button", { name: "Quick Match" }).click();
@@ -74,7 +72,6 @@ test("quick match pairs two players", async ({ browser }) => {
     hostPage.getByRole("status").filter({ hasText: "Good luck!" }),
   ).toBeVisible();
 
-  // Host plays top-left
   await hostPage.getByRole("button", { name: "Row 1 column 1" }).click();
   await expect(
     guestPage.getByRole("button", { name: "Row 1 column 1" }),
