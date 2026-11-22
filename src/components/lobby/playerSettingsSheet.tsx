@@ -37,10 +37,6 @@ export interface OpponentSettings {
   aiDifficulty: AI_DifficultyType;
 }
 
-/* ------------------------------------------------------------------ */
-/* Unified settings sheet with tabs                                    */
-/* ------------------------------------------------------------------ */
-
 export type SettingsTab = "player" | "opponent";
 
 interface SettingsSheetProps {
@@ -166,10 +162,6 @@ export function SettingsSheet({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Shared name field                                                   */
-/* ------------------------------------------------------------------ */
-
 // Name fields are typed on phones with a keyboard that should not autocorrect
 // or capitalise every word of a handle. text-field keeps 16px so iOS does not zoom.
 function NameField({
@@ -208,10 +200,6 @@ function NameField({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Player tab content                                                  */
-/* ------------------------------------------------------------------ */
-
 function PlayerTab({
   isOnline,
   value,
@@ -242,10 +230,6 @@ function PlayerTab({
     </>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Opponent tab content                                                */
-/* ------------------------------------------------------------------ */
 
 function OpponentTab({
   value,
@@ -328,10 +312,6 @@ function OpponentTab({
     </>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Summary cards                                                       */
-/* ------------------------------------------------------------------ */
 
 export function PlayerSummaryCard({
   settings,

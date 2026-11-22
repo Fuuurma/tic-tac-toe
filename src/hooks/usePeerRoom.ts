@@ -214,9 +214,6 @@ export function canAcceptRematch(
   return status === "connected" && isRematchIncoming && isRematchEligibleGame(gameState);
 }
 
-/**
- * Clears an active timer ref and resets it to null.
- */
 export function clearTimerRef(
   ref: { current: ReturnType<typeof setTimeout> | number | null },
 ): void {
@@ -226,9 +223,6 @@ export function clearTimerRef(
   }
 }
 
-/**
- * Clears the waiting-for-host timer and nulls its deadline timestamp.
- */
 export function clearWaitingForHost(
   timeoutRef: { current: ReturnType<typeof setTimeout> | null },
   deadlineRef: { current: number | null },
@@ -246,9 +240,6 @@ export interface ResetRoomScopedRefsDeps {
   syncPendingRef: { current: boolean };
 }
 
-/**
- * Resets protocol state refs that belong to a single room session.
- */
 export function resetRoomScopedRefs(deps: ResetRoomScopedRefsDeps): void {
   deps.guestJoinedRef.current = false;
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
@@ -285,9 +276,6 @@ export function teardownActiveRoom(deps: RoomTeardownDeps, reason: string): void
   deps.stopTimer();
 }
 
-/**
- * The facts the turn countdown depends on.
- */
 export interface TurnTimerGate {
   role: PeerRole;
   status: PeerStatus;
@@ -296,9 +284,6 @@ export interface TurnTimerGate {
   gameState: GameState;
 }
 
-/**
- * Predicate determining whether the turn countdown timer should run.
- */
 export function shouldRunTurnTimer(gate: TurnTimerGate): boolean {
   if (gate.role !== "host" && gate.role !== "guest") return false;
   if (gate.status !== "connected") return false;

@@ -6,15 +6,9 @@ import { useEffect, useRef } from "react";
  * the sheet-level Escape-to-close listener never sees an open dropdown's
  * dismissal).
  *
- * Dismissal rides `click`, not `pointerdown`, and that is load-bearing. These
- * panels expand inside a bottom sheet, so closing one reflows the sheet and
- * slides everything above it — on a phone the sheet grows upward from the
- * bottom edge, which moves the sheet's own close button. Collapsing on
- * pointerdown moved that button ~35px before the pointer came back up, so the
- * press and the release landed on different elements and the tap was silently
- * swallowed: tap the ✕ with a picker open and nothing happens, tap again and
- * it closes. One `click` puts the dismissal and whatever the press targeted in
- * the same batch, so the reflow can only land after the tap has resolved.
+ * Dismissal rides `click`, not `pointerdown`, and that is load-bearing — the
+ * reflow-vs-tap story is recorded in
+ * docs/adr/0002-outside-press-dismissal-rides-click.md.
  *
  * A scroll does not dismiss: a drag produces no click, and click is the only
  * listener.

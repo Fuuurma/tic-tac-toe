@@ -236,9 +236,10 @@ describe("comment baseline (real tree)", () => {
     ).toBe(true);
   });
 
-  it("baselines the widened scope: src/components and src/index.css", () => {
+  it("baselines the widened scope: src/components, src/index.css and e2e/", () => {
     const keys = Object.keys(baseline);
     expect(keys.some((key) => key.startsWith("src/components/"))).toBe(true);
     expect(keys).toContain("src/index.css");
+    expect(keys.some((key) => key.startsWith("e2e/"))).toBe(true);
   });
 });

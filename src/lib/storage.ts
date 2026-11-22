@@ -9,10 +9,8 @@
  *   throws from the `window.localStorage` accessor itself — not from a later
  *   read — so the accessor has to be inside the try.
  *
- * This guard was written out byte-identically in four modules (identity,
- * preferences, onboarding, i18n/language). Every caller treats `null` as "do
- * not persist", which is why one shared answer is safe: the difference between
- * the four copies could only ever be a bug in one of them.
+ * The consolidation decision (four byte-identical copies became this one
+ * shared guard) is recorded in docs/adr/0001-shared-localstorage-guard.md.
  */
 export function getBrowserStorage(): Storage | null {
   if (typeof window === "undefined") return null;
