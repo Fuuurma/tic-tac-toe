@@ -13,13 +13,13 @@ const PRECACHE = /*__PRECACHE_MANIFEST__*/ { cache: "ttt-shell-dev", urls: [] };
 const PRECACHE_CACHE_PREFIX = "ttt-shell-";
 const RUNTIME_CACHE = "ttt-runtime";
 const NAVIGATION_FALLBACK = "/index.html";
+const SKIP_WAITING_MESSAGE = "SKIP_WAITING";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(PRECACHE.cache)
-      .then((cache) => cache.addAll(PRECACHE.urls))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(PRECACHE.urls)),
   );
 });
 
@@ -45,6 +45,10 @@ self.addEventListener("activate", (event) => {
       // update indefinitely inside an installed app.
       .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === SKIP_WAITING_MESSAGE) self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {
