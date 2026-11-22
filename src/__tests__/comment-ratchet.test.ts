@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   collectComments,
@@ -9,6 +10,8 @@ import {
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
+  type Baseline,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +213,24 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+describe("baseline freeze", () => {
+  const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+  const baseline = JSON.parse(
+    readFileSync(path.join(repoRoot, "scripts", "comment-baseline.json"), "utf8"),
+  ) as Baseline;
+
+  it("matches the live inventory under the frozen dirs", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("freezes only the core dirs: no src/components or src/index.css keys", () => {
+    for (const key of Object.keys(baseline)) {
+      expect(key.startsWith("src/components/")).toBe(false);
+      expect(key).not.toBe("src/index.css");
+    }
   });
 });
