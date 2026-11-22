@@ -11,6 +11,7 @@ import {
 } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useStrings } from "@/i18n/language";
 import { DRAG_HANDLE_TOUCH_ACTION, useDragToDismiss } from "@/hooks/useDragToDismiss";
 
 // jsdom (and very old browsers) ship no matchMedia — default to the
@@ -72,7 +73,7 @@ export function Sheet({
   open,
   onClose,
   title,
-  closeLabel = "Close",
+  closeLabel,
   children,
   footer,
   size = "full",
@@ -85,6 +86,7 @@ export function Sheet({
   bodyClassName,
   footerClassName,
 }: SheetProps) {
+  const { t } = useStrings();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const titleId = `${useId()}-title`;
@@ -160,7 +162,7 @@ export function Sheet({
     <SheetPanel
       title={title}
       titleId={titleId}
-      closeLabel={closeLabel}
+      closeLabel={closeLabel ?? t("sheet.close")}
       onClose={onClose}
       full={full}
       compactMobile={compactMobile}
