@@ -190,7 +190,7 @@ export const es: Record<StringKey, string> = {
     "Al colocar tu cuarta marca, la más antigua se retira sola. Fíjate en el borde que se mueve: esa es la próxima en salir.",
   "help.tip3.title": "Cómo ganar",
   "help.tip3.body":
-    "Consigue 3 de tus marcas en línea, en fila, columna o diagonal. Las casillas ganadoras se iluminan en verde.",
+    "Consigue 3 de tus marcas en línea, en fila, columna o diagonal. Las casillas ganadoras se iluminan con el color del ganador.",
   "help.tip4.title": "Atajos de teclado",
   "help.tip4.body":
     "Con teclado, pulsa del 1 al 9 para colocar tu marca en la casilla correspondiente. Es de izquierda a derecha y de arriba abajo: el 1 es arriba a la izquierda y el 9 abajo a la derecha.",

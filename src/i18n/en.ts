@@ -189,7 +189,7 @@ export const en = {
     "When you place your 4th mark, the oldest one is automatically removed. Watch the wiggling border. That is the mark that goes next.",
   "help.tip3.title": "Win condition",
   "help.tip3.body":
-    "Get 3 of your marks in a row, column, or diagonal. Winning cells light up emerald green.",
+    "Get 3 of your marks in a row, column, or diagonal. Winning cells light up in the winner's own color.",
   "help.tip4.title": "Keyboard shortcuts",
   "help.tip4.body":
     "On a keyboard, press 1-9 to place your mark on the matching cell. The layout reads left to right, top to bottom: 1 is top-left, 9 is bottom-right.",
