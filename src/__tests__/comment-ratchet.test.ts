@@ -234,7 +234,11 @@ describe("comment baseline (real tree)", () => {
     expect(
       keys.every((key) => SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`))),
     ).toBe(true);
-    expect(keys.some((key) => key.startsWith("src/components/"))).toBe(false);
-    expect(keys).not.toContain("src/index.css");
+  });
+
+  it("baselines the widened scope: src/components and src/index.css", () => {
+    const keys = Object.keys(baseline);
+    expect(keys.some((key) => key.startsWith("src/components/"))).toBe(true);
+    expect(keys).toContain("src/index.css");
   });
 });

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { tokenize, TokenType } from "@csstools/css-tokenizer";
 import ts from "typescript";
 
-export const SOURCE_DIRS = ["src/game", "src/lib", "src/hooks", "src/__tests__", "scripts"];
+export const SOURCE_DIRS = ["src", "scripts"];
 
 const SCANNABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css"]);
 const SKIPPED_DIRS = new Set(["node_modules", "dist"]);
