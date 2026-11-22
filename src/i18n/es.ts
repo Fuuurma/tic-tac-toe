@@ -170,6 +170,7 @@ export const es: Record<StringKey, string> = {
   "game.cardPlayer": "Jugador {symbol}",
   "game.winner": "ganador",
   "game.winsHeadline": "¡{name} gana!",
+  "game.draw": "Es un empate.",
   "game.rematch": "Revancha",
   "game.acceptRematch": "Aceptar revancha",
   "game.declineRematch": "Rechazar revancha",

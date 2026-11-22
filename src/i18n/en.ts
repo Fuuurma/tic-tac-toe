@@ -169,6 +169,7 @@ export const en = {
   "game.cardPlayer": "Player {symbol}",
   "game.winner": "winner",
   "game.winsHeadline": "{name} wins!",
+  "game.draw": "It's a draw.",
   "game.rematch": "Rematch",
   "game.acceptRematch": "Accept rematch",
   "game.declineRematch": "Decline rematch",

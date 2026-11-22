@@ -150,6 +150,7 @@ export function PlayersPanel({
   const winnerColor = gameState.winner ? gameState.players[gameState.winner].color : null;
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
+  const isTerminal = isGameOver && gameState.gameStatus !== GameStatus.WAITING;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? t("game.leave") : t("game.exit");
 
@@ -299,16 +300,27 @@ export function PlayersPanel({
         aiDifficulty={aiDifficulty}
       />
 
-      {!isActive && gameState.winner && (
+      {isTerminal && (
         <div className="relative z-10 mt-3 max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3">
-          <GameEndActions
-            headline={t("game.winsHeadline", { name: gameState.players[gameState.winner].username || t("game.playerFallback") })}
-            message={message}
-            onAcceptRematch={onAcceptRematch}
-            onDeclineRematch={onDeclineRematch}
-            onCancelRematch={onCancelRematch}
-            onRequestRematch={onRequestRematch}
-          />
+          {gameState.winner ? (
+            <GameEndActions
+              headline={t("game.winsHeadline", { name: gameState.players[gameState.winner].username || t("game.playerFallback") })}
+              message={message}
+              onAcceptRematch={onAcceptRematch}
+              onDeclineRematch={onDeclineRematch}
+              onCancelRematch={onCancelRematch}
+              onRequestRematch={onRequestRematch}
+            />
+          ) : (
+            <GameEndActions
+              headline={t("game.draw")}
+              message={message}
+              onAcceptRematch={onAcceptRematch}
+              onDeclineRematch={onDeclineRematch}
+              onCancelRematch={onCancelRematch}
+              onRequestRematch={onRequestRematch}
+            />
+          )}
         </div>
       )}
 
