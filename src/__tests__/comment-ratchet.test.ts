@@ -1,14 +1,16 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  type Baseline,
   collectComments,
   compareBaseline,
   countsOf,
   fingerprint,
   inventoryAt,
   serializeBaseline,
+  SOURCE_DIRS,
 } from "../../scripts/check-comments.mjs";
 
 /**
@@ -210,5 +212,40 @@ describe("serializeBaseline", () => {
     expect(Object.keys(parsed)).toEqual(["a.ts", "b.js"]);
     expect(Object.keys(parsed["a.ts"])).toEqual(["aaa", "ccc"]);
     expect(first).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+  });
+});
+
+/**
+ * Real-tree pin: the committed baseline must equal the live inventory of the
+ * frozen dirs and must not reach outside them. The baseline is regenerated
+ * with `node scripts/check-comments.mjs --update-baseline` after intentional
+ * comment changes; until the CLI is wired into lint, this suite is the gate.
+ */
+describe("comment-baseline freeze", () => {
+  const repoRoot = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "..",
+    "..",
+  );
+  const baseline = JSON.parse(
+    readFileSync(
+      path.join(repoRoot, "scripts", "comment-baseline.json"),
+      "utf8",
+    ),
+  ) as Baseline;
+
+  it("matches the live inventory: no new or changed comments", () => {
+    const actual = inventoryAt(repoRoot, SOURCE_DIRS);
+    expect(compareBaseline(baseline, actual).added).toEqual([]);
+  });
+
+  it("covers only the frozen core directories", () => {
+    const keys = Object.keys(baseline);
+    expect(keys.some((key) => key.startsWith("src/components/"))).toBe(false);
+    expect(keys).not.toContain("src/index.css");
+    const outside = keys.filter(
+      (key) => !SOURCE_DIRS.some((dir) => key.startsWith(`${dir}/`)),
+    );
+    expect(outside).toEqual([]);
   });
 });
