@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { OnlineGameSurface } from "./onlineGameSurface";
 import { freshGameState, type GameState } from "@/game/logic";
 import {
@@ -623,6 +630,53 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
       expect(share).toHaveBeenCalledWith(
         expect.objectContaining({ url: `${window.location.origin}/?room=FRIDAY-9` }),
       );
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+    }
+  });
+
+  it("offers Copy link when the share sheet fails", async () => {
+    const share = vi.fn().mockRejectedValue(
+      new DOMException("Share denied", "NotAllowedError"),
+    );
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    const writeText = stubClipboard();
+    try {
+      startWarmup();
+
+      fireEvent.click(screen.getByRole("button", { name: "Share" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Copy link" }));
+
+      await vi.waitFor(() =>
+        expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?room=FRIDAY-9`),
+      );
+      await screen.findByText("Copied");
+
+      screen.getByText("Waiting for an opponent");
+      screen.getByRole("button", { name: "Close room" });
+      const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
+      expect(cell.getAttribute("aria-label")).not.toMatch(/paused/i);
+    } finally {
+      Reflect.deleteProperty(navigator, "share");
+    }
+  });
+
+  it("keeps Share when the player dismisses the share sheet", async () => {
+    const share = vi.fn().mockRejectedValue(
+      new DOMException("Share dismissed", "AbortError"),
+    );
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    const writeText = stubClipboard();
+    try {
+      startWarmup();
+      fireEvent.click(screen.getByRole("button", { name: "Share" }));
+
+      await vi.waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+
+      screen.getByRole("button", { name: "Share" });
+      expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
+      expect(writeText).not.toHaveBeenCalled();
     } finally {
       Reflect.deleteProperty(navigator, "share");
     }

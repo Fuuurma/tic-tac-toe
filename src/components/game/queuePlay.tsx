@@ -106,6 +106,15 @@ export interface StripInvite {
   shareText: string;
 }
 
+function isShareDismissal(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
 /**
  * Share on a phone, copy anywhere else. Its result is the strip's detail
  * line for a moment, so the confirmation is announced without a second live
@@ -119,14 +128,17 @@ function InviteAction({
   onFlash: (flash: "copied" | "failed" | null) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const offerShare = canShare && !shareFailed;
 
   const run = async () => {
-    if (canShare) {
+    if (offerShare) {
       try {
         await navigator.share({ title: invite.shareTitle, text: invite.shareText, url: invite.url });
-      } catch {
+      } catch (error) {
         // Dismissing the native share sheet is not an error.
+        if (!isShareDismissal(error)) setShareFailed(true);
       }
       return;
     }
@@ -143,14 +155,14 @@ function InviteAction({
     }, COPY_FLASH_MS);
   };
 
-  const Icon = canShare ? Share2 : copied ? Check : Link2;
+  const Icon = offerShare ? Share2 : copied ? Check : Link2;
   return (
     <Button size="sm" variant="glass" onClick={run} className="shrink-0 max-sm:h-12">
       <Icon
         className={cn("size-3.5", copied && "text-emerald-500")}
         aria-hidden="true"
       />
-      {canShare ? t("online.share") : copied ? t("queue.copiedShort") : t("queue.copyShort")}
+      {offerShare ? t("online.share") : copied ? t("queue.copiedShort") : t("queue.copyShort")}
     </Button>
   );
 }
