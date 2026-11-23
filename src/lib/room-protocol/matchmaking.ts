@@ -9,6 +9,7 @@ import {
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
+import { reportError } from "@/lib/errorReporting";
 import { t } from "@/i18n/language";
 import type { PeerRoomState } from "./state";
 
@@ -75,7 +76,10 @@ export function abandonTicket(
   if (ticket) {
     deps.matchmakingTicketRef.current = null;
     leaveMatch(GAME_ID, ticket).catch((err) => {
-      console.error(`Matchmaking leave failed ${label}:`, (err as Error).message);
+      reportError(err, {
+        source: "matchmaking.leave",
+        detail: `Matchmaking leave failed ${label}: ${(err as Error).message}`,
+      });
     });
   }
 }
@@ -120,7 +124,10 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
-        console.error("Matchmaking leave failed on unload:", (err as Error).message);
+        reportError(err, {
+          source: "matchmaking.leaveUnload",
+          detail: `Matchmaking leave failed on unload: ${(err as Error).message}`,
+        });
       });
     }
   };
@@ -147,7 +154,10 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // for a retired attempt; release the ticket this attempt obtained.
       if (response.status === "waiting") {
         leaveMatch(GAME_ID, response.ticket, undefined, { keepalive: true }).catch((err) => {
-          console.error("Matchmaking leave failed after cancel:", (err as Error).message);
+          reportError(err, {
+            source: "matchmaking.leaveCancel",
+            detail: `Matchmaking leave failed after cancel: ${(err as Error).message}`,
+          });
         });
       }
       return;
@@ -207,10 +217,10 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           // failures and keep backing off; bail only when the service
           // is persistently unreachable.
           consecutiveFailures += 1;
-          console.warn(
-            `Matchmaking poll failed (${consecutiveFailures}):`,
-            (err as Error).message,
-          );
+          reportError(err, {
+            source: "matchmaking.poll",
+            detail: `Matchmaking poll failed (${consecutiveFailures}): ${(err as Error).message}`,
+          });
           if (consecutiveFailures >= 5) throw err;
         }
         const delay = getMatchPollDelay(pollAttempt);
