@@ -29,6 +29,7 @@ import {
   type PeerStatus,
 } from "@/hooks/usePeerRoom";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
+import { useDeviceOnline } from "@/hooks/useDeviceOnline";
 import { useGameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
 import { loadPreferences, savePreferences } from "@/lib/preferences";
@@ -70,6 +71,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   });
   const isQuick = config.onlineAction === "quick";
   const isCreate = config.onlineAction === "create";
+  const deviceOnline = useDeviceOnline();
   // Only the searching state needs the live count, and only Quick Match has
   // a searching state worth watching. `queue` says "still in line"; `status`
   // cannot, since a paired host building its room holds `creating` too.
@@ -101,6 +103,17 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       leave();
     };
   }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, leave]);
+
+  const wasOfflineRef = useRef(!deviceOnline);
+  const retryReconnect = peer.retryReconnect;
+  const peerStatus = peer.state.status;
+  useEffect(() => {
+    const wasOffline = wasOfflineRef.current;
+    wasOfflineRef.current = !deviceOnline;
+    if (!deviceOnline || !wasOffline) return;
+    if (peerStatus !== "reconnecting" && peerStatus !== "disconnected") return;
+    retryReconnect();
+  }, [deviceOnline, peerStatus, retryReconnect]);
 
   useRecordOnlineResult(peer);
 
@@ -235,6 +248,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         />
         <ReconnectingBanner
           peer={peer}
+          deviceOnline={deviceOnline}
           preGame={preGameRoom}
           warmupVisible={warmupVisible}
           onExit={leaveAndExit}
@@ -247,7 +261,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         />
         <DisconnectedBanner
           peer={peer}
-          preGame={preGameRoom}
+          deviceOnline={deviceOnline}
           warmupVisible={warmupVisible}
           onExit={onExit}
         />
@@ -745,11 +759,13 @@ function RoomConnectingBanner({
 
 function ReconnectingBanner({
   peer,
+  deviceOnline,
   preGame,
   warmupVisible,
   onExit,
 }: {
   peer: PeerRoom;
+  deviceOnline: boolean;
   preGame: boolean;
   warmupVisible: boolean;
   onExit: () => void;
@@ -764,7 +780,9 @@ function ReconnectingBanner({
     >
       <span className="inline-flex items-center gap-1.5 text-xs font-medium">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        {peer.state.message || t("online.reconnecting")}
+        {deviceOnline
+          ? peer.state.message || t("online.reconnecting")
+          : t("lobby.onlineOffline")}
       </span>
       <span className="text-[11px] text-muted-foreground max-sm:text-xs">
         {t("online.roomOpen")}
@@ -774,6 +792,8 @@ function ReconnectingBanner({
           size="sm"
           variant="glass"
           onClick={() => peer.retryReconnect()}
+          disabled={!deviceOnline}
+          aria-disabled={!deviceOnline}
           className="w-full sm:w-auto max-sm:h-12"
         >
           {t("online.retry")}
@@ -841,19 +861,17 @@ function ConnectionErrorBanner({
 
 function DisconnectedBanner({
   peer,
-  preGame,
+  deviceOnline,
   warmupVisible,
   onExit,
 }: {
   peer: PeerRoom;
-  preGame: boolean;
+  deviceOnline: boolean;
   warmupVisible: boolean;
   onExit: () => void;
 }) {
-  const reason = peer.state.message || (preGame ? t("mm.disconnected") : "");
-  if (peer.state.status !== "disconnected" || !reason || warmupVisible) {
-    return null;
-  }
+  if (peer.state.status !== "disconnected" || warmupVisible) return null;
+  const reason = peer.state.message || t("mm.disconnected");
   return (
     <div
       role="status"
@@ -863,14 +881,26 @@ function DisconnectedBanner({
       <span className="text-xs font-medium text-amber-950 dark:text-amber-50">
         {reason}
       </span>
-      <Button
-        size="sm"
-        variant="glass"
-        onClick={onExit}
-        className="w-full sm:w-auto max-sm:h-12"
-      >
-        {t("online.backSetup")}
-      </Button>
+      <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={() => peer.retryReconnect()}
+          disabled={!deviceOnline}
+          aria-disabled={!deviceOnline}
+          className="w-full sm:w-auto max-sm:h-12"
+        >
+          {t("online.retry")}
+        </Button>
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={onExit}
+          className="w-full sm:w-auto max-sm:h-12"
+        >
+          {t("online.backSetup")}
+        </Button>
+      </div>
     </div>
   );
 }
