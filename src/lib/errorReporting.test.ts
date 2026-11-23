@@ -31,6 +31,7 @@ describe("error reporting", () => {
     expect(reportError).toHaveBeenCalledWith(error, {
       componentStack: "at <Board>",
     });
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it("routes global errors and unhandled rejections through reportError once", () => {

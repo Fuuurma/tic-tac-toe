@@ -8,6 +8,7 @@ import {
   TicketExpiredError,
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
+import { reportError } from "@/lib/errorReporting";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
 import { t } from "@/i18n/language";
 import type { PeerRoomState } from "./state";
@@ -57,6 +58,10 @@ const MAX_POLL_MS = 120_000;
  */
 const liveAttempts = new WeakMap<object, symbol>();
 
+function reportLeaveFailure(error: unknown, label: string): void {
+  reportError(error, { source: "matchmaking.leave", label });
+}
+
 /**
  * Fire-and-forget ticket cancellation. Logs (doesn't swallow) a
  * rejection: a silent `.catch(() => {})` here would hide a real
@@ -75,7 +80,7 @@ export function abandonTicket(
   if (ticket) {
     deps.matchmakingTicketRef.current = null;
     leaveMatch(GAME_ID, ticket).catch((err) => {
-      console.error(`Matchmaking leave failed ${label}:`, (err as Error).message);
+      reportLeaveFailure(err, label);
     });
   }
 }
@@ -120,7 +125,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
-        console.error("Matchmaking leave failed on unload:", (err as Error).message);
+        reportLeaveFailure(err, "on unload");
       });
     }
   };
@@ -147,7 +152,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // for a retired attempt; release the ticket this attempt obtained.
       if (response.status === "waiting") {
         leaveMatch(GAME_ID, response.ticket, undefined, { keepalive: true }).catch((err) => {
-          console.error("Matchmaking leave failed after cancel:", (err as Error).message);
+          reportLeaveFailure(err, "after cancel");
         });
       }
       return;

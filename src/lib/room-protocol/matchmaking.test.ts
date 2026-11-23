@@ -7,6 +7,7 @@ import {
   pollMatch,
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
+import { reportError } from "@/lib/errorReporting";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/matchmaking")>();
@@ -25,10 +26,13 @@ vi.mock("@/lib/identity", () => ({
   getOrCreateGuestIdentity: vi.fn(() => ({ guestId: "guest-1" })),
 }));
 
+vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
+
 const mockedFindMatch = vi.mocked(findMatch);
 const mockedPollMatch = vi.mocked(pollMatch);
 const mockedLeaveMatch = vi.mocked(leaveMatch);
 const mockedBuildRoomWsUrl = vi.mocked(buildRoomWsUrl);
+const mockedReportError = vi.mocked(reportError);
 
 function makeMatch(overrides: { roomId: string; wsUrl?: string; role?: "host" | "guest" }) {
   return {
@@ -637,5 +641,81 @@ describe("runQuickMatch queue stage", () => {
     expect(patches(deps).at(-1)).toMatchObject({ status: "error", queue: "none" });
     finishPoll();
     await attempt;
+  });
+});
+
+describe("single error reporter (fire-and-forget leaves)", () => {
+  it("reports a failed abandonTicket leave with the caller label", async () => {
+    const { deps, matchmakingTicketRef } = makeDeps();
+    matchmakingTicketRef.current = "t1";
+    const error = new Error("leave failed");
+    mockedLeaveMatch.mockRejectedValueOnce(error);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    abandonTicket(deps, "test");
+
+    await vi.waitFor(() =>
+      expect(mockedReportError).toHaveBeenCalledWith(error, {
+        source: "matchmaking.leave",
+        label: "test",
+      }),
+    );
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed pagehide keepalive leave with the unload label", async () => {
+    const page = new EventTarget();
+    vi.stubGlobal("window", page);
+    const { deps } = makeDeps({ maxPollMs: 60_000 });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    const error = new Error("leave failed");
+    mockedLeaveMatch.mockRejectedValueOnce(error);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    let finishPoll!: () => void;
+    mockedPollMatch.mockImplementation(
+      () => new Promise((resolve) => {
+        finishPoll = () => resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+      }),
+    );
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledTimes(1));
+    page.dispatchEvent(new Event("pagehide"));
+
+    await vi.waitFor(() =>
+      expect(mockedReportError).toHaveBeenCalledWith(error, {
+        source: "matchmaking.leave",
+        label: "on unload",
+      }),
+    );
+
+    finishPoll();
+    await attempt;
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed late-ticket leave after cancellation", async () => {
+    const { deps, hasStartedRef } = makeDeps();
+    const join = deferred<MatchmakingResponse>();
+    mockedFindMatch.mockReturnValue(join.promise);
+    const error = new Error("leave failed");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedFindMatch).toHaveBeenCalledTimes(1));
+
+    cancelLikeLeave(deps, hasStartedRef);
+    mockedLeaveMatch.mockRejectedValueOnce(error);
+    join.resolve({ status: "waiting", ticket: "late-ticket", roomId: "r1" });
+    await attempt;
+
+    await vi.waitFor(() =>
+      expect(mockedReportError).toHaveBeenCalledWith(error, {
+        source: "matchmaking.leave",
+        label: "after cancel",
+      }),
+    );
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });
