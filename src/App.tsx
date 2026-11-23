@@ -46,11 +46,13 @@ export default function App() {
   );
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
   const [config, setConfig] = useState<GameSetup | null>(null);
+  const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(null);
 
   const handleStart = (payload: LobbyFormPayload) => {
     // `LobbyFormPayload` IS `GameSetup`, so there is nothing to copy across —
     // the eleven-field copy that used to live here is what let the two
     // declarations drift apart.
+    setLastOnlineSetup(payload.gameMode === GameModes.ONLINE ? payload : null);
     setConfig(payload);
     setView("game");
     if (payload.onlineRoomId && typeof window !== "undefined") {
@@ -83,6 +85,7 @@ export default function App() {
         {view === "lobby" && (
           <LobbyForm
             initialRoomId={initialRoomId}
+            initialOnlineSetup={lastOnlineSetup}
             onStart={handleStart}
             onReplayTutorial={() => {
               setOnboardingMode("replay");

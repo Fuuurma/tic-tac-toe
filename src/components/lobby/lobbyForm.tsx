@@ -63,8 +63,11 @@ import { pickerTileClass } from "@/lib/pickerClasses";
  *  declaration here, and App copied all eleven fields across by hand). */
 export type LobbyFormPayload = GameSetup;
 
+type OnlineSetupDraft = Pick<GameSetup, "gameMode" | "onlineAction" | "onlineRoomId">;
+
 interface LobbyFormProps {
   initialRoomId?: string;
+  initialOnlineSetup?: OnlineSetupDraft | null;
   onStart: (payload: LobbyFormPayload) => void;
   onReplayTutorial?: () => void;
 }
@@ -221,9 +224,10 @@ const lobbyStartGate = ({
   return { onlineUnavailable, startDisabled, startTitle, roomFieldError, startReason };
 };
 
-export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: LobbyFormProps) {
+export function LobbyForm({ initialRoomId = "", initialOnlineSetup, onStart, onReplayTutorial }: LobbyFormProps) {
   // Subscribes so a language switch re-renders the whole form.
   useStrings();
+  const onlineDraft = initialOnlineSetup?.gameMode === GameModes.ONLINE ? initialOnlineSetup : null;
   const {
     displayName,
     color,
@@ -242,7 +246,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     playerCount,
     serverDown,
     online,
-  } = useLobbyPlayers(initialRoomId);
+  } = useLobbyPlayers(initialRoomId, onlineDraft);
   const {
     onlineRoomId,
     setOnlineRoomId,
@@ -251,7 +255,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     actionDeadReason,
     chooseOnlineAction,
     quickMatchReason,
-  } = useOnlineMatch(initialRoomId);
+  } = useOnlineMatch(initialRoomId, onlineDraft);
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("player");
@@ -459,7 +463,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
   );
 }
 
-function useLobbyPlayers(initialRoomId: string) {
+function useLobbyPlayers(initialRoomId: string, onlineDraft: OnlineSetupDraft | null) {
   // Appearance + opponent picks persist across sessions (tic-tac-toe:preferences).
   const [initialPrefs] = useState(loadPreferences);
   const [displayName, setDisplayName] = useState<string>(
@@ -469,7 +473,7 @@ function useLobbyPlayers(initialRoomId: string) {
   const [playerShape, setPlayerShape] = useState<SymbolShape>(() => initialPlayerShape(initialPrefs));
   const [opponentColor, setOpponentColor] = useState<Color>(() => initialOpponentColor(initialPrefs));
   const [opponentShape, setOpponentShape] = useState<SymbolShape>(() => initialOpponentShape(initialPrefs));
-  const [gameMode, setGameMode] = useState<GameMode>(() => initialGameMode(initialRoomId));
+  const [gameMode, setGameMode] = useState<GameMode>(() => onlineDraft?.gameMode ?? initialGameMode(initialRoomId));
   const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(() => initialAI_Difficulty(initialPrefs));
   const [opponentName, setOpponentName] = useState<string>(() => initialOpponentName(initialPrefs));
 
@@ -583,15 +587,15 @@ function useLobbyPlayers(initialRoomId: string) {
   };
 }
 
-function useOnlineMatch(initialRoomId: string) {
-  const [onlineRoomId, setOnlineRoomId] = useState<string>(initialRoomId);
+function useOnlineMatch(initialRoomId: string, onlineDraft: OnlineSetupDraft | null) {
+  const [onlineRoomId, setOnlineRoomId] = useState<string>(onlineDraft?.onlineRoomId ?? initialRoomId);
   // Which dead match-type tile the visitor tapped: its reason shows on
   // demand. Picking a live action clears it.
   const [explainedAction, setExplainedAction] = useState<TurnAction | null>(
     null,
   );
   const [onlineAction, setOnlineAction] = useState<TurnAction>(() =>
-    initialOnlineAction(initialRoomId),
+    onlineDraft?.onlineAction ?? initialOnlineAction(initialRoomId),
   );
 
   const quickMatchReason = quickMatchBlockReason();
