@@ -784,6 +784,149 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
   });
 });
 
+describe("OnlineGameSurface private room before the first round", () => {
+  const preGame = (): GameState => ({
+    ...freshGameState(),
+    gameMode: GameModes.ONLINE,
+  });
+  const startedGame = (): GameState => ({
+    ...freshGameState(),
+    gameMode: GameModes.ONLINE,
+    gameStatus: GameStatus.ACTIVE,
+  });
+  const createConfig = { ...config, onlineAction: "create" as const };
+
+  const expectNoGameArea = () => {
+    expect(screen.queryByRole("button", { name: /Row 1 column 1/ })).toBeNull();
+    expect(screen.queryByRole("toolbar", { name: "Game actions" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mute reactions" })).toBeNull();
+  };
+
+  it("keeps a created room's reconnect on screen, with Retry and a way out", () => {
+    const onExit = vi.fn();
+    const peer = makePeer("host", {
+      status: "reconnecting",
+      roomId: "FRIDAY-9",
+      message: "Socket dropped",
+      gameState: preGame(),
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(<OnlineGameSurface config={createConfig} onExit={onExit} />);
+
+    expectNoGameArea();
+    screen.getByText("Socket dropped");
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry now" }));
+    expect(peer.retryReconnect).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a created room's disconnect on screen with its reason", () => {
+    const onExit = vi.fn();
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", {
+        status: "disconnected",
+        roomId: "FRIDAY-9",
+        message: "Opponent left the room",
+        gameState: preGame(),
+      }),
+    );
+    render(<OnlineGameSurface config={createConfig} onExit={onExit} />);
+
+    expectNoGameArea();
+    screen.getByText("Opponent left the room");
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a joined room's reconnect on screen, with Retry and a way out", () => {
+    const onExit = vi.fn();
+    const peer = makePeer("guest", {
+      status: "reconnecting",
+      message: "Socket dropped",
+      gameState: preGame(),
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(<OnlineGameSurface config={config} onExit={onExit} />);
+
+    expectNoGameArea();
+    screen.getByText("Socket dropped");
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry now" }));
+    expect(peer.retryReconnect).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a joined room's disconnect on screen, falling back to the disconnected copy", () => {
+    const onExit = vi.fn();
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", {
+        status: "disconnected",
+        message: "",
+        gameState: preGame(),
+      }),
+    );
+    render(<OnlineGameSurface config={config} onExit={onExit} />);
+
+    expectNoGameArea();
+    screen.getByText("Disconnected");
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a started round's board on screen, cells disabled, through a reconnect", () => {
+    for (const [role, surfaceConfig] of [
+      ["host", createConfig],
+      ["guest", config],
+    ] as const) {
+      mocks.usePeerRoom.mockReturnValue(
+        makePeer(role, {
+          status: "reconnecting",
+          message: "Socket dropped",
+          gameState: startedGame(),
+        }),
+      );
+      const view = render(
+        <OnlineGameSurface config={surfaceConfig} onExit={vi.fn()} />,
+      );
+
+      const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
+      expect((cell as HTMLButtonElement).disabled).toBe(true);
+      screen.getByRole("toolbar", { name: "Game actions" });
+      expect(
+        screen.queryByRole("button", { name: "Back to setup" }),
+      ).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("leaves Quick Match's presentation alone through the same blip", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", {
+        status: "reconnecting",
+        queue: "matched",
+        message: "Socket dropped",
+        gameState: preGame(),
+      }),
+    );
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "quick" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
+    expect((cell as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
 describe("OnlineGameSurface reactions picker stacking", () => {
   // The picker's dropdown is `absolute z-50`, but z-index competes inside
   // the nearest stacking context — the reactions row's own `relative z-*`.

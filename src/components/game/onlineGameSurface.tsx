@@ -123,9 +123,15 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // replaces it (phase turns null once the match connects).
   const [warmupOpen, setWarmupOpen] = useState(false);
   const warmupVisible = warmupOpen && phase !== null;
+  const preGameRoom =
+    !isQuick && peer.state.gameState.gameStatus === GameStatus.WAITING;
+  const preGameRecovery =
+    preGameRoom &&
+    (peer.state.status === "reconnecting" ||
+      peer.state.status === "disconnected");
   // A host's room can blip into `reconnecting` while the warm-up is on
   // screen; the empty online board must not appear beside it.
-  const showGame = gameStatusShowsGame && !warmupVisible;
+  const showGame = gameStatusShowsGame && !warmupVisible && !preGameRecovery;
   const [warmupDifficulty, setWarmupDifficulty] = useState<AI_DifficultyType>(
     () => loadPreferences().aiDifficulty ?? AI_Difficulty.NORMAL,
   );
@@ -227,7 +233,12 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           warmupVisible={warmupVisible}
           onCancel={leaveAndExit}
         />
-        <ReconnectingBanner peer={peer} />
+        <ReconnectingBanner
+          peer={peer}
+          preGame={preGameRoom}
+          warmupVisible={warmupVisible}
+          onExit={leaveAndExit}
+        />
         <ConnectionErrorBanner
           peer={peer}
           warmupVisible={warmupVisible}
@@ -236,6 +247,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         />
         <DisconnectedBanner
           peer={peer}
+          preGame={preGameRoom}
           warmupVisible={warmupVisible}
           onExit={onExit}
         />
@@ -731,8 +743,19 @@ function RoomConnectingBanner({
   );
 }
 
-function ReconnectingBanner({ peer }: { peer: PeerRoom }) {
+function ReconnectingBanner({
+  peer,
+  preGame,
+  warmupVisible,
+  onExit,
+}: {
+  peer: PeerRoom;
+  preGame: boolean;
+  warmupVisible: boolean;
+  onExit: () => void;
+}) {
   if (peer.state.status !== "reconnecting") return null;
+  const showExit = preGame && !warmupVisible;
   return (
     <div
       role="status"
@@ -746,14 +769,26 @@ function ReconnectingBanner({ peer }: { peer: PeerRoom }) {
       <span className="text-[11px] text-muted-foreground max-sm:text-xs">
         {t("online.roomOpen")}
       </span>
-      <Button
-        size="sm"
-        variant="glass"
-        onClick={() => peer.retryReconnect()}
-        className="w-full sm:w-auto max-sm:h-12"
-      >
-        {t("online.retry")}
-      </Button>
+      <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
+        <Button
+          size="sm"
+          variant="glass"
+          onClick={() => peer.retryReconnect()}
+          className="w-full sm:w-auto max-sm:h-12"
+        >
+          {t("online.retry")}
+        </Button>
+        {showExit && (
+          <Button
+            size="sm"
+            variant="glass"
+            onClick={onExit}
+            className="w-full sm:w-auto max-sm:h-12"
+          >
+            {t("online.backSetup")}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -806,18 +841,17 @@ function ConnectionErrorBanner({
 
 function DisconnectedBanner({
   peer,
+  preGame,
   warmupVisible,
   onExit,
 }: {
   peer: PeerRoom;
+  preGame: boolean;
   warmupVisible: boolean;
   onExit: () => void;
 }) {
-  if (
-    peer.state.status !== "disconnected" ||
-    !peer.state.message ||
-    warmupVisible
-  ) {
+  const reason = peer.state.message || (preGame ? t("mm.disconnected") : "");
+  if (peer.state.status !== "disconnected" || !reason || warmupVisible) {
     return null;
   }
   return (
@@ -827,7 +861,7 @@ function DisconnectedBanner({
       className="glass flex w-full flex-col items-center gap-2 border-amber-500/40 bg-amber-500/15 px-3 py-2"
     >
       <span className="text-xs font-medium text-amber-950 dark:text-amber-50">
-        {peer.state.message}
+        {reason}
       </span>
       <Button
         size="sm"
