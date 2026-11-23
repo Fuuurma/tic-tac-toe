@@ -14,6 +14,9 @@ export const en = {
   "app.boardWaitingComputer": "waiting for the computer to move",
   "app.boardGameOver": "game is over",
 
+  "update.available": "Update available",
+  "update.reload": "Reload",
+
   "board.name": "Tic Tac Toe game board",
   "board.emptyCell": "Row {row} column {col}, empty",
   "board.emptyCellReason": "Row {row} column {col}, empty, {reason}",

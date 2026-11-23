@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "@/App";
 import { ErrorBoundary } from "@/components/errorBoundary";
+import { UpdatePrompt } from "@/components/updatePrompt";
+import { notifyUpdateAvailable } from "@/components/updatePromptStore";
 import { initLocale } from "@/i18n/language";
 import { installGlobalErrorHandlers } from "@/lib/errorReporting";
 import { registerServiceWorker } from "@/lib/serviceWorker";
@@ -10,7 +12,7 @@ import "@fontsource-variable/source-sans-3";
 import "@/index.css";
 
 installGlobalErrorHandlers();
-registerServiceWorker();
+registerServiceWorker({ onUpdateAvailable: notifyUpdateAvailable });
 // Saved language (or the browser's, for Spanish-first visitors) before
 // anything renders, so the first paint is already in the right language.
 initLocale();
@@ -23,5 +25,6 @@ createRoot(container).render(
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
+    <UpdatePrompt />
   </StrictMode>,
 );

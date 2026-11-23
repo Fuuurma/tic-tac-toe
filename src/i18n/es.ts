@@ -12,6 +12,9 @@ export const es: Record<StringKey, string> = {
   "app.boardWaitingComputer": "esperando a que mueva el ordenador",
   "app.boardGameOver": "la partida ha terminado",
 
+  "update.available": "Actualización disponible",
+  "update.reload": "Recargar",
+
   "board.name": "Tablero de tres en raya",
   "board.emptyCell": "Fila {row}, columna {col}, vacía",
   "board.emptyCellReason": "Fila {row}, columna {col}, vacía, {reason}",
