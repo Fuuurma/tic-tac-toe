@@ -136,3 +136,20 @@ export function useInstallPrompt(): {
 export function resetInstallPromptForTests(): void {
   active.reset();
 }
+
+export function isIosPlatform(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+export function isStandaloneDisplay(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia(
+    "(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)",
+  ).matches;
+}

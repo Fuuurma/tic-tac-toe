@@ -4,7 +4,12 @@ import { Sheet } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "./languageSwitcher";
 import { ThemeSegmented } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
-import { useInstallPrompt } from "@/lib/installPrompt";
+import {
+  isIosPlatform,
+  isStandaloneDisplay,
+  useInstallPrompt,
+} from "@/lib/installPrompt";
+import { IosInstallGuidance } from "./installGuidance";
 
 /**
  * App preferences: the settings that are not about who is playing.
@@ -37,6 +42,10 @@ export function PreferencesSheet({
   // The browser decides whether an install is on offer; the row exists only
   // while it does (never on iOS, which has no beforeinstallprompt).
   const { state: installState, promptInstall } = useInstallPrompt();
+  const showIosGuidance =
+    installState === "unavailable" &&
+    isIosPlatform() &&
+    !isStandaloneDisplay();
 
   return (
     <Sheet
@@ -63,18 +72,22 @@ export function PreferencesSheet({
               <LinkRow label={t("help.replay")} onClick={onReplayTutorial} />
             )}
           </Group>
-          {installState === "available" && (
+          {(installState === "available" || showIosGuidance) && (
             <Group label={t("settings.app")}>
-              <LinkRow
-                label={t("settings.installApp")}
-                icon={
-                  <Download
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                }
-                onClick={() => void promptInstall()}
-              />
+              {installState === "available" ? (
+                <LinkRow
+                  label={t("settings.installApp")}
+                  icon={
+                    <Download
+                      className="size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={() => void promptInstall()}
+                />
+              ) : (
+                <IosInstallGuidance />
+              )}
             </Group>
           )}
         </div>
