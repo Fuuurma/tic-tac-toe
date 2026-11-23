@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AI_Difficulty,
   GameModes,
@@ -34,6 +34,16 @@ export interface GameStats {
   currentWinStreak: number;
   bestWinStreak: number;
   breakdown: StatsBreakdown;
+}
+
+interface PendingOutcome {
+  key: string;
+  won: boolean;
+}
+
+interface StatsRecorder {
+  durable: GameStats;
+  pending: PendingOutcome[];
 }
 
 const DEFAULT_BUCKET: StatsBucket = { wins: 0, losses: 0 };
@@ -79,11 +89,10 @@ const readBreakdown = (raw: unknown): StatsBreakdown => {
   return breakdown;
 };
 
-export const readStats = (guestId: string): GameStats => {
-  if (typeof window === "undefined") return DEFAULT_STATS;
+const readStoredStats = (guestId: string): GameStats => {
+  const raw = window.localStorage.getItem(storageKey(guestId));
+  if (!raw) return DEFAULT_STATS;
   try {
-    const raw = window.localStorage.getItem(storageKey(guestId));
-    if (!raw) return DEFAULT_STATS;
     const parsed = JSON.parse(raw) as Partial<GameStats>;
     return {
       totalGames: isFiniteNonNegative(parsed.totalGames) ? parsed.totalGames : DEFAULT_STATS.totalGames,
@@ -99,12 +108,22 @@ export const readStats = (guestId: string): GameStats => {
   }
 };
 
-const writeStats = (guestId: string, stats: GameStats): void => {
-  if (typeof window === "undefined") return;
+export const readStats = (guestId: string): GameStats => {
+  if (typeof window === "undefined") return DEFAULT_STATS;
+  try {
+    return readStoredStats(guestId);
+  } catch {
+    return DEFAULT_STATS;
+  }
+};
+
+const writeStats = (guestId: string, stats: GameStats): boolean => {
+  if (typeof window === "undefined") return true;
   try {
     window.localStorage.setItem(storageKey(guestId), JSON.stringify(stats));
+    return true;
   } catch {
-    // QuotaExceededError — stats will be lost but game continues
+    return false;
   }
 };
 
@@ -144,9 +163,23 @@ export const applyGame = (
   };
 };
 
+const applyPending = (
+  durable: GameStats,
+  pending: PendingOutcome[],
+): GameStats =>
+  pending.reduce(
+    (stats, outcome) => applyGame(stats, outcome.key, outcome.won),
+    durable,
+  );
+
 export function useGameStats() {
   const [guestId] = useState<string>(() => getOrCreateGuestIdentity().guestId);
-  const [stats, setStats] = useState<GameStats>(() => readStats(guestId));
+  const [initialStats] = useState<GameStats>(() => readStats(guestId));
+  const recorderRef = useRef<StatsRecorder>({
+    durable: initialStats,
+    pending: [],
+  });
+  const [stats, setStats] = useState<GameStats>(initialStats);
 
   const record = useCallback(
     (context: StatsContext, won: boolean) => {
@@ -161,9 +194,23 @@ export function useGameStats() {
       // tabs recording in the exact same instant still race (localStorage
       // has no compare-and-swap) — the window is microseconds, and the
       // storage-event resync below keeps both views honest afterwards.
-      const merged = applyGame(readStats(guestId), key, won);
-      writeStats(guestId, merged);
-      setStats(merged);
+      const recorder = recorderRef.current;
+      let base: GameStats;
+      try {
+        base = readStoredStats(guestId);
+      } catch {
+        recorder.pending.push({ key, won });
+        setStats(applyPending(recorder.durable, recorder.pending));
+        return;
+      }
+      recorder.durable = base;
+      recorder.pending.push({ key, won });
+      const merged = applyPending(base, recorder.pending);
+      if (writeStats(guestId, merged)) {
+        recorder.durable = merged;
+        recorder.pending = [];
+      }
+      setStats(applyPending(recorder.durable, recorder.pending));
     },
     [guestId],
   );
@@ -186,12 +233,16 @@ export function useGameStats() {
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey(guestId)) return;
-      setStats((prev) => {
-        const incoming = readStats(guestId);
-        return JSON.stringify(incoming) === JSON.stringify(prev)
-          ? prev
-          : incoming;
-      });
+      const recorder = recorderRef.current;
+      try {
+        recorder.durable = readStoredStats(guestId);
+      } catch {
+        return;
+      }
+      const view = applyPending(recorder.durable, recorder.pending);
+      setStats((prev) =>
+        JSON.stringify(view) === JSON.stringify(prev) ? prev : view,
+      );
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);

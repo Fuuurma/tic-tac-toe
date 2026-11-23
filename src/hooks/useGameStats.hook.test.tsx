@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { AI_Difficulty, GameModes } from "@/game/constants";
 import { useGameStats, type GameStats } from "./useGameStats";
@@ -24,6 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   window.localStorage.clear();
 });
 
@@ -199,6 +200,155 @@ describe("useGameStats cross-tab integrity (F791)", () => {
     expect(result.current.stats.totalGames).toBe(3);
     expect(result.current.stats.breakdown["VS_COMPUTER:HARD"]).toEqual({
       wins: 2,
+      losses: 1,
+    });
+  });
+});
+
+describe("useGameStats refused storage", () => {
+  const denyWrites = () =>
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("denied", "QuotaExceededError");
+    });
+
+  it("keeps the visible record advancing while writes are refused", () => {
+    const { result } = renderHook(() => useGameStats());
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+    });
+    expect(result.current.stats.totalGames).toBe(1);
+
+    const setItemSpy = denyWrites();
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+      result.current.recordLoss({ gameMode: GameModes.ONLINE });
+    });
+
+    expect(result.current.stats.totalGames).toBe(3);
+    expect(result.current.stats.wins).toBe(2);
+    expect(result.current.stats.losses).toBe(1);
+    expect(result.current.stats.breakdown[GameModes.VS_FRIEND]).toEqual({
+      wins: 2,
+      losses: 0,
+    });
+    expect(result.current.stats.breakdown[GameModes.ONLINE]).toEqual({
+      wins: 0,
+      losses: 1,
+    });
+
+    setItemSpy.mockRestore();
+    expect(stored()?.totalGames).toBe(1);
+  });
+
+  it("replays pending outcomes once onto a newer durable snapshot", () => {
+    const { result, unmount } = renderHook(() => useGameStats());
+    const key = `tic-tac-toe:stats:${guestId()}`;
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+    });
+
+    const setItemSpy = denyWrites();
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+      result.current.recordLoss({ gameMode: GameModes.VS_FRIEND });
+    });
+    setItemSpy.mockRestore();
+
+    const rival = {
+      totalGames: 3,
+      wins: 2,
+      losses: 1,
+      currentWinStreak: 1,
+      bestWinStreak: 2,
+      breakdown: {
+        "VS_COMPUTER:HARD": { wins: 2, losses: 1 },
+      },
+    };
+
+    act(() => {
+      window.localStorage.setItem(key, JSON.stringify(rival));
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key,
+          newValue: JSON.stringify(rival),
+        }),
+      );
+    });
+
+    expect(result.current.stats.totalGames).toBe(5);
+    expect(result.current.stats.breakdown[GameModes.VS_FRIEND]).toEqual({
+      wins: 1,
+      losses: 1,
+    });
+    expect(result.current.stats.breakdown["VS_COMPUTER:HARD"]).toEqual({
+      wins: 2,
+      losses: 1,
+    });
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+    });
+    unmount();
+
+    const fresh = renderHook(() => useGameStats());
+    expect(fresh.result.current.stats.totalGames).toBe(6);
+    expect(fresh.result.current.stats.wins).toBe(4);
+    expect(fresh.result.current.stats.losses).toBe(2);
+    expect(fresh.result.current.stats.breakdown[GameModes.VS_FRIEND]).toEqual({
+      wins: 2,
+      losses: 1,
+    });
+    expect(fresh.result.current.stats.breakdown["VS_COMPUTER:HARD"]).toEqual({
+      wins: 2,
+      losses: 1,
+    });
+    expect(stored()?.totalGames).toBe(6);
+  });
+
+  it("defers writing while the stored record cannot be read", () => {
+    const { result } = renderHook(() => useGameStats());
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.VS_FRIEND });
+      result.current.recordLoss({ gameMode: GameModes.VS_FRIEND });
+    });
+    const before = stored();
+    expect(before?.totalGames).toBe(2);
+
+    const getItemSpy = vi
+      .spyOn(Storage.prototype, "getItem")
+      .mockImplementation(() => {
+        throw new DOMException("denied", "SecurityError");
+      });
+
+    act(() => {
+      result.current.recordWin({ gameMode: GameModes.ONLINE });
+    });
+
+    expect(result.current.stats.totalGames).toBe(3);
+    expect(result.current.stats.breakdown[GameModes.ONLINE]).toEqual({
+      wins: 1,
+      losses: 0,
+    });
+
+    getItemSpy.mockRestore();
+    expect(stored()).toEqual(before);
+
+    act(() => {
+      result.current.recordLoss({ gameMode: GameModes.ONLINE });
+    });
+
+    expect(stored()?.totalGames).toBe(4);
+    expect(stored()?.breakdown[GameModes.ONLINE]).toEqual({
+      wins: 1,
+      losses: 1,
+    });
+    expect(stored()?.breakdown[GameModes.VS_FRIEND]).toEqual({
+      wins: 1,
       losses: 1,
     });
   });
