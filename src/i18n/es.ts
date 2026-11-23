@@ -152,6 +152,7 @@ export const es: Record<StringKey, string> = {
   "game.record": "Récord: {wins} victorias, {losses} derrotas",
   "game.wins": "{count} victorias",
   "game.losses": "{count} derrotas",
+  "game.bestStreak": "Mejor racha: {count}",
   "game.tallyWins": "{count}V",
   "game.tallyLosses": "{count}D",
   "game.breakdown": "Ver desglose del récord",

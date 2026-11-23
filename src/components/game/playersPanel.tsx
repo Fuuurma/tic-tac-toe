@@ -639,6 +639,10 @@ function RecordChip({
             {stats.currentWinStreak}
           </span>
         )}
+        <span className="mx-0.5 text-muted-foreground/50">·</span>
+        <span className="text-muted-foreground/70">
+          {t("game.bestStreak", { count: stats.bestWinStreak })}
+        </span>
       </span>
     </RecordBreakdown>
   );

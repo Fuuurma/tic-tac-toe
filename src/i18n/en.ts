@@ -151,6 +151,7 @@ export const en = {
   "game.record": "Record: {wins} wins, {losses} losses",
   "game.wins": "{count} wins",
   "game.losses": "{count} losses",
+  "game.bestStreak": "Best {count}",
   "game.tallyWins": "{count}W",
   "game.tallyLosses": "{count}L",
   "game.breakdown": "Show record breakdown",
