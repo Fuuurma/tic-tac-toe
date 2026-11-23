@@ -12,6 +12,7 @@ import {
   PlayerTypes,
   COLOR_MARK_TEXT,
   COPY_FLASH_MS,
+  oppositeSymbol,
 } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import type { GameStats } from "@/hooks/useGameStats";
@@ -151,6 +152,7 @@ export function PlayersPanel({
   const isGameOver =
     gameState.gameStatus !== GameStatus.ACTIVE || gameState.winner !== null;
   const isTerminal = isGameOver && gameState.gameStatus !== GameStatus.WAITING;
+  const isForfeit = gameState.forfeited === true;
   const isOnline = gameMode === GameModes.ONLINE;
   const exitLabel = isOnline ? t("game.leave") : t("game.exit");
 
@@ -304,8 +306,16 @@ export function PlayersPanel({
         <div className="relative z-10 mt-3 max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3">
           {gameState.winner ? (
             <GameEndActions
-              headline={t("game.winsHeadline", { name: gameState.players[gameState.winner].username || t("game.playerFallback") })}
-              message={message}
+              headline={
+                isForfeit
+                  ? t("game.forfeitHeadline")
+                  : t("game.winsHeadline", { name: gameState.players[gameState.winner].username || t("game.playerFallback") })
+              }
+              message={
+                isForfeit
+                  ? t("game.forfeitMessage", { name: gameState.players[oppositeSymbol(gameState.winner)].username || t("game.playerFallback") })
+                  : message
+              }
               onAcceptRematch={onAcceptRematch}
               onDeclineRematch={onDeclineRematch}
               onCancelRematch={onCancelRematch}
@@ -767,6 +777,7 @@ function PlayerCardGrid({
         player={gameState.players[PlayerSymbol.X]}
         isCurrent={gameState.currentPlayer === PlayerSymbol.X && isActive}
         isWinner={gameState.winner === PlayerSymbol.X}
+        isForfeit={gameState.forfeited === true}
         isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.X && isActive}
         aiDifficultyLabel={
           gameState.players[PlayerSymbol.X].type === PlayerTypes.COMPUTER && aiDifficulty
@@ -779,6 +790,7 @@ function PlayerCardGrid({
         player={gameState.players[PlayerSymbol.O]}
         isCurrent={gameState.currentPlayer === PlayerSymbol.O && isActive}
         isWinner={gameState.winner === PlayerSymbol.O}
+        isForfeit={gameState.forfeited === true}
         isAITurn={isAITurn && gameState.currentPlayer === PlayerSymbol.O && isActive}
         aiDifficultyLabel={
           gameState.players[PlayerSymbol.O].type === PlayerTypes.COMPUTER && aiDifficulty
@@ -849,6 +861,7 @@ const PlayerCard = memo(function PlayerCard({
   player,
   isCurrent,
   isWinner,
+  isForfeit,
   isAITurn,
   aiDifficultyLabel,
 }: {
@@ -856,6 +869,7 @@ const PlayerCard = memo(function PlayerCard({
   player: GameState["players"][PlayerSymbol];
   isCurrent: boolean;
   isWinner: boolean;
+  isForfeit: boolean;
   isAITurn: boolean;
   aiDifficultyLabel?: string;
 }) {
@@ -900,7 +914,7 @@ const PlayerCard = memo(function PlayerCard({
           )}
         </div>
       </div>
-      {isWinner && (
+      {isWinner && !isForfeit && (
         <Crown
           className="size-4 shrink-0 animate-crown-pop text-[rgb(var(--player-color))]"
           aria-hidden="true"

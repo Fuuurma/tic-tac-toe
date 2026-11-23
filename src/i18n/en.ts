@@ -168,6 +168,8 @@ export const en = {
   "game.winner": "winner",
   "game.winsHeadline": "{name} wins!",
   "game.draw": "It's a draw.",
+  "game.forfeitHeadline": "You won - opponent left",
+  "game.forfeitMessage": "{name} left the game",
   "game.rematch": "Rematch",
   "game.acceptRematch": "Accept rematch",
   "game.declineRematch": "Decline rematch",

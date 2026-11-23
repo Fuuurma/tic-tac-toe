@@ -169,6 +169,8 @@ export const es: Record<StringKey, string> = {
   "game.winner": "ganador",
   "game.winsHeadline": "¡{name} gana!",
   "game.draw": "Es un empate.",
+  "game.forfeitHeadline": "Has ganado - tu rival se ha ido",
+  "game.forfeitMessage": "{name} ha salido de la partida",
   "game.rematch": "Revancha",
   "game.acceptRematch": "Aceptar revancha",
   "game.declineRematch": "Rechazar revancha",
