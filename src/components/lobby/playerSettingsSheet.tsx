@@ -19,7 +19,7 @@ import { SymbolShapeRenderer } from "../game/symbolShapeRenderer";
 import { Bot, Pencil, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { filterDisplayNameInput } from "@/lib/identity";
-import { handleRadioGroupKeyDown, handleTabListKeyDown } from "@/lib/radioGroup";
+import { handleTabListKeyDown } from "@/lib/radioGroup";
 import { pickerTileClass } from "@/lib/pickerClasses";
 
 type GameModeValue =
@@ -242,51 +242,6 @@ function OpponentTab({
 
   return (
     <>
-      {/* AI first to match the lobby game-mode order. The tab already says
-          "Opponent", so this group names what is being chosen. */}
-      <div role="group" aria-label={t("settings.opponentType")} className="flex flex-col gap-2">
-        <span className="hidden text-sm font-semibold max-sm:block">{t("settings.playsAs")}</span>
-        <div
-          role="radiogroup"
-          aria-label={t("settings.opponentType")}
-          className="grid grid-cols-2 gap-2"
-          onKeyDown={handleRadioGroupKeyDown}
-        >
-          <button
-            type="button"
-            role="radio"
-            aria-label={t("settings.ai")}
-            aria-checked={isAI}
-            data-state={isAI ? "active" : "inactive"}
-            tabIndex={isAI ? 0 : -1}
-            onClick={() => onChange({ ...value, opponentType: PlayerTypes.COMPUTER })}
-            className={cn(
-              "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              pickerTileClass(isAI),
-            )}
-          >
-            <Bot className="size-3.5" aria-hidden="true" />
-            {t("settings.ai")}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-label={t("settings.human")}
-            aria-checked={!isAI}
-            data-state={!isAI ? "active" : "inactive"}
-            tabIndex={!isAI ? 0 : -1}
-            onClick={() => onChange({ ...value, opponentType: PlayerTypes.HUMAN })}
-            className={cn(
-              "flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold max-sm:h-12 max-sm:text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-              pickerTileClass(!isAI),
-            )}
-          >
-            <User className="size-3.5" aria-hidden="true" />
-            {t("settings.human")}
-          </button>
-        </div>
-      </div>
-
       {isAI && (
         <AI_DifficultySelector
           selectedDifficulty={value.aiDifficulty}

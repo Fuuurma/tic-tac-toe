@@ -472,13 +472,15 @@ function useLobbyPlayers(initialRoomId: string) {
   const [gameMode, setGameMode] = useState<GameMode>(() => initialGameMode(initialRoomId));
   const [aiDifficulty, setAI_Difficulty] = useState<AI_DifficultyType>(() => initialAI_Difficulty(initialPrefs));
   const [opponentName, setOpponentName] = useState<string>(() => initialOpponentName(initialPrefs));
-  const [opponentType, setOpponentType] = useState<PlayerType>(PlayerTypes.COMPUTER);
 
   // Live Online population, plus reachability. Subscribed whenever the
   // lobby is up (not only in Online mode): answering "is anyone playing?"
   // before Quick Match is pressed is the whole point, and a missing relay
   // must read as unreachable on arrival instead of silently enabled tiles.
   const { count: playerCount, serverDown, online } = usePlayerCount(true, undefined, true);
+
+  const opponentType: PlayerType =
+    gameMode === GameModes.VS_COMPUTER ? PlayerTypes.COMPUTER : PlayerTypes.HUMAN;
 
   const playerSettings: PlayerSettings = useMemo(
     () => ({ displayName, color, playerShape }),
@@ -513,7 +515,6 @@ function useLobbyPlayers(initialRoomId: string) {
   const handleOpponentSettingsChange = useCallback(
     (next: OpponentSettings) => {
       setOpponentName(next.opponentName);
-      setOpponentType(next.opponentType);
       setAI_Difficulty(next.aiDifficulty);
       setOpponentShape(next.opponentShape);
       // If the opponent picks the user's color, swap so they stay distinct:
@@ -538,14 +539,12 @@ function useLobbyPlayers(initialRoomId: string) {
       if (nextMode === GameModes.VS_COMPUTER) {
         setOpponentColor(oppositeColor(color));
         setOpponentName(t("lobby.defaultAI"));
-        setOpponentType(PlayerTypes.COMPUTER);
       } else if (nextMode === GameModes.VS_FRIEND) {
         // Hydrate the last saved opponent name so Friend mode reopens with it.
         // An empty or invalid saved name used to leave Start permanently
         // disabled with no visible reason, so fall back to a valid default.
         const saved = loadPreferences().opponentName;
         setOpponentName(saved && sanitizeDisplayName(saved) === saved ? saved : t("lobby.defaultPlayer2"));
-        setOpponentType(PlayerTypes.HUMAN);
       }
     },
     [color],
@@ -561,7 +560,6 @@ function useLobbyPlayers(initialRoomId: string) {
     setGameMode(GameModes.VS_COMPUTER);
     setOpponentColor(oppositeColor(color));
     setOpponentName(t("lobby.defaultAI"));
-    setOpponentType(PlayerTypes.COMPUTER);
   }
 
   return {
