@@ -59,6 +59,7 @@ export function useLocalGame(input: LocalGameInput) {
   const [gameState, setGameState] = useState<GameState>(() =>
     buildInitialState(input, humanSymbol),
   );
+  const [roundId, setRoundId] = useState(0);
   const [paused, setPausedState] = useState(false);
   const pausedRef = useRef(false);
   const tickRef = useRef<number | null>(null);
@@ -117,6 +118,7 @@ export function useLocalGame(input: LocalGameInput) {
     // the wrong player.
     const newSymbol = randomPlayerSymbol();
     setHumanSymbol(newSymbol);
+    setRoundId((id) => id + 1);
     setGameState(buildInitialState(input, newSymbol));
     // The fresh game is ACTIVE again, so gameIsActive stays true and the
     // active-game effect never re-runs to restart the interval stopped
@@ -237,6 +239,7 @@ export function useLocalGame(input: LocalGameInput) {
     gameState.moveCount,
     currentPlayerType,
     paused,
+    roundId,
   ]);
 
   useEffect(

@@ -13,6 +13,8 @@ import {
 import { act, renderHook } from "@testing-library/react";
 import {
   AI_Difficulty,
+  AI_MOVE_DELAY_JITTER_MS,
+  AI_MOVE_DELAY_MS,
   Color,
   GameModes,
   GameStatus,
@@ -247,6 +249,36 @@ describe("useLocalGame computer-opening turn", () => {
     });
 
     expect(result.current.gameState.moveCount).toBe(1);
+    expect(result.current.gameState.turnNotice).toBeUndefined();
+  });
+
+  it("opens at the fresh deadline when New Game beats the computer's first move", () => {
+    const openingDelayMs = AI_MOVE_DELAY_MS + 0.6 * AI_MOVE_DELAY_JITTER_MS;
+    const resetAtMs = 500;
+    const { result } = renderComputerOpening();
+
+    act(() => {
+      vi.advanceTimersByTime(resetAtMs);
+    });
+    act(() => {
+      result.current.handleReset();
+    });
+    expect(result.current.humanSymbol).toBe(PlayerSymbol.O);
+    expect(result.current.gameState.currentPlayer).toBe(PlayerSymbol.X);
+
+    act(() => {
+      vi.advanceTimersByTime(openingDelayMs - resetAtMs);
+    });
+    expect(result.current.gameState.moveCount).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(resetAtMs);
+    });
+    expect(result.current.gameState.moveCount).toBe(1);
+    expect(
+      result.current.gameState.board.filter((cell) => cell === PlayerSymbol.X),
+    ).toHaveLength(1);
+    expect(result.current.gameState.currentPlayer).toBe(PlayerSymbol.O);
     expect(result.current.gameState.turnNotice).toBeUndefined();
   });
 });
