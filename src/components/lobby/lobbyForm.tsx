@@ -70,6 +70,7 @@ interface LobbyFormProps {
   initialOnlineSetup?: OnlineSetupDraft | null;
   onStart: (payload: LobbyFormPayload) => void;
   onReplayTutorial?: () => void;
+  autoFocusStart?: boolean;
 }
 
 const getRoomCodeError = (
@@ -224,7 +225,7 @@ const lobbyStartGate = ({
   return { onlineUnavailable, startDisabled, startTitle, roomFieldError, startReason };
 };
 
-export function LobbyForm({ initialRoomId = "", initialOnlineSetup, onStart, onReplayTutorial }: LobbyFormProps) {
+export function LobbyForm({ initialRoomId = "", initialOnlineSetup, onStart, onReplayTutorial, autoFocusStart }: LobbyFormProps) {
   // Subscribes so a language switch re-renders the whole form.
   useStrings();
   const onlineDraft = initialOnlineSetup?.gameMode === GameModes.ONLINE ? initialOnlineSetup : null;
@@ -420,6 +421,7 @@ export function LobbyForm({ initialRoomId = "", initialOnlineSetup, onStart, onR
           startReasonId={startReasonId}
           startReason={startReason}
           onlineUnavailable={onlineUnavailable}
+          autoFocusStart={autoFocusStart}
         />
       </Card>
 
@@ -771,6 +773,7 @@ function LobbyCardFooter({
   startReasonId,
   startReason,
   onlineUnavailable,
+  autoFocusStart,
 }: {
   color: Color;
   gameMode: GameMode;
@@ -780,6 +783,7 @@ function LobbyCardFooter({
   startReasonId: string;
   startReason: string | null;
   onlineUnavailable: boolean;
+  autoFocusStart?: boolean;
 }) {
   return (
     <CardFooter
@@ -806,6 +810,7 @@ function LobbyCardFooter({
         type="submit"
         size="lg"
         variant="glass"
+        autoFocus={autoFocusStart}
         disabled={startDisabled}
         title={startTitle}
         aria-describedby={startReason ? startReasonId : undefined}

@@ -513,6 +513,12 @@ function PanelHeading({
   message,
   activeLabel,
 }: PanelHeadingProps) {
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
+
   return (
     <div
       className={cn(
@@ -526,9 +532,13 @@ function PanelHeading({
     >
       <GameMark size="sm" className="sm:hidden max-sm:col-start-1 max-sm:row-span-2 max-sm:mr-3" />
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-muted-foreground max-sm:col-start-2 max-sm:gap-y-0 max-sm:text-base max-sm:leading-5">
-        <span className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground">
+        <h2
+          ref={titleRef}
+          tabIndex={-1}
+          className="max-sm:basis-full max-sm:text-xl max-sm:font-bold max-sm:leading-6 max-sm:tracking-tight max-sm:text-foreground outline-none"
+        >
           {getGameModeLabel(gameMode)}
-        </span>
+        </h2>
         <RoomCodeButton roomCode={roomCode} />
         <RecordChip stats={stats} gameMode={gameMode} />
       </div>

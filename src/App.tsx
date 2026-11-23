@@ -47,11 +47,13 @@ export default function App() {
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
   const [config, setConfig] = useState<GameSetup | null>(null);
   const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(null);
+  const [focusLobbyStart, setFocusLobbyStart] = useState(false);
 
   const handleStart = (payload: LobbyFormPayload) => {
     // `LobbyFormPayload` IS `GameSetup`, so there is nothing to copy across —
     // the eleven-field copy that used to live here is what let the two
     // declarations drift apart.
+    setFocusLobbyStart(false);
     setLastOnlineSetup(payload.gameMode === GameModes.ONLINE ? payload : null);
     setConfig(payload);
     setView("game");
@@ -61,6 +63,7 @@ export default function App() {
   };
 
   const handleExit = () => {
+    setFocusLobbyStart(true);
     setView("lobby");
     setConfig(null);
   };
@@ -80,13 +83,20 @@ export default function App() {
           centring for desktop. */}
       <div className="relative z-10 flex w-full justify-center sm:my-auto">
         {view === "onboarding" && (
-          <OnboardingFlow mode={onboardingMode} onExit={() => setView("lobby")} />
+          <OnboardingFlow
+            mode={onboardingMode}
+            onExit={() => {
+              setFocusLobbyStart(false);
+              setView("lobby");
+            }}
+          />
         )}
         {view === "lobby" && (
           <LobbyForm
             initialRoomId={initialRoomId}
             initialOnlineSetup={lastOnlineSetup}
             onStart={handleStart}
+            autoFocusStart={focusLobbyStart}
             onReplayTutorial={() => {
               setOnboardingMode("replay");
               setView("onboarding");
