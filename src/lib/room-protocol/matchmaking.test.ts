@@ -7,6 +7,7 @@ import {
   pollMatch,
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
+import { reportError } from "@/lib/errorReporting";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/matchmaking")>();
@@ -24,6 +25,11 @@ vi.mock("@/lib/matchmaking", async (importOriginal) => {
 vi.mock("@/lib/identity", () => ({
   getOrCreateGuestIdentity: vi.fn(() => ({ guestId: "guest-1" })),
 }));
+
+vi.mock("@/lib/errorReporting", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/errorReporting")>();
+  return { ...actual, reportError: vi.fn() };
+});
 
 const mockedFindMatch = vi.mocked(findMatch);
 const mockedPollMatch = vi.mocked(pollMatch);
@@ -637,5 +643,105 @@ describe("runQuickMatch queue stage", () => {
     expect(patches(deps).at(-1)).toMatchObject({ status: "error", queue: "none" });
     finishPoll();
     await attempt;
+  });
+});
+
+describe("fire-and-forget failure reporting", () => {
+  it("reports a failed ticket release through reportError with a matchmaking source", async () => {
+    const { deps, matchmakingTicketRef } = makeDeps();
+    matchmakingTicketRef.current = "t1";
+    const failure = new Error("leave boom");
+    mockedLeaveMatch.mockRejectedValue(failure);
+
+    abandonTicket(deps, "after poll");
+
+    await vi.waitFor(() => expect(reportError).toHaveBeenCalledTimes(1));
+    expect(reportError).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        source: expect.stringContaining("matchmaking"),
+        message: expect.stringContaining(
+          "Matchmaking leave failed after poll: leave boom",
+        ),
+      }),
+    );
+  });
+
+  it("reports a failed keepalive release on pagehide through reportError", async () => {
+    const page = new EventTarget();
+    vi.stubGlobal("window", page);
+    const { deps } = makeDeps({ maxPollMs: 60_000 });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    let finishPoll!: () => void;
+    mockedPollMatch.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishPoll = () => resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+        }),
+    );
+    const failure = new Error("keepalive boom");
+    mockedLeaveMatch.mockRejectedValue(failure);
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedPollMatch).toHaveBeenCalledTimes(1));
+    page.dispatchEvent(new Event("pagehide"));
+
+    await vi.waitFor(() => expect(reportError).toHaveBeenCalledTimes(1));
+    expect(reportError).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        source: expect.stringContaining("matchmaking"),
+        message: expect.stringContaining(
+          "Matchmaking leave failed on unload: keepalive boom",
+        ),
+      }),
+    );
+
+    finishPoll();
+    await attempt;
+  });
+
+  it("reports a failed release for a ticket obtained after cancel through reportError", async () => {
+    const { deps, hasStartedRef } = makeDeps();
+    const join = deferred<MatchmakingResponse>();
+    mockedFindMatch.mockReturnValue(join.promise);
+    const failure = new Error("late leave boom");
+    mockedLeaveMatch.mockRejectedValue(failure);
+
+    const attempt = runQuickMatch(deps);
+    await vi.waitFor(() => expect(mockedFindMatch).toHaveBeenCalledTimes(1));
+    cancelLikeLeave(deps, hasStartedRef);
+    join.resolve({ status: "waiting", ticket: "t1", roomId: "r1" });
+    await attempt;
+
+    await vi.waitFor(() => expect(reportError).toHaveBeenCalledTimes(1));
+    expect(reportError).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        source: expect.stringContaining("matchmaking"),
+        message: expect.stringContaining(
+          "Matchmaking leave failed after cancel: late leave boom",
+        ),
+      }),
+    );
+  });
+
+  it("reports transient poll failures through reportError instead of console.warn", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { deps } = makeDeps({ maxPollMs: 60_000 });
+    mockedFindMatch.mockResolvedValue({ status: "waiting", ticket: "t1", roomId: "r1" });
+    mockedPollMatch.mockRejectedValue(new Error("relay down"));
+    mockedLeaveMatch.mockResolvedValue(undefined);
+
+    await runQuickMatch(deps);
+
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        source: expect.stringContaining("matchmaking"),
+        message: expect.stringContaining("Matchmaking poll failed"),
+      }),
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

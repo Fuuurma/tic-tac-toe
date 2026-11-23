@@ -9,6 +9,7 @@ import {
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
+import { reportError } from "@/lib/errorReporting";
 import { t } from "@/i18n/language";
 import type { PeerRoomState } from "./state";
 
@@ -48,6 +49,17 @@ export interface MatchmakingDeps {
 
 const MAX_POLL_MS = 120_000;
 
+function reportMatchmakingFailure(
+  source: string,
+  message: string,
+  err: unknown,
+): void {
+  reportError(err, {
+    source,
+    message: `${message}: ${err instanceof Error ? err.message : String(err)}`,
+  });
+}
+
 /**
  * Identity of the live attempt, keyed by the ticket ref object (one per
  * hook instance). An attempt is current only while the map still holds the
@@ -75,7 +87,11 @@ export function abandonTicket(
   if (ticket) {
     deps.matchmakingTicketRef.current = null;
     leaveMatch(GAME_ID, ticket).catch((err) => {
-      console.error(`Matchmaking leave failed ${label}:`, (err as Error).message);
+      reportMatchmakingFailure(
+        "matchmaking.leave",
+        `Matchmaking leave failed ${label}`,
+        err,
+      );
     });
   }
 }
@@ -120,7 +136,11 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
-        console.error("Matchmaking leave failed on unload:", (err as Error).message);
+        reportMatchmakingFailure(
+          "matchmaking.leave-on-unload",
+          "Matchmaking leave failed on unload",
+          err,
+        );
       });
     }
   };
@@ -147,7 +167,11 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
       // for a retired attempt; release the ticket this attempt obtained.
       if (response.status === "waiting") {
         leaveMatch(GAME_ID, response.ticket, undefined, { keepalive: true }).catch((err) => {
-          console.error("Matchmaking leave failed after cancel:", (err as Error).message);
+          reportMatchmakingFailure(
+            "matchmaking.leave-after-cancel",
+            "Matchmaking leave failed after cancel",
+            err,
+          );
         });
       }
       return;
@@ -207,9 +231,10 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
           // failures and keep backing off; bail only when the service
           // is persistently unreachable.
           consecutiveFailures += 1;
-          console.warn(
-            `Matchmaking poll failed (${consecutiveFailures}):`,
-            (err as Error).message,
+          reportMatchmakingFailure(
+            "matchmaking.poll",
+            `Matchmaking poll failed (${consecutiveFailures})`,
+            err,
           );
           if (consecutiveFailures >= 5) throw err;
         }
