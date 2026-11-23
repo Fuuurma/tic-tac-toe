@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { createInstallPromptController } from "./installPrompt";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createInstallPromptController, isIosDevice } from "./installPrompt";
 
 /**
  * The beforeinstallprompt event is the only signal a browser gives that it
@@ -85,5 +85,62 @@ describe("createInstallPromptController", () => {
     target.dispatchEvent(fakeInstallEvent());
     target.dispatchEvent(new Event("appinstalled"));
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("isIosDevice", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const stubNavigator = (
+    userAgent: string,
+    platform = "",
+    maxTouchPoints = 0,
+  ) => {
+    vi.stubGlobal("navigator", { userAgent, platform, maxTouchPoints });
+  };
+
+  it("detects iPhone, iPad and iPod agents", () => {
+    for (const agent of [
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15",
+      "Mozilla/5.0 (iPad; CPU OS 18_1 like Mac OS X) AppleWebKit/605.1.15",
+      "Mozilla/5.0 (iPod touch; CPU iPhone OS 12_0 like Mac OS X)",
+    ]) {
+      stubNavigator(agent);
+      expect(isIosDevice()).toBe(true);
+    }
+  });
+
+  it("detects iPadOS desktop mode, which sends a Mac agent", () => {
+    stubNavigator(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+      "MacIntel",
+      5,
+    );
+    expect(isIosDevice()).toBe(true);
+  });
+
+  it("leaves a real Mac, Android and desktop Chrome alone", () => {
+    stubNavigator(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15",
+      "MacIntel",
+      0,
+    );
+    expect(isIosDevice()).toBe(false);
+
+    stubNavigator(
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120.0",
+      "Linux armv8l",
+      5,
+    );
+    expect(isIosDevice()).toBe(false);
+
+    stubNavigator(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0",
+      "Win32",
+      0,
+    );
+    expect(isIosDevice()).toBe(false);
   });
 });

@@ -1083,6 +1083,14 @@
     "ee6718869117d528": 1,
     "f7be460ec36d7498": 1
   },
+  "src/components/lobby/installGuidance.test.tsx": {
+    "15f6e8f490cf6db6": 1,
+    "319b5c8446280c5d": 1,
+    "55a399a250e83f5f": 1,
+    "9a24bfab041af3c2": 1,
+    "a873644df29b5c4f": 1,
+    "fd717871a2042a87": 1
+  },
   "src/components/lobby/languageSwitcher.tsx": {
     "3b3e6e1c1fdeb0d0": 1
   },
@@ -1217,7 +1225,6 @@
     "7ceff98bda725892": 1,
     "95656f0ce51f1ae7": 1,
     "98b353e87087914f": 1,
-    "b58efc7187afa992": 1,
     "e0518ee3cc041b2a": 1,
     "e7f3c7d0c15f22ce": 1
   },
@@ -1229,15 +1236,16 @@
     "e6d323dc4a7d5402": 1
   },
   "src/components/lobby/preferencesSheet.tsx": {
+    "04d271d11460ab69": 1,
     "1b9cedbe622d169a": 1,
     "22b29930d530a3bb": 1,
+    "5f8899db51b0ea25": 1,
     "696d94f96cd62060": 1,
-    "748ea8da0db06c14": 1,
+    "80f459a6384d9ba1": 1,
     "8aa42cf5f7e78e0d": 1,
     "8c80a674930e4ef7": 1,
     "aefb8c83be8e23e0": 1,
     "bd02ac3ebd3ad72f": 1,
-    "c23fc79e820b2d4e": 1,
     "c8f77e8af88ad689": 1
   },
   "src/components/lobby/symbolShapePicker.test.tsx": {
@@ -1730,7 +1738,6 @@
     "330c0c2af7fac4c6": 1,
     "3852bb81423f7ac0": 1,
     "4c7fdf6c2cd1eab8": 1,
-    "50635650d5250c65": 1,
     "52762918592dfbfb": 1,
     "54fff34b54e5c759": 1,
     "556a95f3faf289d7": 1,
@@ -2280,11 +2287,12 @@
     "03a9b481b202ce70": 1,
     "1d3f8cf3a86e260d": 1,
     "217268665419a8e9": 1,
+    "358db260a47ad504": 1,
+    "40fae65f27079a15": 1,
     "45491562e7239978": 1,
     "652c8a541262dbd5": 1,
     "7a837f8311beea17": 1,
     "8c633a6d819d92e6": 1,
-    "b62b632131acdbb8": 1,
     "bfd4fd634f79047d": 1,
     "c12e35e16978ae99": 1,
     "ccd06d2109335c68": 1,

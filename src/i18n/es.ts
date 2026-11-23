@@ -116,6 +116,9 @@ export const es: Record<StringKey, string> = {
   "settings.open": "Ajustes",
   "settings.app": "App",
   "settings.installApp": "Instalar app",
+  "settings.installIos": "Añadir a pantalla de inicio",
+  "settings.installIosSteps":
+    "Toca el botón Compartir y elige Añadir a pantalla de inicio.",
   "settings.appearance": "Apariencia",
   "settings.language": "Idioma",
   "settings.learn": "Aprender",

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { ChevronRight, Download, Settings2 } from "lucide-react";
+import { ChevronRight, Download, Settings2, Share } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "./languageSwitcher";
 import { ThemeSegmented } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
-import { useInstallPrompt } from "@/lib/installPrompt";
+import { isIosDevice, useInstallPrompt } from "@/lib/installPrompt";
 
 /**
  * App preferences: the settings that are not about who is playing.
@@ -34,8 +34,9 @@ export function PreferencesSheet({
 }) {
   // Subscribes so a language switch re-renders the labels.
   useStrings();
-  // The browser decides whether an install is on offer; the row exists only
-  // while it does (never on iOS, which has no beforeinstallprompt).
+  // The browser decides whether an install is on offer: the row fires the
+  // native prompt while it does. iOS never fires beforeinstallprompt, so
+  // there the same group carries Share-sheet guidance instead.
   const { state: installState, promptInstall } = useInstallPrompt();
 
   return (
@@ -75,6 +76,22 @@ export function PreferencesSheet({
                 }
                 onClick={() => void promptInstall()}
               />
+            </Group>
+          )}
+          {installState === "unavailable" && isIosDevice() && (
+            <Group label={t("settings.app")}>
+              <div className="flex min-h-14 flex-col justify-center gap-1 border-b border-border/60 py-2 last:border-b-0">
+                <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Share
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  {t("settings.installIos")}
+                </span>
+                <span className="pl-6 text-sm text-muted-foreground">
+                  {t("settings.installIosSteps")}
+                </span>
+              </div>
             </Group>
           )}
         </div>

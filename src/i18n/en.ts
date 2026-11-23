@@ -115,6 +115,8 @@ export const en = {
   "settings.open": "Settings",
   "settings.app": "App",
   "settings.installApp": "Install app",
+  "settings.installIos": "Add to Home Screen",
+  "settings.installIosSteps": "Tap the Share button, then choose Add to Home Screen.",
   "settings.appearance": "Appearance",
   "settings.language": "Language",
   "settings.learn": "Learn",

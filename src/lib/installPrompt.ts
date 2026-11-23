@@ -6,8 +6,8 @@ import { useSyncExternalStore } from "react";
  * Chrome fires `beforeinstallprompt` once the PWA criteria are met and holds
  * the native prompt until the page calls `prompt()`. The event is not in
  * lib.dom, so the two members we use are declared here. iOS Safari never
- * fires it — iOS installs go through Share → Add to Home Screen — so the
- * settings row simply never appears there.
+ * fires it — installs there go through the system Share sheet — so the
+ * settings sheet shows Share-sheet guidance on iOS instead of a prompt row.
  */
 export interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -15,6 +15,20 @@ export interface BeforeInstallPromptEvent extends Event {
 }
 
 export type InstallState = "unavailable" | "available" | "installed";
+
+/**
+ * True on iPhone, iPad and iPod — the devices whose only install path is the
+ * Share sheet. iPadOS 13+ sends a desktop Mac user agent, so the touch-point
+ * count is the tell there. Read once per render: the agent string cannot
+ * change mid-session.
+ */
+export function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
 
 /** The slice of EventTarget the controller needs, so tests can pass a plain
  *  EventTarget instead of window. */
