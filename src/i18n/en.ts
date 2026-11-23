@@ -70,6 +70,8 @@ export const en = {
   "lobby.onlineModeUnavailable": "Online mode isn't available in this build.",
   "lobby.quickUnavailable": "Quick Match isn't available. Create or join a room instead.",
   "lobby.onlineDown": "Online mode isn't available. Try again later.",
+  "lobby.onlineOffline":
+    "You're offline. Online play is paused until you reconnect.",
   "lobby.backendMissing": "Online play isn't available in this build.",
   "lobby.v.joinEmpty": "Enter a room code to join.",
   "lobby.v.joinInvalid": "Room code must be 4-64 letters, digits, hyphens, or underscores.",

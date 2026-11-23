@@ -52,11 +52,23 @@ function setDown(next: boolean) {
   down = next;
   for (const listener of [...downListeners]) listener();
 }
+const readOnline = () =>
+  typeof navigator === "undefined" ? true : navigator.onLine !== false;
+let online = readOnline();
+let offlineEpoch = 0;
+const onlineListeners = new Set<() => void>();
+function setOnline(next: boolean) {
+  if (next === online) return;
+  online = next;
+  for (const listener of [...onlineListeners]) listener();
+}
 let timer: number | null = null;
 let subscribers = 0;
 let inFlight = false;
 let nextDelayMs = POLL_INTERVAL_MS;
 let onVisibility: (() => void) | null = null;
+let onOffline: (() => void) | null = null;
+let onReconnect: (() => void) | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -67,8 +79,9 @@ function publish(next: PlayerCount | null) {
 }
 
 async function poll(game: string): Promise<void> {
-  if (inFlight) return;
+  if (inFlight || !online) return;
   inFlight = true;
+  const epoch = offlineEpoch;
   try {
     const health = await fetchMatchmakingHealth(game);
     publish({ players: totalOnlinePlayers(health), waiting: health.waiting });
@@ -77,7 +90,7 @@ async function poll(game: string): Promise<void> {
     nextDelayMs = POLL_INTERVAL_MS;
   } catch {
     // Unknown, not zero. Keep whatever we last knew and back off.
-    if (!everSucceeded) setDown(true);
+    if (!everSucceeded && online && offlineEpoch === epoch) setDown(true);
     nextDelayMs = ERROR_BACKOFF_MS;
   } finally {
     inFlight = false;
@@ -97,6 +110,7 @@ function schedule(game: string) {
   if (subscribers === 0) return;
   timer = window.setTimeout(() => {
     timer = null;
+    if (!online) return;
     void poll(game).then(() => schedule(game));
   }, nextDelayMs);
 }
@@ -105,6 +119,7 @@ function acquire(game: string) {
   subscribers += 1;
   if (subscribers > 1) return;
   nextDelayMs = POLL_INTERVAL_MS;
+  setOnline(readOnline());
   onVisibility = () => {
     // Coming back to a hidden tab: the queued timer was throttled or
     // skipped, so re-read now rather than waiting out another backoff.
@@ -113,6 +128,18 @@ function acquire(game: string) {
     }
   };
   document.addEventListener("visibilitychange", onVisibility);
+  onOffline = () => {
+    offlineEpoch += 1;
+    setOnline(false);
+    clearTimer();
+  };
+  onReconnect = () => {
+    setOnline(true);
+    nextDelayMs = POLL_INTERVAL_MS;
+    void poll(game).then(() => schedule(game));
+  };
+  window.addEventListener("offline", onOffline);
+  window.addEventListener("online", onReconnect);
   void poll(game).then(() => schedule(game));
 }
 
@@ -123,6 +150,14 @@ function release() {
   if (onVisibility) {
     document.removeEventListener("visibilitychange", onVisibility);
     onVisibility = null;
+  }
+  if (onOffline) {
+    window.removeEventListener("offline", onOffline);
+    onOffline = null;
+  }
+  if (onReconnect) {
+    window.removeEventListener("online", onReconnect);
+    onReconnect = null;
   }
 }
 
@@ -143,6 +178,14 @@ const subscribeDown = (listener: () => void) => {
 };
 const getDownSnapshot = () => down;
 
+const subscribeOnline = (listener: () => void) => {
+  onlineListeners.add(listener);
+  return () => {
+    onlineListeners.delete(listener);
+  };
+};
+const getOnlineSnapshot = () => online;
+
 export function usePlayerCount(
   enabled: boolean,
   game: string = GAME_ID,
@@ -152,7 +195,12 @@ export function usePlayerCount(
    * instead of silently enabled; every other caller keeps the default.
    */
   probeUnconfigured = false,
-): { count: PlayerCount | null; refresh: () => void; serverDown: boolean } {
+): {
+  count: PlayerCount | null;
+  refresh: () => void;
+  serverDown: boolean;
+  online: boolean;
+} {
   const live = enabled && (MATCHMAKING_CONFIGURED || probeUnconfigured);
 
   useEffect(() => {
@@ -163,9 +211,19 @@ export function usePlayerCount(
 
   const count = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const downSnapshot = useSyncExternalStore(subscribeDown, getDownSnapshot, getDownSnapshot);
+  const onlineSnapshot = useSyncExternalStore(
+    subscribeOnline,
+    getOnlineSnapshot,
+    getOnlineSnapshot,
+  );
   const refresh = useCallback(() => {
     if (live) void poll(game);
   }, [live, game]);
 
-  return { count: live ? count : null, refresh, serverDown: live ? downSnapshot : false };
+  return {
+    count: live ? count : null,
+    refresh,
+    serverDown: live ? downSnapshot : false,
+    online: live ? onlineSnapshot : true,
+  };
 }

@@ -163,11 +163,15 @@ const quickMatchBlockReason = (): string | null =>
 // Proven-unreachable relay (never had a successful read) disables
 // Online the same way a missing backend does. The build flag wins when
 // both apply; unknown (poll in flight) stays enabled, never flickering.
-const lobbyDisabledModes = (serverDown: boolean): Partial<Record<GameMode, string>> | undefined => {
+const lobbyDisabledModes = (
+  serverDown: boolean,
+  offline: boolean,
+): Partial<Record<GameMode, string>> | undefined => {
   const onlineModeReason = ONLINE_UNAVAILABLE ? t("lobby.onlineModeUnavailable") : null;
+  const offlineReason = offline ? t("lobby.onlineOffline") : null;
   const serverDownReason =
     serverDown && !ONLINE_UNAVAILABLE ? t("lobby.onlineDown") : null;
-  const onlineDisabledReason = onlineModeReason ?? serverDownReason;
+  const onlineDisabledReason = onlineModeReason ?? offlineReason ?? serverDownReason;
   return onlineDisabledReason
     ? ({ [GameModes.ONLINE]: onlineDisabledReason } as Partial<Record<GameMode, string>>)
     : undefined;
@@ -180,6 +184,7 @@ const lobbyStartGate = ({
   onlineAction,
   onlineRoomId,
   quickMatchReason,
+  offline,
 }: {
   payload: LobbyFormPayload;
   isValid: boolean;
@@ -187,12 +192,20 @@ const lobbyStartGate = ({
   onlineAction: TurnAction;
   onlineRoomId: string;
   quickMatchReason: string | null;
+  offline: boolean;
 }) => {
   const onlineUnavailable =
     gameMode === GameModes.ONLINE &&
-    (ONLINE_UNAVAILABLE || (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
+    (ONLINE_UNAVAILABLE ||
+      offline ||
+      (onlineAction === "quick" && !MATCHMAKING_CONFIGURED));
   const startDisabled = !isValid || onlineUnavailable;
-  const startTitle = onlineUnavailable ? t("lobby.backendMissing") : undefined;
+  const onlineBlockReason = ONLINE_UNAVAILABLE
+    ? t("lobby.backendMissing")
+    : offline
+      ? t("lobby.onlineOffline")
+      : quickMatchReason;
+  const startTitle = onlineUnavailable ? (onlineBlockReason ?? undefined) : undefined;
   // The room-code field already shows its own error inline; repeating it
   // under the button would say the same thing twice on one screen.
   const roomFieldError =
@@ -201,7 +214,7 @@ const lobbyStartGate = ({
       : null;
   const validationError = startDisabled ? validate(payload) : null;
   const startReason = onlineUnavailable
-    ? (ONLINE_UNAVAILABLE ? t("lobby.backendMissing") : quickMatchReason)
+    ? onlineBlockReason
     : validationError !== roomFieldError
       ? validationError
       : null;
@@ -228,6 +241,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     handleGameModeChange,
     playerCount,
     serverDown,
+    online,
   } = useLobbyPlayers(initialRoomId);
   const {
     onlineRoomId,
@@ -280,7 +294,8 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
 
   const isValid = useMemo(() => validate(payload) === null, [payload]);
 
-  const disabledModes = lobbyDisabledModes(serverDown);
+  const offline = !online;
+  const disabledModes = lobbyDisabledModes(serverDown, offline);
   const {
     onlineUnavailable,
     startDisabled,
@@ -294,10 +309,12 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     onlineAction,
     onlineRoomId,
     quickMatchReason,
+    offline,
   });
   const startReasonId = useId();
 
   const startGame = useCallback(() => {
+    if (onlineUnavailable) return false;
     const err = validate(payload);
     if (err) {
       setError(err);
@@ -307,7 +324,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
     saveDisplayName(payload.displayName);
     onStart(payload);
     return true;
-  }, [payload, onStart]);
+  }, [onlineUnavailable, payload, onStart]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -378,7 +395,7 @@ export function LobbyForm({ initialRoomId = "", onStart, onReplayTutorial }: Lob
 
           {gameMode === GameModes.ONLINE && (
             <OnlineMatchSection
-              playerCount={playerCount}
+              playerCount={online ? playerCount : null}
               onlineAction={onlineAction}
               explainedAction={explainedAction}
               onChooseAction={chooseOnlineAction}
@@ -461,7 +478,7 @@ function useLobbyPlayers(initialRoomId: string) {
   // lobby is up (not only in Online mode): answering "is anyone playing?"
   // before Quick Match is pressed is the whole point, and a missing relay
   // must read as unreachable on arrival instead of silently enabled tiles.
-  const { count: playerCount, serverDown } = usePlayerCount(true, undefined, true);
+  const { count: playerCount, serverDown, online } = usePlayerCount(true, undefined, true);
 
   const playerSettings: PlayerSettings = useMemo(
     () => ({ displayName, color, playerShape }),
@@ -564,6 +581,7 @@ function useLobbyPlayers(initialRoomId: string) {
     handleGameModeChange,
     playerCount,
     serverDown,
+    online,
   };
 }
 

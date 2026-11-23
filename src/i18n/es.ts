@@ -70,6 +70,8 @@ export const es: Record<StringKey, string> = {
   "lobby.quickUnavailable":
     "La partida rápida no está disponible. Crea una sala o únete a una.",
   "lobby.onlineDown": "El modo en línea no está disponible. Inténtalo de nuevo más tarde.",
+  "lobby.onlineOffline":
+    "No tienes conexión. El juego en línea está en pausa hasta que recuperes la conexión.",
   "lobby.backendMissing": "El juego en línea no está disponible en esta versión.",
   "lobby.v.joinEmpty": "Escribe un código de sala para unirte.",
   "lobby.v.joinInvalid":
