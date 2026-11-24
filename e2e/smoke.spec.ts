@@ -182,14 +182,14 @@ test("starts a vs Computer game with a random first player", async ({ page }) =>
     .poll(
       () =>
         page
-          .locator('button:not(:disabled)')
+          .locator('button:not([aria-disabled="true"])')
           .evaluateAll((cells) =>
             cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
           ),
       { timeout: 5_000 },
     )
     .toBeGreaterThan(0);
-  const emptyCell = page.locator('button[aria-label$=", empty"]').first();
+  const emptyCell = page.locator('button[aria-label$=", empty"]:not([aria-disabled="true"])').first();
   await emptyCell.click();
   await expect(page.locator('button[aria-label*="occupied by"]').first()).toBeVisible({ timeout: 2_000 });
 });
@@ -211,7 +211,7 @@ test("the computer plays on its own turn, including the opening one", async ({ p
   );
 
   if (!computerOpens) {
-    await page.locator('button[aria-label$=", empty"]').first().click();
+    await page.locator('button[aria-label$=", empty"]:not([aria-disabled="true"])').first().click();
   }
 
   // A piece on the board proves the move landed, well inside the turn clock.
@@ -411,7 +411,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .poll(
       () =>
         page
-          .locator('button:not(:disabled)')
+          .locator('button:not([aria-disabled="true"])')
           .evaluateAll((cells) =>
             cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
           ),
@@ -420,7 +420,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .toBeGreaterThan(0);
 
   // Human plays the first available empty cell, then the AI should play somewhere.
-  const emptyCell = page.locator('button[aria-label$=", empty"]').first();
+  const emptyCell = page.locator('button[aria-label$=", empty"]:not([aria-disabled="true"])').first();
   const pieces = page.locator('button[aria-label*="occupied by"]');
   // Sample before the click: whoever opened, the reply cycle adds exactly
   // two pieces (this move and the AI's). Reading the count after the click
@@ -443,7 +443,7 @@ test("starts a vs Computer game and the AI responds", async ({ page }) => {
     .poll(
       () =>
         page
-          .locator('button:not(:disabled)')
+          .locator('button:not([aria-disabled="true"])')
           .evaluateAll((cells) =>
             cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,
           ),
@@ -875,7 +875,7 @@ test("two online sessions sync through the waiting-room UI, play, and rematch", 
   // counted across both boards.
   const enabledOn = (view: typeof hostPage) =>
     view
-      .locator('button:not(:disabled)')
+      .locator('button:not([aria-disabled="true"])')
       .evaluateAll(
         (cells) =>
           cells.filter((cell) => cell.getAttribute("aria-label")?.endsWith(", empty")).length,

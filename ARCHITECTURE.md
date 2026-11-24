@@ -82,6 +82,14 @@ Everything from here down is how it works and why. The visual contract is
 - AI difficulties: EASY (weighted random with center/corner preference), NORMAL (depth-4 eviction-aware alpha-beta Minimax with randomized equal-score choices), HARD (depth-8 cycle-safe alpha-beta Minimax with stable best play)
 - Helpers in `constants.ts`: `oppositeSymbol(symbol)`, `randomPlayerSymbol()`, `oppositeColor(color)` — use these instead of inline ternaries
 
+## Keyboard focus on the board
+
+- The board keeps one roving tab stop (`Board`'s `rovingIndex`), the arrow keys move it and `Home`/`End` jump along the row
+- Refusing moves comes in two kinds, and they are not the same thing. `Board`'s `disabled` is native disabling: the cells leave the tab order, which is right for an overlay (the game is frozen) and for the end of the round. `Board`'s `moveLocked` is a focusable lock: the cells stay focusable, still announce `aria-disabled`, and refuse every move
+- The computer's reply uses the focusable lock. A natively disabled button drops the keyboard player's focus to the body, so the reply used to end the keyboard game: the player had to tab back into the board after every move. The lock keeps the cell they were on, so the arrow keys carry on from there and Enter or Space plays the next cell
+- Native disabling wins over the lock. `LocalBoard` (vs Computer and the play-while-you-wait warm-up) and the practice round pass the computer's turn as `moveLocked` and keep `disabled` for the overlay and the finished round; the online board keeps the native lock
+- The lock refuses the moves at every entry point: the digit shortcuts (`Board`'s window keydown), the cell's click handler, and the browser's own activation of a focused button (Enter and Space). The disabled styling and the plain-language reason in the cell's accessible name survive it
+
 ## Online Match Modes
 
 - Three entry points, three different contracts. **Quick** is paired by the matchmaking service, **Create** mints a room the user invites a specific person to, **Join** consumes a code they were sent. Room codes belong to Create and Join only

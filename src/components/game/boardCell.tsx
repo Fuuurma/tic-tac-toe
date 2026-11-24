@@ -15,6 +15,7 @@ interface BoardCellProps {
    *  the one bright thing on the board. */
   isDimmed?: boolean;
   isDisabled: boolean;
+  isMoveLocked?: boolean;
   /** Plain-language reason the cell cannot be played, appended to the
    *  accessible name. Absent when the cell is playable. */
   disabledReason?: string;
@@ -89,7 +90,7 @@ export const BoardCell = memo(
     // prop changed (the memo would otherwise hold the old language).
     useStrings();
     const ghost = useVanishGhost(props.showVanish ?? false, props.value, props.valueShape, props.valueColor);
-    const { index, value, valueShape, isNextToRemove, isDisabled, disabledReason, isHint, onClick, onHover } = props;
+    const { index, value, valueShape, isNextToRemove, isDisabled, isMoveLocked, disabledReason, isHint, onClick, onHover } = props;
 
     return (
       <button
@@ -99,7 +100,7 @@ export const BoardCell = memo(
         aria-label={buildAriaLabel(index, value, valueShape, isNextToRemove, disabledReason, isHint)}
         aria-keyshortcuts={String(index + 1)}
         aria-disabled={isDisabled || value !== null}
-        disabled={isDisabled}
+        disabled={isDisabled && !isMoveLocked}
         onClick={() => {
           if (isDisabled || value !== null) return;
           onClick(index);

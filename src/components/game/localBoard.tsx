@@ -49,7 +49,8 @@ export function LocalBoard({ gameState, paused, onCellClick }: LocalBoardProps) 
     gameState.gameStatus === GameStatus.ACTIVE &&
     gameState.players[gameState.currentPlayer].type === PlayerTypes.COMPUTER;
   const isBoardDisabled =
-    paused || isAITurn || gameState.gameStatus !== GameStatus.ACTIVE;
+    paused || gameState.gameStatus !== GameStatus.ACTIVE;
+  const isMoveLocked = !isBoardDisabled && isAITurn;
   // Why the board is unplayable, in words. Every empty cell announces
   // "empty" alone, which reads as interactive and behaves as a dead end.
   const boardDisabledReason = paused
@@ -71,6 +72,7 @@ export function LocalBoard({ gameState, paused, onCellClick }: LocalBoardProps) 
       previewColor={previewColor}
       previewShape={previewPlayer ? gameState.players[previewPlayer].shape : undefined}
       disabled={isBoardDisabled}
+      moveLocked={isMoveLocked}
       disabledReason={boardDisabledReason}
       showVanish
       onCellClick={onCellClick}

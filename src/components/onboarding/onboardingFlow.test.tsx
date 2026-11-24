@@ -229,6 +229,38 @@ describe("practice round", () => {
     expect(storedOutcome()).toBe("skipped");
     expect(storedName()).toBe("Maria");
   });
+
+  it("keeps the practice board reachable while the AI replies", () => {
+    vi.useFakeTimers();
+    start();
+    setUpPlayer();
+
+    const board = screen.getByRole("group", { name: "Tic Tac Toe game board" });
+    const cells = Array.from(board.querySelectorAll("button")) as HTMLButtonElement[];
+    cells[0].focus();
+    expect(document.activeElement).toBe(cells[0]);
+
+    fireEvent.click(cells[0]);
+
+    expect(cells[1].disabled).toBe(false);
+    expect(cells[1].getAttribute("aria-disabled")).toBe("true");
+    cells[0].blur();
+    cells[0].focus();
+    expect(document.activeElement).toBe(cells[0]);
+
+    fireEvent.click(cells[1]);
+    fireEvent.keyDown(cells[1], { key: "2" });
+    expect(screen.getAllByRole("button", { name: /occupied by/ })).toHaveLength(1);
+
+    advance(1000);
+
+    expect(document.activeElement).toBe(cells[0]);
+    fireEvent.keyDown(cells[0], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(cells[1]);
+
+    fireEvent.click(cells[1]);
+    expect(screen.getAllByRole("button", { name: /occupied by/ })).toHaveLength(3);
+  });
 });
 
 describe("replay", () => {

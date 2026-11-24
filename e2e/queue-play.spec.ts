@@ -113,7 +113,7 @@ const playWhileWaiting = (page: Page) =>
 
 /** Plays the first cell the human is allowed to take right now. */
 async function makeAMove(page: Page) {
-  await page.locator("button[aria-label^='Row']:not([disabled])").first().click();
+  await page.locator("button[aria-label^='Row']:not([aria-disabled='true'])").first().click();
   await expect(page.locator("button[aria-label*='occupied']").first()).toBeVisible();
 }
 
@@ -137,7 +137,7 @@ test("a searching player can fill the wait with the computer, then is handed to 
   queue.pair();
   await expect(page.getByText("Opponent found")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Starting your match…")).toBeVisible();
-  await expect(page.locator("button[aria-label^='Row']:not([disabled])")).toHaveCount(0);
+  await expect(page.locator("button[aria-label^='Row']:not([aria-disabled='true'])")).toHaveCount(0);
 
   // The relay seats the host, the rival's socket arrives, and the rival
   // introduces itself: only that last frame starts the real game, so only
@@ -261,7 +261,7 @@ test("a host can play the computer while the room waits, then the friend takes o
   // Someone is seated: the old board stops taking taps.
   room.send({ type: "peer-joined", opponent: { guestId: "g-guest", displayName: "Rival" } });
   await expect(page.getByText("Opponent joined")).toBeVisible();
-  await expect(page.locator("button[aria-label^='Row']:not([disabled])")).toHaveCount(0);
+  await expect(page.locator("button[aria-label^='Row']:not([aria-disabled='true'])")).toHaveCount(0);
 
   // Only their introduction starts the real game.
   room.send({ type: "join", displayName: "Rival", guestId: "g-guest", preferredColor: "red" });

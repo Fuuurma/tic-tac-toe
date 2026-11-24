@@ -9,7 +9,7 @@ import {
   GameStatus,
   PlayerSymbol,
 } from "@/game/constants";
-import { createInitialGameState, type GameState } from "@/game/logic";
+import { createInitialGameState, makeMove, type GameState } from "@/game/logic";
 
 afterEach(cleanup);
 
@@ -27,6 +27,12 @@ const game = (humanSymbol: PlayerSymbol, overrides: Partial<GameState> = {}): Ga
 
 const firstCell = () => screen.getAllByRole("button")[0] as HTMLButtonElement;
 
+const afterMove = (state: GameState, index: number): GameState => {
+  const next = makeMove(state, index);
+  if (!next) throw new Error(`move ${index} should be legal`);
+  return next;
+};
+
 describe("LocalBoard", () => {
   it("lets the human play on their own turn", () => {
     const onCellClick = vi.fn();
@@ -42,7 +48,8 @@ describe("LocalBoard", () => {
     const { rerender } = render(
       <LocalBoard gameState={game(PlayerSymbol.O)} paused={false} onCellClick={vi.fn()} />,
     );
-    expect(firstCell().disabled).toBe(true);
+    expect(firstCell().disabled).toBe(false);
+    expect(firstCell().getAttribute("aria-disabled")).toBe("true");
     expect(firstCell().getAttribute("aria-label")).toContain("waiting for the computer to move");
 
     rerender(<LocalBoard gameState={game(PlayerSymbol.X)} paused onCellClick={vi.fn()} />);
@@ -72,5 +79,44 @@ describe("LocalBoard", () => {
       />,
     );
     expect(firstCell().disabled).toBe(false);
+  });
+
+  it("keeps the keyboard player's cell through the computer's reply", () => {
+    const onCellClick = vi.fn();
+    const humanTurn = game(PlayerSymbol.X);
+    const { rerender } = render(
+      <LocalBoard gameState={humanTurn} paused={false} onCellClick={onCellClick} />,
+    );
+
+    const cells = screen.getAllByRole("button") as HTMLButtonElement[];
+    cells[0].focus();
+    expect(document.activeElement).toBe(cells[0]);
+
+    const computerTurn = afterMove(humanTurn, 0);
+    rerender(
+      <LocalBoard gameState={computerTurn} paused={false} onCellClick={onCellClick} />,
+    );
+
+    expect(cells[0].disabled).toBe(false);
+    expect(cells[0].getAttribute("aria-disabled")).toBe("true");
+    cells[0].blur();
+    cells[0].focus();
+    expect(document.activeElement).toBe(cells[0]);
+
+    fireEvent.click(cells[1]);
+    fireEvent.keyDown(cells[1], { key: "2" });
+    expect(onCellClick).not.toHaveBeenCalled();
+
+    const humanTurnAgain = afterMove(computerTurn, 4);
+    rerender(
+      <LocalBoard gameState={humanTurnAgain} paused={false} onCellClick={onCellClick} />,
+    );
+
+    expect(document.activeElement).toBe(cells[0]);
+    fireEvent.keyDown(cells[0], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(cells[1]);
+
+    fireEvent.click(cells[1]);
+    expect(onCellClick).toHaveBeenCalledWith(1);
   });
 });

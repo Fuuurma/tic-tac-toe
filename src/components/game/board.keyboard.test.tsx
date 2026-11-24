@@ -18,7 +18,7 @@ const base = {
   nextToRemove: { [PlayerSymbol.X]: null, [PlayerSymbol.O]: null },
 };
 
-const boardCells = () => screen.getAllByRole("button");
+const boardCells = () => screen.getAllByRole("button") as HTMLButtonElement[];
 const tabbableCells = () =>
   boardCells().filter((el) => el.getAttribute("tabindex") === "0");
 
@@ -140,5 +140,79 @@ describe("Board keyboard shortcuts unchanged", () => {
 
     expect(onCellClick).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(input);
+  });
+
+  it("ignores digit keys pressed inside a modal dialog even while the board is locked", () => {
+    const onCellClick = vi.fn();
+    render(
+      <>
+        <Board {...base} disabled={false} moveLocked onCellClick={onCellClick} />
+        <dialog open>
+          <button type="button">Cancel</button>
+        </dialog>
+      </>,
+    );
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Cancel" }), { key: "2" });
+
+    expect(onCellClick).not.toHaveBeenCalled();
+  });
+});
+
+describe("Board move lock", () => {
+  it("keeps the cells focusable while the moves are locked", () => {
+    const onCellClick = vi.fn();
+    render(<Board {...base} disabled={false} moveLocked onCellClick={onCellClick} />);
+    const cells = boardCells();
+
+    expect(cells[0].disabled).toBe(false);
+    expect(cells[0].getAttribute("aria-disabled")).toBe("true");
+    expect(tabbableCells()).toEqual([cells[0]]);
+
+    cells[0].blur();
+    cells[0].focus();
+    expect(document.activeElement).toBe(cells[0]);
+  });
+
+  it("refuses the moves while the board is locked", () => {
+    const onCellClick = vi.fn();
+    render(<Board {...base} disabled={false} moveLocked onCellClick={onCellClick} />);
+    const cells = boardCells();
+
+    fireEvent.click(cells[0]);
+    fireEvent.keyDown(cells[0], { key: "1" });
+
+    expect(onCellClick).not.toHaveBeenCalled();
+  });
+
+  it("keeps the arrow keys working while the board is locked", () => {
+    render(<Board {...base} disabled={false} moveLocked onCellClick={vi.fn()} />);
+    const cells = boardCells();
+
+    cells[0].focus();
+    fireEvent.keyDown(cells[0], { key: "ArrowRight" });
+
+    expect(document.activeElement).toBe(cells[1]);
+    expect(tabbableCells()).toEqual([cells[1]]);
+  });
+
+  it("gives native disabling precedence over the lock", () => {
+    render(
+      <Board {...base} disabled moveLocked disabledReason="game is paused" onCellClick={vi.fn()} />,
+    );
+    const cells = boardCells();
+
+    expect(cells[0].disabled).toBe(true);
+    expect(cells[0].getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("takes the board out of the tab order at the end of the round", () => {
+    render(
+      <Board {...base} disabled disabledReason="game is over" onCellClick={vi.fn()} />,
+    );
+    const cells = boardCells();
+
+    expect(cells[0].disabled).toBe(true);
+    expect(cells[0].getAttribute("aria-label")).toContain("game is over");
   });
 });

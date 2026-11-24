@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 const WIN = "Three in a row. You win!";
 
 const enabledEmptyCell = (page: Page) =>
-  page.locator('button[aria-label*=", empty"]:not([disabled])').first();
+  page.locator('button[aria-label*=", empty"]:not([aria-disabled="true"])').first();
 
 /** Waits out the AI's reply: either the player may move again, or they have won. */
 async function untilPlayersTurn(page: Page) {

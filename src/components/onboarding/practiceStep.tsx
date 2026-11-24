@@ -180,7 +180,8 @@ export function PracticeStep({
           previewPlayer={playersTurn ? PlayerSymbol.X : undefined}
           previewColor={playersTurn ? colors[PlayerSymbol.X] : undefined}
           previewShape={playersTurn ? shapes[PlayerSymbol.X] : undefined}
-          disabled={aiToMove || won}
+          disabled={won}
+          moveLocked={aiToMove}
           disabledReason={
             won ? t("game.practiceOver") : aiToMove ? t("game.aiReplying") : undefined
           }
