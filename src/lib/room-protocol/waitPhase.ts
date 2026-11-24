@@ -24,7 +24,7 @@ interface WaitInput {
 }
 
 export function waitPhase({ action, role, status, queue, gameStatus }: WaitInput): WaitPhase | null {
-  if (action === "quick") return quickPhase(status, queue);
+  if (action === "quick") return quickPhase(status, queue, gameStatus);
   if (action === "create" && role === "host") return roomPhase(status, gameStatus);
   // A guest joins a host who is already there or fails fast; there is no
   // wait worth filling.
@@ -35,7 +35,15 @@ export function waitPhase({ action, role, status, queue, gameStatus }: WaitInput
  * `queue` is the source of truth, because `status` cannot tell a searcher
  * from a paired host building its room (both hold `creating`).
  */
-function quickPhase(status: PeerStatus, queue: QueueStage): WaitPhase | null {
+function quickPhase(
+  status: PeerStatus,
+  queue: QueueStage,
+  gameStatus: GameStatus,
+): WaitPhase | null {
+  if (gameStatus === GameStatus.WAITING) {
+    if (status === "reconnecting") return "matched";
+    if (status === "disconnected") return "ended";
+  }
   if (status === "connected" || status === "reconnecting" || status === "disconnected") {
     return null;
   }

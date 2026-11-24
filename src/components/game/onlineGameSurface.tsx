@@ -137,10 +137,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // replaces it (phase turns null once the match connects).
   const [warmupOpen, setWarmupOpen] = useState(false);
   const warmupVisible = warmupOpen && phase !== null;
-  const preGameRoom =
-    !isQuick && peer.state.gameState.gameStatus === GameStatus.WAITING;
+  const preGame = peer.state.gameState.gameStatus === GameStatus.WAITING;
+  const preGameRoom = !isQuick && preGame;
   const preGameRecovery =
-    preGameRoom &&
+    preGame &&
     (peer.state.status === "reconnecting" ||
       peer.state.status === "disconnected");
   // A host's room can blip into `reconnecting` while the warm-up is on
@@ -251,6 +251,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           peer={peer}
           deviceOnline={deviceOnline}
           preGame={preGameRoom}
+          detail={isQuick ? undefined : t("online.roomOpen")}
           warmupVisible={warmupVisible}
           onExit={leaveAndExit}
         />
@@ -772,12 +773,14 @@ function ReconnectingBanner({
   peer,
   deviceOnline,
   preGame,
+  detail,
   warmupVisible,
   onExit,
 }: {
   peer: PeerRoom;
   deviceOnline: boolean;
   preGame: boolean;
+  detail?: string;
   warmupVisible: boolean;
   onExit: () => void;
 }) {
@@ -795,9 +798,11 @@ function ReconnectingBanner({
           ? peer.state.message || t("online.reconnecting")
           : t("lobby.onlineOffline")}
       </span>
-      <span className="text-[11px] text-muted-foreground max-sm:text-xs">
-        {t("online.roomOpen")}
-      </span>
+      {detail && (
+        <span className="text-[11px] text-muted-foreground max-sm:text-xs">
+          {detail}
+        </span>
+      )}
       <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
         <Button
           size="sm"

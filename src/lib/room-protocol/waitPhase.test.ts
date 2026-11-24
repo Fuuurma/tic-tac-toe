@@ -37,9 +37,17 @@ describe("waitPhase: Quick Match", () => {
   });
 
   it("is nothing once the online game exists", () => {
-    for (const status of ["connected", "reconnecting", "disconnected"] as const) {
-      expect(waitPhase(quick({ status, queue: "matched" }))).toBeNull();
+    expect(waitPhase(quick({ status: "connected", queue: "matched" }))).toBeNull();
+    for (const status of ["reconnecting", "disconnected"] as const) {
+      expect(
+        waitPhase(quick({ status, queue: "matched", gameStatus: GameStatus.ACTIVE })),
+      ).toBeNull();
     }
+  });
+
+  it("keeps the wait through a pre-game reconnect, and ends it on a disconnect", () => {
+    expect(waitPhase(quick({ status: "reconnecting", queue: "matched" }))).toBe("matched");
+    expect(waitPhase(quick({ status: "disconnected", queue: "matched" }))).toBe("ended");
   });
 
   it("is nothing before a search starts or after one is left", () => {

@@ -906,7 +906,7 @@ describe("OnlineGameSurface private room before the first round", () => {
     }
   });
 
-  it("leaves Quick Match's presentation alone through the same blip", () => {
+  it("keeps a Quick Match's pre-game blip off the empty online board", () => {
     mocks.usePeerRoom.mockReturnValue(
       makePeer("host", {
         status: "reconnecting",
@@ -922,8 +922,9 @@ describe("OnlineGameSurface private room before the first round", () => {
       />,
     );
 
-    const cell = screen.getByRole("button", { name: /Row 1 column 1/ });
-    expect((cell as HTMLButtonElement).disabled).toBe(true);
+    expectNoGameArea();
+    screen.getByText("Socket dropped");
+    screen.getByRole("button", { name: "Retry now" });
   });
 });
 
