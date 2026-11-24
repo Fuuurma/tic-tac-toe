@@ -13,6 +13,7 @@ interface BoardProps {
   previewColor?: Color;
   previewShape?: SymbolShape;
   disabled: boolean;
+  moveLocked?: boolean;
   /** Plain-language reason the board is unplayable (paused, waiting for the
    *  other player, game over). Surfaced in every empty cell's accessible
    *  name so "empty" is not the whole story. */
@@ -45,6 +46,7 @@ export const Board = memo(function Board({
   previewColor,
   previewShape,
   disabled,
+  moveLocked,
   disabledReason,
   hintIndex,
   showVanish,
@@ -54,6 +56,7 @@ export const Board = memo(function Board({
   useStrings();
   const [hovered, setHovered] = useState<number | null>(null);
   const [rovingIndex, setRovingIndex] = useState(() => initialRovingIndex(board, disabled));
+  const isMoveLocked = !disabled && moveLocked === true;
   const boardRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const cellRefCallbacks = useMemo(
@@ -104,7 +107,7 @@ export const Board = memo(function Board({
       }
 
       const index = Number(event.key) - 1;
-      if (disabled || board[index] !== null) return;
+      if (disabled || isMoveLocked || board[index] !== null) return;
 
       event.preventDefault();
       onCellClickRef.current(index);
@@ -112,7 +115,7 @@ export const Board = memo(function Board({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [board, disabled]);
+  }, [board, disabled, isMoveLocked]);
 
   const indexOfCell = (target: EventTarget | null): number => {
     if (!(target instanceof Node)) return -1;
@@ -183,7 +186,8 @@ export const Board = memo(function Board({
                     isNextToRemove={isNext}
                     isWinningCell={isWinning}
                     isDimmed={winningCombination !== null && !isWinning}
-                    isDisabled={disabled}
+                    isDisabled={disabled || isMoveLocked}
+                    isMoveLocked={isMoveLocked}
                     disabledReason={disabledReason}
                     isHovered={hovered === index}
                     previewPlayer={previewPlayer}
