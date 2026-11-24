@@ -30,7 +30,7 @@ import {
 } from "@/hooks/usePeerRoom";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
 import { useDeviceOnline } from "@/hooks/useDeviceOnline";
-import { useGameStats } from "@/hooks/useGameStats";
+import { useGameStats, type GameStats } from "@/hooks/useGameStats";
 import { saveDisplayName } from "@/lib/identity";
 import { loadPreferences, savePreferences } from "@/lib/preferences";
 import { PreferencesSheet } from "@/components/lobby/preferencesSheet";
@@ -115,7 +115,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     retryReconnect();
   }, [deviceOnline, peerStatus, retryReconnect]);
 
-  useRecordOnlineResult(peer);
+  const gameStats = useGameStats();
+  useRecordOnlineResult(peer, gameStats);
 
   const gameStatusShowsGame = ["connected", "reconnecting", "disconnected"].includes(
     peer.state.status,
@@ -275,6 +276,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
             playerShape: config.playerShape,
           }}
           difficulty={warmupDifficulty}
+          gameStats={gameStats}
           handoff={phase === "matched"}
           handoffTitle={isQuick ? undefined : t("queue.joinedTitle")}
           onStop={() => setWarmupOpen(false)}
@@ -286,6 +288,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
         <OnlineGameArea
           peer={peer}
           onlineAction={config.onlineAction}
+          stats={gameStats.stats}
           overlaysPaused={overlaysPaused}
           onOpenSettings={() => setPreferencesOpen(true)}
           onEditIdentity={openSettings}
@@ -308,12 +311,17 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   );
 }
 
-function useRecordOnlineResult(peer: PeerRoom) {
+function useRecordOnlineResult(
+  peer: PeerRoom,
+  { recordWin, recordLoss }: Pick<
+    ReturnType<typeof useGameStats>,
+    "recordWin" | "recordLoss"
+  >,
+) {
   const localSymbol = localPlayerSymbol(peer.state);
   // Record online game results (fleet audit 2026-09-02 P2-6: online
   // wins/losses were silently dropped — useGameStats was only wired in
   // LocalGameSurface).
-  const { recordWin, recordLoss } = useGameStats();
   // F474: one result per terminal episode. The old dedupe keyed on
   // moveCount, which is host-controlled — a host resending the same
   // terminal frame with a different accepted moveCount inflated the
@@ -495,6 +503,7 @@ function onlineSurfacePaused(peer: PeerRoom, overlaysPaused: boolean): boolean {
 function OnlineGameArea({
   peer,
   onlineAction,
+  stats,
   overlaysPaused,
   onOpenSettings,
   onEditIdentity,
@@ -503,6 +512,7 @@ function OnlineGameArea({
 }: {
   peer: PeerRoom;
   onlineAction: TurnAction;
+  stats: GameStats;
   overlaysPaused: boolean;
   onOpenSettings: () => void;
   onEditIdentity: () => void;
@@ -537,6 +547,7 @@ function OnlineGameArea({
       <SocialReactions ready={peer.state.status === "connected"} reaction={peer.reaction} send={peer.sendReaction} />
       <PlayersPanel
         gameState={peer.state.gameState}
+        stats={stats}
         message={message}
         gameMode={GameModes.ONLINE}
         roomCode={onlineRoomCode(onlineAction, peer.state.roomId)}

@@ -13,7 +13,7 @@ import {
   COPY_FLASH_MS,
 } from "@/game/constants";
 import { getDifficultyLabel, t } from "@/i18n/language";
-import { useGameStats } from "@/hooks/useGameStats";
+import type { useGameStats } from "@/hooks/useGameStats";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { loadPreferences } from "@/lib/preferences";
@@ -283,12 +283,14 @@ function warmupOpponent(playerColor: Color) {
 export function QueueWarmup({
   player,
   difficulty,
+  gameStats,
   handoff,
   handoffTitle,
   onStop,
 }: {
   player: PlayerSettings;
   difficulty: AI_DifficultyType;
+  gameStats: ReturnType<typeof useGameStats>;
   handoff: boolean;
   /** What the overlay announces; Quick Match finds an opponent, a room's is joined. */
   handoffTitle?: string;
@@ -311,7 +313,6 @@ export function QueueWarmup({
   );
   const { gameState, humanSymbol, handleCellClick, handleReset, exit, setPaused, paused } =
     useLocalGame(input);
-  const gameStats = useGameStats();
   useRecordLocalResult(gameState, humanSymbol, gameStats);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
