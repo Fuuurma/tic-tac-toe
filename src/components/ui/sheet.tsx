@@ -23,6 +23,53 @@ const queryPhone = (): boolean =>
 
 const EXIT_ANIMATION_FALLBACK_MS = 400;
 
+interface OpenSheet {
+  dialog: HTMLDialogElement;
+  modal: boolean;
+  restoreFocusTo: HTMLElement | null;
+}
+
+const openSheets: OpenSheet[] = [];
+
+function trackSheet(
+  dialog: HTMLDialogElement,
+  modal: boolean,
+  restoreFocusTo: HTMLElement | null = null,
+): void {
+  const known = openSheets.find((sheet) => sheet.dialog === dialog);
+  if (known) {
+    known.restoreFocusTo = restoreFocusTo;
+    return;
+  }
+  openSheets.push({ dialog, modal, restoreFocusTo });
+}
+
+function untrackSheet(dialog: HTMLDialogElement | null): void {
+  if (!dialog) return;
+  const index = openSheets.findIndex((sheet) => sheet.dialog === dialog);
+  if (index >= 0) openSheets.splice(index, 1);
+}
+
+function topmostInlineSheet(): HTMLDialogElement | null {
+  for (let index = openSheets.length - 1; index >= 0; index -= 1) {
+    const sheet = openSheets[index];
+    if (!sheet.modal && sheet.dialog.isConnected && sheet.dialog.open) {
+      return sheet.dialog;
+    }
+  }
+  return null;
+}
+
+function topmostModalSheet(): OpenSheet | null {
+  for (let index = openSheets.length - 1; index >= 0; index -= 1) {
+    const sheet = openSheets[index];
+    if (sheet.modal && sheet.dialog.isConnected && sheet.dialog.open) {
+      return sheet;
+    }
+  }
+  return null;
+}
+
 /**
  * The one overlay surface: settings, help, confirms.
  *
@@ -304,40 +351,64 @@ function useSheetChrome({
     const dlg = dialogRef.current;
     if (!dlg || (inline && !phoneOverlay)) return;
     if (isVisible && !dlg.open) {
+      const restoreFocusTo =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       dlg.showModal();
+      trackSheet(dlg, true, restoreFocusTo);
       // The panel, not the first field: focusing an input on open pops the
       // phone keyboard over a sheet the player has not read yet.
       dlg.focus();
     } else if (!isVisible && dlg.open) {
       dlg.close();
+      untrackSheet(dlg);
+      const inlineSheet = topmostInlineSheet();
+      if (inlineSheet) inlineSheet.focus();
     }
+    return () => {
+      untrackSheet(dlg);
+    };
   }, [dialogRef, isVisible, inline, phoneOverlay]);
 
   // Non-modal (inline) dialogs get no Esc, focus trap or focus restore from
   // the platform, so the inline path supplies them.
   useEffect(() => {
-    if (!isVisible || !inline) return;
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.focus();
+    if (!isVisible || !inline || phoneOverlay) return;
+    const modalSheet = topmostModalSheet();
+    previousFocusRef.current = modalSheet
+      ? modalSheet.restoreFocusTo
+      : document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const dlg = dialogRef.current;
+    if (dlg) {
+      trackSheet(dlg, false);
+      if (!modalSheet) dlg.focus();
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         onCloseRef.current();
         return;
       }
-      const dlg = dialogRef.current;
-      if (e.key !== "Tab" || !dlg) return;
-      const focusable = dlg.querySelectorAll<HTMLElement>(
+      const panel = dialogRef.current;
+      if (e.key !== "Tab" || !panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>(
         'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       );
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (e.shiftKey && (document.activeElement === first || document.activeElement === dlg)) {
+      const active = document.activeElement;
+      if (!panel.contains(active)) {
+        e.preventDefault();
+        if (e.shiftKey) last.focus();
+        else first.focus();
+        return;
+      }
+      if (e.shiftKey && (active === first || active === panel)) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault();
         first.focus();
       }
@@ -345,11 +416,12 @@ function useSheetChrome({
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      untrackSheet(dlg);
       const previousFocus = previousFocusRef.current;
       if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
       previousFocusRef.current = null;
     };
-  }, [dialogRef, isVisible, inline, onCloseRef]);
+  }, [dialogRef, isVisible, inline, phoneOverlay, onCloseRef]);
 
   // Backdrop dismissal is a pointer affordance, not a control: keyboard users
   // already have Esc (the dialog's cancel event on the modal path, the
