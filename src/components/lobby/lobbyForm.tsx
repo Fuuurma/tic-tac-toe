@@ -505,10 +505,12 @@ function useLobbyPlayers(invite: RoomInvite, onlineDraft: OnlineSetupDraft | nul
       setColor(next.color);
       setPlayerShape(next.playerShape);
       saveDisplayName(next.displayName);
-      // Keep opponent color opposite in non-friend modes; in VS Friend the
-      // opponent sheet owns the opponent color and ensures distinctness.
       const derivedOpponent =
-        gameMode !== GameModes.VS_FRIEND ? oppositeColor(next.color) : undefined;
+        gameMode !== GameModes.VS_FRIEND
+          ? oppositeColor(next.color)
+          : next.color === opponentColor
+            ? color
+            : undefined;
       if (derivedOpponent) setOpponentColor(derivedOpponent);
       savePreferences({
         color: next.color,
@@ -516,7 +518,7 @@ function useLobbyPlayers(invite: RoomInvite, onlineDraft: OnlineSetupDraft | nul
         ...(derivedOpponent ? { opponentColor: derivedOpponent } : {}),
       });
     },
-    [gameMode],
+    [gameMode, color, opponentColor],
   );
 
   const handleOpponentSettingsChange = useCallback(

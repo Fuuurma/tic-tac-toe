@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
-import { GameModes, type GameSetup } from "@/game/constants";
+import { GameModes, oppositeColor, type GameSetup } from "@/game/constants";
 
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
@@ -172,20 +172,44 @@ function LocalGameSurface({
 
   // Settings edits made mid-game persist like lobby edits do, so the next
   // match reopens with the same setup.
-  const handlePlayerSettingsChange = useCallback((next: PlayerSettings) => {
-    setPlayerSettings(next);
-    saveDisplayName(next.displayName);
-    savePreferences({ color: next.color, playerShape: next.playerShape });
-  }, []);
-  const handleOpponentSettingsChange = useCallback((next: OpponentSettings) => {
-    setOpponentSettings(next);
-    savePreferences({
-      opponentName: next.opponentName,
-      opponentColor: next.opponentColor,
-      opponentShape: next.opponentShape,
-      aiDifficulty: next.aiDifficulty,
-    });
-  }, []);
+  const handlePlayerSettingsChange = useCallback(
+    (next: PlayerSettings) => {
+      const nextOpponentColor =
+        config.gameMode === GameModes.VS_COMPUTER
+          ? oppositeColor(next.color)
+          : config.gameMode === GameModes.VS_FRIEND &&
+              next.color === opponentSettings.opponentColor
+            ? playerSettings.color
+            : opponentSettings.opponentColor;
+      setPlayerSettings(next);
+      setOpponentSettings({ ...opponentSettings, opponentColor: nextOpponentColor });
+      saveDisplayName(next.displayName);
+      savePreferences({
+        color: next.color,
+        playerShape: next.playerShape,
+        opponentColor: nextOpponentColor,
+      });
+    },
+    [config.gameMode, opponentSettings, playerSettings.color],
+  );
+  const handleOpponentSettingsChange = useCallback(
+    (next: OpponentSettings) => {
+      const nextPlayerColor =
+        next.opponentColor === playerSettings.color
+          ? opponentSettings.opponentColor
+          : playerSettings.color;
+      setOpponentSettings(next);
+      setPlayerSettings({ ...playerSettings, color: nextPlayerColor });
+      savePreferences({
+        color: nextPlayerColor,
+        opponentName: next.opponentName,
+        opponentColor: next.opponentColor,
+        opponentShape: next.opponentShape,
+        aiDifficulty: next.aiDifficulty,
+      });
+    },
+    [opponentSettings.opponentColor, playerSettings],
+  );
 
   const input = useMemo(
     () => ({
