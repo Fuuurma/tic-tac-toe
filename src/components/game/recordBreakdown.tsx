@@ -15,6 +15,7 @@ import {
 } from "@/hooks/useGameStats";
 import { cn } from "@/lib/utils";
 import { placePanel } from "@/lib/panelPlacement";
+import { useDismissOnOutsidePress } from "@/hooks/useDismissOnOutsidePress";
 import { t } from "@/i18n/language";
 
 /**
@@ -82,6 +83,8 @@ export function RecordBreakdown({
     setPinned(false);
     setHovered(false);
   }, []);
+
+  useDismissOnOutsidePress(wrapperRef, pinned, close);
 
   useLayoutEffect(() => {
     if (!open) return;
