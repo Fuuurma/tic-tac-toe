@@ -15,6 +15,8 @@ import type { RoomClient } from "@/lib/roomClient";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
 import { buildRoomClient } from "./roomLifecycle";
 
+vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
+
 // Regression pins for the peer-reconnected state machine — the fleet's
 // most-fixed surface (host deadline reset, guest resync, lobby stranding).
 

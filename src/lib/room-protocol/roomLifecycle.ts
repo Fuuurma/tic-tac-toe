@@ -167,6 +167,9 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
     }
   });
   client.setStatusHandler((status, detail) => {
+    if (detail) {
+      reportError(detail, { source: "roomLifecycle.transport" });
+    }
     if (status === "connected" && roleRef.current === null) {
       // initial room connect: status will be set in welcome handler
     } else if (status === "reconnecting") {
@@ -174,8 +177,8 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
       // copies can't overwrite the relay's peer-specific grace message
       // ("Host disconnected. Reconnecting…" / peer-left reason lines).
       setState((prev) => {
-        if (prev.status === "reconnecting" && !detail) return prev;
-        return { ...prev, status: "reconnecting", message: detail ?? t("mm.reconnecting") };
+        if (prev.status === "reconnecting") return prev;
+        return { ...prev, status: "reconnecting", message: t("mm.reconnecting") };
       });
     } else if (status === "disconnected") {
       setState((prev) => {
@@ -190,10 +193,10 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
         if (prev.status === "disconnected" && prev.message && !prev.leftBySelf) {
           return prev;
         }
-        return { ...prev, status: "disconnected", message: detail ?? t("mm.disconnected") };
+        return { ...prev, status: "disconnected", message: t("mm.disconnected") };
       });
     } else if (status === "error") {
-      setState((prev) => ({ ...prev, status: "error", message: detail ?? t("mm.connectionError") }));
+      setState((prev) => ({ ...prev, status: "error", message: t("mm.connectionError") }));
     }
   });
   deps.roomRef.current = client;

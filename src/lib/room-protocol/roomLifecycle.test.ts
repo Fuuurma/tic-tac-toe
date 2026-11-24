@@ -7,6 +7,8 @@ import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
 import type { PlayerSettings } from "@/game/constants";
 
+vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
+
 // F7 regression pin: every close path must send `{type:"leave"}` BEFORE
 // closing the socket. A frame sent after close is silently dropped, so the
 // peer/relay never learns the room was left deliberately.
@@ -394,7 +396,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       return captured;
     }
 
-    it("keeps the relay's peer-left reason over our own leave notice, in Spanish", async () => {
+    it("shows the localized generic line when the transport disconnects after our own leave, in Spanish", async () => {
       const { setLocale, t } = await import("@/i18n/language");
       setLocale("es");
       try {
@@ -410,7 +412,9 @@ describe("joinAsGuest rematch-flag reset", () => {
 
         const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
           .mock.calls[0]?.[0] as (prev: never) => { message: string };
-        expect(updater(afterLeave).message).toBe("La sala se cerró");
+        const next = updater(afterLeave);
+        expect(next.message).toBe(t("mm.disconnected"));
+        expect(next.message).not.toContain("La sala");
       } finally {
         setLocale("en");
       }

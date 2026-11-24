@@ -12,6 +12,7 @@ import { PEER_MAX_ERROR_LENGTH } from "@/lib/peer.wire";
 import { applyForfeitIfActive, peerLeftUserMessage } from "@/lib/peer.apply";
 import { t } from "@/i18n/language";
 import type { RoomClient } from "@/lib/roomClient";
+import { reportError } from "@/lib/errorReporting";
 import { leaveRoom } from "./roomLifecycle";
 import type { PeerRole } from "./state";
 import type { PeerRoomState } from "./state";
@@ -243,7 +244,7 @@ export function handleRelayEvent(
           ...prev,
           role: "host",
           status: prev.status === "connected" ? "connected" : "waiting",
-          message: prev.status === "connected" ? "" : `Room ${prev.roomId}. Waiting for opponent.`,
+          message: prev.status === "connected" ? "" : t("online.waitingOpponent"),
         }));
       }
     } else if (role === "guest") {
@@ -482,11 +483,15 @@ export function handleRelayEvent(
     // Validate message is a string; reject non-string values from a
     // malicious or buggy relay (fleet needs-work 2026-09-07 P2).
     const msg = (event as { message?: unknown }).message;
-    const raw = typeof msg === "string" ? msg : t("peer.roomError");
     setState((prev) => ({
       ...prev,
-      message: raw.slice(0, PEER_MAX_ERROR_LENGTH),
+      message: t("peer.roomError"),
     }));
+    if (typeof msg === "string") {
+      reportError(msg.slice(0, PEER_MAX_ERROR_LENGTH), {
+        source: "relayEvents.error",
+      });
+    }
     return;
   }
 }
