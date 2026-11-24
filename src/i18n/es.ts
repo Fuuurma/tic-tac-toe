@@ -127,6 +127,12 @@ export const es: Record<StringKey, string> = {
   "settings.language": "Idioma",
   "settings.learn": "Aprender",
   "settings.howToPlay": "Cómo jugar",
+  "settings.record": "Tu récord",
+  "settings.resetRecord": "Reiniciar récord",
+  "settings.resetRecordTitle": "¿Reiniciar tu récord?",
+  "settings.resetRecordBody":
+    "Las victorias, derrotas y rachas de este dispositivo vuelven a cero.",
+  "settings.resetRecordConfirm": "Reiniciar",
   "theme.light": "Claro",
   "theme.dark": "Oscuro",
   "theme.toDark": "Cambiar a tema oscuro",

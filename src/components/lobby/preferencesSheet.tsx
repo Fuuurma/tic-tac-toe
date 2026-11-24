@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronRight, Download, Settings2 } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
+import { Confirm } from "@/components/game/confirm";
 import { LanguageSwitcher } from "./languageSwitcher";
 import { ThemeSegmented } from "./themeToggle";
 import { t, useStrings } from "@/i18n/language";
+import { resetStats } from "@/hooks/useGameStats";
 import {
   isIosPlatform,
   isStandaloneDisplay,
@@ -46,53 +48,76 @@ export function PreferencesSheet({
     installState === "unavailable" &&
     isIosPlatform() &&
     !isStandaloneDisplay();
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleResetConfirm = () => {
+    resetStats();
+    setShowResetConfirm(false);
+  };
 
   return (
-    <Sheet
-      open={isOpen}
-      onClose={onClose}
-      title={t("settings.title")}
-      // Short list: content-height on phones, so the game stays visible behind.
-      size="auto"
-      compactMobile
-      // Four fixed rows: a swipe anywhere on the sheet moves it.
-      dragFromBody
-    >
-      {isOpen && (
-        <div className="flex flex-col">
-          <Row label={t("settings.appearance")}>
-            <ThemeSegmented className={SEGMENTED_WIDTH} />
-          </Row>
-          <Row label={t("settings.language")}>
-            <LanguageSwitcher className={SEGMENTED_WIDTH} />
-          </Row>
-          <Group label={t("settings.learn")}>
-            <LinkRow label={t("settings.howToPlay")} onClick={onHowToPlay} />
-            {onReplayTutorial && (
-              <LinkRow label={t("help.replay")} onClick={onReplayTutorial} />
-            )}
-          </Group>
-          {(installState === "available" || showIosGuidance) && (
-            <Group label={t("settings.app")}>
-              {installState === "available" ? (
-                <LinkRow
-                  label={t("settings.installApp")}
-                  icon={
-                    <Download
-                      className="size-4 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                  }
-                  onClick={() => void promptInstall()}
-                />
-              ) : (
-                <IosInstallGuidance />
+    <>
+      <Sheet
+        open={isOpen}
+        onClose={onClose}
+        title={t("settings.title")}
+        // Short list: content-height on phones, so the game stays visible behind.
+        size="auto"
+        compactMobile
+        // Four fixed rows: a swipe anywhere on the sheet moves it.
+        dragFromBody
+      >
+        {isOpen && (
+          <div className="flex flex-col">
+            <Row label={t("settings.appearance")}>
+              <ThemeSegmented className={SEGMENTED_WIDTH} />
+            </Row>
+            <Row label={t("settings.language")}>
+              <LanguageSwitcher className={SEGMENTED_WIDTH} />
+            </Row>
+            <Group label={t("settings.learn")}>
+              <LinkRow label={t("settings.howToPlay")} onClick={onHowToPlay} />
+              {onReplayTutorial && (
+                <LinkRow label={t("help.replay")} onClick={onReplayTutorial} />
               )}
             </Group>
-          )}
-        </div>
-      )}
-    </Sheet>
+            <Group label={t("settings.record")}>
+              <LinkRow
+                label={t("settings.resetRecord")}
+                onClick={() => setShowResetConfirm(true)}
+              />
+            </Group>
+            {(installState === "available" || showIosGuidance) && (
+              <Group label={t("settings.app")}>
+                {installState === "available" ? (
+                  <LinkRow
+                    label={t("settings.installApp")}
+                    icon={
+                      <Download
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                    }
+                    onClick={() => void promptInstall()}
+                  />
+                ) : (
+                  <IosInstallGuidance />
+                )}
+              </Group>
+            )}
+          </div>
+        )}
+      </Sheet>
+      <Confirm
+        isOpen={showResetConfirm}
+        title={t("settings.resetRecordTitle")}
+        description={t("settings.resetRecordBody")}
+        confirmText={t("settings.resetRecordConfirm")}
+        destructive
+        onConfirm={handleResetConfirm}
+        onCancel={() => setShowResetConfirm(false)}
+      />
+    </>
   );
 }
 

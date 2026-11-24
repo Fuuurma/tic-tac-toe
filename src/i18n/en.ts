@@ -126,6 +126,12 @@ export const en = {
   "settings.language": "Language",
   "settings.learn": "Learn",
   "settings.howToPlay": "How to play",
+  "settings.record": "Your record",
+  "settings.resetRecord": "Reset record",
+  "settings.resetRecordTitle": "Reset your record?",
+  "settings.resetRecordBody":
+    "Wins, losses and streaks on this device go back to zero.",
+  "settings.resetRecordConfirm": "Reset",
   "theme.light": "Light",
   "theme.dark": "Dark",
   "theme.toDark": "Switch to dark theme",

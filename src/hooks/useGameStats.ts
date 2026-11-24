@@ -127,6 +127,28 @@ const writeStats = (guestId: string, stats: GameStats): boolean => {
   }
 };
 
+const isEmptyStats = (stats: GameStats): boolean =>
+  stats.totalGames === 0 &&
+  stats.wins === 0 &&
+  stats.losses === 0 &&
+  stats.currentWinStreak === 0 &&
+  stats.bestWinStreak === 0 &&
+  Object.keys(stats.breakdown).length === 0;
+
+export const resetStats = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    const guestId = getOrCreateGuestIdentity().guestId;
+    if (!writeStats(guestId, DEFAULT_STATS)) return false;
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: storageKey(guestId) }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * One recorded game applied to a stats snapshot — pure, so the merge
  * semantics (tallies, streaks) live in one testable place.
@@ -239,6 +261,7 @@ export function useGameStats() {
       } catch {
         return;
       }
+      if (isEmptyStats(recorder.durable)) recorder.pending = [];
       const view = applyPending(recorder.durable, recorder.pending);
       setStats((prev) =>
         JSON.stringify(view) === JSON.stringify(prev) ? prev : view,
