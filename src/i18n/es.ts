@@ -345,7 +345,7 @@ export const es: Record<StringKey, string> = {
   "mm.searchExpired":
     "Tu búsqueda caducó antes de encontrar rival. Inicia una nueva para intentarlo de nuevo.",
   "mm.noOpponent": "No se encontró rival",
-  "mm.failed": "Falló el emparejamiento",
+  "mm.failed": "Falló el emparejamiento. Inténtalo de nuevo.",
   "mm.quickEndedAway":
     "La partida rápida terminó mientras estabas fuera. Inténtalo de nuevo o vuelve al inicio.",
   "mm.connectionError": "Error de conexión",
@@ -355,7 +355,6 @@ export const es: Record<StringKey, string> = {
   "mm.enterRoom": "Escribe un código de sala",
   "mm.noOpponentRetry":
     "No se encontró rival después de 2 minutos. Inténtalo de nuevo o crea una sala para invitar a alguien.",
-  "mm.failedErr": "Falló el emparejamiento: {detail}",
 
   "social.title": "Reacciones",
   "social.mute": "Silenciar reacciones",

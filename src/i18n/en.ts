@@ -344,7 +344,7 @@ export const en = {
   "mm.searchExpired":
     "Your search expired before an opponent was found. Start a new search to try again.",
   "mm.noOpponent": "No opponent found",
-  "mm.failed": "Matchmaking failed",
+  "mm.failed": "Matchmaking failed. Try again.",
   "mm.quickEndedAway": "Quick Match ended while this page was away. Try again or go back to setup.",
   "mm.connectionError": "Connection error",
   "mm.roomError": "Room error",
@@ -353,7 +353,6 @@ export const en = {
   "mm.enterRoom": "Enter a room ID",
   "mm.noOpponentRetry":
     "No opponent found after 2 minutes. Try again, or create a room to invite someone.",
-  "mm.failedErr": "Matchmaking failed: {detail}",
 
   "social.title": "Reactions",
   "social.mute": "Mute reactions",

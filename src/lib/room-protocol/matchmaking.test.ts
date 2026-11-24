@@ -8,6 +8,7 @@ import {
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { reportError } from "@/lib/errorReporting";
+import { t } from "@/i18n/language";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/matchmaking")>();
@@ -123,7 +124,7 @@ describe("runQuickMatch", () => {
 
     expect(mockedFindMatch).not.toHaveBeenCalled();
     expect(deps.setStatus).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "error", message: expect.stringContaining("secure randomness unavailable") }),
+      expect.objectContaining({ status: "error", message: t("mm.failed") }),
     );
     expect(hasStartedRef.current).toBe(false);
 

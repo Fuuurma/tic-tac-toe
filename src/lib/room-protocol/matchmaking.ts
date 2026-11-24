@@ -289,10 +289,11 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     // a nil ref, so the user-cancel path still single-fires via leave().
     abandonTicket(deps, "after error");
     hasStartedRef.current = false;
+    reportError(err, { source: "matchmaking.failed" });
     setStatus({
       status: "error",
       queue: "none",
-      message: t("mm.failedErr", { detail: (err as Error).message }),
+      message: t("mm.failed"),
     });
   } finally {
     if (canListen) window.removeEventListener("pagehide", cancelTicketOnUnload);

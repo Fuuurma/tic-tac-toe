@@ -21,6 +21,7 @@ import {
 } from "@/lib/matchmaking";
 import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName } from "@/lib/identity";
 import { RoomClient } from "@/lib/roomClient";
+import { reportError } from "@/lib/errorReporting";
 import { disarmSyncReplyThrottle } from "./hostProtocol";
 import type { PeerRole, PeerRoomState } from "./state";
 import type { PlayerSettings } from "@/game/constants";
@@ -273,7 +274,8 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId);
   const room = buildRoomClient(deps, resolvedUrl, "host", slotToken);
   room.connect().catch((err) => {
-    update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
+    reportError(err, { source: "roomLifecycle.connect", role: "host" });
+    update({ status: "error", message: t("online.connectFail") });
   });
 }
 
@@ -314,12 +316,13 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const waitingState: GameState = { ...freshGameState(), gameMode: GameModes.ONLINE };
   deps.stateRef.current = waitingState;
   deps.pendingGuestStateRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: "Connecting...", rematchOutgoing: false, leftBySelf: false });
+  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: t("online.joining"), rematchOutgoing: false, leftBySelf: false });
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
   const room = buildRoomClient(deps, resolvedUrl, "guest", slotToken);
   room.connect().catch((err) => {
-    update({ status: "error", message: `Room connect failed: ${(err as Error).message}` });
+    reportError(err, { source: "roomLifecycle.connect", role: "guest" });
+    update({ status: "error", message: t("online.connectFail") });
   });
 }
