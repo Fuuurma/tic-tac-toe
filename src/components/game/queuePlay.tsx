@@ -14,6 +14,7 @@ import {
 } from "@/game/constants";
 import { getDifficultyLabel, t } from "@/i18n/language";
 import type { useGameStats } from "@/hooks/useGameStats";
+import { useDocumentHidden } from "@/hooks/useDocumentHidden";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { loadPreferences } from "@/lib/preferences";
@@ -318,9 +319,10 @@ export function QueueWarmup({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [panelPaused, setPanelPaused] = useState(false);
+  const hidden = useDocumentHidden();
   useEffect(() => {
-    setPaused(handoff || settingsOpen || howToPlayOpen || panelPaused);
-  }, [handoff, settingsOpen, howToPlayOpen, panelPaused, setPaused]);
+    setPaused(handoff || settingsOpen || howToPlayOpen || panelPaused || hidden);
+  }, [handoff, settingsOpen, howToPlayOpen, panelPaused, hidden, setPaused]);
 
   return (
     <>

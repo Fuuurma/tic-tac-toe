@@ -19,6 +19,7 @@ import {
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
+import { useDocumentHidden } from "@/hooks/useDocumentHidden";
 import { normalizeRoomId } from "@/lib/roomId";
 import { saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
@@ -217,10 +218,11 @@ function LocalGameSurface({
   const { stats } = gameStats;
   useRecordLocalResult(gameState, humanSymbol, gameStats);
   const [panelPaused, setPanelPaused] = useState(false);
+  const hidden = useDocumentHidden();
 
   useEffect(() => {
-    setPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPaused);
-  }, [settingsOpen, preferencesOpen, howToPlayOpen, panelPaused, setPaused]);
+    setPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPaused || hidden);
+  }, [settingsOpen, preferencesOpen, howToPlayOpen, panelPaused, hidden, setPaused]);
 
   return (
     // Portrait stacks HUD above board. A short landscape phone (~667x375)
@@ -254,7 +256,7 @@ function LocalGameSurface({
           }}
           onPauseChange={(panelPause) => {
             setPanelPaused(panelPause);
-            setPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPause);
+            setPaused(settingsOpen || preferencesOpen || howToPlayOpen || panelPause || hidden);
           }}
           paused={paused}
         />
