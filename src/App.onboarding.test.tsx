@@ -8,6 +8,15 @@ import { ONBOARDING_STORAGE_KEY } from "@/lib/onboarding";
 // The canvas backdrop has nothing to say about routing and jsdom has no canvas.
 vi.mock("@/components/backgroundPattern", () => ({ BackgroundPattern: () => null }));
 
+vi.mock("@/hooks/usePlayerCount", () => ({
+  usePlayerCount: () => ({
+    count: null,
+    refresh: vi.fn(),
+    serverDown: false,
+    online: true,
+  }),
+}));
+
 // jsdom does not implement the native <dialog> modal methods that Sheet calls.
 if (!HTMLDialogElement.prototype.showModal) {
   HTMLDialogElement.prototype.showModal = function showModal() {
@@ -63,6 +72,63 @@ describe("who gets onboarding", () => {
   it("does not create an identity before the visitor has chosen one", () => {
     render(<App />);
     expect(window.localStorage.getItem(IDENTITY_STORAGE_KEYS.guestId)).toBeNull();
+  });
+});
+
+describe("an invite that cannot be joined", () => {
+  it("opens Join on the broken code, says what is wrong and lets it be fixed", () => {
+    window.history.replaceState({}, "", "/?room=bad%20code");
+    render(<App />);
+
+    expect(onWelcome()).toBe(false);
+    expect(
+      screen.getByRole("radio", { name: "Online" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("radio", { name: "Join" }).getAttribute("aria-checked"),
+    ).toBe("true");
+
+    const field = screen.getByLabelText(/^Room code/) as HTMLInputElement;
+    expect(field.value).toBe("bad code");
+    expect(
+      screen.getByText(
+        "Room code must be 4-64 letters, digits, hyphens, or underscores.",
+      ),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Join Room" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+
+    fireEvent.change(field, { target: { value: "friday-game" } });
+
+    expect(
+      screen.queryByText(
+        "Room code must be 4-64 letters, digits, hyphens, or underscores.",
+      ),
+    ).toBeNull();
+    expect(
+      (screen.getByRole("button", { name: "Join Room" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
+  it("asks for the code when the invite carried none", () => {
+    window.history.replaceState({}, "", "/?room=");
+    render(<App />);
+
+    expect(onWelcome()).toBe(false);
+    expect(
+      screen.getByRole("radio", { name: "Online" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("radio", { name: "Join" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(screen.getByText("Enter a room code to join.")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Join Room" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
   });
 });
 

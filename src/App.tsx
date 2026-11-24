@@ -20,7 +20,7 @@ import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { useDocumentHidden } from "@/hooks/useDocumentHidden";
-import { normalizeRoomId } from "@/lib/roomId";
+import { NO_ROOM_INVITE, readRoomInvite } from "@/lib/roomId";
 import { saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
 import { savePreferences } from "@/lib/preferences";
@@ -35,15 +35,15 @@ type View = "onboarding" | "lobby" | "game";
 
 
 export default function App() {
-  const [initialRoomId] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return normalizeRoomId(new URLSearchParams(window.location.search).get("room"));
+  const [roomInvite] = useState(() => {
+    if (typeof window === "undefined") return NO_ROOM_INVITE;
+    return readRoomInvite(window.location.search);
   });
   // Decided once, before anything below can create an identity. Someone
   // arriving on an invite link came to join a room, not to be walked through
   // the game; they can replay the tutorial from the lobby's help.
   const [view, setView] = useState<View>(() =>
-    !initialRoomId && shouldShowOnboarding() ? "onboarding" : "lobby",
+    !roomInvite.present && shouldShowOnboarding() ? "onboarding" : "lobby",
   );
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
   const [config, setConfig] = useState<GameSetup | null>(null);
@@ -94,7 +94,7 @@ export default function App() {
         )}
         {view === "lobby" && (
           <LobbyForm
-            initialRoomId={initialRoomId}
+            roomInvite={roomInvite}
             initialOnlineSetup={lastOnlineSetup}
             onStart={handleStart}
             autoFocusStart={focusLobbyStart}

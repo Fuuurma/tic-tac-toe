@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateRoomId, normalizeRoomId } from "@/lib/roomId";
+import { generateRoomId, normalizeRoomId, readRoomInvite } from "@/lib/roomId";
 
 describe("normalizeRoomId", () => {
   it("accepts generated and URL-safe room IDs", () => {
@@ -12,6 +12,29 @@ describe("normalizeRoomId", () => {
     expect(normalizeRoomId("abc")).toBe("");
     expect(normalizeRoomId("x".repeat(65))).toBe("");
     expect(normalizeRoomId(null)).toBe("");
+  });
+});
+
+describe("readRoomInvite", () => {
+  it("keeps the code the link carried, trimmed and decoded", () => {
+    expect(readRoomInvite("?room=friday-game")).toEqual({
+      seed: "friday-game",
+      present: true,
+    });
+    expect(readRoomInvite("?room=bad%20code")).toEqual({
+      seed: "bad code",
+      present: true,
+    });
+    expect(readRoomInvite("?room=%20friday-game%20")).toEqual({
+      seed: "friday-game",
+      present: true,
+    });
+  });
+
+  it("tells an empty room parameter apart from no room parameter", () => {
+    expect(readRoomInvite("?room=")).toEqual({ seed: "", present: true });
+    expect(readRoomInvite("")).toEqual({ seed: "", present: false });
+    expect(readRoomInvite("?mode=online")).toEqual({ seed: "", present: false });
   });
 });
 

@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { roomInvite } from "@/lib/roomId";
 import { LobbyForm } from "./lobbyForm";
 
 // A production build with no VITE_MATCHMAKING_URL. Create and Join build
@@ -50,7 +51,7 @@ describe("LobbyForm without a matchmaking backend (production build)", () => {
   });
 
   it("falls back to Computer on an invite link instead of a dead mode", () => {
-    render(<LobbyForm initialRoomId="friday-game" onStart={vi.fn()} />);
+    render(<LobbyForm roomInvite={roomInvite("friday-game")} onStart={vi.fn()} />);
 
     expect(screen.getByRole("radio", { name: "Online" }).getAttribute("aria-disabled")).toBe(
       "true",

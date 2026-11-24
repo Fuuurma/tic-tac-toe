@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@t
 import { GameModes } from "@/game/constants";
 import { fetchMatchmakingHealth } from "@/lib/matchmaking";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
+import { roomInvite } from "@/lib/roomId";
 import { LobbyForm } from "./lobbyForm";
 
 // A configured build whose relay never answers: no poll has ever
@@ -46,7 +47,7 @@ const OFFLINE_REASON =
 describe("LobbyForm opened while the device is offline", () => {
   it("keeps an invite's Join setup visible and paused with its code", async () => {
     browserOnline = false;
-    render(<LobbyForm initialRoomId="friday-game" onStart={vi.fn()} />);
+    render(<LobbyForm roomInvite={roomInvite("friday-game")} onStart={vi.fn()} />);
 
     const online = screen.getByRole("radio", { name: "Online" });
     await waitFor(() => expect(online.getAttribute("aria-disabled")).toBe("true"));
@@ -94,7 +95,7 @@ describe("LobbyForm with an unreachable relay", () => {
   });
 
   it("falls back to Computer on an invite link once down is proven", async () => {
-    render(<LobbyForm initialRoomId="friday-game" onStart={vi.fn()} />);
+    render(<LobbyForm roomInvite={roomInvite("friday-game")} onStart={vi.fn()} />);
 
     const online = screen.getByRole("radio", { name: "Online" });
     await waitFor(() => expect(online.getAttribute("aria-disabled")).toBe("true"));
@@ -125,7 +126,7 @@ describe("LobbyForm when the device goes offline", () => {
       waiting: 3,
       matches: 0,
     });
-    render(<LobbyForm initialRoomId="friday-game" onStart={vi.fn()} />);
+    render(<LobbyForm roomInvite={roomInvite("friday-game")} onStart={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(/players online/)).toBeTruthy());
 
@@ -150,7 +151,7 @@ describe("LobbyForm when the device goes offline", () => {
     browserOnline = false;
     const onStart = vi.fn();
     const { container } = render(
-      <LobbyForm initialRoomId="friday-game" onStart={onStart} />,
+      <LobbyForm roomInvite={roomInvite("friday-game")} onStart={onStart} />,
     );
 
     await waitFor(() =>
@@ -171,7 +172,7 @@ describe("LobbyForm when the device goes offline", () => {
     browserOnline = false;
     const onStart = vi.fn();
     const { container } = render(
-      <LobbyForm initialRoomId="friday-game" onStart={onStart} />,
+      <LobbyForm roomInvite={roomInvite("friday-game")} onStart={onStart} />,
     );
 
     await waitFor(() =>
