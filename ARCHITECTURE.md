@@ -115,6 +115,7 @@ Everything from here down is how it works and why. The visual contract is
 - Requesting while a prompt is already up is a no-op on both sides: answering one request and asking another would leave both players waiting
 - Forfeit winner is determined by the actual host/guest symbol refs, not hardcoded X/O
 - `peer-left: disconnect` is transient during the 30-second reconnect grace; `peer-reconnected` restores the peer; `closed` and `expired` are final
+- `PeerRoomState.canRetryReconnect` says whether a `disconnected` status still has a socket to reconnect. `retryReconnect()` is `roomRef.current?.reconnectNow()`, and a socket closed by us refuses to reconnect, so on a terminal room end the call is a silent no-op. The protocol owns the answer: `peer-left` with `closed`/`expired`, the peer's `leave` frame, the absent-peer timeout and our own leave all clear the flag, and only a transport disconnect that gave up while it was still reconnecting sets it. The disconnected banner offers "Retry now" only while the flag is true, and "Back to setup" always
 
 ## Resync and rollback
 

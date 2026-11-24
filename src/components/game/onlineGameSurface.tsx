@@ -893,16 +893,18 @@ function DisconnectedBanner({
         {reason}
       </span>
       <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
-        <Button
-          size="sm"
-          variant="glass"
-          onClick={() => peer.retryReconnect()}
-          disabled={!deviceOnline}
-          aria-disabled={!deviceOnline}
-          className="w-full sm:w-auto max-sm:h-12"
-        >
-          {t("online.retry")}
-        </Button>
+        {peer.state.canRetryReconnect && (
+          <Button
+            size="sm"
+            variant="glass"
+            onClick={() => peer.retryReconnect()}
+            disabled={!deviceOnline}
+            aria-disabled={!deviceOnline}
+            className="w-full sm:w-auto max-sm:h-12"
+          >
+            {t("online.retry")}
+          </Button>
+        )}
         <Button
           size="sm"
           variant="glass"

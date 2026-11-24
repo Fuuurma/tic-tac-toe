@@ -60,6 +60,7 @@ export interface PeerRoomState {
    * mirrors rematchPendingRef as renderable state.
    */
   rematchOutgoing: boolean;
+  canRetryReconnect: boolean;
   /**
    * True once THIS client left the room, until the next room entry.
    *

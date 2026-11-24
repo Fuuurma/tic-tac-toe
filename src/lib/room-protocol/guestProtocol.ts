@@ -247,6 +247,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           message: t("peer.hostLeft"),
           rematchIncoming: false,
           rematchOutgoing: false,
+          canRetryReconnect: false,
         };
       });
       return;
