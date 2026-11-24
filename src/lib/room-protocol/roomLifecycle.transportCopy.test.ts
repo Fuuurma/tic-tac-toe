@@ -61,6 +61,7 @@ function roomState(overrides: Partial<PeerRoomState> = {}): PeerRoomState {
     rematchIncoming: false,
     rematchOutgoing: false,
     leftBySelf: false,
+    canRetryReconnect: false,
     gameState: freshGameState(),
     ...overrides,
   };

@@ -71,6 +71,7 @@ const initialState: PeerRoomState = {
   rematchIncoming: false,
   rematchOutgoing: false,
   leftBySelf: false,
+  canRetryReconnect: false,
   gameState: freshGameState(),
 };
 
@@ -690,6 +691,7 @@ export function leavePeerRoom(deps: LeaveRoomDeps): void {
     rematchIncoming: false,
     rematchOutgoing: false,
     leftBySelf: true,
+    canRetryReconnect: false,
   }));
 }
 

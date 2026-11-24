@@ -369,6 +369,44 @@ describe("handleRelayEvent peer-reconnected", () => {
   });
 });
 
+describe("handleRelayEvent terminal disconnects", () => {
+  it("a closed room clears the reconnect affordance", () => {
+    const { deps, getRoom } = makeDeps(activeGame(), "host", {
+      status: "connected",
+      canRetryReconnect: true,
+    });
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().canRetryReconnect).toBe(false);
+  });
+
+  it("an expired room clears the reconnect affordance", () => {
+    const { deps, getRoom } = makeDeps(activeGame(), "guest", {
+      status: "connected",
+      canRetryReconnect: true,
+    });
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "expired" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().canRetryReconnect).toBe(false);
+  });
+
+  it("a room that closes after a recoverable disconnect still clears it", () => {
+    const { deps, getRoom } = makeDeps(activeGame(), "host", {
+      status: "disconnected",
+      message: "Disconnected",
+      canRetryReconnect: true,
+    });
+
+    handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
+
+    expect(getRoom().canRetryReconnect).toBe(false);
+  });
+});
+
 describe("handleRelayEvent symbol fallbacks", () => {
   it("host welcome derives the guest symbol from the live host symbol", () => {
     const game = activeGame();
@@ -599,6 +637,7 @@ describe("bounded absent-peer waits", () => {
 
       expect(getRoom().status).toBe("disconnected");
       expect(getRoom().message).not.toBe("You left");
+      expect(getRoom().canRetryReconnect).toBe(false);
       expect(room.send).toHaveBeenCalledWith({ type: "leave" });
       expect(room.close).toHaveBeenCalledOnce();
       expect(deps.roomRef.current).toBeNull();

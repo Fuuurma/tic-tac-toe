@@ -32,6 +32,20 @@ function refFor(room: unknown) {
   return { current: room as RoomClient | null };
 }
 
+function captureStatusHandler(deps: RoomLifecycleDeps) {
+  const captured: { status?: (s: string, detail?: string) => void } = {};
+  vi.spyOn(RoomClient.prototype, "setStatusHandler").mockImplementation(
+    ((h: (s: string, detail?: string) => void) => {
+      captured.status = h;
+    }) as never,
+  );
+  vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+    (() => undefined) as never,
+  );
+  buildRoomClient(deps, "ws://relay.test/room", "guest");
+  return captured;
+}
+
 describe("leaveRoom", () => {
   it("sends leave before close, then nulls the ref", () => {
     const { room, calls } = mockRoom();
@@ -382,20 +396,6 @@ describe("joinAsGuest rematch-flag reset", () => {
     // comparison never matched and the transport's generic message overwrote
     // the relay's specific peer-left reason.
 
-    function captureStatusHandler(deps: RoomLifecycleDeps) {
-      const captured: { status?: (s: string, detail?: string) => void } = {};
-      vi.spyOn(RoomClient.prototype, "setStatusHandler").mockImplementation(
-        ((h: (s: string, detail?: string) => void) => {
-          captured.status = h;
-        }) as never,
-      );
-      vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
-        (() => undefined) as never,
-      );
-      buildRoomClient(deps, "ws://relay.test/room", "guest");
-      return captured;
-    }
-
     it("shows the localized generic line when the transport disconnects after our own leave, in Spanish", async () => {
       const { setLocale, t } = await import("@/i18n/language");
       setLocale("es");
@@ -434,6 +434,52 @@ describe("joinAsGuest rematch-flag reset", () => {
       const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
         .mock.calls[0]?.[0] as (prev: never) => { message: string };
       expect(updater(relaySaid).message).toBe("El anfitrión cerró la sala");
+    });
+  });
+
+  describe("disconnect retry affordance", () => {
+    it("keeps the retry affordance when the transport gives up after reconnecting", () => {
+      const { deps } = lifecycleDeps({ current: false });
+      const captured = captureStatusHandler(deps);
+
+      captured.status?.("reconnecting");
+      captured.status?.("disconnected");
+
+      const calls = (deps.setState as unknown as { mock: { calls: unknown[][] } })
+        .mock.calls;
+      const reconnecting = calls[0]?.[0] as (prev: never) => { status: string };
+      const disconnected = calls[1]?.[0] as (
+        prev: never,
+      ) => { status: string; canRetryReconnect: boolean };
+
+      const afterReconnect = reconnecting({
+        status: "connected",
+        message: "",
+      } as never);
+      expect(afterReconnect.status).toBe("reconnecting");
+
+      const next = disconnected(afterReconnect as never);
+      expect(next.status).toBe("disconnected");
+      expect(next.canRetryReconnect).toBe(true);
+    });
+
+    it("does not offer a retry over a terminal reason the relay already gave", () => {
+      const { deps } = lifecycleDeps({ current: false });
+      const captured = captureStatusHandler(deps);
+      const relaySaid = {
+        status: "disconnected",
+        message: "El anfitrión cerró la sala",
+        leftBySelf: false,
+        canRetryReconnect: false,
+      } as never;
+
+      captured.status?.("disconnected");
+
+      const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
+        .mock.calls[0]?.[0] as (
+        prev: never,
+      ) => { message: string; canRetryReconnect: boolean };
+      expect(updater(relaySaid).canRetryReconnect).toBe(false);
     });
   });
 });

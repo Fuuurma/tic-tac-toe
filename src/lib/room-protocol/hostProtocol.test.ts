@@ -428,6 +428,15 @@ describe("handleHostMessage rematch deadline", () => {
     expect(getRoom().gameState.winner).toBeNull();
     expect(getRoom().gameState.gameStatus).toBe(GameStatus.WAITING);
   });
+
+  it("the guest's leave ends the room — there is no socket left to reconnect", () => {
+    const { deps, getRoom } = makeDeps(terminalGame());
+
+    handleHostMessage(deps, { type: "leave" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().canRetryReconnect).toBe(false);
+  });
 });
 
 describe("handleHostMessage invalid guest move", () => {

@@ -112,6 +112,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
           status: "disconnected",
           message:
             t("mm.hostNever"),
+          canRetryReconnect: false,
         };
       }
       // F726: the quick-match host is the symmetric case — its welcome
@@ -121,6 +122,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
           ...prev,
           status: "disconnected",
           message: t("mm.opponentNever"),
+          canRetryReconnect: false,
         };
       }
       return prev;
@@ -453,7 +455,7 @@ export function handleRelayEvent(
     // terminal state FIRST; close()'s own "You left" then loses to the
     // already-disconnected guard, exactly as F234 intended.
     setState((prev) => {
-      if (prev.status === "disconnected") return prev;
+      if (prev.status === "disconnected") return { ...prev, canRetryReconnect: false };
       // Crown the surviving side's symbol — prefer the live ref, fall back
       // to the symbol recorded in state. Symbols randomize each rematch
       // (randomPlayerSymbol), so a hardcoded X/O default crowns the wrong
@@ -472,6 +474,7 @@ export function handleRelayEvent(
         message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", leaveReason),
         rematchIncoming: false,
         rematchOutgoing: false,
+        canRetryReconnect: false,
       };
     });
     deps.roomRef.current?.close();

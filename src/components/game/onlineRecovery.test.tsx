@@ -78,6 +78,7 @@ function makePeer(stateOverrides: Partial<PeerRoomState> = {}) {
       rematchIncoming: false,
       rematchOutgoing: false,
       leftBySelf: false,
+      canRetryReconnect: true,
       gameState: startedGame(),
       ...stateOverrides,
     } as PeerRoomState,

@@ -448,6 +448,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           gameState: ended,
           message: t("peer.opponentLeft"),
           rematchOutgoing: false,
+          canRetryReconnect: false,
         };
       });
       return;

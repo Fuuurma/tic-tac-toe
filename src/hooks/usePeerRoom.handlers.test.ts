@@ -642,6 +642,7 @@ describe("leavePeerRoom", () => {
       rematchIncoming: false,
       rematchOutgoing: false,
       leftBySelf: true,
+      canRetryReconnect: false,
     });
   });
 });

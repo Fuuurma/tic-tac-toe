@@ -382,3 +382,14 @@ describe("handleGuestMessage host pause frame", () => {
     expect(getRoom().message).toBe("Host left the game");
   });
 });
+
+describe("handleGuestMessage host leave", () => {
+  it("ends the room — there is no socket left to reconnect", () => {
+    const { deps, getRoom } = makeDeps(liveGame());
+
+    handleGuestMessage(deps, { type: "leave" });
+
+    expect(getRoom().status).toBe("disconnected");
+    expect(getRoom().canRetryReconnect).toBe(false);
+  });
+});
