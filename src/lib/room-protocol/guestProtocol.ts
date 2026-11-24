@@ -181,6 +181,17 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       );
       return;
     }
+    if (message.type === "rematchDecline") {
+      if (!rematchPendingRef.current) return;
+      rematchPendingRef.current = false;
+      clearRematchTimeout();
+      setState((prev) => ({
+        ...prev,
+        message: t("peer.rematchDeclined"),
+        rematchOutgoing: false,
+      }));
+      return;
+    }
     if (message.type === "pause") {
       // The host froze the clock. Stop counting down (the countdown racing
       // to 0 against a stopped clock read as the game having expired) and
@@ -219,6 +230,8 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       // Host explicitly left. The close event will follow, but we can
       // show a more specific message now.
       stopTimer();
+      rematchPendingRef.current = false;
+      clearRematchTimeout();
       const current = stateRef.current;
       setState((prev) => {
         // Symbols randomize per rematch — prefer the live ref, fall back
@@ -233,6 +246,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           gameState,
           message: t("peer.hostLeft"),
           rematchIncoming: false,
+          rematchOutgoing: false,
         };
       });
       return;
