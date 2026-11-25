@@ -15,6 +15,7 @@ import {
   makeMove,
   type GameState,
 } from "./logic";
+import { t } from "@/i18n/dictionary";
 
 /**
  * The guided practice game shown to a first-time player. It runs on the real
@@ -49,11 +50,14 @@ const rivalColor = (color: Color): Color => {
   return opposite === Color.GRAY ? Color.BLUE : opposite;
 };
 
-export function createTutorialGame(profile: TutorialProfile): GameState {
+export function createTutorialGame(
+  profile: TutorialProfile,
+  opponentName: string = t("lobby.defaultAI"),
+): GameState {
   return createInitialGameState({
     gameMode: GameModes.VS_COMPUTER,
     playerXName: profile.displayName,
-    playerOName: "AI",
+    playerOName: opponentName,
     playerColor: profile.color,
     opponentColor: rivalColor(profile.color),
     playerShape: profile.shape,

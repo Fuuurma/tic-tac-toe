@@ -12,6 +12,7 @@ import {
   tutorialAIMove,
   type LessonStage,
 } from "@/game/tutorial";
+import { useStrings } from "@/i18n/language";
 
 type TutorialProfile = PlayerProfile;
 
@@ -30,7 +31,10 @@ interface TutorialGame {
  * `@/game/tutorial`; this only owns time and state.
  */
 export function useTutorialGame(profile: TutorialProfile): TutorialGame {
-  const [state, setState] = useState(() => createTutorialGame(profile));
+  const { t } = useStrings();
+  const [state, setState] = useState(() =>
+    createTutorialGame(profile, t("lobby.defaultAI")),
+  );
 
   const place = useCallback((cell: number) => {
     setState((prev) =>

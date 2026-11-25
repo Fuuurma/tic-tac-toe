@@ -7,9 +7,15 @@ import {
   type SymbolShape,
 } from "@/game/constants";
 import type { Locale } from "@/lib/preferences";
-import { en, type StringKey } from "./en";
-import { es } from "./es";
+import type { StringKey } from "./en";
 import { getBrowserStorage } from "@/lib/storage";
+import {
+  getLocale,
+  publishLocale,
+  subscribeLocale,
+  t,
+  type StringVars,
+} from "./dictionary";
 
 /**
  * Own storage key, deliberately outside the preferences blob: the
@@ -40,8 +46,6 @@ function saveLanguage(locale: Locale, storage: Storage | null = getBrowserStorag
   }
 }
 
-const dictionaries: Record<Locale, Record<StringKey, string>> = { en, es };
-
 /**
  * The UI language as module-level state, not context — the same shape as
  * the player-count store. Every consumer (components, hooks, protocol
@@ -49,14 +53,7 @@ const dictionaries: Record<Locale, Record<StringKey, string>> = { en, es };
  * threading a provider through the lazy online chunk, the error boundary
  * fallback, and three dozen unit tests that render without one.
  */
-let current: Locale = "en";
-const listeners = new Set<() => void>();
-
-function publish(next: Locale) {
-  if (next === current) return;
-  current = next;
-  for (const listener of [...listeners]) listener();
-}
+export { getLocale, subscribeLocale } from "./dictionary";
 
 function applyLocale(locale: Locale) {
   if (typeof document !== "undefined") {
@@ -77,40 +74,24 @@ function initialLocale(): Locale {
 /** Read once at startup (called from main.tsx before first render). */
 export function initLocale(): Locale {
   const locale = initialLocale();
-  current = locale;
+  publishLocale(locale);
   applyLocale(locale);
   return locale;
 }
 
-export function getLocale(): Locale {
-  return current;
-}
-
 export function setLocale(locale: Locale): void {
-  publish(locale);
+  publishLocale(locale);
   applyLocale(locale);
   saveLanguage(locale);
 }
 
-const subscribe = (listener: () => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-};
-
 export function useLocale(): Locale {
-  return useSyncExternalStore(subscribe, getLocale, getLocale);
+  return useSyncExternalStore(subscribeLocale, getLocale, getLocale);
 }
-
-export type StringVars = Record<string, string | number>;
 
 /** Look up a key in the current language, English if somehow absent. */
-export function t(key: StringKey, vars?: StringVars): string {
-  const template = dictionaries[current][key] ?? en[key];
-  if (!vars) return template;
-  return template.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? ""));
-}
+export { t } from "./dictionary";
+export type { StringVars } from "./dictionary";
 
 /** Bound translator + setter for components. Re-renders on switch. */
 export function useStrings(): {

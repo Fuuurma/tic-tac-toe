@@ -46,8 +46,8 @@ export const es: Record<StringKey, string> = {
   "color.purple": "Morado",
   "color.gray": "Gris",
 
-  "mode.computer": "contra el ordenador",
-  "mode.friend": "contra un amigo",
+  "mode.computer": "Contra el ordenador",
+  "mode.friend": "Contra un amigo",
   "mode.online": "En línea",
   "mode.short.computer": "Ordenador",
   "mode.short.friend": "Amigo",
