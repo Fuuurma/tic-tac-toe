@@ -111,4 +111,21 @@ describe("PreferencesSheet", () => {
     // The offer is consumed: the row goes away rather than dead-ending.
     expect(screen.queryByRole("button", { name: "Install app" })).toBeNull();
   });
+
+  it("links Privacy to the privacy policy in a new tab", () => {
+    renderSheet();
+    const link = screen.getByRole("link", { name: "Privacy" });
+    expect(link.getAttribute("href")).toBe("/privacy.html");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noreferrer");
+    link.focus();
+    expect(document.activeElement).toBe(link);
+  });
+
+  it("groups the privacy link under App rather than Learn or Record", () => {
+    renderSheet();
+    const link = screen.getByRole("link", { name: "Privacy" });
+    const appGroup = screen.getByRole("heading", { name: "App" }).parentElement;
+    expect(appGroup?.contains(link)).toBe(true);
+  });
 });

@@ -133,6 +133,7 @@ export const en = {
   "settings.resetRecordBody":
     "Wins, losses and streaks on this device go back to zero.",
   "settings.resetRecordConfirm": "Reset",
+  "settings.privacy": "Privacy",
   "theme.light": "Light",
   "theme.dark": "Dark",
   "theme.toDark": "Switch to dark theme",

@@ -134,6 +134,7 @@ export const es: Record<StringKey, string> = {
   "settings.resetRecordBody":
     "Las victorias, derrotas y rachas de este dispositivo vuelven a cero.",
   "settings.resetRecordConfirm": "Reiniciar",
+  "settings.privacy": "Privacidad",
   "theme.light": "Claro",
   "theme.dark": "Oscuro",
   "theme.toDark": "Cambiar a tema oscuro",

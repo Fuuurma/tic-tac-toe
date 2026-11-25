@@ -87,24 +87,23 @@ export function PreferencesSheet({
                 onClick={() => setShowResetConfirm(true)}
               />
             </Group>
-            {(installState === "available" || showIosGuidance) && (
-              <Group label={t("settings.app")}>
-                {installState === "available" ? (
-                  <LinkRow
-                    label={t("settings.installApp")}
-                    icon={
-                      <Download
-                        className="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden="true"
-                      />
-                    }
-                    onClick={() => void promptInstall()}
-                  />
-                ) : (
-                  <IosInstallGuidance />
-                )}
-              </Group>
-            )}
+            <Group label={t("settings.app")}>
+              {installState === "available" ? (
+                <LinkRow
+                  label={t("settings.installApp")}
+                  icon={
+                    <Download
+                      className="size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={() => void promptInstall()}
+                />
+              ) : showIosGuidance ? (
+                <IosInstallGuidance />
+              ) : null}
+              <LinkRow label={t("settings.privacy")} href="/privacy.html" />
+            </Group>
           </div>
         )}
       </Sheet>
@@ -155,25 +154,32 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** A row whose whole width is the action. */
-function LinkRow({
-  label,
-  onClick,
-  icon,
-}: {
-  label: string;
-  onClick: () => void;
-  icon?: ReactNode;
-}) {
+function LinkRow(
+  props:
+    | { label: string; icon?: ReactNode; onClick: () => void; href?: undefined }
+    | { label: string; icon?: ReactNode; href: string; onClick?: undefined },
+) {
+  const className =
+    "flex min-h-14 w-full items-center justify-between gap-3 border-b border-border/60 text-left text-sm font-semibold text-foreground transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1";
+  const icon =
+    props.icon ?? (
+      <ChevronRight
+        className="size-4 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
+    );
+  if (props.href !== undefined) {
+    return (
+      <a href={props.href} target="_blank" rel="noreferrer" className={className}>
+        {props.label}
+        {icon}
+      </a>
+    );
+  }
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-14 w-full items-center justify-between gap-3 border-b border-border/60 text-left text-sm font-semibold text-foreground transition-colors last:border-b-0 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
-    >
-      {label}
-      {icon ?? (
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      )}
+    <button type="button" onClick={props.onClick} className={className}>
+      {props.label}
+      {icon}
     </button>
   );
 }
