@@ -122,4 +122,54 @@ describe("room connect failure copy", () => {
     expect(first.message).toBe(t("online.joining"));
     expect(first.message).not.toBe("Connecting...");
   });
+
+  it("a passively cancelled attempt reports nothing and updates nothing", async () => {
+    // The passive close recycles the socket, which rejects the pending
+    // connect. The attempt was cancelled on purpose, so its failure is not
+    // a room failure: no error state, no error report.
+    const socketBoom = new Error("closed");
+    let rejectConnect: (err: Error) => void = () => {};
+    vi.spyOn(RoomClient.prototype, "connect").mockImplementation(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectConnect = reject;
+        }),
+    );
+    const { deps, update } = lifecycleDeps();
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+    deps.roomRef.current = null;
+    rejectConnect(socketBoom);
+    await flushAsync();
+
+    expect(mockedReportError).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error" }),
+    );
+  });
+
+  it("a replaced room's rejection cannot overwrite the new attempt", async () => {
+    const socketBoom = new Error("closed");
+    let rejectConnect: (err: Error) => void = () => {};
+    vi.spyOn(RoomClient.prototype, "connect").mockImplementation(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectConnect = reject;
+        }),
+    );
+    const { deps, update } = lifecycleDeps();
+
+    joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
+    joinAsGuest(deps, "ROOM43", "ws://127.0.0.1:1");
+    rejectConnect(socketBoom);
+    await flushAsync();
+
+    expect(mockedReportError).not.toHaveBeenCalledWith(
+      socketBoom,
+      expect.anything(),
+    );
+    expect(update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: "error" }),
+    );
+  });
 });

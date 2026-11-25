@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getBrowserStorage } from "./storage";
+import { getBrowserSessionStorage, getBrowserStorage } from "./storage";
 
 // One guard, four former copies. These cases pin the two environments the
 // guard exists for, because a regression here is silent: every caller treats
@@ -46,5 +46,48 @@ describe("getBrowserStorage", () => {
       value: throwingWindow,
     });
     expect(getBrowserStorage()).toBeNull();
+  });
+});
+
+describe("getBrowserSessionStorage", () => {
+  // The session-storage guard exists for the same two environments as the
+  // localStorage one: no window during the build pass, and an accessor that
+  // throws in a browser where storage is disabled by policy. The online
+  // session record lives here, so a throw would surface as "the player
+  // silently lost their room" instead of a failed save.
+  const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+  afterEach(() => {
+    if (original) Object.defineProperty(globalThis, "window", original);
+    else Reflect.deleteProperty(globalThis, "window");
+    vi.restoreAllMocks();
+  });
+
+  it("returns window.sessionStorage when it is readable", () => {
+    const storage = { getItem: () => null } as unknown as Storage;
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { sessionStorage: storage },
+    });
+    expect(getBrowserSessionStorage()).toBe(storage);
+  });
+
+  it("returns null with no window (the build/SSR pass)", () => {
+    Reflect.deleteProperty(globalThis, "window");
+    expect(getBrowserSessionStorage()).toBeNull();
+  });
+
+  it("returns null when the accessor itself throws (private mode, policy)", () => {
+    const throwingWindow: { sessionStorage: Storage } = {} as never;
+    Object.defineProperty(throwingWindow, "sessionStorage", {
+      get() {
+        throw new Error("SecurityError: storage is disabled");
+      },
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: throwingWindow,
+    });
+    expect(getBrowserSessionStorage()).toBeNull();
   });
 });
