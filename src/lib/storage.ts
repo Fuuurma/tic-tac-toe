@@ -20,3 +20,12 @@ export function getBrowserStorage(): Storage | null {
     return null;
   }
 }
+
+export function getBrowserSessionStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}

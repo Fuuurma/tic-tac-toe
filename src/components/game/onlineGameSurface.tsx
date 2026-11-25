@@ -14,6 +14,7 @@ import {
   COLOR_RGB,
   Color,
   GameModes,
+  type PeerSide,
   PlayerSymbol,
   PlayerTypes,
   SymbolShape,
@@ -42,6 +43,7 @@ import { HelpDrawer } from "@/components/game/helpDrawer";
 import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
 import { waitPhase, type WaitPhase } from "@/lib/room-protocol/waitPhase";
 import { statusMessageText } from "@/lib/room-protocol/messageI18n";
+import { clearOnlineSession, writeOnlineSession } from "@/lib/onlineSession";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
@@ -57,6 +59,7 @@ interface OnlineGameSurfaceProps {
     gameMode: typeof GameModes.ONLINE;
     onlineRoomId: string;
     onlineAction: TurnAction;
+    resumeRole?: PeerSide;
   };
   onExit: () => void;
 }
@@ -93,7 +96,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // `peerRef.current = peer` sync violated the ref rules and is gone.
   const { startQuickMatch, joinAsGuest, startAsHost, leave } = peer;
   useEffect(() => {
-    if (config.onlineAction === "quick") {
+    if (config.resumeRole && config.onlineRoomId) {
+      if (config.resumeRole === "guest") {
+        joinAsGuest(config.onlineRoomId);
+      } else {
+        startAsHost(config.onlineRoomId);
+      }
+    } else if (config.onlineAction === "quick") {
       startQuickMatch();
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
       joinAsGuest(config.onlineRoomId);
@@ -103,7 +112,36 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     return () => {
       leave();
     };
-  }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, leave]);
+  }, [config.onlineAction, config.onlineRoomId, config.resumeRole, startQuickMatch, joinAsGuest, startAsHost, leave]);
+
+  useEffect(() => {
+    const status = peer.state.status;
+    const canRetry = peer.state.canRetryReconnect;
+    if (status === "error" || (status === "disconnected" && !canRetry)) {
+      clearOnlineSession();
+      return;
+    }
+    const roomId = peer.state.roomId;
+    const role = peer.state.role;
+    if (!roomId || !role) return;
+    writeOnlineSession({
+      roomId,
+      role,
+      onlineAction: config.onlineAction,
+      displayName: config.displayName,
+      color: config.color,
+      playerShape: config.playerShape,
+    });
+  }, [
+    peer.state.roomId,
+    peer.state.role,
+    peer.state.status,
+    peer.state.canRetryReconnect,
+    config.onlineAction,
+    config.displayName,
+    config.color,
+    config.playerShape,
+  ]);
 
   const wasOfflineRef = useRef(!deviceOnline);
   const retryReconnect = peer.retryReconnect;
@@ -150,9 +188,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   const [warmupDifficulty, setWarmupDifficulty] = useState<AI_DifficultyType>(
     () => loadPreferences().aiDifficulty ?? AI_Difficulty.NORMAL,
   );
+  const handleExit = () => {
+    clearOnlineSession();
+    onExit();
+  };
   const leaveAndExit = () => {
     peer.leave();
-    onExit();
+    handleExit();
   };
   const shareUrl = roomShareUrl(
     typeof window !== "undefined" ? window.location.origin : "",
@@ -260,13 +302,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           peer={peer}
           warmupVisible={warmupVisible}
           isQuick={isQuick}
-          onExit={onExit}
+          onExit={handleExit}
         />
         <DisconnectedBanner
           peer={peer}
           deviceOnline={deviceOnline}
           warmupVisible={warmupVisible}
-          onExit={onExit}
+          onExit={handleExit}
         />
       </div>
 
@@ -295,7 +337,10 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           onOpenSettings={() => setPreferencesOpen(true)}
           onEditIdentity={openSettings}
           onPauseChange={setPanelPaused}
-          onExit={onExit}
+          onExit={() => {
+            peer.leave();
+            handleExit();
+          }}
         />
       )}
       <OnlineSheets
