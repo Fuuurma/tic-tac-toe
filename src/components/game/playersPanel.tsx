@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type Ref, type RefObject } from "react";
 import {
   COLOR_BG_CLASSES,
   COLOR_RGB,
@@ -139,6 +139,8 @@ export function PlayersPanel({
   const showNewGame = showNewGameStored && !freshGame;
   const panelRef = useRef<HTMLDivElement>(null);
   const panelSize = usePanelSize(panelRef);
+  const playAgainRef = useRef<HTMLButtonElement>(null);
+  const terminalStatusRef = useRef<HTMLDivElement>(null);
 
   // Subscribes so a language switch re-renders the HUD.
   useStrings();
@@ -190,6 +192,14 @@ export function PlayersPanel({
       }
     };
   }, [freshGame, isActive]);
+
+  useTerminalFocus({
+    isOnline,
+    isActive,
+    isTerminal,
+    actionRef: playAgainRef,
+    statusRef: terminalStatusRef,
+  });
 
   const { isAITurn, activeLabel } = useActivePlayer(gameState);
 
@@ -292,6 +302,7 @@ export function PlayersPanel({
           isOnline={isOnline}
           exitLabel={exitLabel}
           winnerColor={winnerColor}
+          newGameButtonRef={playAgainRef}
         />
       </div>
 
@@ -303,7 +314,11 @@ export function PlayersPanel({
       />
 
       {isTerminal && (
-        <div className="relative z-10 mt-3 max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3">
+        <div
+          ref={terminalStatusRef}
+          tabIndex={-1}
+          className="relative z-10 mt-3 outline-none max-sm:order-3 max-sm:mt-0 max-sm:px-4 max-sm:pt-3"
+        >
           {gameState.winner ? (
             <GameEndActions
               headline={
@@ -402,6 +417,44 @@ function usePanelSize(panelRef: RefObject<HTMLDivElement | null>) {
   }, [panelRef]);
 
   return panelSize;
+}
+
+function useTerminalFocus({
+  isOnline,
+  isActive,
+  isTerminal,
+  actionRef,
+  statusRef,
+}: {
+  isOnline: boolean;
+  isActive: boolean;
+  isTerminal: boolean;
+  actionRef: RefObject<HTMLButtonElement | null>;
+  statusRef: RefObject<HTMLDivElement | null>;
+}) {
+  const wasActiveRef = useRef(isActive);
+
+  useLayoutEffect(() => {
+    const becameTerminal = wasActiveRef.current && isTerminal;
+    wasActiveRef.current = isActive;
+    if (!becameTerminal || isOnline) return;
+
+    const active = document.activeElement;
+    if (active instanceof Element) {
+      if (
+        active.closest(
+          'dialog, [role="dialog"], input, select, textarea, [contenteditable="true"]',
+        )
+      ) {
+        return;
+      }
+      if (active === actionRef.current || statusRef.current?.contains(active)) {
+        return;
+      }
+    }
+
+    (actionRef.current ?? statusRef.current)?.focus({ preventScroll: true });
+  }, [isActive, isTerminal, isOnline, actionRef, statusRef]);
 }
 
 function TurnTimerOverlay({
@@ -667,6 +720,7 @@ interface HudActionButtonProps {
   isGameOver: boolean;
   className?: string;
   style?: React.CSSProperties;
+  buttonRef?: Ref<HTMLButtonElement>;
 }
 
 function HudActionButton({
@@ -677,9 +731,11 @@ function HudActionButton({
   isGameOver,
   className,
   style,
+  buttonRef,
 }: HudActionButtonProps) {
   return (
     <Button
+      ref={buttonRef}
       variant="glass"
       size="sm"
       onClick={onClick}
@@ -705,6 +761,7 @@ interface HudToolbarProps {
   isOnline: boolean;
   exitLabel: string;
   winnerColor: Color | null;
+  newGameButtonRef?: Ref<HTMLButtonElement>;
 }
 
 function HudToolbar({
@@ -716,6 +773,7 @@ function HudToolbar({
   isOnline,
   exitLabel,
   winnerColor,
+  newGameButtonRef,
 }: HudToolbarProps) {
   return (
     <div
@@ -748,6 +806,7 @@ function HudToolbar({
           ariaLabel={isGameOver ? t("game.again") : t("game.restartTitle")}
           onClick={onNewGameClick}
           isGameOver={isGameOver}
+          buttonRef={newGameButtonRef}
           className={isGameOver ? "max-sm:font-semibold max-sm:text-foreground" : undefined}
           // Game over: the restart is the next thing a phone player wants,
           // so it takes the win tint in the bar — in the WINNER's colour,
