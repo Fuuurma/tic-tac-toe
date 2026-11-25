@@ -93,6 +93,17 @@ function resyncGuest(deps: HostProtocolDeps) {
   });
 }
 
+function toGuestWireState(deps: HostProtocolDeps, state: GameState): GameState {
+  const wire = toWireGameState(state);
+  if (!deps.pausedRef.current) return wire;
+  return { ...wire, turnTimeRemaining: state.turnTimeRemaining };
+}
+
+function sendPauseFrameIfPaused(deps: HostProtocolDeps) {
+  if (!deps.pausedRef.current) return;
+  deps.roomRef.current?.send({ type: "pause", paused: true });
+}
+
 export function applyHostMove(deps: HostProtocolDeps, index: number, actor: PlayerSymbol) {
   const { stateRef, hostSymbolRef, commitHostState, pausedRef } = deps;
   {
@@ -260,7 +271,6 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         preferredColor: message.preferredColor,
       });
       let hostGameState = result.gameState;
-      let wireGameState = result.wireGameState;
       // A mid-game join is also a reconnect path. The disconnect stopped
       // the interval, but the host's absolute deadline kept aging; give the
       // current move the same bounded reset as welcome/peer-reconnected so
@@ -280,9 +290,9 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
             turnTimeRemaining: TURN_DURATION_MS,
             turnDeadlineAt: Date.now() + TURN_DURATION_MS,
           };
-          wireGameState = toWireGameState(hostGameState);
         }
       }
+      const wireGameState = toGuestWireState(deps, hostGameState);
       stateRef.current = hostGameState;
       // A real join unlocks sync pulls and starts a fresh throttle
       // window — a (re)joining guest's catch-up pull must not inherit a
@@ -304,6 +314,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           ? { type: "gameStart", symbol: result.guestSymbol, gameState: wireGameState }
           : { type: "gameUpdate", gameState: wireGameState },
       );
+      sendPauseFrameIfPaused(deps);
       if (result.kind === "accepted") {
         setState((prev) => ({
           ...prev,
@@ -345,12 +356,13 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       lastSyncReplyAtRef.current = now;
       roomRef.current?.send({
         type: "state_snapshot",
-        gameState: toWireGameState(stateRef.current),
+        gameState: toGuestWireState(deps, stateRef.current),
         symbol:
           hostSymbolRef.current === null
             ? undefined
             : oppositeSymbol(hostSymbolRef.current),
       });
+      sendPauseFrameIfPaused(deps);
       return;
     }
     if (message.type === "move") {
