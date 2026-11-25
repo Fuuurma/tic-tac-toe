@@ -262,19 +262,40 @@ export interface RoomTeardownDeps {
   stopTimer: () => void;
 }
 
+export type RoomTeardownMode = "deliberate" | "passive";
+
 /**
  * Cleans up room connections, timers, tickets and matchmaking state.
  * Shared between explicit leave and unmount teardown.
  */
-export function teardownActiveRoom(deps: RoomTeardownDeps, reason: string): void {
+export function teardownActiveRoom(
+  deps: RoomTeardownDeps,
+  reason: string,
+  mode: RoomTeardownMode,
+): void {
   abandonTicket({ matchmakingTicketRef: deps.matchmakingTicketRef }, reason);
   deps.hasStartedRef.current = false;
   deps.rematchPendingRef.current = false;
   deps.quickMatchHostRef.current = false;
   clearTimerRef(deps.rematchTimeoutRef);
   clearWaitingForHost(deps.waitingForHostTimeoutRef, deps.waitingForHostDeadlineAtRef);
-  leaveRoom(deps.roomRef);
+  if (mode === "passive") {
+    closeRoomPassively(deps.roomRef);
+  } else {
+    leaveRoom(deps.roomRef);
+  }
   deps.stopTimer();
+}
+
+function closeRoomPassively(roomRef: { current: RoomClient | null }): void {
+  const room = roomRef.current;
+  if (!room) return;
+  if (typeof room.closeForReconnect === "function") {
+    room.closeForReconnect();
+  } else {
+    room.close();
+  }
+  roomRef.current = null;
 }
 
 export interface TurnTimerGate {
@@ -1097,7 +1118,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const leave = useCallback(() => {
     leavePeerRoom({
       setReaction,
-      teardown: () => teardownActiveRoom(teardownDeps(), "on leave"),
+      teardown: () => teardownActiveRoom(teardownDeps(), "on leave", "deliberate"),
       pausedRef,
       setPausedState,
       hostPausedRef,
@@ -1156,8 +1177,12 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // F712: an armed host-absent deadline must not fire on a dead tree.
   useEffect(() => {
     return () => {
-      teardownActiveRoom(teardownDeps(), "on unmount");
+      teardownActiveRoom(teardownDeps(), "on unmount", "passive");
     };
+  }, [teardownDeps]);
+
+  const closeTransport = useCallback(() => {
+    teardownActiveRoom(teardownDeps(), "on transport close", "passive");
   }, [teardownDeps]);
 
   const retryReconnect = useCallback(() => {
@@ -1181,6 +1206,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     cancelRematch,
     retryReconnect,
     leave,
+    closeTransport,
     updatePendingSettings,
     setPaused,
     paused,

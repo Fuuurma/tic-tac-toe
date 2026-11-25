@@ -293,6 +293,7 @@ describe("usePeerRoom helpers", () => {
           stopTimer,
         },
         "test teardown",
+        "deliberate",
       );
 
       expect(matchmakingTicketRef.current).toBeNull();
@@ -304,6 +305,34 @@ describe("usePeerRoom helpers", () => {
       expect(waitingForHostDeadlineAtRef.current).toBeNull();
       expect(roomRef.current).toBeNull();
       expect(stopTimer).toHaveBeenCalled();
+    });
+
+    it("passive mode recycles the socket without the leave frame", () => {
+      const send = vi.fn();
+      const close = vi.fn();
+      const closeForReconnect = vi.fn();
+      const roomRef = {
+        current: { send, close, closeForReconnect } as unknown as RoomClient,
+      };
+      const deps = {
+        roomRef,
+        matchmakingTicketRef: { current: null as string | null },
+        hasStartedRef: { current: true },
+        rematchPendingRef: { current: false },
+        quickMatchHostRef: { current: false },
+        rematchTimeoutRef: { current: null as ReturnType<typeof setTimeout> | number | null },
+        waitingForHostTimeoutRef: { current: null as ReturnType<typeof setTimeout> | null },
+        waitingForHostDeadlineAtRef: { current: null as number | null },
+        stopTimer: vi.fn(),
+      };
+
+      teardownActiveRoom(deps, "test passive teardown", "passive");
+
+      expect(closeForReconnect).toHaveBeenCalledTimes(1);
+      expect(send).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+      expect(roomRef.current).toBeNull();
+      expect(deps.stopTimer).toHaveBeenCalled();
     });
   });
 

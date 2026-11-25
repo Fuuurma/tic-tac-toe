@@ -30,10 +30,16 @@ const mocks = vi.hoisted(() => ({
   recordWin: vi.fn(),
   recordLoss: vi.fn(),
   playerCount: null as { players: number; waiting: number } | null,
+  writeOnlineSession: vi.fn(),
+  clearOnlineSession: vi.fn(),
 }));
 
 vi.mock("@/hooks/usePeerRoom", () => ({
   usePeerRoom: mocks.usePeerRoom,
+}));
+vi.mock("@/lib/onlineSession", () => ({
+  writeOnlineSession: mocks.writeOnlineSession,
+  clearOnlineSession: mocks.clearOnlineSession,
 }));
 vi.mock("@/hooks/useGameStats", () => ({
   useGameStats: () => ({
@@ -64,6 +70,8 @@ vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
 afterEach(() => {
   mocks.playerCount = null;
+  mocks.writeOnlineSession.mockClear();
+  mocks.clearOnlineSession.mockClear();
   setLocale("en");
   cleanup();
 });
@@ -106,6 +114,7 @@ function makePeer(
     cancelRematch: vi.fn(),
     retryReconnect: vi.fn(),
     leave: vi.fn(),
+    closeTransport: vi.fn(),
     updatePendingSettings: vi.fn(),
     setPaused: vi.fn(),
     paused: false,
@@ -985,5 +994,173 @@ describe("OnlineGameSurface reactions picker stacking", () => {
     expect(panelZ).toBeGreaterThan(0);
     expect(zIndex(reactionsRow)).toBeGreaterThan(panelZ);
     expect(zIndex(reactionsRow)).toBeLessThan(50);
+  });
+});
+
+describe("OnlineGameSurface resume branch", () => {
+  const resumeConfig = {
+    ...config,
+    onlineAction: "quick" as const,
+    onlineRoomId: "QM-RESUME-1",
+    resumeRole: "guest" as const,
+  };
+
+  it("reseats a guest resume with joinAsGuest — never restarts quick matchmaking", () => {
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(<OnlineGameSurface config={resumeConfig} onExit={vi.fn()} />);
+
+    expect(peer.joinAsGuest).toHaveBeenCalledWith("QM-RESUME-1");
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+    expect(peer.startAsHost).not.toHaveBeenCalled();
+  });
+
+  it("reseats a host resume with startAsHost on the stored room", () => {
+    const peer = makePeer("host");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...resumeConfig, resumeRole: "host" as const }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(peer.startAsHost).toHaveBeenCalledWith("QM-RESUME-1");
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+    expect(peer.joinAsGuest).not.toHaveBeenCalled();
+  });
+
+  it("keeps the internal room id out of the HUD on a resumed quick match", () => {
+    const peer = makePeer("guest", { roomId: "QM-RESUME-1" });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(<OnlineGameSurface config={resumeConfig} onExit={vi.fn()} />);
+
+    expect(peer.joinAsGuest).toHaveBeenCalledWith("QM-RESUME-1");
+    expect(screen.queryByText("QM-RESUME-1")).toBeNull();
+    expect(screen.queryByLabelText(/Room code/)).toBeNull();
+  });
+});
+
+describe("OnlineGameSurface online session", () => {
+  const expectedWrite = {
+    roomId: "ROOM42",
+    role: "guest",
+    onlineAction: "join",
+    displayName: "Player",
+    color: Color.BLUE,
+    playerShape: SymbolShape.X,
+  };
+
+  it("writes the session once the room id and role are known", () => {
+    mocks.usePeerRoom.mockReturnValue(makePeer("guest"));
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(mocks.writeOnlineSession).toHaveBeenCalledWith(expectedWrite);
+    expect(mocks.clearOnlineSession).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing while no room is assigned yet", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("host", {
+        role: null,
+        status: "creating",
+        queue: "searching",
+        roomId: "",
+      }),
+    );
+    render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "quick" }} onExit={vi.fn()} />,
+    );
+
+    expect(mocks.writeOnlineSession).not.toHaveBeenCalled();
+  });
+
+  it("clears the session on a deliberate pre-game exit", () => {
+    const onExit = vi.fn();
+    const peer = makePeer("host", {
+      status: "reconnecting",
+      roomId: "FRIEND-1",
+      message: "Socket dropped",
+      gameState: {
+        ...freshGameState(),
+        gameMode: GameModes.ONLINE,
+      },
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "create" }}
+        onExit={onExit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(mocks.clearOnlineSession).toHaveBeenCalled();
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the session on the in-game leave", () => {
+    const onExit = vi.fn();
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(<OnlineGameSurface config={config} onExit={onExit} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave game" }));
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(mocks.clearOnlineSession).toHaveBeenCalled();
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the session on terminal failure even while room id and role remain", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", { status: "error", roomId: "ROOM42" }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(mocks.clearOnlineSession).toHaveBeenCalled();
+    expect(mocks.writeOnlineSession).not.toHaveBeenCalled();
+  });
+
+  it("clears the session on a terminal disconnect", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", {
+        status: "disconnected",
+        canRetryReconnect: false,
+        roomId: "ROOM42",
+      }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(mocks.clearOnlineSession).toHaveBeenCalled();
+    expect(mocks.writeOnlineSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps the session through a retryable disconnect", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", {
+        status: "disconnected",
+        canRetryReconnect: true,
+        roomId: "ROOM42",
+      }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(mocks.writeOnlineSession).toHaveBeenCalledWith(expectedWrite);
+    expect(mocks.clearOnlineSession).not.toHaveBeenCalled();
+  });
+
+  it("unmount closes the transport passively — no leave, no session clear", () => {
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const { unmount } = render(
+      <OnlineGameSurface config={config} onExit={vi.fn()} />,
+    );
+
+    unmount();
+
+    expect(peer.closeTransport).toHaveBeenCalledTimes(1);
+    expect(peer.leave).not.toHaveBeenCalled();
+    expect(mocks.clearOnlineSession).not.toHaveBeenCalled();
   });
 });
