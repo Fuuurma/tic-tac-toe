@@ -258,19 +258,23 @@ export function handleRelayEvent(
       // is still derived from `joined`; welcome only confirms the relay
       // accepted us and tells us whether the host is already present.
       roleRef.current = "guest";
+      const awaitingSnapshot = stateRef.current.gameStatus === GameStatus.WAITING;
+      const hostSeated = opponent !== null;
       setState((prev) => ({
         ...prev,
         role: "guest",
-        status: opponent ? "connected" : "connecting",
-        ...(opponent ? clearedMessage() : keyedMessage("peer.waitingHost")),
+        status: hostSeated && !awaitingSnapshot ? "connected" : "connecting",
+        ...(hostSeated && !awaitingSnapshot
+          ? clearedMessage()
+          : keyedMessage(hostSeated ? "peer.opponentConnecting" : "peer.waitingHost")),
       }));
       // F712: with no host seated the wait is unbounded — arm the deadline.
       // An opponent present means the host is already seated (or this is a
       // reconnect back into a live room), so nothing is left to bound.
-      if (opponent) {
-        clearWaitingForHostDeadline(deps);
-      } else {
+      if (awaitingSnapshot || !hostSeated) {
         armWaitingForHostDeadline(deps);
+      } else {
+        clearWaitingForHostDeadline(deps);
       }
       // Reconnect pull (gambit-deck contract): a local game past WAITING
       // means this welcome is a REconnect, not a first join — ask the
@@ -279,7 +283,7 @@ export function handleRelayEvent(
       // COMPLETED counts too (review 2026-10-03 repair P2): a guest that
       // thinks the game ended but missed the rematch `gameStart` has no
       // other catch-up, and that is exactly when divergence is worst.
-      if (stateRef.current.gameStatus !== GameStatus.WAITING) {
+      if (!awaitingSnapshot) {
         requestSync();
       }
     }
@@ -288,7 +292,14 @@ export function handleRelayEvent(
   if (event.type === "peer-reconnected") {
     // F712: for a guest this means the host's socket is back — the
     // host-absent wait is over either way.
-    clearWaitingForHostDeadline(deps);
+    const guestAwaitingSnapshot =
+      roleRef.current === "guest" &&
+      stateRef.current.gameStatus === GameStatus.WAITING;
+    if (guestAwaitingSnapshot) {
+      armWaitingForHostDeadline(deps);
+    } else {
+      clearWaitingForHostDeadline(deps);
+    }
     // Preserve rematchIncoming: a transient blip must not kill a live
     // rematch prompt — the host's pending request survives a socket
     // drop, and the terminal peer-left branch still clears the flag if
@@ -296,8 +307,10 @@ export function handleRelayEvent(
     // here defeated the terminal-snapshot preserve in guestProtocol).
     setState((prev) => ({
       ...prev,
-      status: "connected",
-      ...clearedMessage(),
+      status: guestAwaitingSnapshot ? "connecting" : "connected",
+      ...(guestAwaitingSnapshot
+        ? keyedMessage("peer.opponentConnecting")
+        : clearedMessage()),
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -378,7 +391,14 @@ export function handleRelayEvent(
   if (event.type === "peer-joined") {
     // F712: a peer's socket just seated — for a waiting guest that IS the
     // host arriving, so the deadline is moot.
-    clearWaitingForHostDeadline(deps);
+    const guestAwaitingSnapshot =
+      roleRef.current === "guest" &&
+      stateRef.current.gameStatus === GameStatus.WAITING;
+    if (guestAwaitingSnapshot) {
+      armWaitingForHostDeadline(deps);
+    } else {
+      clearWaitingForHostDeadline(deps);
+    }
     // Host learns a new peer arrived at the relay. The guest will send
     // its real `join` message (with preferred color) immediately after
     // `welcome`, so we only update status here — do NOT synthesize a

@@ -162,6 +162,13 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
           handleHostData(msg);
         } else {
           handleGuestData(msg);
+          if (deps.stateRef.current.gameStatus !== GameStatus.WAITING) {
+            if (deps.waitingForHostTimeoutRef.current !== null) {
+              clearTimeout(deps.waitingForHostTimeoutRef.current);
+              deps.waitingForHostTimeoutRef.current = null;
+            }
+            deps.waitingForHostDeadlineAtRef.current = null;
+          }
         }
       }
     }

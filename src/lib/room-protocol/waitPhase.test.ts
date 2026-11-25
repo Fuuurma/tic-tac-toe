@@ -37,7 +37,11 @@ describe("waitPhase: Quick Match", () => {
   });
 
   it("is nothing once the online game exists", () => {
-    expect(waitPhase(quick({ status: "connected", queue: "matched" }))).toBeNull();
+    expect(
+      waitPhase(
+        quick({ status: "connected", queue: "matched", gameStatus: GameStatus.ACTIVE }),
+      ),
+    ).toBeNull();
     for (const status of ["reconnecting", "disconnected"] as const) {
       expect(
         waitPhase(quick({ status, queue: "matched", gameStatus: GameStatus.ACTIVE })),

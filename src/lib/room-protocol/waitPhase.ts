@@ -43,8 +43,11 @@ function quickPhase(
   if (gameStatus === GameStatus.WAITING) {
     if (status === "reconnecting") return "matched";
     if (status === "disconnected") return "ended";
-  }
-  if (status === "connected" || status === "reconnecting" || status === "disconnected") {
+  } else if (
+    status === "connected" ||
+    status === "reconnecting" ||
+    status === "disconnected"
+  ) {
     return null;
   }
   if (status === "error") return "ended";
@@ -67,6 +70,7 @@ function roomPhase(status: PeerStatus, gameStatus: GameStatus): WaitPhase | null
       // The room code keeps working through a reconnect.
       return "searching";
     case "connecting":
+    case "connected":
       return "matched";
     case "error":
     case "disconnected":

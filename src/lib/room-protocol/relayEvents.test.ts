@@ -646,7 +646,7 @@ describe("bounded absent-peer waits", () => {
     }
   });
 
-  it("host seating (peer-joined) before the deadline keeps the guest waiting", () => {
+  it("host seating (peer-joined) keeps the guest waiting but does not disarm the handshake deadline", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
@@ -656,17 +656,22 @@ describe("bounded absent-peer waits", () => {
 
       handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
       handleRelayEvent(deps, { type: "peer-joined" });
-      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS - 1_000);
 
       expect(getRoom().status).toBe("connecting");
       expect(getRoom().message).toBe("Opponent connecting…");
       expect(room.close).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1_000);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.close).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("welcome with an opponent present never arms the deadline", () => {
+  it("welcome with an opponent present keeps a first-join guest connecting and bounds the handshake", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
@@ -679,10 +684,12 @@ describe("bounded absent-peer waits", () => {
         role: "guest",
         opponent: { guestId: "h", displayName: "Host" },
       });
-      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
+      expect(getRoom().status).toBe("connecting");
 
-      expect(getRoom().status).toBe("connected");
-      expect(room.close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
+
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.close).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
     }
@@ -836,7 +843,7 @@ describe("handleRelayEvent welcome role conflict", () => {
     });
 
     expect(close).not.toHaveBeenCalled();
-    expect(getRoom().status).toBe("connected");
+    expect(getRoom().status).toBe("connecting");
     expect(getRoom().role).toBe("guest");
   });
 });
