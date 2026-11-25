@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runQuickMatch, type MatchmakingDeps } from "./matchmaking";
 import { findMatch, pollMatch } from "@/lib/matchmaking";
 import { reportError } from "@/lib/errorReporting";
-import { setLocale, t } from "@/i18n/language";
+import { setLocale } from "@/i18n/language";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/matchmaking")>();
@@ -69,13 +69,13 @@ describe("runQuickMatch failure copy", () => {
 
     const errorPatch = vi
       .mocked(deps.setStatus)
-      .mock.calls.map((call) => call[0] as { status?: string; message?: string })
+      .mock.calls.map((call) => call[0] as { status?: string; messageKey?: string | null })
       .filter((patch) => patch.status === "error")
       .at(-1);
-    expect(errorPatch?.message).toBe(t("mm.failed"));
-    expect(errorPatch?.message).not.toContain("503");
-    expect(errorPatch?.message).not.toContain("Matchmaking poll failed");
-    expect(errorPatch?.message).not.toContain("{detail}");
+    expect(errorPatch?.messageKey).toBe("mm.failed");
+    expect(JSON.stringify(errorPatch)).not.toContain("503");
+    expect(JSON.stringify(errorPatch)).not.toContain("Matchmaking poll failed");
+    expect(JSON.stringify(errorPatch)).not.toContain("{detail}");
     expect(mockedReportError).toHaveBeenCalledTimes(1);
     expect(mockedReportError).toHaveBeenCalledWith(
       pollBoom,

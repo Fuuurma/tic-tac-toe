@@ -10,7 +10,8 @@ import {
 } from "@/game/constants";
 import { isGameActive, isValidMove, makeMove, type GameState } from "@/game/logic";
 import { sanitizeDisplayName } from "@/lib/identity";
-import { t } from "@/i18n/language";
+import type { StringKey } from "@/i18n/en";
+import { t } from "@/i18n/dictionary";
 import { PEER_MAX_BOARD_INDEX, toWireGameState } from "@/lib/peer.wire";
 
 /**
@@ -26,17 +27,17 @@ export const chooseGuestColor = (preferred: Color | undefined, hostColor: Color)
   return AVAILABLE_COLORS.find((color) => color !== hostColor) ?? Color.GRAY;
 };
 
-export const peerLeftUserMessage = (
+export const peerLeftMessageKey = (
   role: PeerSide,
   reason: "disconnect" | "closed" | "expired",
-): string => {
+): StringKey => {
   if (reason === "disconnect") {
-    return role === "guest" ? t("peer.hostReconnecting") : t("peer.opponentReconnecting");
+    return role === "guest" ? "peer.hostReconnecting" : "peer.opponentReconnecting";
   }
   if (reason === "expired") {
-    return role === "guest" ? t("peer.hostGone") : t("peer.opponentGone");
+    return role === "guest" ? "peer.hostGone" : "peer.opponentGone";
   }
-  return role === "guest" ? t("peer.hostLeftRoom") : t("peer.opponentLeftRoom");
+  return role === "guest" ? "peer.hostLeftRoom" : "peer.opponentLeftRoom";
 };
 
 /**

@@ -8,7 +8,7 @@ import {
 } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { peerLeftUserMessage } from "@/lib/peer.apply";
+import { peerLeftMessageKey } from "@/lib/peer.apply";
 import type { PeerRole } from "./state";
 import type { PeerRoomState } from "./state";
 import type { RoomClient } from "@/lib/roomClient";
@@ -397,7 +397,7 @@ describe("handleRelayEvent terminal disconnects", () => {
   it("a room that closes after a recoverable disconnect still clears it", () => {
     const { deps, getRoom } = makeDeps(activeGame(), "host", {
       status: "disconnected",
-      message: "Disconnected",
+      messageKey: "mm.disconnected",
       canRetryReconnect: true,
     });
 
@@ -486,7 +486,7 @@ describe("handleRelayEvent symbol fallbacks", () => {
       handleRelayEvent(deps, { type: "peer-left", reason: "closed" });
 
       expect(getRoom().status).toBe("disconnected");
-      expect(getRoom().message).toBe(peerLeftUserMessage("host", "closed"));
+      expect(getRoom().messageKey).toBe(peerLeftMessageKey("host", "closed"));
       expect(getRoom().gameState.winner).toBe(PlayerSymbol.X);
       // The second state update is the real synchronous close callback.
       expect(setState).toHaveBeenCalledTimes(2);
@@ -557,7 +557,7 @@ describe("bounded absent-peer waits", () => {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
       const { deps, getRoom } = makeDeps(game, "host", {
         status: "waiting",
-        message: "Waiting for opponent",
+        messageKey: "online.waitingOpponent",
       }, true);
       const room = seatedRoom();
       deps.roomRef.current = room;
@@ -568,7 +568,7 @@ describe("bounded absent-peer waits", () => {
       vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
 
       expect(getRoom().status).toBe("disconnected");
-      expect(getRoom().message).toBe("Your opponent never connected. Try quick-match again.");
+      expect(getRoom().messageKey).toBe("mm.opponentNever");
       expect(room.send).toHaveBeenCalledWith({ type: "leave" });
       expect(room.close).toHaveBeenCalledOnce();
       expect(deps.roomRef.current).toBeNull();
@@ -583,7 +583,7 @@ describe("bounded absent-peer waits", () => {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
       const { deps, getRoom } = makeDeps(game, "host", {
         status: "waiting",
-        message: "Waiting for opponent",
+        messageKey: "online.waitingOpponent",
       });
       const room = seatedRoom();
       deps.roomRef.current = room;
@@ -625,7 +625,7 @@ describe("bounded absent-peer waits", () => {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
       const { deps, getRoom } = makeDeps(game, "guest", {
         status: "connecting",
-        message: "Waiting for host…",
+        messageKey: "peer.waitingHost",
       });
       const room = seatedRoom();
       deps.roomRef.current = room;
@@ -636,7 +636,7 @@ describe("bounded absent-peer waits", () => {
       vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS);
 
       expect(getRoom().status).toBe("disconnected");
-      expect(getRoom().message).not.toBe("You left");
+      expect(getRoom().messageKey).not.toBe("peer.youLeft");
       expect(getRoom().canRetryReconnect).toBe(false);
       expect(room.send).toHaveBeenCalledWith({ type: "leave" });
       expect(room.close).toHaveBeenCalledOnce();
@@ -659,7 +659,7 @@ describe("bounded absent-peer waits", () => {
       vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
 
       expect(getRoom().status).toBe("connecting");
-      expect(getRoom().message).toBe("Opponent connecting…");
+      expect(getRoom().messageKey).toBe("peer.opponentConnecting");
       expect(room.close).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
@@ -723,7 +723,7 @@ describe("bounded absent-peer waits", () => {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
       const { deps, getRoom } = makeDeps(game, "guest", {
         status: "connecting",
-        message: "Waiting for host…",
+        messageKey: "peer.waitingHost",
       });
       const room = seatedRoom();
       deps.roomRef.current = room;
@@ -817,7 +817,7 @@ describe("handleRelayEvent welcome role conflict", () => {
 
     expect(close).toHaveBeenCalledOnce();
     expect(getRoom().status).toBe("error");
-    expect(getRoom().message).toBe("That room code is already in use. Try another.");
+    expect(getRoom().messageKey).toBe("mm.codeInUse");
     expect(getRoom().role).toBe("host");
     expect(deps.roleRef.current).toBe("host");
     expect(deps.waitingForHostTimeoutRef.current).toBeNull();

@@ -5,7 +5,7 @@ import { OnlineGameSurface } from "./onlineGameSurface";
 import { freshGameState, type GameState } from "@/game/logic";
 import { Color, GameModes, GameStatus, PlayerSymbol, SymbolShape } from "@/game/constants";
 import type { PeerRoomState } from "@/hooks/usePeerRoom";
-import { t } from "@/i18n/language";
+import type { StringKey } from "@/i18n/en";
 
 const mocks = vi.hoisted(() => ({
   usePeerRoom: vi.fn(),
@@ -69,7 +69,7 @@ function makePeer(stateOverrides: Partial<PeerRoomState> = {}) {
       roomId: "ROOM42",
       hostSymbol: PlayerSymbol.X,
       guestSymbol: PlayerSymbol.O,
-      message: "",
+      messageKey: null,
       pausedStash: null,
       rematchIncoming: false,
       rematchOutgoing: false,
@@ -102,12 +102,12 @@ const config = {
   onlineAction: "join" as const,
 };
 
-const terminalCases: { name: string; message: string }[] = [
-  { name: "the opponent left the room", message: t("peer.opponentLeft") },
-  { name: "the room expired", message: t("peer.opponentGone") },
+const terminalCases: { name: string; messageKey: StringKey }[] = [
+  { name: "the opponent left the room", messageKey: "peer.opponentLeft" },
+  { name: "the room expired", messageKey: "peer.opponentGone" },
   {
     name: "the absent-peer timeout severed the room",
-    message: t("mm.opponentNever"),
+    messageKey: "mm.opponentNever",
   },
 ];
 
@@ -117,7 +117,7 @@ describe("OnlineGameSurface disconnected banner", () => {
       mocks.usePeerRoom.mockReturnValue(
         makePeer({
           status: "disconnected",
-          message: terminal.message,
+          messageKey: terminal.messageKey,
           canRetryReconnect: false,
         }),
       );
@@ -132,7 +132,7 @@ describe("OnlineGameSurface disconnected banner", () => {
   it("keeps Retry now on a transport disconnect the socket can still recover", () => {
     const peer = makePeer({
       status: "disconnected",
-      message: t("mm.disconnected"),
+      messageKey: "mm.disconnected",
       canRetryReconnect: true,
     });
     mocks.usePeerRoom.mockReturnValue(peer);

@@ -7,7 +7,6 @@ import {
 } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { t } from "@/i18n/language";
 import type { PeerRoomState } from "./state";
 import { handleGuestMessage, type GuestProtocolDeps } from "./guestProtocol";
 
@@ -67,7 +66,7 @@ describe("handleGuestMessage rematchDecline", () => {
   it("clears the outgoing request, cancels the expiry timer and reports the decline", () => {
     const { deps, getRoom } = makeDeps(terminalGame(), {
       rematchOutgoing: true,
-      message: t("peer.waitingAccept"),
+      messageKey: "peer.waitingAccept",
     });
     withOutgoingRequest(deps);
 
@@ -76,13 +75,13 @@ describe("handleGuestMessage rematchDecline", () => {
     expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
     expect(getRoom().rematchOutgoing).toBe(false);
-    expect(getRoom().message).toBe(t("peer.rematchDeclined"));
+    expect(getRoom().messageKey).toBe("peer.rematchDeclined");
   });
 
   it("lets the guest answer the next host rematch request", () => {
     const { deps, getRoom } = makeDeps(terminalGame(), {
       rematchOutgoing: true,
-      message: t("peer.waitingAccept"),
+      messageKey: "peer.waitingAccept",
     });
     withOutgoingRequest(deps);
 
@@ -98,12 +97,12 @@ describe("handleGuestMessage rematchDecline", () => {
   it("ignores a stray decline with no outgoing request", () => {
     const { deps, getRoom } = makeDeps(terminalGame(), {
       rematchOutgoing: false,
-      message: "",
+      messageKey: null,
     });
 
     handleGuestMessage(deps, { type: "rematchDecline" });
 
-    expect(getRoom().message).toBe("");
+    expect(getRoom().messageKey).toBeNull();
     expect(getRoom().rematchOutgoing).toBe(false);
     expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).not.toHaveBeenCalled();
@@ -114,7 +113,7 @@ describe("handleGuestMessage host leave", () => {
   it("clears the outgoing request and cancels the expiry timer over the host-left notice", () => {
     const { deps, getRoom } = makeDeps(terminalGame(), {
       rematchOutgoing: true,
-      message: t("peer.waitingAccept"),
+      messageKey: "peer.waitingAccept",
     });
     withOutgoingRequest(deps);
 
@@ -123,6 +122,6 @@ describe("handleGuestMessage host leave", () => {
     expect(deps.rematchPendingRef.current).toBe(false);
     expect(deps.clearRematchTimeout).toHaveBeenCalledOnce();
     expect(getRoom().rematchOutgoing).toBe(false);
-    expect(getRoom().message).toBe(t("peer.hostLeft"));
+    expect(getRoom().messageKey).toBe("peer.hostLeft");
   });
 });

@@ -67,7 +67,7 @@ vi.mock("@/lib/room-protocol/roomLifecycle", async (importActual) => {
         hostSymbol: PlayerSymbol.X,
         guestSymbol: PlayerSymbol.O,
         gameState: game,
-        message: "",
+        messageKey: null,
       });
     },
   };
@@ -113,9 +113,7 @@ describe("usePeerRoom host rematch timeout", () => {
       requesterSymbol: PlayerSymbol.X,
     });
     expect(result.current.state.rematchOutgoing).toBe(true);
-    expect(result.current.state.message).toBe(
-      "Waiting for opponent to accept rematch",
-    );
+    expect(result.current.state.messageKey).toBe("peer.waitingAccept");
 
     // Just before the deadline nothing has fired yet.
     act(() => vi.advanceTimersByTime(REMATCH_TIMEOUT_MS - 1));
@@ -126,7 +124,7 @@ describe("usePeerRoom host rematch timeout", () => {
     expect(harness.send).toHaveBeenCalledWith({ type: "rematchCancel" });
     expect(rematchCancelCount()).toBe(1);
     expect(result.current.state.rematchOutgoing).toBe(false);
-    expect(result.current.state.message).toBe("Rematch request expired");
+    expect(result.current.state.messageKey).toBe("peer.rematchExpired");
 
     // The one-shot timer must not re-fire.
     act(() => vi.advanceTimersByTime(REMATCH_TIMEOUT_MS * 2));
@@ -154,7 +152,7 @@ describe("usePeerRoom host rematch timeout", () => {
 
     act(() => harness.deps?.handleHostData({ type: "rematchDecline" }));
     expect(result.current.state.rematchOutgoing).toBe(false);
-    expect(result.current.state.message).toBe("Rematch declined");
+    expect(result.current.state.messageKey).toBe("peer.rematchDeclined");
     expect(vi.getTimerCount()).toBe(0);
 
     act(() => vi.advanceTimersByTime(REMATCH_TIMEOUT_MS * 2));

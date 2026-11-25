@@ -3,10 +3,10 @@ import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { PEER_MAX_ERROR_LENGTH } from "@/lib/peer.wire";
-import type { PeerRole, PeerRoomState } from "./state";
+import { peerMessage, type PeerRole, type PeerRoomState } from "./state";
 import { handleRelayEvent, type RelayEventDeps } from "./relayEvents";
 import { reportError } from "@/lib/errorReporting";
-import { setLocale, t } from "@/i18n/language";
+import { setLocale } from "@/i18n/language";
 
 vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
 
@@ -61,13 +61,13 @@ describe("relay error and welcome copy", () => {
     setLocale("es");
     const { deps, getRoom } = makeDeps(waitingGame(), "guest", {
       status: "connected",
-      message: "",
+      messageKey: null,
     });
 
     handleRelayEvent(deps, { type: "error", message: "Room is full" });
 
-    expect(getRoom().message).toBe(t("peer.roomError"));
-    expect(getRoom().message).not.toContain("Room is full");
+    expect(getRoom().messageKey).toBe("peer.roomError");
+    expect(peerMessage(getRoom())).not.toContain("Room is full");
     expect(mockedReportError).toHaveBeenCalledWith(
       "Room is full",
       expect.objectContaining({ source: "relayEvents.error" }),
@@ -78,7 +78,7 @@ describe("relay error and welcome copy", () => {
     setLocale("es");
     const { deps } = makeDeps(waitingGame(), "guest", {
       status: "connected",
-      message: "",
+      messageKey: null,
     });
     const long = "x".repeat(PEER_MAX_ERROR_LENGTH + 50);
 
@@ -94,12 +94,12 @@ describe("relay error and welcome copy", () => {
     setLocale("es");
     const { deps, getRoom } = makeDeps(waitingGame(), "guest", {
       status: "connected",
-      message: "",
+      messageKey: null,
     });
 
     handleRelayEvent(deps, { type: "error", message: 42 });
 
-    expect(getRoom().message).toBe(t("peer.roomError"));
+    expect(getRoom().messageKey).toBe("peer.roomError");
     expect(mockedReportError).not.toHaveBeenCalled();
   });
 
@@ -109,7 +109,7 @@ describe("relay error and welcome copy", () => {
       role: "host",
       status: "creating",
       roomId: "ROOM42",
-      message: "",
+      messageKey: null,
     });
 
     handleRelayEvent(deps, {
@@ -119,8 +119,8 @@ describe("relay error and welcome copy", () => {
     });
 
     expect(getRoom().status).toBe("waiting");
-    expect(getRoom().message).toBe(t("online.waitingOpponent"));
-    expect(getRoom().message).not.toContain("ROOM42");
-    expect(getRoom().message).not.toContain("Waiting for opponent.");
+    expect(getRoom().messageKey).toBe("online.waitingOpponent");
+    expect(peerMessage(getRoom())).not.toContain("ROOM42");
+    expect(peerMessage(getRoom())).not.toContain("Waiting for opponent");
   });
 });

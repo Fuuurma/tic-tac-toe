@@ -90,7 +90,7 @@ function makePeer(
       roomId: "ROOM42",
       hostSymbol: PlayerSymbol.X,
       guestSymbol: PlayerSymbol.O,
-      message: "",
+      messageKey: null,
       rematchIncoming: false,
       rematchOutgoing: false,
       leftBySelf: false,
@@ -124,7 +124,7 @@ const config = {
 describe("OnlineGameSurface phone layout", () => {
   it("restores the phone container and 48px recovery-action classes", () => {
     mocks.usePeerRoom.mockReturnValue(
-      makePeer("host", { status: "error", message: "Room unavailable" }),
+      makePeer("host", { status: "error", messageKey: "online.connectFail" }),
     );
     const { container } = render(
       <OnlineGameSurface
@@ -511,7 +511,7 @@ describe("OnlineGameSurface play while you wait", () => {
     moveTo(view, {
       status: "error",
       queue: "none",
-      message: "Your search expired before an opponent was found. Start a new search to try again.",
+      messageKey: "mm.searchExpired",
     });
 
     screen.getByRole("button", { name: /Row 1 column 1/ });
@@ -711,7 +711,7 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
 
   it("freezes the board the moment an opponent is seated", () => {
     const view = startWarmup();
-    moveTo(view, { status: "connecting", message: "Opponent connecting…" });
+    moveTo(view, { status: "connecting", messageKey: "peer.opponentConnecting" });
 
     screen.getByText("Opponent joined");
     screen.getByText("Starting your match…");
@@ -752,7 +752,7 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
 
   it("keeps the computer game through a connection blip", () => {
     const view = startWarmup();
-    moveTo(view, { status: "reconnecting", message: "Reconnecting…" });
+    moveTo(view, { status: "reconnecting", messageKey: "online.reconnecting" });
 
     screen.getByText("vs Computer");
     screen.getByText("Waiting for an opponent");
@@ -762,10 +762,10 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
 
   it("keeps the computer game when the room closes, and says why once", () => {
     const view = startWarmup();
-    moveTo(view, { status: "disconnected", message: "Your opponent left the room." });
+    moveTo(view, { status: "disconnected", messageKey: "peer.opponentLeftRoom" });
 
     screen.getByRole("button", { name: /Row 1 column 1/ });
-    expect(screen.getAllByText("Your opponent left the room.")).toHaveLength(1);
+    expect(screen.getAllByText("Opponent left the room")).toHaveLength(1);
     screen.getByRole("button", { name: "Back to setup" });
     // There is no queue to rejoin: a closed room is a new room, made from setup.
     expect(screen.queryByRole("button", { name: "Search again" })).toBeNull();
@@ -775,10 +775,10 @@ describe("OnlineGameSurface play while you wait (created room)", () => {
   it("keeps the computer game when the room fails to open, with a way out", () => {
     const onExit = vi.fn();
     const view = startWarmup(openRoom(), onExit);
-    moveTo(view, { status: "error", message: "Room connect failed: offline" });
+    moveTo(view, { status: "error", messageKey: "online.connectFail" });
 
     screen.getByRole("button", { name: /Row 1 column 1/ });
-    expect(screen.getAllByText("Room connect failed: offline")).toHaveLength(1);
+    expect(screen.getAllByText("We could not connect to this room.")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
     expect(onExit).toHaveBeenCalled();
   });
@@ -807,14 +807,14 @@ describe("OnlineGameSurface private room before the first round", () => {
     const peer = makePeer("host", {
       status: "reconnecting",
       roomId: "FRIDAY-9",
-      message: "Socket dropped",
+      messageKey: "mm.reconnecting",
       gameState: preGame(),
     });
     mocks.usePeerRoom.mockReturnValue(peer);
     render(<OnlineGameSurface config={createConfig} onExit={onExit} />);
 
     expectNoGameArea();
-    screen.getByText("Socket dropped");
+    screen.getByText("Reconnecting...");
 
     fireEvent.click(screen.getByRole("button", { name: "Retry now" }));
     expect(peer.retryReconnect).toHaveBeenCalledTimes(1);
@@ -830,7 +830,7 @@ describe("OnlineGameSurface private room before the first round", () => {
       makePeer("host", {
         status: "disconnected",
         roomId: "FRIDAY-9",
-        message: "Opponent left the room",
+        messageKey: "peer.opponentLeftRoom",
         gameState: preGame(),
       }),
     );
@@ -846,14 +846,14 @@ describe("OnlineGameSurface private room before the first round", () => {
     const onExit = vi.fn();
     const peer = makePeer("guest", {
       status: "reconnecting",
-      message: "Socket dropped",
+      messageKey: "mm.reconnecting",
       gameState: preGame(),
     });
     mocks.usePeerRoom.mockReturnValue(peer);
     render(<OnlineGameSurface config={config} onExit={onExit} />);
 
     expectNoGameArea();
-    screen.getByText("Socket dropped");
+    screen.getByText("Reconnecting...");
 
     fireEvent.click(screen.getByRole("button", { name: "Retry now" }));
     expect(peer.retryReconnect).toHaveBeenCalledTimes(1);
@@ -868,7 +868,7 @@ describe("OnlineGameSurface private room before the first round", () => {
     mocks.usePeerRoom.mockReturnValue(
       makePeer("guest", {
         status: "disconnected",
-        message: "",
+        messageKey: null,
         gameState: preGame(),
       }),
     );
@@ -888,7 +888,7 @@ describe("OnlineGameSurface private room before the first round", () => {
       mocks.usePeerRoom.mockReturnValue(
         makePeer(role, {
           status: "reconnecting",
-          message: "Socket dropped",
+          messageKey: "mm.reconnecting",
           gameState: startedGame(),
         }),
       );
@@ -911,7 +911,7 @@ describe("OnlineGameSurface private room before the first round", () => {
       makePeer("host", {
         status: "reconnecting",
         queue: "matched",
-        message: "Socket dropped",
+        messageKey: "mm.reconnecting",
         gameState: preGame(),
       }),
     );
@@ -923,7 +923,7 @@ describe("OnlineGameSurface private room before the first round", () => {
     );
 
     expectNoGameArea();
-    screen.getByText("Socket dropped");
+    screen.getByText("Reconnecting...");
     screen.getByRole("button", { name: "Retry now" });
   });
 });
@@ -961,5 +961,52 @@ describe("OnlineGameSurface reactions picker stacking", () => {
     expect(panelZ).toBeGreaterThan(0);
     expect(zIndex(reactionsRow)).toBeGreaterThan(panelZ);
     expect(zIndex(reactionsRow)).toBeLessThan(50);
+  });
+});
+
+describe("OnlineGameSurface status banners follow the language", () => {
+  it("re-renders a live reconnecting banner in the language the player switched to", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", { status: "reconnecting", messageKey: "mm.reconnecting" }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(screen.getAllByText("Reconnecting...").length).toBeGreaterThan(0);
+
+    act(() => {
+      setLocale("es");
+    });
+
+    expect(screen.queryByText("Reconnecting...")).toBeNull();
+    expect(screen.getAllByText("Reconectando...").length).toBeGreaterThan(0);
+
+    act(() => {
+      setLocale("en");
+    });
+  });
+
+  it("re-renders a live disconnected banner in the language the player switched to", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", {
+        status: "disconnected",
+        messageKey: "peer.opponentLeftRoom",
+      }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(screen.getAllByText("Opponent left the room").length).toBeGreaterThan(0);
+
+    act(() => {
+      setLocale("es");
+    });
+
+    expect(screen.queryByText("Opponent left the room")).toBeNull();
+    expect(
+      screen.getAllByText("Tu rival ha salido de la sala").length,
+    ).toBeGreaterThan(0);
+
+    act(() => {
+      setLocale("en");
+    });
   });
 });

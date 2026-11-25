@@ -10,7 +10,6 @@ import {
 } from "@/lib/matchmaking";
 import { reportError } from "@/lib/errorReporting";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
-import { t } from "@/i18n/language";
 import type { PeerRoomState } from "./state";
 
 /**
@@ -105,7 +104,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
   liveAttempts.set(matchmakingTicketRef, attempt);
   const isCurrent = () => liveAttempts.get(matchmakingTicketRef) === attempt;
   stopTimer();
-  setStatus({ status: "creating", queue: "searching", message: t("online.findingMatch") });
+  setStatus({ status: "creating", queue: "searching", messageKey: "online.findingMatch" });
 
   // Cancel-on-disconnect: if the tab closes mid-queue, a keepalive
   // leave drops the ticket on the Worker now instead of leaking it
@@ -121,7 +120,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     setStatus({
       status: "error",
       queue: "none",
-      message: t("mm.quickEndedAway"),
+      messageKey: "mm.quickEndedAway",
     });
     if (ticket) {
       leaveMatch(GAME_ID, ticket, undefined, { keepalive: true }).catch((err) => {
@@ -235,7 +234,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
         setStatus({
           status: "error",
           queue: "none",
-          message: t("mm.searchExpired"),
+          messageKey: "mm.searchExpired",
         });
         return;
       }
@@ -262,7 +261,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
                 ...prev,
                 status: "error",
                 queue: "none",
-                message: t("mm.noOpponentRetry"),
+                messageKey: "mm.noOpponentRetry",
               }
             : prev,
         );
@@ -293,7 +292,7 @@ export async function runQuickMatch(deps: MatchmakingDeps) {
     setStatus({
       status: "error",
       queue: "none",
-      message: t("mm.failed"),
+      messageKey: "mm.failed",
     });
   } finally {
     if (canListen) window.removeEventListener("pagehide", cancelTicketOnUnload);

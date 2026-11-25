@@ -398,11 +398,11 @@ describe("handleHostMessage rematch deadline", () => {
   it("F254: a stray rematchDecline with no pending request writes nothing", () => {
     const { deps, getRoom } = makeDeps(terminalGame());
     deps.rematchPendingRef.current = false;
-    const before = getRoom().message;
+    const before = getRoom().messageKey;
 
     handleHostMessage(deps, { type: "rematchDecline" });
 
-    expect(getRoom().message).toBe(before);
+    expect(getRoom().messageKey).toBe(before);
     expect(deps.clearRematchTimeout).not.toHaveBeenCalled();
   });
 
@@ -564,7 +564,7 @@ describe("handleHostMessage guest-initiated rematch", () => {
     });
 
     expect(getRoom().rematchIncoming).toBe(true);
-    expect(getRoom().message).toContain("wants a rematch");
+    expect(getRoom().messageKey).toBe("peer.wantsRematch");
     // The host is the one who resets, so it does not accept on the wire yet.
     expect(deps.roomRef.current?.send).not.toHaveBeenCalled();
   });
@@ -584,7 +584,7 @@ describe("handleHostMessage guest-initiated rematch", () => {
 
     expect(getRoom().rematchIncoming).toBeFalsy();
     // No prompt text was written either.
-    expect(getRoom().message).toBeUndefined();
+    expect(getRoom().messageKey).toBeUndefined();
   });
 
   it("ignores a rematch request from a peer that never joined", () => {
@@ -608,13 +608,13 @@ describe("handleHostMessage guest-initiated rematch", () => {
       type: "rematchRequested",
       requesterSymbol: PlayerSymbol.O,
     });
-    const first = getRoom().message;
+    const first = getRoom().messageKey;
     handleHostMessage(deps, {
       type: "rematchRequested",
       requesterSymbol: PlayerSymbol.O,
     });
 
-    expect(getRoom().message).toBe(first);
+    expect(getRoom().messageKey).toBe(first);
     expect(getRoom().rematchIncoming).toBe(true);
   });
 
@@ -630,7 +630,7 @@ describe("handleHostMessage guest-initiated rematch", () => {
     handleHostMessage(deps, { type: "rematchCancel" });
 
     expect(getRoom().rematchIncoming).toBe(false);
-    expect(getRoom().message).toContain("withdrawn");
+    expect(getRoom().messageKey).toBe("peer.rematchWithdrawn");
   });
 
   it("resets the game and announces it when the host accepts", () => {

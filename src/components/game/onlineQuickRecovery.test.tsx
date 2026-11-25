@@ -66,7 +66,7 @@ function makePeer(stateOverrides: Partial<PeerRoomState> = {}) {
       roomId: "QM-5150",
       hostSymbol: PlayerSymbol.X,
       guestSymbol: PlayerSymbol.O,
-      message: "",
+      messageKey: null,
       rematchIncoming: false,
       rematchOutgoing: false,
       leftBySelf: false,
@@ -134,7 +134,7 @@ describe("OnlineGameSurface: a Quick Match that loses the connection before the 
     moveTo(view, {
       status: "reconnecting",
       queue: "matched",
-      message: "Reconnecting...",
+      messageKey: "mm.reconnecting",
     });
 
     view.getByText("vs Computer");
@@ -148,30 +148,30 @@ describe("OnlineGameSurface: a Quick Match that loses the connection before the 
     moveTo(view, {
       status: "disconnected",
       queue: "none",
-      message: "Your opponent left the room.",
+      messageKey: "peer.opponentLeftRoom",
     });
 
     view.getByRole("button", { name: /Row 1 column 1/ });
-    view.getByText("Your opponent left the room.");
+    view.getByText("Opponent left the room");
     view.getByRole("button", { name: "Search again" });
     view.getByRole("button", { name: "Back to setup" });
     expect(view.queryByText("Online")).toBeNull();
   });
 
   it("shows the recovery card instead of an empty board when no warm-up is open", () => {
-    for (const [status, message] of [
-      ["reconnecting", "Socket dropped"],
-      ["disconnected", "Your opponent left the room."],
+    for (const [status, messageKey, expected] of [
+      ["reconnecting", "mm.reconnecting", "Reconnecting..."],
+      ["disconnected", "peer.opponentLeftRoom", "Opponent left the room"],
     ] as const) {
       mocks.usePeerRoom.mockReturnValue(
-        makePeer({ status, queue: "matched", message }),
+        makePeer({ status, queue: "matched", messageKey }),
       );
       const view = render(
         <OnlineGameSurface config={quickConfig} onExit={vi.fn()} />,
       );
 
       expectNoGameArea(view);
-      view.getByText(message);
+      view.getByText(expected);
       view.getByRole("button", { name: "Retry now" });
       view.unmount();
     }
@@ -180,7 +180,7 @@ describe("OnlineGameSurface: a Quick Match that loses the connection before the 
   it("never discloses the room id, in any of these states", () => {
     for (const status of ["reconnecting", "disconnected"] as const) {
       mocks.usePeerRoom.mockReturnValue(
-        makePeer({ status, queue: "matched", message: "Socket dropped" }),
+        makePeer({ status, queue: "matched", messageKey: "mm.reconnecting" }),
       );
       const view = render(
         <OnlineGameSurface config={quickConfig} onExit={vi.fn()} />,
@@ -199,7 +199,7 @@ describe("OnlineGameSurface: a Quick Match that loses the connection before the 
       makePeer({
         status: "reconnecting",
         queue: "matched",
-        message: "Socket dropped",
+        messageKey: "mm.reconnecting",
         gameState: {
           ...freshGameState(),
           gameMode: GameModes.ONLINE,

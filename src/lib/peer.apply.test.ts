@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState } from "@/game/logic";
+import { t } from "@/i18n/language";
 import {
   applyAuthorizedMove,
   applyForfeitIfActive,
   applyHostGuestJoin,
-  peerLeftUserMessage,
+  peerLeftMessageKey,
 } from "./peer.apply";
 
 // The pure transitions: message in, new state out.
@@ -132,23 +133,35 @@ describe("applyHostGuestJoin", () => {
   });
 });
 
-describe("peerLeftUserMessage", () => {
+describe("peerLeftMessageKey", () => {
   it("keeps reconnect copy for a transient disconnect", () => {
-    expect(peerLeftUserMessage("host", "disconnect")).toBe(
+    expect(peerLeftMessageKey("host", "disconnect")).toBe(
+      "peer.opponentReconnecting",
+    );
+    expect(peerLeftMessageKey("guest", "disconnect")).toBe(
+      "peer.hostReconnecting",
+    );
+    expect(t(peerLeftMessageKey("host", "disconnect"))).toBe(
       "Opponent disconnected. Reconnecting…",
     );
-    expect(peerLeftUserMessage("guest", "disconnect")).toBe(
+    expect(t(peerLeftMessageKey("guest", "disconnect"))).toBe(
       "Host disconnected. Reconnecting…",
     );
   });
 
   it("distinguishes a voluntary close from a reconnect timeout", () => {
-    expect(peerLeftUserMessage("host", "closed")).toBe("Opponent left the room");
-    expect(peerLeftUserMessage("host", "expired")).toBe(
+    expect(peerLeftMessageKey("host", "closed")).toBe("peer.opponentLeftRoom");
+    expect(peerLeftMessageKey("host", "expired")).toBe("peer.opponentGone");
+    expect(peerLeftMessageKey("guest", "closed")).toBe("peer.hostLeftRoom");
+    expect(peerLeftMessageKey("guest", "expired")).toBe("peer.hostGone");
+    expect(t(peerLeftMessageKey("host", "closed"))).toBe("Opponent left the room");
+    expect(t(peerLeftMessageKey("host", "expired"))).toBe(
       "Opponent did not reconnect in time",
     );
-    expect(peerLeftUserMessage("guest", "closed")).toBe("Host left the room");
-    expect(peerLeftUserMessage("guest", "expired")).toBe("Host did not reconnect in time");
+    expect(t(peerLeftMessageKey("guest", "closed"))).toBe("Host left the room");
+    expect(t(peerLeftMessageKey("guest", "expired"))).toBe(
+      "Host did not reconnect in time",
+    );
   });
 });
 

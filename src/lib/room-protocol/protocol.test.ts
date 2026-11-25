@@ -29,7 +29,7 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
   // listened for. The host resyncs with an authoritative update instead; the
   // guest recognises a rejected move by an update whose moveCount still
   // matches its own pre-move snapshot. These pin that replacement contract.
-  const guestDeps = (stateRef: { current: GameState }, pendingGuestStateRef: { current: GameState | null }, patches: Array<(prev: never) => { message?: string }>) => ({
+  const guestDeps = (stateRef: { current: GameState }, pendingGuestStateRef: { current: GameState | null }, patches: Array<(prev: never) => { messageKey?: string | null }>) => ({
     stateRef,
     guestSymbolRef: { current: 'O' as never },
     pendingGuestStateRef,
@@ -45,7 +45,7 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
     const pendingGuestStateRef = { current: preMove as GameState | null };
     // Guest optimistically rendered its own mark: moveCount 1 locally.
     const stateRef = { current: gameState({ board: ['X'], moveCount: 1 } as never) };
-    const patches: Array<(prev: never) => { message?: string }> = [];
+    const patches: Array<(prev: never) => { messageKey?: string | null }> = [];
     // The host resyncs at moveCount 0 — our move never landed.
     const authoritative = gameState({});
 
@@ -58,14 +58,14 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
     expect(pendingGuestStateRef.current).toBeNull();
     expect(patches).toHaveLength(1);
     const next = patches[0]({} as never);
-    expect(next.message).toBe('Move was rejected by host');
+    expect(next.messageKey).toBe('peer.moveRejected');
   });
 
   it('stays silent when the resync DOES count our move', () => {
     const preMove = gameState({});
     const pendingGuestStateRef = { current: preMove as GameState | null };
     const stateRef = { current: gameState({ moveCount: 1 } as never) };
-    const patches: Array<(prev: never) => { message?: string }> = [];
+    const patches: Array<(prev: never) => { messageKey?: string | null }> = [];
     const authoritative = gameState({ moveCount: 1 } as never);
 
     handleGuestMessage(guestDeps(stateRef, pendingGuestStateRef, patches) as never, {
@@ -75,7 +75,7 @@ describe('guestProtocol.handleGuestMessage — optimistic rollback', () => {
 
     expect(stateRef.current.board).toEqual(authoritative.board);
     expect(pendingGuestStateRef.current).toBeNull();
-    expect(patches[0]({} as never).message).toBe('');
+    expect(patches[0]({} as never).messageKey).toBeNull();
   });
 });
 
@@ -318,9 +318,13 @@ describe('guestProtocol.handleGuestMessage — rematch prompt gate (F191)', () =
 // resume — while the 5b76d7b contract still holds: resume clears only the
 // pause notice, leaving a message that arrived mid-pause alone.
 describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () => {
-  const PAUSE_TEXT = 'Your host paused the game';
-  const REMATCH_NOTICE = 'Host wants a rematch. Accept or decline below.';
-  type RoomSlice = { message?: string; pausedStash?: string | null };
+  const PAUSE_KEY = 'peer.hostPaused';
+  const REMATCH_KEY = 'peer.wantsRematch';
+  type RoomSlice = {
+    messageKey?: string | null;
+    messageVars?: Record<string, string>;
+    pausedStash?: { key: string; vars?: Record<string, string> } | null;
+  };
 
   const makeDeps = (patches: Array<(prev: never) => RoomSlice>) => ({
     stateRef: { current: gameState({}) },
@@ -343,11 +347,13 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, true);
     send(patches, false);
 
-    const s0 = { message: REMATCH_NOTICE, pausedStash: null };
+    const s0 = { messageKey: REMATCH_KEY, messageVars: { name: 'Host' }, pausedStash: null };
     const s1 = patches[0](s0 as never);
-    expect(s1.message).toBe(PAUSE_TEXT);
+    expect(s1.messageKey).toBe(PAUSE_KEY);
+    expect(s1.pausedStash).toEqual({ key: REMATCH_KEY, vars: { name: 'Host' } });
     const s2 = patches[1](s1 as never);
-    expect(s2.message).toBe(REMATCH_NOTICE);
+    expect(s2.messageKey).toBe(REMATCH_KEY);
+    expect(s2.messageVars).toEqual({ name: 'Host' });
   });
 
   it('pause on an empty message still clears to empty on resume (5b76d7b)', () => {
@@ -355,9 +361,9 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, true);
     send(patches, false);
 
-    const s1 = patches[0]({ message: '', pausedStash: null } as never);
-    expect(s1.message).toBe(PAUSE_TEXT);
-    expect(patches[1](s1 as never).message).toBe('');
+    const s1 = patches[0]({ messageKey: null, pausedStash: null } as never);
+    expect(s1.messageKey).toBe(PAUSE_KEY);
+    expect(patches[1](s1 as never).messageKey).toBeNull();
   });
 
   it('a message that arrives mid-pause wins over the stale stash on resume', () => {
@@ -365,11 +371,11 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, true);
     send(patches, false);
 
-    const s1 = patches[0]({ message: REMATCH_NOTICE, pausedStash: null } as never);
+    const s1 = patches[0]({ messageKey: REMATCH_KEY, messageVars: { name: 'Host' }, pausedStash: null } as never);
     // Some other frame wrote a newer message while paused.
-    const midPause = { ...s1, message: 'Connection lost' };
+    const midPause = { ...s1, messageKey: 'mm.disconnected' };
     const s2 = patches[1](midPause as never);
-    expect(s2.message).toBe('Connection lost');
+    expect(s2.messageKey).toBe('mm.disconnected');
     expect(s2.pausedStash).toBeNull();
   });
 });
