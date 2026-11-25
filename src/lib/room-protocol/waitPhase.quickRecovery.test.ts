@@ -34,8 +34,8 @@ describe("waitPhase: a Quick Match that loses the connection before the first mo
     ).toBeNull();
   });
 
-  it("leaves the connected and failed states where they were", () => {
-    expect(waitPhase(quick({ status: "connected" }))).toBeNull();
+  it("keeps the paired handoff on a connected-but-waiting frame and ends on failure", () => {
+    expect(waitPhase(quick({ status: "connected" }))).toBe("matched");
     expect(waitPhase(quick({ status: "error", queue: "none" }))).toBe("ended");
   });
 });
