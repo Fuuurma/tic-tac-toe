@@ -1,5 +1,7 @@
 import type { GameState } from "@/game/logic";
 import type { PeerSide, PlayerSymbol } from "@/game/constants";
+import type { StringKey } from "@/i18n/en";
+import { t, type StringVars } from "@/i18n/dictionary";
 
 /**
  * The room protocol's state vocabulary.
@@ -40,14 +42,16 @@ export interface PeerRoomState {
   roomId: string;
   hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
-  message: string;
+  messageKey: StringKey | null;
+  messageVars?: StringVars;
   /**
    * F590: the message a host pause replaced. The pause frame shows
    * "Your host paused the game" so a stopped clock is legible, but a live
    * notice (rematch prompt, error text) is stashed here and restored on
    * resume instead of being destroyed. `null` when nothing is stashed.
    */
-  pausedStash: string | null;
+  pausedStashKey: StringKey | null;
+  pausedStashVars?: StringVars;
   /**
    * True while a host rematch request is pending on the guest. This is
    * the source of truth for rematch-prompt UI — never derive it by
@@ -73,5 +77,32 @@ export interface PeerRoomState {
    */
   leftBySelf: boolean;
   gameState: GameState;
+}
+
+export function roomMessage(
+  state: Pick<PeerRoomState, "messageKey" | "messageVars">,
+): string {
+  if (!state.messageKey) return "";
+  return t(state.messageKey, state.messageVars);
+}
+
+export function messagePatch(
+  key: StringKey | null,
+  vars?: StringVars,
+): { messageKey: StringKey | null; messageVars?: StringVars } {
+  return { messageKey: key, messageVars: key ? vars : undefined };
+}
+
+export function peerLeftMessageKey(
+  role: PeerSide,
+  reason: "disconnect" | "closed" | "expired",
+): StringKey {
+  if (reason === "disconnect") {
+    return role === "guest" ? "peer.hostReconnecting" : "peer.opponentReconnecting";
+  }
+  if (reason === "expired") {
+    return role === "guest" ? "peer.hostGone" : "peer.opponentGone";
+  }
+  return role === "guest" ? "peer.hostLeftRoom" : "peer.opponentLeftRoom";
 }
 
