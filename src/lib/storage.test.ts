@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getBrowserStorage } from "./storage";
+import { getBrowserSessionStorage, getBrowserStorage } from "./storage";
 
 // One guard, four former copies. These cases pin the two environments the
 // guard exists for, because a regression here is silent: every caller treats
@@ -46,5 +46,43 @@ describe("getBrowserStorage", () => {
       value: throwingWindow,
     });
     expect(getBrowserStorage()).toBeNull();
+  });
+});
+
+describe("getBrowserSessionStorage", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+
+  afterEach(() => {
+    if (original) Object.defineProperty(globalThis, "window", original);
+    else Reflect.deleteProperty(globalThis, "window");
+    vi.restoreAllMocks();
+  });
+
+  it("returns window.sessionStorage when it is readable", () => {
+    const storage = { getItem: () => null } as unknown as Storage;
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { sessionStorage: storage },
+    });
+    expect(getBrowserSessionStorage()).toBe(storage);
+  });
+
+  it("returns null with no window (the build/SSR pass)", () => {
+    Reflect.deleteProperty(globalThis, "window");
+    expect(getBrowserSessionStorage()).toBeNull();
+  });
+
+  it("returns null when the accessor itself throws (private mode, policy)", () => {
+    const throwingWindow: { sessionStorage: Storage } = {} as never;
+    Object.defineProperty(throwingWindow, "sessionStorage", {
+      get() {
+        throw new Error("SecurityError: storage is disabled");
+      },
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: throwingWindow,
+    });
+    expect(getBrowserSessionStorage()).toBeNull();
   });
 });
