@@ -133,7 +133,19 @@ describe("RecordBreakdown", () => {
   });
 
   it("renders no trigger at all when there is nothing to break down", () => {
-    render(<RecordBreakdown stats={stats({})} gameMode={undefined} />);
+    render(
+      <RecordBreakdown
+        stats={{
+          totalGames: 0,
+          wins: 0,
+          losses: 0,
+          currentWinStreak: 0,
+          bestWinStreak: 0,
+          breakdown: {},
+        }}
+        gameMode={undefined}
+      />,
+    );
     expect(trigger()).toBeDefined();
     fireEvent.click(trigger());
     // No mode and no record means no rows, so no empty panel over the board.

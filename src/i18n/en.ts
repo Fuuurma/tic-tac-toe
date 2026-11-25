@@ -172,6 +172,7 @@ export const en = {
   "game.breakdownTitle": "Record",
   "game.gamesTotal": "{count} games",
   "game.noGames": "No games",
+  "game.earlierGames": "Earlier games",
   "game.thinking": "{name} thinking",
   "game.turn": "{name}'s turn",
   "game.aiThinking": "AI is thinking",

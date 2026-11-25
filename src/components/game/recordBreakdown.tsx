@@ -63,7 +63,7 @@ export function RecordBreakdown({
   const panelId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const rows = breakdownRows(stats.breakdown, gameMode);
+  const rows = breakdownRows(stats, gameMode);
   const open = (hovered || pinned) && rows.length > 0;
 
   // Anchor-relative offset, in px. Null until measured: the panel stays

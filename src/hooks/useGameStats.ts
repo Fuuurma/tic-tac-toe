@@ -4,7 +4,7 @@ import {
   GameModes,
   type GameMode,
 } from "@/game/constants";
-import { getDifficultyLabel, getModeLabel } from "@/i18n/language";
+import { getDifficultyLabel, getModeLabel, t } from "@/i18n/language";
 import { getOrCreateGuestIdentity } from "@/lib/identity";
 
 /** One win/loss tally for a single mode+difficulty bucket. */
@@ -294,10 +294,26 @@ const MODE_LABELS = (gameMode: GameMode): string => {
  * instead of padding the panel with rows of zeros.
  */
 export const breakdownRows = (
-  breakdown: StatsBreakdown,
+  stats: GameStats,
   currentMode: GameMode | undefined,
 ): BreakdownRow[] => {
+  const { breakdown } = stats;
   const rows: BreakdownRow[] = [];
+  let bucketWins = 0;
+  let bucketLosses = 0;
+  for (const bucket of Object.values(breakdown)) {
+    bucketWins += bucket.wins;
+    bucketLosses += bucket.losses;
+  }
+  const earlierWins = Math.max(0, stats.wins - bucketWins);
+  const earlierLosses = Math.max(0, stats.losses - bucketLosses);
+  if (earlierWins > 0 || earlierLosses > 0) {
+    rows.push({
+      key: "earlier",
+      label: t("game.earlierGames"),
+      bucket: { wins: earlierWins, losses: earlierLosses },
+    });
+  }
   const push = (gameMode: GameMode, difficulty?: AI_Difficulty) => {
     const key = breakdownKey(gameMode, difficulty);
     rows.push({

@@ -173,6 +173,7 @@ export const es: Record<StringKey, string> = {
   "game.breakdownTitle": "Historial",
   "game.gamesTotal": "{count} partidas",
   "game.noGames": "Sin partidas",
+  "game.earlierGames": "Partidas anteriores",
   "game.thinking": "{name} pensando",
   "game.turn": "Turno de {name}",
   "game.aiThinking": "La IA está pensando",

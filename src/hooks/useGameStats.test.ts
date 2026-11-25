@@ -231,7 +231,7 @@ describe("breakdownRows", () => {
   };
 
   it("always lists every difficulty for the mode being played", () => {
-    const rows = breakdownRows(breakdown, GameModes.VS_COMPUTER);
+    const rows = breakdownRows({ ...DEFAULT_STATS, breakdown }, GameModes.VS_COMPUTER);
     // Played mode first, then other modes that have a record.
     expect(rows.map((r) => r.label)).toEqual([
       "Easy",
@@ -245,7 +245,7 @@ describe("breakdownRows", () => {
   });
 
   it("lists the played mode first, then other recorded modes", () => {
-    const rows = breakdownRows(breakdown, GameModes.VS_FRIEND);
+    const rows = breakdownRows({ ...DEFAULT_STATS, breakdown }, GameModes.VS_FRIEND);
     expect(rows.map((r) => r.label)).toEqual([
       "vs Friend",
       "Easy",
@@ -256,11 +256,11 @@ describe("breakdownRows", () => {
   });
 
   it("omits modes with no record at all", () => {
-    const rows = breakdownRows({}, GameModes.VS_FRIEND);
+    const rows = breakdownRows(DEFAULT_STATS, GameModes.VS_FRIEND);
     expect(rows.map((r) => r.label)).toEqual(["vs Friend"]);
   });
 
   it("shows no rows when there is neither a mode nor a record", () => {
-    expect(breakdownRows({}, undefined)).toEqual([]);
+    expect(breakdownRows(DEFAULT_STATS, undefined)).toEqual([]);
   });
 });
