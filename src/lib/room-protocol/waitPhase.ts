@@ -41,7 +41,7 @@ function quickPhase(
   gameStatus: GameStatus,
 ): WaitPhase | null {
   if (gameStatus === GameStatus.WAITING) {
-    if (status === "reconnecting") return "matched";
+    if (status === "reconnecting" || status === "connected") return "matched";
     if (status === "disconnected") return "ended";
   }
   if (status === "connected" || status === "reconnecting" || status === "disconnected") {

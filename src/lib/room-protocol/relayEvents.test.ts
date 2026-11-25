@@ -646,7 +646,7 @@ describe("bounded absent-peer waits", () => {
     }
   });
 
-  it("host seating (peer-joined) before the deadline keeps the guest waiting", () => {
+  it("host seating (peer-joined) keeps the handshake bound armed for a silent host", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
@@ -656,17 +656,22 @@ describe("bounded absent-peer waits", () => {
 
       handleRelayEvent(deps, { type: "welcome", role: "guest", opponent: null });
       handleRelayEvent(deps, { type: "peer-joined" });
+      expect(deps.waitingForHostTimeoutRef.current).not.toBeNull();
       vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
 
-      expect(getRoom().status).toBe("connecting");
-      expect(getRoom().message).toBe("Opponent connecting…");
-      expect(room.close).not.toHaveBeenCalled();
+      expect(getRoom().status).toBe("disconnected");
+      expect(getRoom().message).toBe(
+        "The host never connected. Try again, or go back to setup.",
+      );
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
+      expect(deps.roomRef.current).toBeNull();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("welcome with an opponent present never arms the deadline", () => {
+  it("welcome with an opponent present arms the handshake bound while the game is WAITING", () => {
     vi.useFakeTimers();
     try {
       const game = activeGame({ gameStatus: GameStatus.WAITING });
@@ -679,10 +684,15 @@ describe("bounded absent-peer waits", () => {
         role: "guest",
         opponent: { guestId: "h", displayName: "Host" },
       });
+      expect(getRoom().status).toBe("connecting");
+      expect(deps.waitingForHostTimeoutRef.current).not.toBeNull();
+
       vi.advanceTimersByTime(HOST_ABSENT_TIMEOUT_MS + 1_000);
 
-      expect(getRoom().status).toBe("connected");
-      expect(room.close).not.toHaveBeenCalled();
+      expect(getRoom().status).toBe("disconnected");
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledOnce();
+      expect(deps.roomRef.current).toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -836,7 +846,7 @@ describe("handleRelayEvent welcome role conflict", () => {
     });
 
     expect(close).not.toHaveBeenCalled();
-    expect(getRoom().status).toBe("connected");
+    expect(getRoom().status).toBe("connecting");
     expect(getRoom().role).toBe("guest");
   });
 });

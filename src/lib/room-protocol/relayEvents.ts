@@ -258,19 +258,26 @@ export function handleRelayEvent(
       // is still derived from `joined`; welcome only confirms the relay
       // accepted us and tells us whether the host is already present.
       roleRef.current = "guest";
+      const awaitingSnapshot =
+        stateRef.current.gameStatus === GameStatus.WAITING;
+      const waitingForHandshake = awaitingSnapshot || !opponent;
       setState((prev) => ({
         ...prev,
         role: "guest",
-        status: opponent ? "connected" : "connecting",
-        ...(opponent ? clearedMessage() : keyedMessage("peer.waitingHost")),
+        status: waitingForHandshake ? "connecting" : "connected",
+        ...(waitingForHandshake
+          ? keyedMessage(
+              awaitingSnapshot && opponent
+                ? "peer.opponentConnecting"
+                : "peer.waitingHost",
+            )
+          : clearedMessage()),
       }));
       // F712: with no host seated the wait is unbounded — arm the deadline.
-      // An opponent present means the host is already seated (or this is a
-      // reconnect back into a live room), so nothing is left to bound.
-      if (opponent) {
-        clearWaitingForHostDeadline(deps);
-      } else {
+      if (waitingForHandshake) {
         armWaitingForHostDeadline(deps);
+      } else {
+        clearWaitingForHostDeadline(deps);
       }
       // Reconnect pull (gambit-deck contract): a local game past WAITING
       // means this welcome is a REconnect, not a first join — ask the
@@ -279,16 +286,21 @@ export function handleRelayEvent(
       // COMPLETED counts too (review 2026-10-03 repair P2): a guest that
       // thinks the game ended but missed the rematch `gameStart` has no
       // other catch-up, and that is exactly when divergence is worst.
-      if (stateRef.current.gameStatus !== GameStatus.WAITING) {
+      if (!awaitingSnapshot) {
         requestSync();
       }
     }
     return;
   }
   if (event.type === "peer-reconnected") {
+    const awaitingSnapshot =
+      roleRef.current === "guest" &&
+      stateRef.current.gameStatus === GameStatus.WAITING;
     // F712: for a guest this means the host's socket is back — the
     // host-absent wait is over either way.
-    clearWaitingForHostDeadline(deps);
+    if (!awaitingSnapshot) {
+      clearWaitingForHostDeadline(deps);
+    }
     // Preserve rematchIncoming: a transient blip must not kill a live
     // rematch prompt — the host's pending request survives a socket
     // drop, and the terminal peer-left branch still clears the flag if
@@ -296,8 +308,10 @@ export function handleRelayEvent(
     // here defeated the terminal-snapshot preserve in guestProtocol).
     setState((prev) => ({
       ...prev,
-      status: "connected",
-      ...clearedMessage(),
+      status: awaitingSnapshot ? "connecting" : "connected",
+      ...(awaitingSnapshot
+        ? keyedMessage("peer.opponentConnecting")
+        : clearedMessage()),
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -376,9 +390,12 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-joined") {
-    // F712: a peer's socket just seated — for a waiting guest that IS the
-    // host arriving, so the deadline is moot.
-    clearWaitingForHostDeadline(deps);
+    const awaitingSnapshot =
+      roleRef.current === "guest" &&
+      stateRef.current.gameStatus === GameStatus.WAITING;
+    if (!awaitingSnapshot) {
+      clearWaitingForHostDeadline(deps);
+    }
     // Host learns a new peer arrived at the relay. The guest will send
     // its real `join` message (with preferred color) immediately after
     // `welcome`, so we only update status here — do NOT synthesize a
@@ -396,9 +413,6 @@ export function handleRelayEvent(
     return;
   }
   if (event.type === "peer-left") {
-    // F712: a peer-left proves the host was once seated — the
-    // never-seated wait no longer applies regardless of the reason.
-    clearWaitingForHostDeadline(deps);
     const reason = (event as { reason?: "disconnect" | "closed" | "expired" }).reason;
     if (reason === "disconnect") {
       // Don't override a deliberate leave/forfeit — the host/guest
@@ -439,6 +453,7 @@ export function handleRelayEvent(
       stopTimer();
       return;
     }
+    clearWaitingForHostDeadline(deps);
     if (roleRef.current !== "guest" && roleRef.current !== "host") return;
     stopTimer();
     rematchPendingRef.current = false;
