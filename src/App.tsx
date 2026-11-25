@@ -16,6 +16,7 @@ import {
   type PlayerSettings,
   type SettingsTab,
 } from "@/components/lobby/playerSettingsSheet";
+import { setUpdatePromptGameActive } from "@/components/updatePromptStore";
 import { useLocalGame } from "@/hooks/useLocalGame";
 import { useGameStats } from "@/hooks/useGameStats";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
@@ -49,6 +50,11 @@ export default function App() {
   const [config, setConfig] = useState<GameSetup | null>(null);
   const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(null);
   const [focusLobbyStart, setFocusLobbyStart] = useState(false);
+
+  useEffect(() => {
+    setUpdatePromptGameActive(view === "game");
+    return () => setUpdatePromptGameActive(false);
+  }, [view]);
 
   const handleStart = (payload: LobbyFormPayload) => {
     // `LobbyFormPayload` IS `GameSetup`, so there is nothing to copy across —

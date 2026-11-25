@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 
 let updateAvailable = false;
+let dismissed = false;
+let gameActive = false;
 const listeners = new Set<() => void>();
 
 const subscribe = (listener: () => void) => {
@@ -10,19 +12,37 @@ const subscribe = (listener: () => void) => {
   };
 };
 
-const getSnapshot = () => updateAvailable;
+const getSnapshot = () => updateAvailable && !dismissed && !gameActive;
+
+function emit(): void {
+  for (const listener of [...listeners]) listener();
+}
 
 export function notifyUpdateAvailable(): void {
-  if (updateAvailable) return;
+  dismissed = false;
   updateAvailable = true;
-  for (const listener of [...listeners]) listener();
+  emit();
+}
+
+export function dismissUpdatePrompt(): void {
+  if (dismissed) return;
+  dismissed = true;
+  emit();
+}
+
+export function setUpdatePromptGameActive(active: boolean): void {
+  if (gameActive === active) return;
+  gameActive = active;
+  emit();
 }
 
 export function resetUpdatePromptForTests(): void {
   updateAvailable = false;
-  for (const listener of [...listeners]) listener();
+  dismissed = false;
+  gameActive = false;
+  emit();
 }
 
-export function useUpdatePromptAvailable(): boolean {
+export function useUpdatePromptVisible(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

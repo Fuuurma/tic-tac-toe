@@ -2,12 +2,12 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStrings } from "@/i18n/language";
 import { requestUpdate } from "@/lib/serviceWorker";
-import { useUpdatePromptAvailable } from "./updatePromptStore";
+import { dismissUpdatePrompt, useUpdatePromptVisible } from "./updatePromptStore";
 
 export function UpdatePrompt() {
-  const available = useUpdatePromptAvailable();
+  const visible = useUpdatePromptVisible();
   const { t } = useStrings();
-  if (!available) return null;
+  if (!visible) return null;
   return (
     <div
       role="status"
@@ -19,6 +19,9 @@ export function UpdatePrompt() {
       </span>
       <Button size="sm" variant="glass" onClick={requestUpdate}>
         {t("update.reload")}
+      </Button>
+      <Button size="sm" variant="ghost" onClick={dismissUpdatePrompt}>
+        {t("update.dismiss")}
       </Button>
     </div>
   );

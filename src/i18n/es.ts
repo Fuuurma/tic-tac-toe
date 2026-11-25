@@ -14,6 +14,7 @@ export const es: Record<StringKey, string> = {
 
   "update.available": "Actualización disponible",
   "update.reload": "Recargar",
+  "update.dismiss": "Descartar",
 
   "board.name": "Tablero de tres en raya",
   "board.emptyCell": "Fila {row}, columna {col}, vacía",

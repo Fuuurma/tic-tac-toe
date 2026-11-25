@@ -16,6 +16,7 @@ export const en = {
 
   "update.available": "Update available",
   "update.reload": "Reload",
+  "update.dismiss": "Dismiss",
 
   "board.name": "Tic Tac Toe game board",
   "board.emptyCell": "Row {row} column {col}, empty",
