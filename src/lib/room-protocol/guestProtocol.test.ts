@@ -195,6 +195,7 @@ describe("handleGuestMessage state_snapshot", () => {
       ],
       moves: { X: [0, 1, 2], O: [3, 4] },
       moveCount: 5,
+      lastMoveIndex: 2,
     });
     // Pin the fixture to the wire contract: if validation ever rejects
     // this state the test would silently stop covering a reachable path.

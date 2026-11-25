@@ -7,7 +7,6 @@ import {
   GameModes,
   GameStatus,
   PlayerSymbol,
-  PlayerTypes,
   TURN_DURATION_MS,
   WINNING_COMBINATIONS,
 } from "@/game/constants";
@@ -42,6 +41,16 @@ const validMessage = () => ({
   type: "gameUpdate",
   gameState: baselineState(),
 });
+
+const wonState = () => {
+  let state = baselineState();
+  for (const index of [0, 3, 1, 4, 2]) {
+    const next = makeMove(state, index);
+    if (!next) throw new Error("seed moves must be legal");
+    state = next;
+  }
+  return state;
+};
 
 describe("applyAuthorizedMove hostile bounds", () => {
   it("rejects negative move indices", () => {
@@ -374,14 +383,9 @@ describe("isPeerMessage hostile game-state frames", () => {
   });
 
   it("accepts a winningCombination that matches one of the canonical rows", () => {
-    const frame = validMessage();
-    frame.gameState.winner = PlayerSymbol.X;
-    frame.gameState.winningCombination = [...WINNING_COMBINATIONS[0]] as never;
-    // F192: the claimed line must exist on the board — place the win.
-    for (const i of WINNING_COMBINATIONS[0]) {
-      frame.gameState.board[i] = PlayerSymbol.X;
-    }
-    expect(isPeerMessage(frame)).toBe(true);
+    const state = wonState();
+    expect(state.winningCombination).toEqual([...WINNING_COMBINATIONS[0]]);
+    expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(true);
   });
 
   it("rejects a winner + winningCombination the board does not contain (F192)", () => {
@@ -518,8 +522,26 @@ describe("isPeerMessage hostile game-state frames", () => {
     const frame = validMessage();
     frame.gameState.moveCount = PEER_MAX_MOVE_COUNT + 1;
     expect(isPeerMessage(frame)).toBe(false);
-    frame.gameState.moveCount = PEER_MAX_MOVE_COUNT;
-    expect(isPeerMessage(frame)).toBe(true);
+
+    const survivor = {
+      ...baselineState(),
+      board: [
+        PlayerSymbol.X, PlayerSymbol.X, null, PlayerSymbol.X, null,
+        PlayerSymbol.O, null, PlayerSymbol.O, PlayerSymbol.O,
+      ],
+      moves: {
+        [PlayerSymbol.X]: [0, 1, 3],
+        [PlayerSymbol.O]: [5, 7, 8],
+      },
+      nextToRemove: {
+        [PlayerSymbol.X]: 0,
+        [PlayerSymbol.O]: 5,
+      },
+      moveCount: PEER_MAX_MOVE_COUNT,
+      lastMoveIndex: 8,
+      currentPlayer: PlayerSymbol.X,
+    };
+    expect(isPeerMessage({ type: "gameUpdate", gameState: survivor })).toBe(true);
   });
 
   // F347: turnNotice is the one wire-reachable GameState string field that
@@ -584,17 +606,8 @@ describe("isPeerMessage hostile game-state frames", () => {
   });
 
   it("accepts a fully well-formed state built from the freshGameState + legal move", () => {
-    const next = makeMove(baselineState(), 0);
-    if (!next) throw new Error("seed move must be legal");
-    const state = {
-      ...baselineState(),
-      board: next.board,
-      moveCount: next.moveCount,
-    };
-    state.gameStatus = GameStatus.ACTIVE;
-    state.gameMode = GameModes.ONLINE;
-    state.players[PlayerSymbol.X].type = PlayerTypes.HUMAN;
-    state.players[PlayerSymbol.O].type = PlayerTypes.HUMAN;
+    const state = makeMove(baselineState(), 0);
+    if (!state) throw new Error("seed move must be legal");
     expect(isPeerMessage({ type: "gameUpdate", gameState: state })).toBe(true);
   });
 
@@ -717,13 +730,6 @@ describe("forfeit state survives the wire validator", () => {
         gameState,
       }),
     ).toBe(true);
-    expect(
-      isPeerMessage({
-        type: "gameStart",
-        symbol: PlayerSymbol.O,
-        gameState,
-      }),
-    ).toBe(true);
   });
 
   it("still rejects an UNFLAGGED winner with no line — the F404 guard is intact", () => {
@@ -765,16 +771,9 @@ describe("forfeit state survives the wire validator", () => {
     });
 
     it("controls: a genuine win and a genuine forfeit still validate", () => {
-      const board = baselineState().board.slice();
-      for (const i of WINNING_COMBINATIONS[0]) board[i] = PlayerSymbol.X;
-      const { forfeited: _flag, ...forfeitState } = forfeited();
-      const win = {
-        ...forfeitState,
-        board,
-        winner: PlayerSymbol.X,
-        winningCombination: line,
-      };
-      for (const message of frame(win)) expect(isPeerMessage(message)).toBe(true);
+      for (const message of frame(wonState())) {
+        expect(isPeerMessage(message)).toBe(true);
+      }
       for (const message of frame(forfeited())) expect(isPeerMessage(message)).toBe(true);
     });
   });

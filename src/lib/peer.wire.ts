@@ -266,6 +266,103 @@ const isPlayerConfig = (value: unknown, symbol: PlayerSymbol): boolean => {
   return true;
 };
 
+const gameStateInvariantsHold = (state: GameState): boolean => {
+  const { board, currentPlayer, gameStatus, winner } = state;
+  const movesX = state.moves[PlayerSymbol.X];
+  const movesO = state.moves[PlayerSymbol.O];
+
+  if (state.gameMode !== GameModes.ONLINE) return false;
+  if (
+    state.players[PlayerSymbol.X].type !== PlayerTypes.HUMAN ||
+    state.players[PlayerSymbol.O].type !== PlayerTypes.HUMAN
+  ) {
+    return false;
+  }
+  if (state.aiDifficulty !== undefined) return false;
+
+  const completed = gameStatus === GameStatus.COMPLETED;
+  if ((winner !== null) !== completed) return false;
+
+  const completeLines = WINNING_COMBINATIONS.filter((combo) => {
+    const cell = board[combo[0]];
+    return cell !== null && cell === board[combo[1]] && cell === board[combo[2]];
+  });
+
+  if (winner === null || state.forfeited === true) {
+    if (completeLines.length > 0) return false;
+  } else {
+    const winnerLines = completeLines.filter((combo) => board[combo[0]] === winner);
+    if (winnerLines.length !== completeLines.length || winnerLines.length === 0) {
+      return false;
+    }
+    const first = winnerLines[0];
+    const claimed = state.winningCombination;
+    if (
+      claimed === null ||
+      claimed[0] !== first[0] ||
+      claimed[1] !== first[1] ||
+      claimed[2] !== first[2]
+    ) {
+      return false;
+    }
+  }
+
+  const unique = (list: number[]) => new Set(list).size === list.length;
+  if (!unique(movesX) || !unique(movesO)) return false;
+  if (movesX.length > state.maxMoves || movesO.length > state.maxMoves) return false;
+  if (!movesX.every((index) => board[index] === PlayerSymbol.X)) return false;
+  if (!movesO.every((index) => board[index] === PlayerSymbol.O)) return false;
+  for (let index = 0; index < board.length; index += 1) {
+    const cell = board[index];
+    if (cell === PlayerSymbol.X && !movesX.includes(index)) return false;
+    if (cell === PlayerSymbol.O && !movesO.includes(index)) return false;
+  }
+  if (movesX.length !== movesO.length && movesX.length !== movesO.length + 1) {
+    return false;
+  }
+
+  const lastMover = state.moveCount % 2 === 1 ? PlayerSymbol.X : PlayerSymbol.O;
+  const nextPlayer = lastMover === PlayerSymbol.X ? PlayerSymbol.O : PlayerSymbol.X;
+  if (state.moveCount === 0) {
+    if (board.some((cell) => cell !== null)) return false;
+    if (movesX.length !== 0 || movesO.length !== 0) return false;
+    if (state.lastMoveIndex !== null) return false;
+  } else {
+    const ledger = lastMover === PlayerSymbol.X ? movesX : movesO;
+    if (ledger.length === 0) return false;
+    if (state.lastMoveIndex !== ledger[ledger.length - 1]) return false;
+    if (state.moveCount < movesX.length + movesO.length) return false;
+  }
+  if (completed && winner !== null && state.forfeited !== true) {
+    if (currentPlayer !== lastMover || winner !== lastMover) return false;
+  } else if (currentPlayer !== nextPlayer) {
+    return false;
+  }
+
+  for (const symbol of [PlayerSymbol.X, PlayerSymbol.O] as const) {
+    const ledger = symbol === PlayerSymbol.X ? movesX : movesO;
+    const winnerPointer = winner === symbol && completed && state.forfeited !== true;
+    const expected = ledger.length < state.maxMoves || winnerPointer ? null : ledger[0];
+    if (state.nextToRemove[symbol] !== expected) return false;
+  }
+
+  return true;
+};
+
+const isFreshGameStart = (state: GameState): boolean =>
+  state.gameStatus === GameStatus.ACTIVE &&
+  state.board.every((cell) => cell === null) &&
+  state.moves[PlayerSymbol.X].length === 0 &&
+  state.moves[PlayerSymbol.O].length === 0 &&
+  state.moveCount === 0 &&
+  state.lastMoveIndex === null &&
+  state.winner === null &&
+  state.winningCombination === null &&
+  state.forfeited !== true &&
+  state.nextToRemove[PlayerSymbol.X] === null &&
+  state.nextToRemove[PlayerSymbol.O] === null &&
+  state.currentPlayer === PlayerSymbol.X;
+
 const isGameState = (value: unknown): value is GameState => {
   if (!value || typeof value !== "object") return false;
   const state = value as Record<string, unknown>;
@@ -428,7 +525,7 @@ const isGameState = (value: unknown): value is GameState => {
     return false;
   }
 
-  return true;
+  return gameStateInvariantsHold(state as unknown as GameState);
 };
 
 /**
@@ -477,10 +574,15 @@ export const isPeerMessage = (value: unknown): value is PeerMessage => {
       return (
         isPlayerSymbol(message.symbol) &&
         isColor(message.color) &&
-        isGameState(message.gameState)
+        isGameState(message.gameState) &&
+        message.color === message.gameState.players[message.symbol].color
       );
     case "gameStart":
-      return isGameState(message.gameState) && isPlayerSymbol(message.symbol);
+      return (
+        isGameState(message.gameState) &&
+        isPlayerSymbol(message.symbol) &&
+        isFreshGameStart(message.gameState)
+      );
     case "gameUpdate":
       return isGameState(message.gameState);
     case "move":
