@@ -15,7 +15,6 @@ import type { PeerMessage } from "@/lib/peer.wire";
 import type { RoomClient } from "@/lib/roomClient";
 import type { PeerRoomState } from "./state";
 import type { PlayerSettings } from "@/game/constants";
-import { t } from "@/i18n/language";
 
 /**
  * Host-side game protocol, extracted from usePeerRoom (god-hook
@@ -200,7 +199,7 @@ function resetForRematch(deps: HostProtocolDeps, closePrompt: boolean) {
     hostSymbol: newHostSymbol,
     guestSymbol: newGuestSymbol,
     gameState: reset,
-    message: "",
+    messageKey: null,
     rematchOutgoing: false,
     rematchIncoming: closePrompt ? false : prev.rematchIncoming,
   }));
@@ -310,7 +309,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           status: "connected",
           guestSymbol: result.guestSymbol,
           gameState: hostGameState,
-          message: "",
+          messageKey: null,
         }));
       } else {
         setState((prev) => ({
@@ -386,7 +385,8 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
         if (prev.rematchIncoming) return prev;
         return {
           ...prev,
-          message: t("peer.wantsRematch", { name: state.players[message.requesterSymbol].username }),
+          messageKey: "peer.wantsRematch",
+          messageVars: { name: state.players[message.requesterSymbol].username },
           rematchIncoming: true,
         };
       });
@@ -397,7 +397,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       // on the explicit flag, never on the message copy.
       setState((prev) =>
         prev.rematchIncoming
-          ? { ...prev, message: t("peer.rematchWithdrawn"), rematchIncoming: false }
+          ? { ...prev, messageKey: "peer.rematchWithdrawn", rematchIncoming: false }
           : prev,
       );
       return;
@@ -426,7 +426,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
       if (!rematchPendingRef.current) return;
       rematchPendingRef.current = false;
       clearRematchTimeout();
-      setState((prev) => ({ ...prev, message: t("peer.rematchDeclined"), rematchOutgoing: false }));
+      setState((prev) => ({ ...prev, messageKey: "peer.rematchDeclined", rematchOutgoing: false }));
       return;
     }
     if (message.type === "leave") {
@@ -446,7 +446,7 @@ export function handleHostMessage(deps: HostProtocolDeps, message: PeerMessage) 
           ...prev,
           status: "disconnected" as const,
           gameState: ended,
-          message: t("peer.opponentLeft"),
+          messageKey: "peer.opponentLeft",
           rematchOutgoing: false,
           canRetryReconnect: false,
         };

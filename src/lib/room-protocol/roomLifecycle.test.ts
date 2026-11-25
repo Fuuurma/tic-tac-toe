@@ -5,6 +5,8 @@ import { createInitialGameState, type GameState } from "@/game/logic";
 import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
+import { peerMessage } from "./state";
+import type { StringKey } from "@/i18n/en";
 import type { PlayerSettings } from "@/game/constants";
 
 vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
@@ -397,24 +399,24 @@ describe("joinAsGuest rematch-flag reset", () => {
     // the relay's specific peer-left reason.
 
     it("shows the localized generic line when the transport disconnects after our own leave, in Spanish", async () => {
-      const { setLocale, t } = await import("@/i18n/language");
+      const { setLocale } = await import("@/i18n/language");
       setLocale("es");
       try {
         const { deps } = lifecycleDeps({ current: false });
         const captured = captureStatusHandler(deps);
         const afterLeave = {
           status: "disconnected",
-          message: t("peer.youLeft"),
+          messageKey: "peer.youLeft",
           leftBySelf: true,
         } as never;
 
         captured.status?.("disconnected", "La sala se cerró");
 
         const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
-          .mock.calls[0]?.[0] as (prev: never) => { message: string };
+          .mock.calls[0]?.[0] as (prev: never) => { messageKey: StringKey | null };
         const next = updater(afterLeave);
-        expect(next.message).toBe(t("mm.disconnected"));
-        expect(next.message).not.toContain("La sala");
+        expect(next.messageKey).toBe("mm.disconnected");
+        expect(peerMessage(next)).not.toContain("La sala");
       } finally {
         setLocale("en");
       }
@@ -425,15 +427,15 @@ describe("joinAsGuest rematch-flag reset", () => {
       const captured = captureStatusHandler(deps);
       const relaySaid = {
         status: "disconnected",
-        message: "El anfitrión cerró la sala",
+        messageKey: "peer.opponentLeftRoom",
         leftBySelf: false,
       } as never;
 
       captured.status?.("disconnected");
 
       const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
-        .mock.calls[0]?.[0] as (prev: never) => { message: string };
-      expect(updater(relaySaid).message).toBe("El anfitrión cerró la sala");
+        .mock.calls[0]?.[0] as (prev: never) => { messageKey: StringKey | null };
+      expect(updater(relaySaid).messageKey).toBe("peer.opponentLeftRoom");
     });
   });
 
@@ -454,7 +456,7 @@ describe("joinAsGuest rematch-flag reset", () => {
 
       const afterReconnect = reconnecting({
         status: "connected",
-        message: "",
+        messageKey: null,
       } as never);
       expect(afterReconnect.status).toBe("reconnecting");
 
@@ -468,7 +470,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       const captured = captureStatusHandler(deps);
       const relaySaid = {
         status: "disconnected",
-        message: "El anfitrión cerró la sala",
+        messageKey: "peer.opponentLeftRoom",
         leftBySelf: false,
         canRetryReconnect: false,
       } as never;
@@ -478,7 +480,7 @@ describe("joinAsGuest rematch-flag reset", () => {
       const updater = (deps.setState as unknown as { mock: { calls: unknown[][] } })
         .mock.calls[0]?.[0] as (
         prev: never,
-      ) => { message: string; canRetryReconnect: boolean };
+      ) => { messageKey: StringKey | null; canRetryReconnect: boolean };
       expect(updater(relaySaid).canRetryReconnect).toBe(false);
     });
   });

@@ -67,7 +67,7 @@ function armSync(deps: GuestProtocolDeps) {
 describe("handleGuestMessage rematchRequested", () => {
   it("ignores a rematch request while the game is active (F191)", () => {
     const game = liveGame();
-    const { deps, getRoom } = makeDeps(game, { rematchIncoming: false, message: "" });
+    const { deps, getRoom } = makeDeps(game, { rematchIncoming: false, messageKey: null });
 
     handleGuestMessage(deps, {
       type: "rematchRequested",
@@ -77,7 +77,7 @@ describe("handleGuestMessage rematchRequested", () => {
     expect(deps.stateRef.current).toBe(game);
     expect(getRoom().gameState).toBe(game);
     expect(getRoom().rematchIncoming).toBe(false);
-    expect(getRoom().message).toBe("");
+    expect(getRoom().messageKey).toBeNull();
   });
 });
 
@@ -362,7 +362,7 @@ describe("handleGuestMessage host pause frame", () => {
     handleGuestMessage(deps, { type: "pause", paused: true });
 
     expect(deps.onHostPause).toHaveBeenCalledWith(true);
-    expect(getRoom().message).toBe("Your host paused the game");
+    expect(getRoom().messageKey).toBe("peer.hostPaused");
   });
 
   it("clears the notice on resume without inventing a new one", () => {
@@ -372,14 +372,14 @@ describe("handleGuestMessage host pause frame", () => {
     handleGuestMessage(deps, { type: "pause", paused: false });
 
     expect(deps.onHostPause).toHaveBeenLastCalledWith(false);
-    expect(getRoom().message).toBe("");
+    expect(getRoom().messageKey).toBeNull();
   });
 
   it("leaves an unrelated message alone on resume", () => {
-    const { deps, getRoom } = makeDeps(activeGame(), { message: "Host left the game" });
+    const { deps, getRoom } = makeDeps(activeGame(), { messageKey: "peer.hostLeft" });
     handleGuestMessage(deps, { type: "pause", paused: false });
 
-    expect(getRoom().message).toBe("Host left the game");
+    expect(getRoom().messageKey).toBe("peer.hostLeft");
   });
 });
 

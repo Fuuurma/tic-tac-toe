@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { freshGameState, makeMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import type { PeerRoomState } from "./state";
+import { peerMessage, type PeerRoomState } from "./state";
 import {
   startTurnTimer,
   stopTurnTimer,
@@ -38,7 +38,7 @@ function roomState(game: GameState, role: "host" | "guest"): PeerRoomState {
     roomId: "room-1",
     hostSymbol: PlayerSymbol.X,
     guestSymbol: PlayerSymbol.O,
-    message: "",
+    messageKey: null,
     pausedMessage: null,
     pausedStash: null,
     rematchIncoming: false,
@@ -76,7 +76,7 @@ function makeDeps(
         deps.roomRef.current = {
           ...deps.roomRef.current,
           gameState: applied.gameState,
-          message: applied.message ?? deps.roomRef.current.message,
+          messageKey: applied.messageKey ?? deps.roomRef.current.messageKey,
         };
       }
     },
@@ -126,8 +126,9 @@ describe("peer-room turnTimer", () => {
     // The forced move landed: X in the first free cell (Math.random=0).
     expect(deps.stateRef.current.board[0]).toBe(PlayerSymbol.X);
     expect(deps.setStateCalls.at(-1)).toMatchObject({
-      message: expect.stringContaining("ran out of time"),
+      messageKey: "peer.timeout",
     });
+    expect(peerMessage(deps.setStateCalls.at(-1) ?? {})).toContain("ran out of time");
     expect(broadcasts).toHaveLength(1);
     expect(broadcasts[0].board[0]).toBe(PlayerSymbol.X);
   });

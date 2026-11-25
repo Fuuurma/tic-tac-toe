@@ -80,7 +80,7 @@ vi.mock("@/lib/room-protocol/roomLifecycle", async (importActual) => {
         hostSymbol: PlayerSymbol.X,
         guestSymbol: PlayerSymbol.O,
         gameState: game,
-        message: "",
+        messageKey: null,
       });
     },
   };

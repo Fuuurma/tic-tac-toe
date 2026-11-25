@@ -4,9 +4,9 @@ import { Color, GameModes, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState, freshGameState, type GameState } from "@/game/logic";
 import type { PlayerSettings } from "@/game/constants";
 import { buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
-import type { PeerRoomState } from "./state";
+import { peerMessage, type PeerRoomState } from "./state";
 import { reportError } from "@/lib/errorReporting";
-import { setLocale, t } from "@/i18n/language";
+import { setLocale } from "@/i18n/language";
 
 vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
 
@@ -56,7 +56,7 @@ function roomState(overrides: Partial<PeerRoomState> = {}): PeerRoomState {
     roomId: "ROOM42",
     hostSymbol: PlayerSymbol.X,
     guestSymbol: PlayerSymbol.O,
-    message: "",
+    messageKey: null,
     pausedStash: null,
     rematchIncoming: false,
     rematchOutgoing: false,
@@ -106,8 +106,8 @@ describe("transport status copy", () => {
 
     const next = nextState(deps, roomState());
     expect(next.status).toBe("reconnecting");
-    expect(next.message).toBe(t("mm.reconnecting"));
-    expect(next.message).not.toContain("Reconnecting in");
+    expect(next.messageKey).toBe("mm.reconnecting");
+    expect(peerMessage(next)).not.toContain("Reconnecting in");
     expect(mockedReportError).toHaveBeenCalledWith(
       "Reconnecting in 1.2s",
       expect.objectContaining({ source: "roomLifecycle.transport" }),
@@ -123,8 +123,8 @@ describe("transport status copy", () => {
 
     const next = nextState(deps, roomState());
     expect(next.status).toBe("disconnected");
-    expect(next.message).toBe(t("mm.disconnected"));
-    expect(next.message).not.toContain("gave up");
+    expect(next.messageKey).toBe("mm.disconnected");
+    expect(peerMessage(next)).not.toContain("gave up");
     expect(mockedReportError).toHaveBeenCalledWith(
       "Reconnect gave up; retry when ready",
       expect.objectContaining({ source: "roomLifecycle.transport" }),
@@ -140,8 +140,8 @@ describe("transport status copy", () => {
 
     const next = nextState(deps, roomState());
     expect(next.status).toBe("disconnected");
-    expect(next.message).toBe(t("mm.disconnected"));
-    expect(next.message).not.toContain("timed out");
+    expect(next.messageKey).toBe("mm.disconnected");
+    expect(peerMessage(next)).not.toContain("timed out");
     expect(mockedReportError).toHaveBeenCalledWith(
       "Connection timed out",
       expect.objectContaining({ source: "roomLifecycle.transport" }),
@@ -157,8 +157,8 @@ describe("transport status copy", () => {
 
     const next = nextState(deps, roomState());
     expect(next.status).toBe("error");
-    expect(next.message).toBe(t("mm.connectionError"));
-    expect(next.message).not.toContain("socket boom");
+    expect(next.messageKey).toBe("mm.connectionError");
+    expect(peerMessage(next)).not.toContain("socket boom");
     expect(mockedReportError).toHaveBeenCalledWith(
       "socket boom",
       expect.objectContaining({ source: "roomLifecycle.transport" }),
@@ -171,14 +171,14 @@ describe("transport status copy", () => {
     const captured = captureStatusHandler(deps);
     const grace = roomState({
       status: "reconnecting",
-      message: t("peer.hostReconnecting"),
+      messageKey: "peer.hostReconnecting",
     });
 
     captured.status?.("reconnecting", "Reconnecting in 2s");
 
     const next = nextState(deps, grace);
-    expect(next.message).toBe(t("peer.hostReconnecting"));
-    expect(next.message).not.toContain("Reconnecting in");
+    expect(next.messageKey).toBe("peer.hostReconnecting");
+    expect(peerMessage(next)).not.toContain("Reconnecting in");
   });
 
   it("a second reconnecting tick without detail leaves the localized line alone", () => {
@@ -187,12 +187,12 @@ describe("transport status copy", () => {
     const captured = captureStatusHandler(deps);
     const reconnecting = roomState({
       status: "reconnecting",
-      message: t("mm.reconnecting"),
+      messageKey: "mm.reconnecting",
     });
 
     captured.status?.("reconnecting");
 
     const next = nextState(deps, reconnecting);
-    expect(next.message).toBe(t("mm.reconnecting"));
+    expect(next.messageKey).toBe("mm.reconnecting");
   });
 });

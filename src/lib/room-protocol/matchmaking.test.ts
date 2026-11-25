@@ -8,7 +8,6 @@ import {
   type MatchmakingResponse,
 } from "@/lib/matchmaking";
 import { reportError } from "@/lib/errorReporting";
-import { t } from "@/i18n/language";
 
 vi.mock("@/lib/matchmaking", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/matchmaking")>();
@@ -124,7 +123,7 @@ describe("runQuickMatch", () => {
 
     expect(mockedFindMatch).not.toHaveBeenCalled();
     expect(deps.setStatus).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "error", message: t("mm.failed") }),
+      expect.objectContaining({ status: "error", messageKey: "mm.failed" }),
     );
     expect(hasStartedRef.current).toBe(false);
 
@@ -196,10 +195,10 @@ describe("runQuickMatch", () => {
     expect(deps.patchStatus).toHaveBeenCalledTimes(1);
     const updater = vi.mocked(deps.patchStatus).mock.calls[0][0] as (
       prev: { status: string },
-    ) => { status: string; message?: string };
+    ) => { status: string; messageKey?: string | null };
     const next = updater({ status: "waiting" });
     expect(next.status).toBe("error");
-    expect(next.message).toContain("No opponent found");
+    expect(next.messageKey).toBe("mm.noOpponentRetry");
   });
 
   it("does not surface the timeout error when the user cancelled via leave()", async () => {
@@ -244,7 +243,7 @@ describe("runQuickMatch", () => {
     expect(deps.setStatus).toHaveBeenLastCalledWith({
       status: "error",
       queue: "none",
-      message: "Quick Match ended while this page was away. Try again or go back to setup.",
+      messageKey: "mm.quickEndedAway",
     });
     expect(mockedLeaveMatch).toHaveBeenCalledWith(
       expect.any(String),
@@ -276,7 +275,7 @@ describe("runQuickMatch", () => {
     // 2026-09-13 ticket-leak finding). The UI is told either way.
     expect(mockedLeaveMatch).toHaveBeenCalledWith("tictactoe", "t1");
     expect(deps.setStatus).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "error", message: expect.stringContaining("Matchmaking failed") }),
+      expect.objectContaining({ status: "error", messageKey: "mm.failed" }),
     );
     expect(hasStartedRef.current).toBe(false);
   });
@@ -294,9 +293,9 @@ describe("runQuickMatch", () => {
     expect(mockedLeaveMatch).toHaveBeenCalledWith("tictactoe", "t1");
     const messages = vi
       .mocked(deps.setStatus)
-      .mock.calls.map((call) => (call[0] as { message?: string }).message ?? "")
+      .mock.calls.map((call) => (call[0] as { messageKey?: string | null }).messageKey ?? "")
       .join(" ");
-    expect(messages).toContain("expired");
+    expect(messages).toContain("mm.searchExpired");
     expect(messages).not.toContain("404");
     expect(hasStartedRef.current).toBe(false);
   });

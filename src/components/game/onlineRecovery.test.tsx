@@ -74,7 +74,7 @@ function makePeer(stateOverrides: Partial<PeerRoomState> = {}) {
       roomId: "ROOM42",
       hostSymbol: PlayerSymbol.X,
       guestSymbol: PlayerSymbol.O,
-      message: "",
+      messageKey: null,
       rematchIncoming: false,
       rematchOutgoing: false,
       leftBySelf: false,
@@ -111,14 +111,14 @@ const OFFLINE_COPY = "You're offline. Online play is paused until you reconnect.
 describe("OnlineGameSurface recovery when the device goes offline", () => {
   it("shows the offline copy and disables Retry while the device is offline", () => {
     onLine = false;
-    const peer = makePeer({ status: "reconnecting", message: "Socket dropped" });
+    const peer = makePeer({ status: "reconnecting", messageKey: "mm.reconnecting" });
     mocks.usePeerRoom.mockReturnValue(peer);
 
     const view = render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
 
     const banner = view.getByText(OFFLINE_COPY).closest("div[role='status']");
     expect(banner).toBeTruthy();
-    expect(banner?.textContent).not.toContain("Socket dropped");
+    expect(banner?.textContent).not.toContain("Reconnecting");
 
     const retry = view.getByRole("button", { name: "Retry now" }) as HTMLButtonElement;
     expect(retry.disabled).toBe(true);
@@ -204,7 +204,7 @@ describe("OnlineGameSurface retry after the connection gives up", () => {
   });
 
   it("falls back to the disconnected copy when the reason is empty", () => {
-    mocks.usePeerRoom.mockReturnValue(makePeer({ status: "disconnected", message: "" }));
+    mocks.usePeerRoom.mockReturnValue(makePeer({ status: "disconnected", messageKey: null }));
 
     const view = render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
 

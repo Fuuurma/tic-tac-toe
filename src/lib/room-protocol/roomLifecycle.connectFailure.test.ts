@@ -4,8 +4,10 @@ import { Color, GameModes } from "@/game/constants";
 import { createInitialGameState, type GameState } from "@/game/logic";
 import type { PlayerSettings } from "@/game/constants";
 import { joinAsGuest, startAsHost, type RoomLifecycleDeps } from "./roomLifecycle";
+import { peerMessage } from "./state";
+import type { StringKey } from "@/i18n/en";
 import { reportError } from "@/lib/errorReporting";
-import { setLocale, t } from "@/i18n/language";
+import { setLocale } from "@/i18n/language";
 
 vi.mock("@/lib/errorReporting", () => ({ reportError: vi.fn() }));
 
@@ -53,7 +55,7 @@ function lifecycleDeps() {
 
 function lastUpdate(update: ReturnType<typeof vi.fn>) {
   const calls = update.mock.calls;
-  return calls[calls.length - 1][0] as { status: string; message: string };
+  return calls[calls.length - 1][0] as { status: string; messageKey: StringKey | null };
 }
 
 describe("room connect failure copy", () => {
@@ -77,9 +79,9 @@ describe("room connect failure copy", () => {
 
     const last = lastUpdate(update);
     expect(last.status).toBe("error");
-    expect(last.message).not.toContain("socket boom");
-    expect(last.message).not.toContain("Room connect failed");
-    expect(last.message).toBe(t("online.connectFail"));
+    expect(last.messageKey).toBe("online.connectFail");
+    expect(peerMessage(last)).not.toContain("socket boom");
+    expect(peerMessage(last)).not.toContain("Room connect failed");
     expect(mockedReportError).toHaveBeenCalledTimes(1);
     expect(mockedReportError).toHaveBeenCalledWith(
       socketBoom,
@@ -98,9 +100,9 @@ describe("room connect failure copy", () => {
 
     const last = lastUpdate(update);
     expect(last.status).toBe("error");
-    expect(last.message).not.toContain("socket boom");
-    expect(last.message).not.toContain("Room connect failed");
-    expect(last.message).toBe(t("online.connectFail"));
+    expect(last.messageKey).toBe("online.connectFail");
+    expect(peerMessage(last)).not.toContain("socket boom");
+    expect(peerMessage(last)).not.toContain("Room connect failed");
     expect(mockedReportError).toHaveBeenCalledTimes(1);
     expect(mockedReportError).toHaveBeenCalledWith(
       socketBoom,
@@ -117,9 +119,9 @@ describe("room connect failure copy", () => {
 
     joinAsGuest(deps, "ROOM42", "ws://127.0.0.1:1");
 
-    const first = update.mock.calls[0][0] as { status: string; message: string };
+    const first = update.mock.calls[0][0] as { status: string; messageKey: StringKey | null };
     expect(first.status).toBe("connecting");
-    expect(first.message).toBe(t("online.joining"));
-    expect(first.message).not.toBe("Connecting...");
+    expect(first.messageKey).toBe("online.joining");
+    expect(peerMessage(first)).not.toBe("Connecting...");
   });
 });

@@ -90,7 +90,7 @@ function makePeer(
       roomId: "ROOM42",
       hostSymbol: PlayerSymbol.X,
       guestSymbol: PlayerSymbol.O,
-      message: "",
+      messageKey: null,
       rematchIncoming: false,
       rematchOutgoing: false,
       leftBySelf: false,
