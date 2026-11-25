@@ -38,6 +38,7 @@ function roomState(game: GameState, role: "host" | "guest"): PeerRoomState {
     roomId: "room-1",
     hostSymbol: PlayerSymbol.X,
     guestSymbol: PlayerSymbol.O,
+    messageKey: null,
     message: "",
     pausedMessage: null,
     pausedStash: null,

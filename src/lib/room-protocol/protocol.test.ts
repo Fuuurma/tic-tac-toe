@@ -366,8 +366,8 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, false);
 
     const s1 = patches[0]({ message: REMATCH_NOTICE, pausedStash: null } as never);
-    // Some other frame wrote a newer message while paused.
-    const midPause = { ...s1, message: 'Connection lost' };
+    // Some other keyed frame wrote a newer message while paused.
+    const midPause = { ...s1, messageKey: 'peer.roomError', message: 'Connection lost' };
     const s2 = patches[1](midPause as never);
     expect(s2.message).toBe('Connection lost');
     expect(s2.pausedStash).toBeNull();

@@ -23,6 +23,7 @@ import { generateGuestDisplayName, getOrCreateGuestIdentity, sanitizeDisplayName
 import { RoomClient } from "@/lib/roomClient";
 import { reportError } from "@/lib/errorReporting";
 import { disarmSyncReplyThrottle } from "./hostProtocol";
+import { clearedMessage, keyedMessage } from "./messageI18n";
 import type { PeerRole, PeerRoomState } from "./state";
 import type { PlayerSettings } from "@/game/constants";
 import { t } from "@/i18n/language";
@@ -178,7 +179,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
       // ("Host disconnected. Reconnecting…" / peer-left reason lines).
       setState((prev) => {
         if (prev.status === "reconnecting") return prev;
-        return { ...prev, status: "reconnecting", message: t("mm.reconnecting") };
+        return { ...prev, status: "reconnecting", ...keyedMessage("mm.reconnecting") };
       });
     } else if (status === "disconnected") {
       setState((prev) => {
@@ -196,12 +197,12 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
         return {
           ...prev,
           status: "disconnected",
-          message: t("mm.disconnected"),
+          ...keyedMessage("mm.disconnected"),
           canRetryReconnect: prev.status === "reconnecting",
         };
       });
     } else if (status === "error") {
-      setState((prev) => ({ ...prev, status: "error", message: t("mm.connectionError") }));
+      setState((prev) => ({ ...prev, status: "error", ...keyedMessage("mm.connectionError") }));
     }
   });
   deps.roomRef.current = client;
@@ -253,11 +254,11 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     playerXName:
       hostSymbol === PlayerSymbol.X
         ? sanitizeDisplayName(hostDisplayName, generateGuestDisplayName())
-        : "Waiting for opponent",
+        : t("online.waitingOpponent"),
     playerOName:
       hostSymbol === PlayerSymbol.O
         ? sanitizeDisplayName(hostDisplayName, generateGuestDisplayName())
-        : "Waiting for opponent",
+        : t("online.waitingOpponent"),
     playerColor: hostColor,
     opponentColor: chooseGuestColor(Color.BLUE, hostColor),
     playerShape: hostShape ?? PLAYER_CONFIG[hostSymbol].defaultShape,
@@ -273,7 +274,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     hostSymbol,
     guestSymbol,
     gameState: waitingGame,
-    message: "",
+    ...clearedMessage(),
     rematchOutgoing: false,
     leftBySelf: false,
     canRetryReconnect: false,
@@ -284,7 +285,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   const room = buildRoomClient(deps, resolvedUrl, "host", slotToken);
   room.connect().catch((err) => {
     reportError(err, { source: "roomLifecycle.connect", role: "host" });
-    update({ status: "error", message: t("online.connectFail"), canRetryReconnect: false });
+    update({ status: "error", ...keyedMessage("online.connectFail"), canRetryReconnect: false });
   });
 }
 
@@ -306,7 +307,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   deps.waitingForHostDeadlineAtRef.current = null;
   const trimmed = roomId.trim();
   if (!trimmed) {
-    update({ status: "error", message: t("mm.enterRoom"), canRetryReconnect: false });
+    update({ status: "error", ...keyedMessage("mm.enterRoom"), canRetryReconnect: false });
     return;
   }
   // The guest's symbol is assigned by the host's `joined` message — clear
@@ -325,13 +326,13 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const waitingState: GameState = { ...freshGameState(), gameMode: GameModes.ONLINE };
   deps.stateRef.current = waitingState;
   deps.pendingGuestStateRef.current = null;
-  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, message: t("online.joining"), rematchOutgoing: false, leftBySelf: false, canRetryReconnect: false });
+  update({ role: "guest", status: "connecting", roomId: trimmed, guestSymbol: null, gameState: waitingState, ...keyedMessage("online.joining"), rematchOutgoing: false, leftBySelf: false, canRetryReconnect: false });
   roleRef.current = "guest";
 
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
   const room = buildRoomClient(deps, resolvedUrl, "guest", slotToken);
   room.connect().catch((err) => {
     reportError(err, { source: "roomLifecycle.connect", role: "guest" });
-    update({ status: "error", message: t("online.connectFail"), canRetryReconnect: false });
+    update({ status: "error", ...keyedMessage("online.connectFail"), canRetryReconnect: false });
   });
 }

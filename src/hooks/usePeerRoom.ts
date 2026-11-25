@@ -8,7 +8,7 @@ import { toWireGameState } from "@/lib/peer.wire";
 import { applyAuthorizedMove } from "@/lib/peer.apply";
 import type { PeerMessage } from "@/lib/peer.wire";
 import { RoomClient } from "@/lib/roomClient";
-import { t } from "@/i18n/language";
+import { clearedMessage, keyedMessage } from "@/lib/room-protocol/messageI18n";
 import {
   startTurnTimer,
   stopTurnTimer,
@@ -66,7 +66,7 @@ const initialState: PeerRoomState = {
   roomId: "",
   hostSymbol: null,
   guestSymbol: null,
-  message: "",
+  ...clearedMessage(),
   pausedStash: null,
   rematchIncoming: false,
   rematchOutgoing: false,
@@ -544,7 +544,7 @@ export function sendRematchRequest(deps: RematchRequestDeps): void {
   deps.rematchTimeoutRef.current = window.setTimeout(deps.expireRematch, REMATCH_TIMEOUT_MS);
   deps.setState((prev) => ({
     ...prev,
-    message: t("peer.waitingAccept"),
+    ...keyedMessage("peer.waitingAccept"),
     rematchOutgoing: true,
   }));
 }
@@ -572,7 +572,7 @@ export function applyRematchAccept(deps: RematchAcceptDeps): void {
     return;
   }
   deps.roomRef.current?.send({ type: "rematchAccept" });
-  deps.setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+  deps.setState((prev) => ({ ...prev, ...clearedMessage(), rematchIncoming: false }));
 }
 
 export interface RematchDeclineDeps {
@@ -589,7 +589,7 @@ export function applyRematchDecline(deps: RematchDeclineDeps): void {
   // prompt the asker raised.
   if (!deps.rematchIncoming) return;
   deps.roomRef.current?.send({ type: "rematchDecline" });
-  deps.setState((prev) => ({ ...prev, message: "", rematchIncoming: false }));
+  deps.setState((prev) => ({ ...prev, ...clearedMessage(), rematchIncoming: false }));
 }
 
 export interface RematchCancelDeps {
@@ -610,7 +610,7 @@ export function applyRematchCancel(deps: RematchCancelDeps): void {
   deps.rematchPendingRef.current = false;
   deps.clearRematchTimeout();
   deps.roomRef.current?.send({ type: "rematchCancel" });
-  deps.setState((prev) => ({ ...prev, message: "", rematchOutgoing: false }));
+  deps.setState((prev) => ({ ...prev, ...clearedMessage(), rematchOutgoing: false }));
 }
 
 export interface ExpireRematchDeps {
@@ -630,7 +630,7 @@ export function expireRematchRequest(deps: ExpireRematchDeps): void {
   deps.roomRef.current?.send({ type: "rematchCancel" });
   deps.setState((prev) => ({
     ...prev,
-    message: t("peer.rematchExpired"),
+    ...keyedMessage("peer.rematchExpired"),
     rematchOutgoing: false,
   }));
 }
@@ -687,7 +687,7 @@ export function leavePeerRoom(deps: LeaveRoomDeps): void {
     ...prev,
     status: "disconnected",
     queue: "none",
-    message: t("peer.youLeft"),
+    ...keyedMessage("peer.youLeft"),
     rematchIncoming: false,
     rematchOutgoing: false,
     leftBySelf: true,

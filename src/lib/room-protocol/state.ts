@@ -1,5 +1,7 @@
 import type { GameState } from "@/game/logic";
 import type { PeerSide, PlayerSymbol } from "@/game/constants";
+import type { StringKey } from "@/i18n/en";
+import type { StringVars } from "@/i18n/dictionary";
 
 /**
  * The room protocol's state vocabulary.
@@ -9,6 +11,29 @@ import type { PeerSide, PlayerSymbol } from "@/game/constants";
  * protocol depended on the hook, when the dependency is the other way round.
  * The hook keeps re-exporting them so its callers are untouched.
  */
+
+/**
+ * The status line's i18n identity: the dictionary key plus its
+ * interpolation vars. The surface re-translates it on every render, so a
+ * language switch re-renders a live banner instead of leaving the
+ * write-time prose frozen in the old locale.
+ */
+export interface PeerStatusMessage {
+  /** Dictionary key for the status line; `null` when no line is shown. */
+  messageKey: StringKey | null;
+  /** Interpolation vars for `messageKey` (e.g. `{ name }`). */
+  messageVars?: StringVars;
+}
+
+/**
+ * A status message as stored on the room state: the i18n identity plus
+ * `message`, the same text resolved once at write time. `message` is kept
+ * for tests and non-React readers — the UI renders `statusMessageText`,
+ * which re-translates the key in the current locale.
+ */
+export interface PeerRoomMessage extends PeerStatusMessage {
+  message: string;
+}
 
 export type PeerRole = PeerSide | null;
 
@@ -33,21 +58,20 @@ export type PeerStatus =
  */
 export type QueueStage = "none" | "searching" | "matched";
 
-export interface PeerRoomState {
+export interface PeerRoomState extends PeerRoomMessage {
   role: PeerRole;
   status: PeerStatus;
   queue: QueueStage;
   roomId: string;
   hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
-  message: string;
   /**
-   * F590: the message a host pause replaced. The pause frame shows
+   * F590: the status message a host pause replaced. The pause frame shows
    * "Your host paused the game" so a stopped clock is legible, but a live
    * notice (rematch prompt, error text) is stashed here and restored on
    * resume instead of being destroyed. `null` when nothing is stashed.
    */
-  pausedStash: string | null;
+  pausedStash: PeerRoomMessage | null;
   /**
    * True while a host rematch request is pending on the guest. This is
    * the source of truth for rematch-prompt UI — never derive it by

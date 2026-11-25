@@ -244,6 +244,7 @@ describe("runQuickMatch", () => {
     expect(deps.setStatus).toHaveBeenLastCalledWith({
       status: "error",
       queue: "none",
+      messageKey: "mm.quickEndedAway",
       message: "Quick Match ended while this page was away. Try again or go back to setup.",
     });
     expect(mockedLeaveMatch).toHaveBeenCalledWith(

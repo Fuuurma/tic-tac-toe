@@ -56,6 +56,7 @@ function roomState(overrides: Partial<PeerRoomState> = {}): PeerRoomState {
     roomId: "ROOM42",
     hostSymbol: PlayerSymbol.X,
     guestSymbol: PlayerSymbol.O,
+    messageKey: null,
     message: "",
     pausedStash: null,
     rematchIncoming: false,

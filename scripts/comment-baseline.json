@@ -1012,7 +1012,6 @@
   "src/components/game/socialReactions.tsx": {
     "0801ce110b4fe9a0": 1,
     "178e9691b1c2d5a2": 1,
-    "25dd5f398988e622": 1,
     "44632472f6427fa8": 1,
     "8d88779ceaf0c6c8": 1,
     "9b9e41c72d92437d": 1
@@ -1110,7 +1109,6 @@
     "1a2e67ae54771de8": 1,
     "1a9a55ed6eea468b": 1,
     "1def34c4b0653c68": 1,
-    "21d89cad69951d64": 1,
     "27aa673ae87067f8": 1,
     "2bad08db217a5f8a": 1,
     "32604264d4000604": 1,
@@ -1171,7 +1169,6 @@
     "e7970b146c1ef427": 1,
     "ebb62e3d98533ea1": 1,
     "efc794f9df75b42e": 1,
-    "f29399f16ccf9c47": 1,
     "f9a3106083a747a7": 1
   },
   "src/components/lobby/lobbyForm.unavailable.test.tsx": {
@@ -1217,7 +1214,6 @@
     "7ceff98bda725892": 1,
     "95656f0ce51f1ae7": 1,
     "98b353e87087914f": 1,
-    "b58efc7187afa992": 1,
     "e0518ee3cc041b2a": 1,
     "e7f3c7d0c15f22ce": 1
   },
@@ -1730,7 +1726,6 @@
     "330c0c2af7fac4c6": 1,
     "3852bb81423f7ac0": 1,
     "4c7fdf6c2cd1eab8": 1,
-    "50635650d5250c65": 1,
     "52762918592dfbfb": 1,
     "54fff34b54e5c759": 1,
     "556a95f3faf289d7": 1,
@@ -2383,6 +2378,7 @@
     "4525c448d96edf45": 1,
     "69a17cb5e4dda968": 1,
     "a63e0ceb76c51c36": 1,
+    "b1927e33e8c62636": 1,
     "b2221dbcb692349c": 1,
     "d1bac71bc51b7d74": 1,
     "e7bfbccbe043f4cb": 1
@@ -2610,7 +2606,6 @@
     "3d985b43b886deea": 1,
     "45ea3ac98695fb9b": 1,
     "4bb034ffa0d9241e": 1,
-    "4cf85d1b50d4753a": 1,
     "4df7e1e5e19b8cdb": 1,
     "53623c69fe5e41eb": 1,
     "55356f56d06a3ee4": 1,
@@ -2623,7 +2618,6 @@
     "5f3c13abb63e9f27": 1,
     "6c1034af7abf0e78": 1,
     "6ee7251da3e19fba": 1,
-    "71568598035f81ce": 1,
     "71cfb1fba529c8b0": 1,
     "7689fe73908281c0": 1,
     "78d86a3238c894ac": 1,
@@ -2642,7 +2636,6 @@
     "94d2e96dcc900f05": 1,
     "95bf3e4e3a4c3eca": 1,
     "98a802eb37ddafe7": 1,
-    "a58edc0d68e4b598": 1,
     "b16f3c6878d0fcb9": 1,
     "b47688baeeca8775": 1,
     "b9b8762342b62271": 1,
@@ -2652,7 +2645,6 @@
     "e0896979d298d723": 1,
     "e2a4a171285fea40": 1,
     "e49c77e51bc23217": 1,
-    "e6410419a3724a80": 1,
     "e7908325cf55377b": 1,
     "e8a887c9c047e0f1": 1,
     "ec090875b9b4e6a9": 1,
@@ -2923,6 +2915,21 @@
     "efe7332b856f7199": 1,
     "f09e207197a517d6": 1
   },
+  "src/lib/room-protocol/messageI18n.test.ts": {
+    "13c543584e4bc3e6": 1,
+    "1f34fc1a8af7643f": 1,
+    "2ab58cc0d3313262": 1,
+    "52ffebb6647e94d7": 1,
+    "58305bf235980f11": 1,
+    "a20f4e42ca6544a7": 1,
+    "d51b69fa34ad1686": 1
+  },
+  "src/lib/room-protocol/messageI18n.ts": {
+    "076c313a7d98d1e1": 1,
+    "15653910dbeee314": 1,
+    "59d24d55fd6731b6": 1,
+    "eb5ce3fd8c6db910": 1
+  },
   "src/lib/room-protocol/protocol.test.ts": {
     "0a87b355c7caea38": 1,
     "0e4b3b6cf909e9a5": 1,
@@ -2942,11 +2949,11 @@
     "9258aa9f221624af": 1,
     "ad7f876786476a41": 1,
     "b38b3d7d31c4e6bb": 1,
+    "b9813d1a959dc295": 1,
     "be6febac54e59cb1": 1,
     "c1a4cef0e327cb46": 1,
     "c22f6fa1a0bf1cba": 1,
     "c3111654c9de3b34": 1,
-    "dfd1c66911b37fdc": 1,
     "eeb7b33a1993886d": 1,
     "fb2541509a52ebf9": 1
   },
@@ -3306,11 +3313,15 @@
   },
   "src/lib/room-protocol/state.ts": {
     "0671a3618c5facd8": 1,
+    "08e6181a4bff937b": 1,
     "1197bbcfd3fe231c": 1,
     "2abe421795abb7f6": 1,
     "2b0a90b11c88c89f": 1,
-    "40f2b3fd71a39df6": 1,
-    "8d72aa8b37353133": 1
+    "507b5c42ac48b61e": 1,
+    "5afa3a6798f6bc93": 1,
+    "81b846020f10ff33": 1,
+    "8d72aa8b37353133": 1,
+    "981d4676ff02e57d": 1
   },
   "src/lib/room-protocol/turnTimer.test.ts": {
     "3c7e18cd2dd1f9aa": 1,

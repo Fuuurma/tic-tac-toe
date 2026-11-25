@@ -9,8 +9,8 @@ import {
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { PEER_MAX_ERROR_LENGTH } from "@/lib/peer.wire";
-import { applyForfeitIfActive, peerLeftUserMessage } from "@/lib/peer.apply";
-import { t } from "@/i18n/language";
+import { applyForfeitIfActive, peerLeftMessageKey } from "@/lib/peer.apply";
+import { clearedMessage, keyedMessage } from "./messageI18n";
 import type { RoomClient } from "@/lib/roomClient";
 import { reportError } from "@/lib/errorReporting";
 import { leaveRoom } from "./roomLifecycle";
@@ -110,8 +110,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
         return {
           ...prev,
           status: "disconnected",
-          message:
-            t("mm.hostNever"),
+          ...keyedMessage("mm.hostNever"),
           canRetryReconnect: false,
         };
       }
@@ -121,7 +120,7 @@ function armWaitingForHostDeadline(deps: RelayEventDeps) {
         return {
           ...prev,
           status: "disconnected",
-          message: t("mm.opponentNever"),
+          ...keyedMessage("mm.opponentNever"),
           canRetryReconnect: false,
         };
       }
@@ -162,7 +161,7 @@ export function handleRelayEvent(
       setState((prev) => ({
         ...prev,
         status: "error",
-        message: t("mm.codeInUse"),
+        ...keyedMessage("mm.codeInUse"),
       }));
       return;
     }
@@ -197,7 +196,7 @@ export function handleRelayEvent(
             role: "host",
             status: "connected",
             guestSymbol: hostSymbol === null ? prev.guestSymbol : oppositeSymbol(hostSymbol),
-            message: "",
+            ...clearedMessage(),
           };
         });
         // Host's own reconnect must resync like peer-reconnected does:
@@ -246,7 +245,9 @@ export function handleRelayEvent(
           ...prev,
           role: "host",
           status: prev.status === "connected" ? "connected" : "waiting",
-          message: prev.status === "connected" ? "" : t("online.waitingOpponent"),
+          ...(prev.status === "connected"
+            ? clearedMessage()
+            : keyedMessage("online.waitingOpponent")),
         }));
       }
     } else if (role === "guest") {
@@ -261,7 +262,7 @@ export function handleRelayEvent(
         ...prev,
         role: "guest",
         status: opponent ? "connected" : "connecting",
-        message: opponent ? "" : t("peer.waitingHost"),
+        ...(opponent ? clearedMessage() : keyedMessage("peer.waitingHost")),
       }));
       // F712: with no host seated the wait is unbounded — arm the deadline.
       // An opponent present means the host is already seated (or this is a
@@ -296,7 +297,7 @@ export function handleRelayEvent(
     setState((prev) => ({
       ...prev,
       status: "connected",
-      message: "",
+      ...clearedMessage(),
     }));
     if (roleRef.current === "host") {
       // After a reconnect grace, the host's local timer may be near zero
@@ -389,7 +390,7 @@ export function handleRelayEvent(
         : {
             ...prev,
             status: "connecting",
-            message: t("peer.opponentConnecting"),
+            ...keyedMessage("peer.opponentConnecting"),
           },
     );
     return;
@@ -424,7 +425,7 @@ export function handleRelayEvent(
       // case (the terminal branch below already stopped it) and correct in
       // every other one. The updater stays pure — StrictMode double-invokes
       // it, and this branch must not double-apply.
-      const message = peerLeftUserMessage(
+      const messageKey = peerLeftMessageKey(
         roleRef.current === "guest" ? "guest" : "host",
         "disconnect",
       );
@@ -433,7 +434,7 @@ export function handleRelayEvent(
       setState((prev) =>
         prev.status === "disconnected"
           ? prev
-          : { ...prev, status: "reconnecting", message },
+          : { ...prev, status: "reconnecting", ...keyedMessage(messageKey) },
       );
       stopTimer();
       return;
@@ -471,7 +472,12 @@ export function handleRelayEvent(
         ...prev,
         status: "disconnected",
         gameState,
-        message: peerLeftUserMessage(roleRef.current === "guest" ? "guest" : "host", leaveReason),
+        ...keyedMessage(
+          peerLeftMessageKey(
+            roleRef.current === "guest" ? "guest" : "host",
+            leaveReason,
+          ),
+        ),
         rematchIncoming: false,
         rematchOutgoing: false,
         canRetryReconnect: false,
@@ -488,7 +494,7 @@ export function handleRelayEvent(
     const msg = (event as { message?: unknown }).message;
     setState((prev) => ({
       ...prev,
-      message: t("peer.roomError"),
+      ...keyedMessage("peer.roomError"),
     }));
     if (typeof msg === "string") {
       reportError(msg.slice(0, PEER_MAX_ERROR_LENGTH), {
