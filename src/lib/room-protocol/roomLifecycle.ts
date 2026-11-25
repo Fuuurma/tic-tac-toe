@@ -103,6 +103,19 @@ function closeExistingRoom(roomRef: RoomLifecycleDeps["roomRef"]) {
   leaveRoom(roomRef);
 }
 
+export function clearWaitingForHostDeadline(
+  deps: Pick<
+    RoomLifecycleDeps,
+    "waitingForHostTimeoutRef" | "waitingForHostDeadlineAtRef"
+  >,
+) {
+  if (deps.waitingForHostTimeoutRef.current !== null) {
+    clearTimeout(deps.waitingForHostTimeoutRef.current);
+    deps.waitingForHostTimeoutRef.current = null;
+  }
+  deps.waitingForHostDeadlineAtRef.current = null;
+}
+
 export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: PeerSide, slotToken?: string): RoomClient {
   const { stateRef, roleRef, setState, handleWsEvent, handleHostData, handleGuestData } = deps;
   const identity = getOrCreateGuestIdentity();
@@ -162,6 +175,9 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
           handleHostData(msg);
         } else {
           handleGuestData(msg);
+          if (stateRef.current.gameStatus !== GameStatus.WAITING) {
+            clearWaitingForHostDeadline(deps);
+          }
         }
       }
     }
@@ -240,11 +256,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   // never a valid rollback target in this one (F275).
   deps.pendingGuestStateRef.current = null;
   deps.syncPendingRef.current = false;
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
-  }
-  deps.waitingForHostDeadlineAtRef.current = null;
+  clearWaitingForHostDeadline(deps);
   const roomId = providedRoomId ?? generateRoomId();
   const hostSymbol: PlayerSymbol = randomPlayerSymbol();
   const guestSymbol = oppositeSymbol(hostSymbol);
@@ -299,11 +311,7 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   disarmSyncReplyThrottle(deps.lastSyncReplyAtRef);
   deps.reconnectResetsRef.current.moveCount = -1;
   deps.syncPendingRef.current = false;
-  if (deps.waitingForHostTimeoutRef.current !== null) {
-    clearTimeout(deps.waitingForHostTimeoutRef.current);
-    deps.waitingForHostTimeoutRef.current = null;
-  }
-  deps.waitingForHostDeadlineAtRef.current = null;
+  clearWaitingForHostDeadline(deps);
   const trimmed = roomId.trim();
   if (!trimmed) {
     update({ status: "error", ...keyedMessage("mm.enterRoom"), canRetryReconnect: false });
