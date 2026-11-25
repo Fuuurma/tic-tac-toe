@@ -52,7 +52,9 @@ const savedProfile = (): Profile => {
 export function OnboardingFlow({ mode, onExit }: OnboardingFlowProps) {
   const replay = mode === "replay";
   const [step, setStep] = useState<Step>(replay ? "practice" : "welcome");
-  const [profile, setProfile] = useState<Profile>(replay ? savedProfile : freshProfile);
+  const [profile, setProfile] = useState<Profile | null>(() =>
+    replay ? savedProfile() : null,
+  );
 
   const leave = (outcome: "done" | "skipped") => {
     if (!replay) recordOnboardingOutcome(outcome);
@@ -71,9 +73,21 @@ export function OnboardingFlow({ mode, onExit }: OnboardingFlowProps) {
     setStep("practice");
   };
 
+  if (step === "welcome") {
+    return (
+      <WelcomeStep
+        onStart={() => {
+          setProfile((current) => current ?? freshProfile());
+          setStep("profile");
+        }}
+        onSkip={() => leave("skipped")}
+      />
+    );
+  }
+
+  if (!profile) return null;
+
   switch (step) {
-    case "welcome":
-      return <WelcomeStep onStart={() => setStep("profile")} onSkip={() => leave("skipped")} />;
     case "profile":
       return (
         <ProfileStep initial={profile} onConfirm={confirmProfile} onSkip={() => leave("skipped")} />

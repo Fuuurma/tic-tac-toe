@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { GameStatus, PlayerSymbol, PlayerTypes } from "@/game/constants";
 import type { GameState } from "@/game/logic";
-import { t } from "@/i18n/language";
+import { t, useStrings } from "@/i18n/language";
 import { Board } from "./board";
 
 interface LocalBoardProps {
@@ -18,6 +18,7 @@ interface LocalBoardProps {
  * warm-up, so "when is a cell dead and what does it say" has one answer.
  */
 export function LocalBoard({ gameState, paused, onCellClick }: LocalBoardProps) {
+  useStrings();
   const previewPlayer =
     gameState.players[gameState.currentPlayer].type === PlayerTypes.HUMAN
       ? gameState.currentPlayer
