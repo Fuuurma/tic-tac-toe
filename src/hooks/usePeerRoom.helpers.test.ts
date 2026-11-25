@@ -305,6 +305,38 @@ describe("usePeerRoom helpers", () => {
       expect(roomRef.current).toBeNull();
       expect(stopTimer).toHaveBeenCalled();
     });
+
+    it("passive teardown recycles the transport without the leave frame", () => {
+      const send = vi.fn();
+      const close = vi.fn();
+      const closeForReconnect = vi.fn();
+      const roomRef = {
+        current: { send, close, closeForReconnect } as unknown as RoomClient,
+      };
+      const stopTimer = vi.fn();
+
+      teardownActiveRoom(
+        {
+          roomRef,
+          matchmakingTicketRef: { current: null },
+          hasStartedRef: { current: false },
+          rematchPendingRef: { current: false },
+          quickMatchHostRef: { current: false },
+          rematchTimeoutRef: { current: null },
+          waitingForHostTimeoutRef: { current: null },
+          waitingForHostDeadlineAtRef: { current: null },
+          stopTimer,
+        },
+        "passive teardown",
+        { passive: true },
+      );
+
+      expect(send).not.toHaveBeenCalled();
+      expect(close).not.toHaveBeenCalled();
+      expect(closeForReconnect).toHaveBeenCalledTimes(1);
+      expect(roomRef.current).toBeNull();
+      expect(stopTimer).toHaveBeenCalled();
+    });
   });
 
   describe("social reactions helpers", () => {
