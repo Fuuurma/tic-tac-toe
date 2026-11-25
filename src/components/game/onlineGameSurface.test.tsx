@@ -20,6 +20,7 @@ import {
   SymbolShape,
 } from "@/game/constants";
 import type { PeerRoomState } from "@/hooks/usePeerRoom";
+import { readOnlineSession, writeOnlineSession } from "@/lib/onlineSession";
 import { setLocale } from "@/i18n/language";
 
 // The surface's transport lives in usePeerRoom — that hook is the seam
@@ -120,6 +121,85 @@ const config = {
   onlineRoomId: "ROOM42",
   onlineAction: "join" as const,
 };
+
+describe("OnlineGameSurface session resume", () => {
+  it("reseats a recorded guest on the stored room and never restarts quick match", () => {
+    const peer = makePeer("guest", { status: "connecting", roomId: "RESUME-1" });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "quick", resumeRole: "guest", onlineRoomId: "RESUME-1" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(peer.joinAsGuest).toHaveBeenCalledWith("RESUME-1");
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+    expect(peer.startAsHost).not.toHaveBeenCalled();
+  });
+
+  it("reseats a recorded host on the stored room id", () => {
+    const peer = makePeer("host", { status: "waiting", roomId: "RESUME-2" });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "create", resumeRole: "host", onlineRoomId: "RESUME-2" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(peer.startAsHost).toHaveBeenCalledWith("RESUME-2");
+    expect(peer.joinAsGuest).not.toHaveBeenCalled();
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+  });
+
+  it("forgets the stored session when the room ends for good", () => {
+    writeOnlineSession({
+      roomId: "RESUME-3",
+      role: "guest",
+      onlineAction: "join",
+      displayName: "Player",
+      color: Color.BLUE,
+      playerShape: SymbolShape.X,
+    });
+    const peer = makePeer("guest", { status: "error", message: "Room unavailable" });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, resumeRole: "guest", onlineRoomId: "RESUME-3" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(readOnlineSession()).toBeNull();
+  });
+
+  it("keeps the stored session while a retryable disconnect is still recoverable", () => {
+    writeOnlineSession({
+      roomId: "RESUME-4",
+      role: "guest",
+      onlineAction: "join",
+      displayName: "Player",
+      color: Color.BLUE,
+      playerShape: SymbolShape.X,
+    });
+    const peer = makePeer("guest", {
+      status: "disconnected",
+      message: "Socket dropped",
+      canRetryReconnect: true,
+      roomId: "RESUME-4",
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, resumeRole: "guest", onlineRoomId: "RESUME-4" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(readOnlineSession()?.roomId).toBe("RESUME-4");
+  });
+});
 
 describe("OnlineGameSurface phone layout", () => {
   it("restores the phone container and 48px recovery-action classes", () => {
