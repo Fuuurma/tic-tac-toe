@@ -1,5 +1,7 @@
 import type { GameState } from "@/game/logic";
 import type { PeerSide, PlayerSymbol } from "@/game/constants";
+import type { StringKey } from "@/i18n/en";
+import type { StringVars } from "@/i18n/dictionary";
 
 /**
  * The room protocol's state vocabulary.
@@ -33,21 +35,26 @@ export type PeerStatus =
  */
 export type QueueStage = "none" | "searching" | "matched";
 
-export interface PeerRoomState {
+export interface PeerRoomMessage {
+  message: string;
+  messageKey?: StringKey | null;
+  messageVars?: StringVars;
+}
+
+export interface PeerRoomState extends PeerRoomMessage {
   role: PeerRole;
   status: PeerStatus;
   queue: QueueStage;
   roomId: string;
   hostSymbol: PlayerSymbol | null;
   guestSymbol: PlayerSymbol | null;
-  message: string;
   /**
    * F590: the message a host pause replaced. The pause frame shows
    * "Your host paused the game" so a stopped clock is legible, but a live
    * notice (rematch prompt, error text) is stashed here and restored on
    * resume instead of being destroyed. `null` when nothing is stashed.
    */
-  pausedStash: string | null;
+  pausedStash: PeerRoomMessage | null;
   /**
    * True while a host rematch request is pending on the guest. This is
    * the source of truth for rematch-prompt UI — never derive it by

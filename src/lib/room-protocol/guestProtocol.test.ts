@@ -41,7 +41,7 @@ function wireGame(overrides: Partial<GameState> = {}): GameState {
 }
 
 function makeDeps(game: GameState, roomInit: Partial<PeerRoomState> = {}) {
-  let roomState = { gameState: game, status: "connected", ...roomInit } as PeerRoomState;
+  let roomState = { gameState: game, status: "connected", message: "", ...roomInit } as PeerRoomState;
   const deps: GuestProtocolDeps = {
     stateRef: { current: game },
     guestSymbolRef: { current: PlayerSymbol.O },

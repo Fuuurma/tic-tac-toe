@@ -2,10 +2,10 @@ import { rebuildDeadline } from "@/game/turnClock";
 import { GameStatus, PlayerSymbol } from "@/game/constants";
 import { isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
-import { t } from "@/i18n/language";
 import { type PeerMessage } from "@/lib/peer.wire";
 import { applyForfeitIfActive } from "@/lib/peer.apply";
-import type { PeerRoomState } from "./state";
+import { clearedMessage, keyedMessage } from "./messageI18n";
+import type { PeerRoomMessage, PeerRoomState } from "./state";
 
 /** Guest-facing notice while the host's clock is frozen (5b76d7b). */
 // Localised at each use site (never stored): the pause notice must read
@@ -48,6 +48,12 @@ export interface GuestProtocolDeps {
   setState: React.Dispatch<React.SetStateAction<PeerRoomState>>;
   stopTimer: () => void;
 }
+
+const messageSnapshot = (state: PeerRoomState): PeerRoomMessage => ({
+  message: state.message,
+  messageKey: state.messageKey ?? null,
+  messageVars: state.messageVars,
+});
 
 /**
  * Handles one peer message addressed to the guest (routed by role in
@@ -135,7 +141,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           status: "connected",
           gameState,
           guestSymbol: localSymbol,
-          message: moveRejected ? t("peer.moveRejected") : "",
+          ...(moveRejected ? keyedMessage("peer.moveRejected") : clearedMessage()),
           rematchOutgoing: message.type === "gameStart" ? false : prev.rematchOutgoing,
           // A terminal frame (state_snapshot/joined resync on a finished
           // game) does not supersede a live rematch prompt — only a new
@@ -163,7 +169,9 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           ? prev
           : {
               ...prev,
-              message: t("peer.wantsRematch", { name: state.players[message.requesterSymbol].username }),
+              ...keyedMessage("peer.wantsRematch", {
+                name: state.players[message.requesterSymbol].username,
+              }),
               rematchIncoming: true,
             },
       );
@@ -176,7 +184,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       // user-facing message copy.
       setState((prev) =>
         prev.rematchIncoming
-          ? { ...prev, message: t("peer.rematchWithdrawn"), rematchIncoming: false }
+          ? { ...prev, ...keyedMessage("peer.rematchWithdrawn"), rematchIncoming: false }
           : prev,
       );
       return;
@@ -187,7 +195,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
       clearRematchTimeout();
       setState((prev) => ({
         ...prev,
-        message: t("peer.rematchDeclined"),
+        ...keyedMessage("peer.rematchDeclined"),
         rematchOutgoing: false,
       }));
       return;
@@ -205,22 +213,22 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           // rematch prompt or error text outlives the pause and comes
           // back on resume. An empty/already-paused message stashes
           // nothing (and a repeated pause frame keeps the stash).
-          const live = prev.message !== "" && prev.message !== t("peer.hostPaused");
+          const live = prev.message !== "" && prev.messageKey !== "peer.hostPaused";
           return {
             ...prev,
-            message: t("peer.hostPaused"),
-            pausedStash: live ? prev.message : prev.pausedStash,
+            ...keyedMessage("peer.hostPaused"),
+            pausedStash: live ? messageSnapshot(prev) : prev.pausedStash,
           };
         }
         // Resume clears only the pause notice (5b76d7b): restore the
         // stash if the pause text is still on screen, else leave
         // whatever a mid-pause frame wrote alone.
+        if (prev.messageKey !== "peer.hostPaused") {
+          return { ...prev, pausedStash: null };
+        }
         return {
           ...prev,
-          message:
-            prev.message === t("peer.hostPaused")
-              ? (prev.pausedStash ?? "")
-              : prev.message,
+          ...(prev.pausedStash ?? clearedMessage()),
           pausedStash: null,
         };
       });
@@ -244,7 +252,7 @@ export function handleGuestMessage(deps: GuestProtocolDeps, message: PeerMessage
           ...prev,
           status: "disconnected" as const,
           gameState,
-          message: t("peer.hostLeft"),
+          ...keyedMessage("peer.hostLeft"),
           rematchIncoming: false,
           rematchOutgoing: false,
           canRetryReconnect: false,

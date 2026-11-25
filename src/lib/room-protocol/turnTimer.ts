@@ -2,6 +2,7 @@ import { freezeRemaining, rebuildDeadline } from "@/game/turnClock";
 import { isGameActive, makeMove, makeRandomMove } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { t } from "@/i18n/language";
+import { keyedMessage } from "./messageI18n";
 import type { PeerRole } from "./state";
 import type { PeerRoomState } from "./state";
 
@@ -77,7 +78,7 @@ export function startTurnTimer(deps: TurnTimerDeps) {
       setState((prev) => ({
         ...prev,
         gameState,
-        message: t("peer.timeout", {
+        ...keyedMessage("peer.timeout", {
           name: current.players[current.currentPlayer].username || t("game.playerFallback"),
         }),
       }));

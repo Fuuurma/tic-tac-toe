@@ -824,6 +824,30 @@ describe("OnlineGameSurface private room before the first round", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
+  it("re-resolves a keyed status line when the language switches", () => {
+    mocks.usePeerRoom.mockReturnValue(
+      makePeer("guest", {
+        status: "reconnecting",
+        message: "Reconnecting...",
+        messageKey: "mm.reconnecting",
+        gameState: preGame(),
+      }),
+    );
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    screen.getByText("Reconnecting...");
+
+    act(() => {
+      setLocale("es");
+    });
+
+    screen.getByText("Reconectando...");
+
+    act(() => {
+      setLocale("en");
+    });
+  });
+
   it("keeps a created room's disconnect on screen with its reason", () => {
     const onExit = vi.fn();
     mocks.usePeerRoom.mockReturnValue(

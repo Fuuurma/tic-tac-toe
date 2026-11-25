@@ -41,6 +41,7 @@ import {
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
 import { waitPhase, type WaitPhase } from "@/lib/room-protocol/waitPhase";
+import { statusMessageText } from "@/lib/room-protocol/messageI18n";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
@@ -521,7 +522,7 @@ function OnlineGameArea({
   onExit: () => void;
 }) {
   const localSymbol = localPlayerSymbol(peer.state);
-  const message = onlineMessage(peer.state.status, peer.state.message);
+  const message = onlineMessage(peer.state.status, statusMessageText(peer.state));
   const canRequestRematch = canRequestOnlineRematch(peer.state);
   const rematch = onlineRematchProps(peer, canRequestRematch);
   const preview = boardPreview(peer.state, localSymbol);
@@ -693,7 +694,7 @@ function WarmupQueueStrip({
     <QueueStrip
       phase={phase}
       detail={isQuick ? quickStripDetail(playerWaiting) : undefined}
-      message={peer.state.message || t("online.connectFail")}
+      message={statusMessageText(peer.state) || t("online.connectFail")}
       title={isQuick ? undefined : t("queue.roomWaiting")}
       leaveLabel={isQuick ? undefined : t("queue.closeRoom")}
       invite={
@@ -763,7 +764,7 @@ function RoomConnectingBanner({
       // string threw it away, so a join that fails for a knowable
       // reason spun on "Joining room…" indefinitely with no way to tell
       // a slow host from a dead room.
-      message={peer.state.message || t("online.joining")}
+      message={statusMessageText(peer.state) || t("online.joining")}
       onCancel={onCancel}
     />
   );
@@ -795,7 +796,7 @@ function ReconnectingBanner({
       <span className="inline-flex items-center gap-1.5 text-xs font-medium">
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
         {deviceOnline
-          ? peer.state.message || t("online.reconnecting")
+          ? statusMessageText(peer.state) || t("online.reconnecting")
           : t("lobby.onlineOffline")}
       </span>
       {detail && (
@@ -847,7 +848,7 @@ function ConnectionErrorBanner({
       className="glass flex w-full flex-col items-center gap-2 border-destructive/30 bg-destructive/15 px-3 py-2"
     >
       <span className="text-xs text-destructive">
-        {peer.state.message || t("online.connectFail")}
+        {statusMessageText(peer.state) || t("online.connectFail")}
       </span>
       <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-center">
         {isQuick && (
@@ -887,7 +888,7 @@ function DisconnectedBanner({
   onExit: () => void;
 }) {
   if (peer.state.status !== "disconnected" || warmupVisible) return null;
-  const reason = peer.state.message || t("mm.disconnected");
+  const reason = statusMessageText(peer.state) || t("mm.disconnected");
   return (
     <div
       role="status"

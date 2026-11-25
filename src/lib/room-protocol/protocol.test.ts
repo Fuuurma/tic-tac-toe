@@ -319,8 +319,17 @@ describe('guestProtocol.handleGuestMessage — rematch prompt gate (F191)', () =
 // pause notice, leaving a message that arrived mid-pause alone.
 describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () => {
   const PAUSE_TEXT = 'Your host paused the game';
-  const REMATCH_NOTICE = 'Host wants a rematch. Accept or decline below.';
-  type RoomSlice = { message?: string; pausedStash?: string | null };
+  const REMATCH_NOTICE = 'Ada wants a rematch. Accept or decline below.';
+  type RoomSlice = {
+    message?: string;
+    messageKey?: string | null;
+    messageVars?: Record<string, string | number>;
+    pausedStash?: {
+      message: string;
+      messageKey?: string | null;
+      messageVars?: Record<string, string | number>;
+    } | null;
+  };
 
   const makeDeps = (patches: Array<(prev: never) => RoomSlice>) => ({
     stateRef: { current: gameState({}) },
@@ -343,11 +352,20 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, true);
     send(patches, false);
 
-    const s0 = { message: REMATCH_NOTICE, pausedStash: null };
+    const s0 = {
+      message: REMATCH_NOTICE,
+      messageKey: 'peer.wantsRematch',
+      messageVars: { name: 'Ada' },
+      pausedStash: null,
+    };
     const s1 = patches[0](s0 as never);
     expect(s1.message).toBe(PAUSE_TEXT);
+    expect(s1.pausedStash?.messageKey).toBe('peer.wantsRematch');
+    expect(s1.pausedStash?.messageVars).toEqual({ name: 'Ada' });
     const s2 = patches[1](s1 as never);
     expect(s2.message).toBe(REMATCH_NOTICE);
+    expect(s2.messageKey).toBe('peer.wantsRematch');
+    expect(s2.messageVars).toEqual({ name: 'Ada' });
   });
 
   it('pause on an empty message still clears to empty on resume (5b76d7b)', () => {
@@ -355,7 +373,7 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, true);
     send(patches, false);
 
-    const s1 = patches[0]({ message: '', pausedStash: null } as never);
+    const s1 = patches[0]({ message: '', messageKey: null, pausedStash: null } as never);
     expect(s1.message).toBe(PAUSE_TEXT);
     expect(patches[1](s1 as never).message).toBe('');
   });
@@ -365,9 +383,13 @@ describe('guestProtocol.handleGuestMessage — pause message stash (F590)', () =
     send(patches, true);
     send(patches, false);
 
-    const s1 = patches[0]({ message: REMATCH_NOTICE, pausedStash: null } as never);
+    const s1 = patches[0]({
+      message: REMATCH_NOTICE,
+      messageKey: 'peer.wantsRematch',
+      pausedStash: null,
+    } as never);
     // Some other frame wrote a newer message while paused.
-    const midPause = { ...s1, message: 'Connection lost' };
+    const midPause = { ...s1, message: 'Connection lost', messageKey: 'mm.disconnected' };
     const s2 = patches[1](midPause as never);
     expect(s2.message).toBe('Connection lost');
     expect(s2.pausedStash).toBeNull();
