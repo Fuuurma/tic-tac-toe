@@ -17,6 +17,7 @@ import {
   PlayerSymbol,
   PlayerTypes,
   SymbolShape,
+  type PeerSide,
   type TurnAction,
 } from "@/game/constants";
 import { COPY_FLASH_MS, GameStatus } from "@/game/constants";
@@ -42,6 +43,7 @@ import { HelpDrawer } from "@/components/game/helpDrawer";
 import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
 import { waitPhase, type WaitPhase } from "@/lib/room-protocol/waitPhase";
 import { statusMessageText } from "@/lib/room-protocol/messageI18n";
+import { clearOnlineSession, writeOnlineSession } from "@/lib/onlineSession";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
 import { MorphIcon } from "morphicons/react";
@@ -57,6 +59,7 @@ interface OnlineGameSurfaceProps {
     gameMode: typeof GameModes.ONLINE;
     onlineRoomId: string;
     onlineAction: TurnAction;
+    resumeRole?: PeerSide;
   };
   onExit: () => void;
 }
@@ -91,9 +94,15 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // timer re-render = leave/reconnect every second; regression caught by
   // the fleet critic 2026-09-06). The old render-time
   // `peerRef.current = peer` sync violated the ref rules and is gone.
-  const { startQuickMatch, joinAsGuest, startAsHost, leave } = peer;
+  const { startQuickMatch, joinAsGuest, startAsHost, closeTransport } = peer;
   useEffect(() => {
-    if (config.onlineAction === "quick") {
+    if (config.resumeRole && config.onlineRoomId) {
+      if (config.resumeRole === "guest") {
+        joinAsGuest(config.onlineRoomId);
+      } else {
+        startAsHost(config.onlineRoomId);
+      }
+    } else if (config.onlineAction === "quick") {
       startQuickMatch();
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
       joinAsGuest(config.onlineRoomId);
@@ -101,9 +110,47 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       startAsHost(config.onlineRoomId || undefined);
     }
     return () => {
-      leave();
+      closeTransport();
     };
-  }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, leave]);
+  }, [
+    config.onlineAction,
+    config.onlineRoomId,
+    config.resumeRole,
+    startQuickMatch,
+    joinAsGuest,
+    startAsHost,
+    closeTransport,
+  ]);
+
+  const sessionRoomId = peer.state.roomId;
+  const sessionRole = peer.state.role;
+  const sessionStatus = peer.state.status;
+  const sessionCanRetry = peer.state.canRetryReconnect;
+  useEffect(() => {
+    if (sessionStatus === "error" || (sessionStatus === "disconnected" && !sessionCanRetry)) {
+      clearOnlineSession();
+      return;
+    }
+    if (sessionRoomId && sessionRole) {
+      writeOnlineSession({
+        roomId: sessionRoomId,
+        role: sessionRole,
+        onlineAction: config.onlineAction,
+        displayName: config.displayName,
+        color: config.color,
+        playerShape: config.playerShape,
+      });
+    }
+  }, [
+    sessionRoomId,
+    sessionRole,
+    sessionStatus,
+    sessionCanRetry,
+    config.onlineAction,
+    config.displayName,
+    config.color,
+    config.playerShape,
+  ]);
 
   const wasOfflineRef = useRef(!deviceOnline);
   const retryReconnect = peer.retryReconnect;
@@ -152,6 +199,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   );
   const leaveAndExit = () => {
     peer.leave();
+    clearOnlineSession();
     onExit();
   };
   const shareUrl = roomShareUrl(
@@ -266,7 +314,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           peer={peer}
           deviceOnline={deviceOnline}
           warmupVisible={warmupVisible}
-          onExit={onExit}
+          onExit={peer.state.canRetryReconnect ? leaveAndExit : onExit}
         />
       </div>
 
@@ -295,7 +343,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           onOpenSettings={() => setPreferencesOpen(true)}
           onEditIdentity={openSettings}
           onPauseChange={setPanelPaused}
-          onExit={onExit}
+          onExit={leaveAndExit}
         />
       )}
       <OnlineSheets
@@ -562,10 +610,7 @@ function OnlineGameArea({
         onDeclineRematch={rematch.onDeclineRematch}
         onCancelRematch={rematch.onCancelRematch}
         onRequestRematch={rematch.onRequestRematch}
-        onExit={() => {
-          peer.leave();
-          onExit();
-        }}
+        onExit={onExit}
       />
 
       <div className="flex min-h-0 flex-1 flex-col justify-center max-sm:order-5">

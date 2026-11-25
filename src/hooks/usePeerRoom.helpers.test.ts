@@ -267,43 +267,69 @@ describe("usePeerRoom helpers", () => {
   });
 
   describe("teardownActiveRoom", () => {
+    const teardownFixture = () => ({
+      roomRef: {
+        current: {
+          send: vi.fn(),
+          close: vi.fn(),
+          closeForReconnect: vi.fn(),
+        } as unknown as RoomClient,
+      },
+      matchmakingTicketRef: { current: "ticket-1" },
+      hasStartedRef: { current: true },
+      rematchPendingRef: { current: true },
+      quickMatchHostRef: { current: true },
+      rematchTimeoutRef: { current: setTimeout(() => {}, 1000) },
+      waitingForHostTimeoutRef: { current: setTimeout(() => {}, 1000) },
+      waitingForHostDeadlineAtRef: { current: 9999 },
+      stopTimer: vi.fn(),
+    });
+
     it("abandons ticket, resets flags, clears timers, closes room, and stops timer", () => {
-      const roomRef = {
-        current: { send: vi.fn(), close: vi.fn() } as unknown as RoomClient,
-      };
-      const matchmakingTicketRef = { current: "ticket-1" };
-      const hasStartedRef = { current: true };
-      const rematchPendingRef = { current: true };
-      const quickMatchHostRef = { current: true };
-      const rematchTimeoutRef = { current: setTimeout(() => {}, 1000) };
-      const waitingForHostTimeoutRef = { current: setTimeout(() => {}, 1000) };
-      const waitingForHostDeadlineAtRef = { current: 9999 };
-      const stopTimer = vi.fn();
+      const deps = teardownFixture();
+      const { roomRef } = deps;
 
-      teardownActiveRoom(
-        {
-          roomRef,
-          matchmakingTicketRef,
-          hasStartedRef,
-          rematchPendingRef,
-          quickMatchHostRef,
-          rematchTimeoutRef,
-          waitingForHostTimeoutRef,
-          waitingForHostDeadlineAtRef,
-          stopTimer,
-        },
-        "test teardown",
-      );
+      teardownActiveRoom(deps, "test teardown", "leave");
 
-      expect(matchmakingTicketRef.current).toBeNull();
-      expect(hasStartedRef.current).toBe(false);
-      expect(rematchPendingRef.current).toBe(false);
-      expect(quickMatchHostRef.current).toBe(false);
-      expect(rematchTimeoutRef.current).toBeNull();
-      expect(waitingForHostTimeoutRef.current).toBeNull();
-      expect(waitingForHostDeadlineAtRef.current).toBeNull();
+      expect(deps.matchmakingTicketRef.current).toBeNull();
+      expect(deps.hasStartedRef.current).toBe(false);
+      expect(deps.rematchPendingRef.current).toBe(false);
+      expect(deps.quickMatchHostRef.current).toBe(false);
+      expect(deps.rematchTimeoutRef.current).toBeNull();
+      expect(deps.waitingForHostTimeoutRef.current).toBeNull();
+      expect(deps.waitingForHostDeadlineAtRef.current).toBeNull();
       expect(roomRef.current).toBeNull();
-      expect(stopTimer).toHaveBeenCalled();
+      expect(deps.stopTimer).toHaveBeenCalled();
+    });
+
+    it("leave mode sends the leave frame before closing the socket", () => {
+      const deps = teardownFixture();
+      const room = deps.roomRef.current as unknown as {
+        send: ReturnType<typeof vi.fn>;
+        close: ReturnType<typeof vi.fn>;
+      };
+
+      teardownActiveRoom(deps, "test teardown", "leave");
+
+      expect(room.send).toHaveBeenCalledWith({ type: "leave" });
+      expect(room.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("passive mode recycles the socket without a leave frame", () => {
+      const deps = teardownFixture();
+      const room = deps.roomRef.current as unknown as {
+        send: ReturnType<typeof vi.fn>;
+        close: ReturnType<typeof vi.fn>;
+        closeForReconnect: ReturnType<typeof vi.fn>;
+      };
+
+      teardownActiveRoom(deps, "test teardown", "passive");
+
+      expect(room.send).not.toHaveBeenCalled();
+      expect(room.close).not.toHaveBeenCalled();
+      expect(room.closeForReconnect).toHaveBeenCalledTimes(1);
+      expect(deps.roomRef.current).toBeNull();
+      expect(deps.stopTimer).toHaveBeenCalled();
     });
   });
 

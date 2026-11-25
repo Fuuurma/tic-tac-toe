@@ -23,8 +23,14 @@ import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { useDocumentHidden } from "@/hooks/useDocumentHidden";
 import { NO_ROOM_INVITE, readRoomInvite } from "@/lib/roomId";
 import { saveDisplayName } from "@/lib/identity";
+import { ONLINE_UNAVAILABLE } from "@/lib/matchmaking";
+import {
+  gameSetupFromOnlineSession,
+  readOnlineSession,
+} from "@/lib/onlineSession";
 import { shouldShowOnboarding } from "@/lib/onboarding";
 import { savePreferences } from "@/lib/preferences";
+import { getBrowserSessionStorage } from "@/lib/storage";
 import { t } from "@/i18n/language";
 
 const OnlineGameSurface = lazy(() =>
@@ -40,15 +46,36 @@ export default function App() {
     if (typeof window === "undefined") return NO_ROOM_INVITE;
     return readRoomInvite(window.location.search);
   });
+  const [resumedSetup] = useState<GameSetup | null>(() => {
+    if (roomInvite.present || ONLINE_UNAVAILABLE || typeof window === "undefined") {
+      return null;
+    }
+    const session = readOnlineSession(getBrowserSessionStorage());
+    return session && session.role === "guest"
+      ? gameSetupFromOnlineSession(session)
+      : null;
+  });
   // Decided once, before anything below can create an identity. Someone
   // arriving on an invite link came to join a room, not to be walked through
   // the game; they can replay the tutorial from the lobby's help.
   const [view, setView] = useState<View>(() =>
-    !roomInvite.present && shouldShowOnboarding() ? "onboarding" : "lobby",
+    resumedSetup
+      ? "game"
+      : !roomInvite.present && shouldShowOnboarding()
+        ? "onboarding"
+        : "lobby",
   );
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
-  const [config, setConfig] = useState<GameSetup | null>(null);
-  const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(null);
+  const [config, setConfig] = useState<GameSetup | null>(resumedSetup);
+  const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(() =>
+    resumedSetup
+      ? {
+          ...resumedSetup,
+          onlineRoomId:
+            resumedSetup.onlineAction === "quick" ? "" : resumedSetup.onlineRoomId,
+        }
+      : null,
+  );
   const [focusLobbyStart, setFocusLobbyStart] = useState(false);
 
   useEffect(() => {
@@ -146,6 +173,7 @@ function GameView({ config, onExit }: { config: GameSetup; onExit: () => void })
         gameMode: GameModes.ONLINE,
         onlineRoomId: config.onlineRoomId,
         onlineAction: config.onlineAction,
+        resumeRole: config.resumeRole,
       }}
       onExit={onExit}
     />

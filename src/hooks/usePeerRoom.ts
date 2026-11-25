@@ -266,14 +266,24 @@ export interface RoomTeardownDeps {
  * Cleans up room connections, timers, tickets and matchmaking state.
  * Shared between explicit leave and unmount teardown.
  */
-export function teardownActiveRoom(deps: RoomTeardownDeps, reason: string): void {
+export function teardownActiveRoom(
+  deps: RoomTeardownDeps,
+  reason: string,
+  mode: "leave" | "passive",
+): void {
   abandonTicket({ matchmakingTicketRef: deps.matchmakingTicketRef }, reason);
   deps.hasStartedRef.current = false;
   deps.rematchPendingRef.current = false;
   deps.quickMatchHostRef.current = false;
   clearTimerRef(deps.rematchTimeoutRef);
   clearWaitingForHost(deps.waitingForHostTimeoutRef, deps.waitingForHostDeadlineAtRef);
-  leaveRoom(deps.roomRef);
+  if (mode === "leave") {
+    leaveRoom(deps.roomRef);
+  } else {
+    const room = deps.roomRef.current;
+    deps.roomRef.current = null;
+    room?.closeForReconnect?.();
+  }
   deps.stopTimer();
 }
 
@@ -1097,7 +1107,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   const leave = useCallback(() => {
     leavePeerRoom({
       setReaction,
-      teardown: () => teardownActiveRoom(teardownDeps(), "on leave"),
+      teardown: () => teardownActiveRoom(teardownDeps(), "on leave", "leave"),
       pausedRef,
       setPausedState,
       hostPausedRef,
@@ -1154,9 +1164,13 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // F257: an armed 30s rematch timeout must not survive unmount — it
   // would fire send() on a closed room and setState on a dead tree.
   // F712: an armed host-absent deadline must not fire on a dead tree.
+  const closeTransport = useCallback(() => {
+    teardownActiveRoom(teardownDeps(), "on transport close", "passive");
+  }, [teardownDeps]);
+
   useEffect(() => {
     return () => {
-      teardownActiveRoom(teardownDeps(), "on unmount");
+      teardownActiveRoom(teardownDeps(), "on unmount", "passive");
     };
   }, [teardownDeps]);
 
@@ -1181,6 +1195,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     cancelRematch,
     retryReconnect,
     leave,
+    closeTransport,
     updatePendingSettings,
     setPaused,
     paused,
