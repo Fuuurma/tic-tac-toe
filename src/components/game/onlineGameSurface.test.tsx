@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   cleanup,
@@ -20,6 +20,7 @@ import {
   SymbolShape,
 } from "@/game/constants";
 import type { PeerRoomState } from "@/hooks/usePeerRoom";
+import { readOnlineSession } from "@/lib/onlineSession";
 import { setLocale } from "@/i18n/language";
 
 // The surface's transport lives in usePeerRoom — that hook is the seam
@@ -106,6 +107,7 @@ function makePeer(
     cancelRematch: vi.fn(),
     retryReconnect: vi.fn(),
     leave: vi.fn(),
+    closeTransport: vi.fn(),
     updatePendingSettings: vi.fn(),
     setPaused: vi.fn(),
     paused: false,
@@ -985,5 +987,129 @@ describe("OnlineGameSurface reactions picker stacking", () => {
     expect(panelZ).toBeGreaterThan(0);
     expect(zIndex(reactionsRow)).toBeGreaterThan(panelZ);
     expect(zIndex(reactionsRow)).toBeLessThan(50);
+  });
+});
+
+describe("OnlineGameSurface reload resume and session", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it("reseats a guest resume through joinAsGuest, never startQuickMatch", () => {
+    const peer = makePeer("guest", { status: "connecting", gameState: freshGameState() });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "quick", resumeRole: "guest" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(peer.joinAsGuest).toHaveBeenCalledWith("ROOM42");
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+    expect(peer.startAsHost).not.toHaveBeenCalled();
+  });
+
+  it("reseats a host resume through startAsHost as the transport seam", () => {
+    const peer = makePeer("host", { status: "connecting", gameState: freshGameState() });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "create", resumeRole: "host" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(peer.startAsHost).toHaveBeenCalledWith("ROOM42");
+    expect(peer.joinAsGuest).not.toHaveBeenCalled();
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
+  });
+
+  it("writes the session once role and room id exist", () => {
+    mocks.usePeerRoom.mockReturnValue(makePeer("guest"));
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    expect(readOnlineSession()).toMatchObject({
+      roomId: "ROOM42",
+      role: "guest",
+      onlineAction: "join",
+      displayName: "Player",
+    });
+  });
+
+  it("clears the session on terminal error and on a disconnect without retry", () => {
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const view = render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    expect(readOnlineSession()).not.toBeNull();
+
+    mocks.usePeerRoom.mockReturnValue({
+      ...peer,
+      state: { ...peer.state, status: "error" as const },
+    });
+    view.rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    expect(readOnlineSession()).toBeNull();
+
+    mocks.usePeerRoom.mockReturnValue(peer);
+    view.rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    expect(readOnlineSession()).not.toBeNull();
+
+    mocks.usePeerRoom.mockReturnValue({
+      ...peer,
+      state: {
+        ...peer.state,
+        status: "disconnected" as const,
+        canRetryReconnect: false,
+      },
+    });
+    view.rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+    expect(readOnlineSession()).toBeNull();
+  });
+
+  it("keeps the session through reconnecting and retryable disconnect", () => {
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const view = render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    for (const status of ["reconnecting", "disconnected"] as const) {
+      mocks.usePeerRoom.mockReturnValue({
+        ...peer,
+        state: { ...peer.state, status, canRetryReconnect: true },
+      });
+      view.rerender(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+      expect(readOnlineSession()).toMatchObject({ roomId: "ROOM42" });
+    }
+  });
+
+  it("clears the session on a deliberate exit", () => {
+    const onExit = vi.fn();
+    const peer = makePeer("host", {
+      status: "waiting",
+      roomId: "FRIDAY-9",
+      gameState: freshGameState(),
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    render(
+      <OnlineGameSurface config={{ ...config, onlineAction: "create" }} onExit={onExit} />,
+    );
+    expect(readOnlineSession()).toMatchObject({ roomId: "FRIDAY-9" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to setup" }));
+
+    expect(peer.leave).toHaveBeenCalledTimes(1);
+    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(readOnlineSession()).toBeNull();
+  });
+
+  it("unmount closes the transport passively and keeps the session", () => {
+    const peer = makePeer("guest");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const view = render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    view.unmount();
+
+    expect(peer.closeTransport).toHaveBeenCalledTimes(1);
+    expect(peer.leave).not.toHaveBeenCalled();
+    expect(readOnlineSession()).toMatchObject({ roomId: "ROOM42" });
   });
 });

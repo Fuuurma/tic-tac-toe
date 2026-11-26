@@ -15,6 +15,7 @@ import {
 import { handleRelayEvent } from "@/lib/room-protocol/relayEvents";
 import { abandonTicket, runQuickMatch } from "@/lib/room-protocol/matchmaking";
 import {
+  closeRoomForReconnect,
   joinAsGuest as joinAsGuestImpl,
   leaveRoom,
   startAsHost as startAsHostImpl,
@@ -262,18 +263,24 @@ export interface RoomTeardownDeps {
   stopTimer: () => void;
 }
 
-/**
- * Cleans up room connections, timers, tickets and matchmaking state.
- * Shared between explicit leave and unmount teardown.
- */
-export function teardownActiveRoom(deps: RoomTeardownDeps, reason: string): void {
+function teardownRoomScopedState(deps: RoomTeardownDeps, reason: string): void {
   abandonTicket({ matchmakingTicketRef: deps.matchmakingTicketRef }, reason);
   deps.hasStartedRef.current = false;
   deps.rematchPendingRef.current = false;
   deps.quickMatchHostRef.current = false;
   clearTimerRef(deps.rematchTimeoutRef);
   clearWaitingForHost(deps.waitingForHostTimeoutRef, deps.waitingForHostDeadlineAtRef);
+}
+
+export function teardownActiveRoom(deps: RoomTeardownDeps, reason: string): void {
+  teardownRoomScopedState(deps, reason);
   leaveRoom(deps.roomRef);
+  deps.stopTimer();
+}
+
+export function teardownTransport(deps: RoomTeardownDeps, reason: string): void {
+  teardownRoomScopedState(deps, reason);
+  closeRoomForReconnect(deps.roomRef);
   deps.stopTimer();
 }
 
@@ -1115,6 +1122,10 @@ export function usePeerRoom(options: PeerRoomOptions) {
     });
   }, [teardownDeps]);
 
+  const closeTransport = useCallback(() => {
+    teardownTransport(teardownDeps(), "on transport close");
+  }, [teardownDeps]);
+
   useEffect(() => {
     // state.status gates the timer: while "reconnecting" the socket is down
     // and a forced-move broadcast is silently dropped (RoomClient.send →
@@ -1156,7 +1167,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
   // F712: an armed host-absent deadline must not fire on a dead tree.
   useEffect(() => {
     return () => {
-      teardownActiveRoom(teardownDeps(), "on unmount");
+      teardownTransport(teardownDeps(), "on unmount");
     };
   }, [teardownDeps]);
 
@@ -1181,6 +1192,7 @@ export function usePeerRoom(options: PeerRoomOptions) {
     cancelRematch,
     retryReconnect,
     leave,
+    closeTransport,
     updatePendingSettings,
     setPaused,
     paused,

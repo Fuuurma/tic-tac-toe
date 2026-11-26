@@ -124,6 +124,7 @@ export interface GameSetup {
   opponentType: PlayerType;
   onlineRoomId: string;
   onlineAction: TurnAction;
+  resumeRole?: PeerSide;
 }
 
 /**

@@ -1,7 +1,15 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/errorBoundary";
-import { GameModes, oppositeColor, type GameSetup } from "@/game/constants";
+import {
+  AI_Difficulty,
+  GameModes,
+  PLAYER_CONFIG,
+  PlayerSymbol,
+  PlayerTypes,
+  oppositeColor,
+  type GameSetup,
+} from "@/game/constants";
 
 import { LobbyForm, type LobbyFormPayload } from "@/components/lobby/lobbyForm";
 import { OnboardingFlow } from "@/components/onboarding/onboardingFlow";
@@ -22,6 +30,8 @@ import { useGameStats } from "@/hooks/useGameStats";
 import { useRecordLocalResult } from "@/hooks/useRecordLocalResult";
 import { useDocumentHidden } from "@/hooks/useDocumentHidden";
 import { NO_ROOM_INVITE, readRoomInvite } from "@/lib/roomId";
+import { clearOnlineSession, readOnlineSession, type OnlineSession } from "@/lib/onlineSession";
+import { ONLINE_UNAVAILABLE } from "@/lib/matchmaking";
 import { saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
 import { savePreferences } from "@/lib/preferences";
@@ -33,21 +43,47 @@ const OnlineGameSurface = lazy(() =>
 
 type View = "onboarding" | "lobby" | "game";
 
-
+function resumedGameSetup(session: OnlineSession): GameSetup {
+  return {
+    displayName: session.displayName,
+    color: session.color,
+    opponentColor: oppositeColor(session.color),
+    playerShape: session.playerShape,
+    opponentShape: PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
+    gameMode: GameModes.ONLINE,
+    aiDifficulty: AI_Difficulty.NORMAL,
+    opponentName: t("lobby.defaultAI"),
+    opponentType: PlayerTypes.HUMAN,
+    onlineRoomId: session.roomId,
+    onlineAction: session.onlineAction,
+    resumeRole: session.role,
+  };
+}
 
 export default function App() {
   const [roomInvite] = useState(() => {
     if (typeof window === "undefined") return NO_ROOM_INVITE;
     return readRoomInvite(window.location.search);
   });
+  const [resumedSession] = useState<OnlineSession | null>(() => {
+    if (roomInvite.present || ONLINE_UNAVAILABLE) return null;
+    const session = readOnlineSession();
+    return session?.role === "guest" ? session : null;
+  });
   // Decided once, before anything below can create an identity. Someone
   // arriving on an invite link came to join a room, not to be walked through
   // the game; they can replay the tutorial from the lobby's help.
   const [view, setView] = useState<View>(() =>
-    !roomInvite.present && shouldShowOnboarding() ? "onboarding" : "lobby",
+    resumedSession
+      ? "game"
+      : !roomInvite.present && shouldShowOnboarding()
+        ? "onboarding"
+        : "lobby",
   );
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
-  const [config, setConfig] = useState<GameSetup | null>(null);
+  const [config, setConfig] = useState<GameSetup | null>(() =>
+    resumedSession ? resumedGameSetup(resumedSession) : null,
+  );
   const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(null);
   const [focusLobbyStart, setFocusLobbyStart] = useState(false);
 
@@ -61,7 +97,13 @@ export default function App() {
     // the eleven-field copy that used to live here is what let the two
     // declarations drift apart.
     setFocusLobbyStart(false);
-    setLastOnlineSetup(payload.gameMode === GameModes.ONLINE ? payload : null);
+    setLastOnlineSetup(
+      payload.gameMode === GameModes.ONLINE
+        ? payload.onlineAction === "quick"
+          ? { ...payload, onlineRoomId: "" }
+          : payload
+        : null,
+    );
     setConfig(payload);
     setView("game");
     if (payload.onlineRoomId && typeof window !== "undefined") {
@@ -70,6 +112,7 @@ export default function App() {
   };
 
   const handleExit = () => {
+    clearOnlineSession();
     setFocusLobbyStart(true);
     setView("lobby");
     setConfig(null);
@@ -146,6 +189,7 @@ function GameView({ config, onExit }: { config: GameSetup; onExit: () => void })
         gameMode: GameModes.ONLINE,
         onlineRoomId: config.onlineRoomId,
         onlineAction: config.onlineAction,
+        resumeRole: config.resumeRole,
       }}
       onExit={onExit}
     />

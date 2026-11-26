@@ -83,6 +83,7 @@ function makePeer(stateOverrides: Partial<PeerRoomState> = {}) {
     cancelRematch: vi.fn(),
     retryReconnect: vi.fn(),
     leave: vi.fn(),
+    closeTransport: vi.fn(),
     updatePendingSettings: vi.fn(),
     setPaused: vi.fn(),
     paused: false,
