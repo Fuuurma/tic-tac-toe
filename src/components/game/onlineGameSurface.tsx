@@ -49,6 +49,11 @@ import {
   readOnlineSessionResultRecorded,
   writeOnlineSession,
 } from "@/lib/onlineSession";
+import {
+  clearHostSnapshot,
+  loadHostSnapshot,
+  saveHostSnapshot,
+} from "@/lib/hostSnapshot";
 import { statusMessageText } from "@/lib/room-protocol/messageI18n";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
@@ -109,7 +114,21 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
       joinAsGuest(config.onlineRoomId);
     } else {
-      startAsHost(config.onlineRoomId || undefined);
+      const snapshot =
+        config.onlineAction === "create" ? loadHostSnapshot() : null;
+      if (
+        snapshot &&
+        (!config.onlineRoomId || config.onlineRoomId === snapshot.roomId)
+      ) {
+        startAsHost(
+          config.onlineRoomId || snapshot.roomId,
+          undefined,
+          undefined,
+          snapshot,
+        );
+      } else {
+        startAsHost(config.onlineRoomId || undefined);
+      }
     }
     return () => {
       closeTransport();
@@ -199,6 +218,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   const leaveAndExit = () => {
     peer.leave();
     clearOnlineSession();
+    clearHostSnapshot();
     onExit();
   };
 
@@ -214,6 +234,33 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     }
     writeSession(resultRecordedRef.current);
   }, [sessionStatus, sessionCanRetry, writeSession, resultRecordedRef]);
+
+  useEffect(() => {
+    if (
+      peer.state.role !== "host" ||
+      !peer.state.roomId ||
+      config.onlineAction !== "create"
+    ) {
+      return;
+    }
+    if (peer.state.gameState.gameStatus === GameStatus.COMPLETED) {
+      clearHostSnapshot();
+      return;
+    }
+    if (peer.state.hostSymbol === null) return;
+    saveHostSnapshot({
+      version: 1,
+      roomId: peer.state.roomId,
+      hostSymbol: peer.state.hostSymbol,
+      gameState: peer.state.gameState,
+    });
+  }, [
+    peer.state.gameState,
+    peer.state.roomId,
+    peer.state.role,
+    peer.state.hostSymbol,
+    config.onlineAction,
+  ]);
   const shareUrl = roomShareUrl(
     typeof window !== "undefined" ? window.location.origin : "",
     peer.state.roomId,

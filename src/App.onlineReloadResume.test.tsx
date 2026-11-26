@@ -13,6 +13,11 @@ import {
 import { freshGameState } from "@/game/logic";
 import type { PeerRoomState } from "@/hooks/usePeerRoom";
 import {
+  HOST_SNAPSHOT_STORAGE_KEY,
+  saveHostSnapshot,
+  type HostSnapshot,
+} from "@/lib/hostSnapshot";
+import {
   ONLINE_SESSION_KEY,
   ONLINE_SESSION_VERSION,
   readOnlineSession,
@@ -21,6 +26,11 @@ import {
 
 const mocks = vi.hoisted(() => ({
   usePeerRoom: vi.fn(),
+  stubOnlineSurface: false,
+  lastSurfaceConfig: null as {
+    onlineRoomId: string;
+    onlineAction: string;
+  } | null,
 }));
 
 vi.mock("@/components/backgroundPattern", () => ({ BackgroundPattern: () => null }));
@@ -39,6 +49,28 @@ vi.mock("thinking-orbs", () => ({ ThinkingOrb: () => null }));
 vi.mock("@/hooks/usePeerRoom", () => ({
   usePeerRoom: mocks.usePeerRoom,
 }));
+
+vi.mock("@/components/game/onlineGameSurface", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/game/onlineGameSurface")>();
+  function OnlineGameSurface(
+    props: Parameters<typeof actual.OnlineGameSurface>[0],
+  ) {
+    if (!mocks.stubOnlineSurface) {
+      return <actual.OnlineGameSurface {...props} />;
+    }
+    mocks.lastSurfaceConfig = {
+      onlineRoomId: props.config.onlineRoomId,
+      onlineAction: props.config.onlineAction,
+    };
+    return (
+      <button type="button" onClick={props.onExit}>
+        Exit online game
+      </button>
+    );
+  }
+  return { ...actual, OnlineGameSurface };
+});
 
 if (!HTMLDialogElement.prototype.showModal) {
   HTMLDialogElement.prototype.showModal = function showModal() {
@@ -126,6 +158,8 @@ beforeEach(() => {
   window.localStorage.setItem(IDENTITY_STORAGE_KEYS.guestId, "guest:returning");
   mocks.usePeerRoom.mockReset();
   mocks.usePeerRoom.mockReturnValue(makePeer("guest"));
+  mocks.stubOnlineSurface = false;
+  mocks.lastSurfaceConfig = null;
 });
 
 afterEach(cleanup);
@@ -246,5 +280,99 @@ describe("reloading into an online room", () => {
       (screen.getByRole("textbox", { name: /Custom room code/ }) as HTMLInputElement)
         .value,
     ).toBe("");
+  });
+});
+
+const hostSnapshotFixture = (
+  gameStatus: GameStatus = GameStatus.ACTIVE,
+): HostSnapshot => ({
+  version: 1,
+  roomId: "ROOM42",
+  hostSymbol: PlayerSymbol.X,
+  gameState: {
+    ...freshGameState(),
+    gameMode: GameModes.ONLINE,
+    gameStatus,
+    moveCount: 3,
+  },
+});
+
+describe("host snapshot resume", () => {
+  beforeEach(() => {
+    mocks.stubOnlineSurface = true;
+  });
+
+  it("boots a returning host straight onto their board in the same room", async () => {
+    saveHostSnapshot(hostSnapshotFixture());
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("button", { name: "Exit online game" }),
+    ).toBeTruthy();
+    expect(lobbyIsOpen()).toBe(false);
+    expect(mocks.lastSurfaceConfig).toEqual({
+      onlineAction: "create",
+      onlineRoomId: "ROOM42",
+    });
+  });
+
+  it("boots to the lobby when no snapshot is stored", async () => {
+    render(<App />);
+
+    expect(
+      await screen.findByRole("radio", { name: "Online" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Exit online game" }),
+    ).toBeNull();
+  });
+
+  it("boots to the lobby on a malformed snapshot", async () => {
+    window.localStorage.setItem(HOST_SNAPSHOT_STORAGE_KEY, "{not json");
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("radio", { name: "Online" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Exit online game" }),
+    ).toBeNull();
+  });
+
+  it("boots to the lobby when the stored game already finished", async () => {
+    saveHostSnapshot(hostSnapshotFixture(GameStatus.COMPLETED));
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("radio", { name: "Online" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Exit online game" }),
+    ).toBeNull();
+  });
+
+  it("hands the stored snapshot to startAsHost on the create path", async () => {
+    mocks.stubOnlineSurface = false;
+    const peer = makePeer("host");
+    mocks.usePeerRoom.mockReturnValue(peer);
+    saveHostSnapshot(hostSnapshotFixture());
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("button", { name: "Leave game" }),
+    ).toBeTruthy();
+    expect(lobbyIsOpen()).toBe(false);
+    expect(peer.startAsHost).toHaveBeenCalledWith(
+      "ROOM42",
+      undefined,
+      undefined,
+      expect.objectContaining({ version: 1, roomId: "ROOM42" }),
+    );
+    expect(peer.joinAsGuest).not.toHaveBeenCalled();
+    expect(peer.startQuickMatch).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@ import { ErrorBoundary } from "@/components/errorBoundary";
 import {
   AI_Difficulty,
   GameModes,
+  GameStatus,
   PLAYER_CONFIG,
   PlayerSymbol,
   PlayerTypes,
@@ -36,9 +37,10 @@ import {
   type OnlineSession,
 } from "@/lib/onlineSession";
 import { ONLINE_UNAVAILABLE } from "@/lib/matchmaking";
-import { saveDisplayName } from "@/lib/identity";
+import { loadHostSnapshot, type HostSnapshot } from "@/lib/hostSnapshot";
+import { getOrCreateGuestIdentity, saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
-import { savePreferences } from "@/lib/preferences";
+import { loadPreferences, savePreferences } from "@/lib/preferences";
 import { t } from "@/i18n/language";
 
 const OnlineGameSurface = lazy(() =>
@@ -64,6 +66,29 @@ function resumedGameSetup(session: OnlineSession): GameSetup {
   };
 }
 
+function resumedHostGameSetup(snapshot: HostSnapshot): GameSetup {
+  const prefs = loadPreferences();
+  const color = prefs.color ?? PLAYER_CONFIG[PlayerSymbol.X].defaultColor;
+  return {
+    displayName: getOrCreateGuestIdentity().displayName,
+    color,
+    opponentColor:
+      prefs.opponentColor && prefs.opponentColor !== color
+        ? prefs.opponentColor
+        : oppositeColor(color),
+    playerShape:
+      prefs.playerShape ?? PLAYER_CONFIG[PlayerSymbol.X].defaultShape,
+    opponentShape:
+      prefs.opponentShape ?? PLAYER_CONFIG[PlayerSymbol.O].defaultShape,
+    gameMode: GameModes.ONLINE,
+    aiDifficulty: prefs.aiDifficulty ?? AI_Difficulty.NORMAL,
+    opponentName: prefs.opponentName ?? t("lobby.defaultAI"),
+    opponentType: PlayerTypes.HUMAN,
+    onlineRoomId: snapshot.roomId,
+    onlineAction: "create",
+  };
+}
+
 export default function App() {
   const [roomInvite] = useState(() => {
     if (typeof window === "undefined") return NO_ROOM_INVITE;
@@ -74,11 +99,18 @@ export default function App() {
     const session = readOnlineSession();
     return session?.role === "guest" ? session : null;
   });
+  const [resumedHost] = useState<HostSnapshot | null>(() => {
+    if (roomInvite.present || ONLINE_UNAVAILABLE || resumedSession) return null;
+    const snapshot = loadHostSnapshot();
+    return snapshot && snapshot.gameState.gameStatus !== GameStatus.COMPLETED
+      ? snapshot
+      : null;
+  });
   // Decided once, before anything below can create an identity. Someone
   // arriving on an invite link came to join a room, not to be walked through
   // the game; they can replay the tutorial from the lobby's help.
   const [view, setView] = useState<View>(() =>
-    resumedSession
+    resumedSession || resumedHost
       ? "game"
       : !roomInvite.present && shouldShowOnboarding()
         ? "onboarding"
@@ -86,7 +118,11 @@ export default function App() {
   );
   const [onboardingMode, setOnboardingMode] = useState<"first-run" | "replay">("first-run");
   const [config, setConfig] = useState<GameSetup | null>(() =>
-    resumedSession ? resumedGameSetup(resumedSession) : null,
+    resumedSession
+      ? resumedGameSetup(resumedSession)
+      : resumedHost
+        ? resumedHostGameSetup(resumedHost)
+        : null,
   );
   const [lastOnlineSetup, setLastOnlineSetup] = useState<GameSetup | null>(null);
   const [focusLobbyStart, setFocusLobbyStart] = useState(false);
