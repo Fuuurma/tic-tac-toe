@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { RoomClient } from "@/lib/roomClient";
 import { Color, GameModes, GameStatus, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState, type GameState } from "@/game/logic";
-import { leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
+import { closeRoomForReconnect, leaveRoom, joinAsGuest, startAsHost, buildRoomClient, type RoomLifecycleDeps } from "./roomLifecycle";
 import { handleRelayEvent } from "./relayEvents";
 import { SYNC_REPLY_COOLDOWN_MS } from "./hostProtocol";
 import type { PlayerSettings } from "@/game/constants";
@@ -46,6 +46,25 @@ function captureStatusHandler(deps: RoomLifecycleDeps) {
   return captured;
 }
 
+function captureHandlers(deps: RoomLifecycleDeps) {
+  const captured: {
+    status?: (s: string, detail?: string) => void;
+    message?: (msg: { type: string }) => void;
+  } = {};
+  vi.spyOn(RoomClient.prototype, "setStatusHandler").mockImplementation(
+    ((h: (s: string, detail?: string) => void) => {
+      captured.status = h;
+    }) as never,
+  );
+  vi.spyOn(RoomClient.prototype, "setMessageHandler").mockImplementation(
+    ((h: (msg: { type: string }) => void) => {
+      captured.message = h;
+    }) as never,
+  );
+  buildRoomClient(deps, "ws://relay.test/room", "guest");
+  return captured;
+}
+
 describe("leaveRoom", () => {
   it("sends leave before close, then nulls the ref", () => {
     const { room, calls } = mockRoom();
@@ -74,50 +93,51 @@ describe("leaveRoom", () => {
   });
 });
 
+function lifecycleDeps(
+  rematchPendingRef: { current: boolean },
+  hostPendingSettingsRef = { current: null as PlayerSettings | null },
+) {
+  const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
+  const deps: RoomLifecycleDeps = {
+    roomRef: { current: null },
+    stateRef: {
+      current: createInitialGameState({
+        gameMode: GameModes.ONLINE,
+        playerXName: "Host",
+        playerOName: "Guest",
+        playerColor: Color.BLUE,
+        opponentColor: Color.RED,
+      }),
+    },
+    roleRef: { current: null },
+    quickMatchHostRef: { current: false },
+    hostSymbolRef: { current: null },
+    guestSymbolRef,
+    hostDisplayName: "Host",
+    hostColor: "blue" as never,
+    setState: vi.fn(),
+    update: vi.fn(),
+    handleWsEvent: vi.fn(),
+    handleHostData: vi.fn(),
+    handleGuestData: vi.fn(),
+    stopTimer: vi.fn(),
+    rematchPendingRef,
+    lastSyncReplyAtRef: { current: 0 },
+    guestJoinedRef: { current: false },
+    hostPendingSettingsRef,
+    reconnectResetsRef: { current: { moveCount: -1 } },
+    pendingGuestStateRef: { current: null as GameState | null },
+    syncPendingRef: { current: false },
+    waitingForHostTimeoutRef: { current: null },
+    waitingForHostDeadlineAtRef: { current: null },
+  };
+  return { deps, guestSymbolRef };
+}
+
 describe("joinAsGuest rematch-flag reset", () => {
   // needs-work 2026-09-10 P2: rematchPendingRef was never reset by the
   // room-entry paths — a stray rematchAccept landing just after a room swap
   // would be honored against a game that never asked for one.
-  function lifecycleDeps(
-    rematchPendingRef: { current: boolean },
-    hostPendingSettingsRef = { current: null as PlayerSettings | null },
-  ) {
-    const guestSymbolRef = { current: PlayerSymbol.X as PlayerSymbol | null };
-    const deps: RoomLifecycleDeps = {
-      roomRef: { current: null },
-      stateRef: {
-        current: createInitialGameState({
-          gameMode: GameModes.ONLINE,
-          playerXName: "Host",
-          playerOName: "Guest",
-          playerColor: Color.BLUE,
-          opponentColor: Color.RED,
-        }),
-      },
-      roleRef: { current: null },
-      quickMatchHostRef: { current: false },
-      hostSymbolRef: { current: null },
-      guestSymbolRef,
-      hostDisplayName: "Host",
-      hostColor: "blue" as never,
-      setState: vi.fn(),
-      update: vi.fn(),
-      handleWsEvent: vi.fn(),
-      handleHostData: vi.fn(),
-      handleGuestData: vi.fn(),
-      stopTimer: vi.fn(),
-      rematchPendingRef,
-      lastSyncReplyAtRef: { current: 0 },
-      guestJoinedRef: { current: false },
-      hostPendingSettingsRef,
-      reconnectResetsRef: { current: { moveCount: -1 } },
-      pendingGuestStateRef: { current: null as GameState | null },
-      syncPendingRef: { current: false },
-      waitingForHostTimeoutRef: { current: null },
-      waitingForHostDeadlineAtRef: { current: null },
-    };
-    return { deps, guestSymbolRef };
-  }
 
   it("F241: clears stale pending identity settings on room entry", () => {
     const rematchPendingRef = { current: false };
@@ -481,5 +501,110 @@ describe("joinAsGuest rematch-flag reset", () => {
       ) => { message: string; canRetryReconnect: boolean };
       expect(updater(relaySaid).canRetryReconnect).toBe(false);
     });
+  });
+});
+
+describe("closeRoomForReconnect", () => {
+  function mockReconnectRoom() {
+    const calls: string[] = [];
+    const room = {
+      send: vi.fn(() => {
+        calls.push("send");
+        return true;
+      }),
+      close: vi.fn(() => {
+        calls.push("close");
+      }),
+      closeForReconnect: vi.fn(() => {
+        calls.push("closeForReconnect");
+      }),
+      setMessageHandler: vi.fn(() => {
+        calls.push("setMessageHandler");
+      }),
+      setStatusHandler: vi.fn(() => {
+        calls.push("setStatusHandler");
+      }),
+    };
+    return { room, calls };
+  }
+
+  it("nulls the ref, swaps both handlers for no-ops, then recycles — never send/close", () => {
+    const { room, calls } = mockReconnectRoom();
+    const ref = refFor(room);
+
+    closeRoomForReconnect(ref);
+
+    expect(calls).toEqual([
+      "setMessageHandler",
+      "setStatusHandler",
+      "closeForReconnect",
+    ]);
+    expect(room.closeForReconnect).toHaveBeenCalledTimes(1);
+    expect(ref.current).toBeNull();
+  });
+
+  it("nulls the ref before the synchronous close can emit a status", () => {
+    const { room } = mockReconnectRoom();
+    const ref = refFor(room);
+    let refDuringClose: unknown = "unset";
+    room.closeForReconnect.mockImplementation(() => {
+      refDuringClose = ref.current;
+    });
+
+    closeRoomForReconnect(ref);
+
+    expect(refDuringClose).toBeNull();
+  });
+
+  it("is a no-op on a null ref", () => {
+    const ref = refFor(null);
+    expect(() => closeRoomForReconnect(ref)).not.toThrow();
+    expect(ref.current).toBeNull();
+  });
+
+  it("is not optional-chained: a client without closeForReconnect throws", () => {
+    const room = {
+      send: vi.fn(),
+      close: vi.fn(),
+      setMessageHandler: vi.fn(),
+      setStatusHandler: vi.fn(),
+    };
+    const ref = refFor(room);
+
+    expect(() => closeRoomForReconnect(ref)).toThrow();
+    expect(ref.current).toBeNull();
+  });
+});
+
+describe("a detached room client", () => {
+  it("ignores a status event from a detached client", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured = captureHandlers(deps);
+
+    deps.roomRef.current = null;
+    captured.status?.("disconnected", "Reconnecting");
+
+    expect(deps.setState).not.toHaveBeenCalled();
+    expect(deps.handleWsEvent).not.toHaveBeenCalled();
+  });
+
+  it("ignores a message event from a detached client", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured = captureHandlers(deps);
+
+    deps.roomRef.current = null;
+    captured.message?.({ type: "peer-left" });
+
+    expect(deps.handleWsEvent).not.toHaveBeenCalled();
+    expect(deps.handleGuestData).not.toHaveBeenCalled();
+  });
+
+  it("still updates the state for the current client", () => {
+    const { deps } = lifecycleDeps({ current: false });
+    const captured = captureHandlers(deps);
+
+    captured.status?.("disconnected");
+
+    expect(deps.setState).toHaveBeenCalled();
   });
 });

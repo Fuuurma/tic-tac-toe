@@ -95,6 +95,15 @@ export function leaveRoom(roomRef: { current: RoomClient | null }) {
   }
 }
 
+export function closeRoomForReconnect(roomRef: { current: RoomClient | null }): void {
+  const room = roomRef.current;
+  if (!room) return;
+  roomRef.current = null;
+  room.setMessageHandler(() => {});
+  room.setStatusHandler(() => {});
+  room.closeForReconnect();
+}
+
 /** Closes any open room connection before opening a new one. Without
  *  this, a "Try again" after a timeout leaves the old WebSocket open,
  *  and its message handler can corrupt the new room's state via
@@ -128,6 +137,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
     slotToken,
   });
   client.setMessageHandler((msg) => {
+    if (deps.roomRef.current !== client) return;
     // An older cached client may still send the hexagon the crescent replaced.
     migrateLegacyShapes(msg);
     // `error` is reserved by the relay: it rejects a client-sent one, so
@@ -183,6 +193,7 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
     }
   });
   client.setStatusHandler((status, detail) => {
+    if (deps.roomRef.current !== client) return;
     if (detail) {
       reportError(detail, { source: "roomLifecycle.transport" });
     }
@@ -222,6 +233,17 @@ export function buildRoomClient(deps: RoomLifecycleDeps, wsUrl: string, role: Pe
   });
   deps.roomRef.current = client;
   return client;
+}
+
+function reportRoomConnectFailure(
+  deps: RoomLifecycleDeps,
+  room: RoomClient,
+  role: PeerSide,
+  err: unknown,
+): void {
+  if (deps.roomRef.current !== room) return;
+  reportError(err, { source: "roomLifecycle.connect", role });
+  deps.update({ status: "error", ...keyedMessage("online.connectFail"), canRetryReconnect: false });
 }
 
 export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, wsUrl?: string, slotToken?: string) {
@@ -295,8 +317,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(roomId);
   const room = buildRoomClient(deps, resolvedUrl, "host", slotToken);
   room.connect().catch((err) => {
-    reportError(err, { source: "roomLifecycle.connect", role: "host" });
-    update({ status: "error", ...keyedMessage("online.connectFail"), canRetryReconnect: false });
+    reportRoomConnectFailure(deps, room, "host", err);
   });
 }
 
@@ -339,7 +360,6 @@ export function joinAsGuest(deps: RoomLifecycleDeps, roomId: string, wsUrl?: str
   const resolvedUrl = wsUrl ?? buildRoomWsUrl(trimmed);
   const room = buildRoomClient(deps, resolvedUrl, "guest", slotToken);
   room.connect().catch((err) => {
-    reportError(err, { source: "roomLifecycle.connect", role: "guest" });
-    update({ status: "error", ...keyedMessage("online.connectFail"), canRetryReconnect: false });
+    reportRoomConnectFailure(deps, room, "guest", err);
   });
 }

@@ -91,7 +91,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // timer re-render = leave/reconnect every second; regression caught by
   // the fleet critic 2026-09-06). The old render-time
   // `peerRef.current = peer` sync violated the ref rules and is gone.
-  const { startQuickMatch, joinAsGuest, startAsHost, leave } = peer;
+  const { startQuickMatch, joinAsGuest, startAsHost, closeTransport } = peer;
   useEffect(() => {
     if (config.onlineAction === "quick") {
       startQuickMatch();
@@ -101,9 +101,9 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       startAsHost(config.onlineRoomId || undefined);
     }
     return () => {
-      leave();
+      closeTransport();
     };
-  }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, leave]);
+  }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, closeTransport]);
 
   const wasOfflineRef = useRef(!deviceOnline);
   const retryReconnect = peer.retryReconnect;
@@ -260,13 +260,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           peer={peer}
           warmupVisible={warmupVisible}
           isQuick={isQuick}
-          onExit={onExit}
+          onExit={leaveAndExit}
         />
         <DisconnectedBanner
           peer={peer}
           deviceOnline={deviceOnline}
           warmupVisible={warmupVisible}
-          onExit={onExit}
+          onExit={leaveAndExit}
         />
       </div>
 
@@ -295,7 +295,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
           onOpenSettings={() => setPreferencesOpen(true)}
           onEditIdentity={openSettings}
           onPauseChange={setPanelPaused}
-          onExit={onExit}
+          onExit={leaveAndExit}
         />
       )}
       <OnlineSheets
@@ -562,10 +562,7 @@ function OnlineGameArea({
         onDeclineRematch={rematch.onDeclineRematch}
         onCancelRematch={rematch.onCancelRematch}
         onRequestRematch={rematch.onRequestRematch}
-        onExit={() => {
-          peer.leave();
-          onExit();
-        }}
+        onExit={onExit}
       />
 
       <div className="flex min-h-0 flex-1 flex-col justify-center max-sm:order-5">

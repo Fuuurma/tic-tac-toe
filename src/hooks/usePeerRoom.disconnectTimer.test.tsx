@@ -72,6 +72,9 @@ vi.mock("@/lib/room-protocol/roomLifecycle", async (importActual) => {
         send: harness.send,
         close: harness.close,
         reconnectNow: harness.reconnectNow,
+        setMessageHandler: vi.fn(),
+        setStatusHandler: vi.fn(),
+        closeForReconnect: vi.fn(),
       } as unknown as RoomClient;
       deps.update({
         role: "host",
