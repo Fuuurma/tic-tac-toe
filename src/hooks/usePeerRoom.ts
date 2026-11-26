@@ -5,6 +5,7 @@ import { Color, GameModes, GameStatus, PlayerSymbol, REMATCH_TIMEOUT_MS, SymbolS
 import { freshGameState, isGameActive } from "@/game/logic";
 import type { GameState } from "@/game/logic";
 import { toWireGameState } from "@/lib/peer.wire";
+import type { HostSnapshot } from "@/lib/hostSnapshot";
 import { applyAuthorizedMove } from "@/lib/peer.apply";
 import type { PeerMessage } from "@/lib/peer.wire";
 import { RoomClient } from "@/lib/roomClient";
@@ -986,8 +987,8 @@ export function usePeerRoom(options: PeerRoomOptions) {
   );
 
   const startAsHost = useCallback(
-    (providedRoomId?: string, wsUrl?: string, slotToken?: string) =>
-      startAsHostImpl(lifecycleDeps(), providedRoomId, wsUrl, slotToken),
+    (providedRoomId?: string, wsUrl?: string, slotToken?: string, resume?: HostSnapshot) =>
+      startAsHostImpl(lifecycleDeps(), providedRoomId, wsUrl, slotToken, resume),
     [lifecycleDeps],
   );
 

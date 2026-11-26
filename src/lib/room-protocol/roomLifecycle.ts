@@ -12,8 +12,10 @@ import {
 } from "@/game/constants";
 import { createInitialGameState, freshGameState } from "@/game/logic";
 import type { GameState } from "@/game/logic";
+import { rebuildDeadline } from "@/game/turnClock";
 import { isPeerMessage, migrateLegacyShapes } from "@/lib/peer.wire";
 import { chooseGuestColor } from "@/lib/peer.apply";
+import type { HostSnapshot } from "@/lib/hostSnapshot";
 import { generateRoomId } from "@/lib/roomId";
 import type { PeerMessage } from "@/lib/peer.wire";
 import {
@@ -246,7 +248,13 @@ function reportRoomConnectFailure(
   deps.update({ status: "error", ...keyedMessage("online.connectFail"), canRetryReconnect: false });
 }
 
-export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, wsUrl?: string, slotToken?: string) {
+export function startAsHost(
+  deps: RoomLifecycleDeps,
+  providedRoomId?: string,
+  wsUrl?: string,
+  slotToken?: string,
+  resume?: HostSnapshot,
+) {
   const {
     roomRef,
     stateRef,
@@ -279,26 +287,48 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
   deps.pendingGuestStateRef.current = null;
   deps.syncPendingRef.current = false;
   clearWaitingForHostDeadline(deps);
-  const roomId = providedRoomId ?? generateRoomId();
-  const hostSymbol: PlayerSymbol = randomPlayerSymbol();
-  const guestSymbol = oppositeSymbol(hostSymbol);
-  const waitingGame = createInitialGameState({
-    gameMode: GameModes.ONLINE,
-    playerXName:
-      hostSymbol === PlayerSymbol.X
-        ? sanitizeDisplayName(hostDisplayName, generateGuestDisplayName())
-        : "Waiting for opponent",
-    playerOName:
-      hostSymbol === PlayerSymbol.O
-        ? sanitizeDisplayName(hostDisplayName, generateGuestDisplayName())
-        : "Waiting for opponent",
-    playerColor: hostColor,
-    opponentColor: chooseGuestColor(Color.BLUE, hostColor),
-    playerShape: hostShape ?? PLAYER_CONFIG[hostSymbol].defaultShape,
-    humanSymbol: hostSymbol,
-  });
-  waitingGame.gameStatus = GameStatus.WAITING;
-  stateRef.current = waitingGame;
+  const snapshot = slotToken === undefined ? resume : undefined;
+  const roomId = providedRoomId ?? snapshot?.roomId ?? generateRoomId();
+  let hostSymbol: PlayerSymbol;
+  let guestSymbol: PlayerSymbol;
+  let gameState: GameState;
+  if (snapshot) {
+    hostSymbol = snapshot.hostSymbol;
+    guestSymbol = oppositeSymbol(hostSymbol);
+    const deadline = snapshot.gameState.turnDeadlineAt;
+    const now = Date.now();
+    gameState =
+      deadline !== undefined && deadline < now
+        ? {
+            ...snapshot.gameState,
+            turnDeadlineAt: rebuildDeadline(
+              snapshot.gameState.turnTimeRemaining,
+              now,
+            ),
+          }
+        : snapshot.gameState;
+  } else {
+    hostSymbol = randomPlayerSymbol();
+    guestSymbol = oppositeSymbol(hostSymbol);
+    const waitingGame = createInitialGameState({
+      gameMode: GameModes.ONLINE,
+      playerXName:
+        hostSymbol === PlayerSymbol.X
+          ? sanitizeDisplayName(hostDisplayName, generateGuestDisplayName())
+          : "Waiting for opponent",
+      playerOName:
+        hostSymbol === PlayerSymbol.O
+          ? sanitizeDisplayName(hostDisplayName, generateGuestDisplayName())
+          : "Waiting for opponent",
+      playerColor: hostColor,
+      opponentColor: chooseGuestColor(Color.BLUE, hostColor),
+      playerShape: hostShape ?? PLAYER_CONFIG[hostSymbol].defaultShape,
+      humanSymbol: hostSymbol,
+    });
+    waitingGame.gameStatus = GameStatus.WAITING;
+    gameState = waitingGame;
+  }
+  stateRef.current = gameState;
   deps.hostSymbolRef.current = hostSymbol;
   update({
     role: "host",
@@ -306,7 +336,7 @@ export function startAsHost(deps: RoomLifecycleDeps, providedRoomId?: string, ws
     roomId,
     hostSymbol,
     guestSymbol,
-    gameState: waitingGame,
+    gameState,
     ...clearedMessage(),
     rematchOutgoing: false,
     leftBySelf: false,
