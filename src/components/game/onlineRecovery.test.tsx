@@ -5,6 +5,7 @@ import { OnlineGameSurface } from "./onlineGameSurface";
 import { freshGameState, type GameState } from "@/game/logic";
 import { Color, GameModes, GameStatus, PlayerSymbol, SymbolShape } from "@/game/constants";
 import type { PeerRoomState } from "@/hooks/usePeerRoom";
+import { t } from "@/i18n/language";
 
 const mocks = vi.hoisted(() => ({
   usePeerRoom: vi.fn(),
@@ -109,6 +110,12 @@ const config = {
 
 const OFFLINE_COPY = "You're offline. Online play is paused until you reconnect.";
 
+const terminalCases = [
+  { name: "the opponent left", message: t("peer.opponentLeft") },
+  { name: "the room expired", message: t("peer.opponentGone") },
+  { name: "the host never connected", message: t("mm.hostNever") },
+];
+
 describe("OnlineGameSurface recovery when the device goes offline", () => {
   it("shows the offline copy and disables Retry while the device is offline", () => {
     onLine = false;
@@ -191,6 +198,42 @@ describe("OnlineGameSurface recovery when the device goes offline", () => {
     });
 
     expect(peer.retryReconnect).not.toHaveBeenCalled();
+  });
+
+  for (const terminal of terminalCases) {
+    it(`keeps a terminal room end terminal when the network returns after ${terminal.name}`, async () => {
+      onLine = false;
+      const peer = makePeer({
+        status: "disconnected",
+        canRetryReconnect: false,
+        message: terminal.message,
+      });
+      mocks.usePeerRoom.mockReturnValue(peer);
+
+      render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+      await act(async () => {
+        onLine = true;
+        window.dispatchEvent(new Event("online"));
+      });
+
+      expect(peer.retryReconnect).not.toHaveBeenCalled();
+    });
+  }
+
+  it("still retries a reconnecting game when canRetryReconnect is false", async () => {
+    onLine = false;
+    const peer = makePeer({ status: "reconnecting", canRetryReconnect: false });
+    mocks.usePeerRoom.mockReturnValue(peer);
+
+    render(<OnlineGameSurface config={config} onExit={vi.fn()} />);
+
+    await act(async () => {
+      onLine = true;
+      window.dispatchEvent(new Event("online"));
+    });
+
+    expect(peer.retryReconnect).toHaveBeenCalledTimes(1);
   });
 });
 

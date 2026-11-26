@@ -108,13 +108,18 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   const wasOfflineRef = useRef(!deviceOnline);
   const retryReconnect = peer.retryReconnect;
   const peerStatus = peer.state.status;
+  const canRetryReconnect = peer.state.canRetryReconnect;
   useEffect(() => {
     const wasOffline = wasOfflineRef.current;
     wasOfflineRef.current = !deviceOnline;
     if (!deviceOnline || !wasOffline) return;
-    if (peerStatus !== "reconnecting" && peerStatus !== "disconnected") return;
-    retryReconnect();
-  }, [deviceOnline, peerStatus, retryReconnect]);
+    if (
+      peerStatus === "reconnecting" ||
+      (peerStatus === "disconnected" && canRetryReconnect)
+    ) {
+      retryReconnect();
+    }
+  }, [deviceOnline, peerStatus, canRetryReconnect, retryReconnect]);
 
   const gameStats = useGameStats();
   useRecordOnlineResult(peer, gameStats);
