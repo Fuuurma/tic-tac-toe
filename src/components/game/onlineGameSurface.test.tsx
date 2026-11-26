@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   cleanup,
@@ -61,6 +61,10 @@ class ResizeObserverStub {
   disconnect() {}
 }
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+
+beforeEach(() => {
+  window.sessionStorage.clear();
+});
 
 afterEach(() => {
   mocks.playerCount = null;

@@ -1,5 +1,6 @@
 import { SocialReactions } from "./socialReactions";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -17,6 +18,7 @@ import {
   PlayerSymbol,
   PlayerTypes,
   SymbolShape,
+  type PeerSide,
   type TurnAction,
 } from "@/game/constants";
 import { COPY_FLASH_MS, GameStatus } from "@/game/constants";
@@ -41,6 +43,12 @@ import {
 import { HelpDrawer } from "@/components/game/helpDrawer";
 import { QueueStrip, QueueWarmup, WarmupInvite } from "./queuePlay";
 import { waitPhase, type WaitPhase } from "@/lib/room-protocol/waitPhase";
+import {
+  clearOnlineSession,
+  ONLINE_SESSION_VERSION,
+  readOnlineSessionResultRecorded,
+  writeOnlineSession,
+} from "@/lib/onlineSession";
 import { statusMessageText } from "@/lib/room-protocol/messageI18n";
 import { Check as CheckIcon, Copy as CopyIcon, Link2 as LinkIcon } from "lucide";
 import { Loader2, Share2, Wifi } from "lucide-react";
@@ -57,6 +65,7 @@ interface OnlineGameSurfaceProps {
     gameMode: typeof GameModes.ONLINE;
     onlineRoomId: string;
     onlineAction: TurnAction;
+    resumeRole?: PeerSide;
   };
   onExit: () => void;
 }
@@ -93,7 +102,9 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   // `peerRef.current = peer` sync violated the ref rules and is gone.
   const { startQuickMatch, joinAsGuest, startAsHost, closeTransport } = peer;
   useEffect(() => {
-    if (config.onlineAction === "quick") {
+    if (config.resumeRole === "guest" && config.onlineRoomId) {
+      joinAsGuest(config.onlineRoomId);
+    } else if (config.onlineAction === "quick") {
       startQuickMatch();
     } else if (config.onlineAction === "join" && config.onlineRoomId) {
       joinAsGuest(config.onlineRoomId);
@@ -103,7 +114,7 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     return () => {
       closeTransport();
     };
-  }, [config.onlineAction, config.onlineRoomId, startQuickMatch, joinAsGuest, startAsHost, closeTransport]);
+  }, [config.onlineAction, config.onlineRoomId, config.resumeRole, startQuickMatch, joinAsGuest, startAsHost, closeTransport]);
 
   const wasOfflineRef = useRef(!deviceOnline);
   const retryReconnect = peer.retryReconnect;
@@ -122,7 +133,37 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   }, [deviceOnline, peerStatus, canRetryReconnect, retryReconnect]);
 
   const gameStats = useGameStats();
-  useRecordOnlineResult(peer, gameStats);
+  const sessionRoomId = peer.state.roomId;
+  const sessionRole = peer.state.role;
+  const writeSession = useCallback(
+    (resultRecorded: boolean) => {
+      if (!sessionRoomId || !sessionRole) return;
+      writeOnlineSession({
+        version: ONLINE_SESSION_VERSION,
+        roomId: sessionRoomId,
+        role: sessionRole,
+        onlineAction: config.onlineAction,
+        displayName: config.displayName,
+        color: config.color,
+        playerShape: config.playerShape,
+        resultRecorded,
+      });
+    },
+    [
+      sessionRoomId,
+      sessionRole,
+      config.onlineAction,
+      config.displayName,
+      config.color,
+      config.playerShape,
+    ],
+  );
+  const resultRecordedRef = useRecordOnlineResult(
+    peer,
+    gameStats,
+    config.onlineRoomId,
+    writeSession,
+  );
 
   const gameStatusShowsGame = ["connected", "reconnecting", "disconnected"].includes(
     peer.state.status,
@@ -157,8 +198,22 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
   );
   const leaveAndExit = () => {
     peer.leave();
+    clearOnlineSession();
     onExit();
   };
+
+  const sessionStatus = peer.state.status;
+  const sessionCanRetry = peer.state.canRetryReconnect;
+  useEffect(() => {
+    const terminal =
+      sessionStatus === "error" ||
+      (sessionStatus === "disconnected" && !sessionCanRetry);
+    if (terminal) {
+      clearOnlineSession();
+      return;
+    }
+    writeSession(resultRecordedRef.current);
+  }, [sessionStatus, sessionCanRetry, writeSession, resultRecordedRef]);
   const shareUrl = roomShareUrl(
     typeof window !== "undefined" ? window.location.origin : "",
     peer.state.roomId,
@@ -324,7 +379,9 @@ function useRecordOnlineResult(
     ReturnType<typeof useGameStats>,
     "recordWin" | "recordLoss"
   >,
-) {
+  roomId: string,
+  writeSession: (resultRecorded: boolean) => void,
+): { current: boolean } {
   const localSymbol = localPlayerSymbol(peer.state);
   // Record online game results (fleet audit 2026-09-02 P2-6: online
   // wins/losses were silently dropped — useGameStats was only wired in
@@ -335,35 +392,43 @@ function useRecordOnlineResult(
   // guest's tally. Re-arm only on a genuinely live frame (gameStart /
   // rematch / WAITING), so reconnect and resync replays of the same
   // terminal state cannot recount.
-  const resultRecorded = useRef(false);
+  const [seed] = useState(() => readOnlineSessionResultRecorded(roomId));
+  const resultRecordedRef = useRef(seed);
   useEffect(() => {
     const terminal =
       peer.state.gameState.winner !== null ||
       peer.state.gameState.gameStatus === GameStatus.COMPLETED;
     if (!terminal) {
-      resultRecorded.current = false;
+      if (peer.state.status !== "connected") return;
+      if (!resultRecordedRef.current) return;
+      resultRecordedRef.current = false;
+      writeSession(false);
       return;
     }
     if (
-      resultRecorded.current ||
+      resultRecordedRef.current ||
       localSymbol === null ||
       peer.state.gameState.winner === null
     ) {
       return;
     }
-    resultRecorded.current = true;
+    resultRecordedRef.current = true;
     if (peer.state.gameState.winner === localSymbol) {
       recordWin({ gameMode: GameModes.ONLINE });
     } else {
       recordLoss({ gameMode: GameModes.ONLINE });
     }
+    writeSession(true);
   }, [
     peer.state.gameState.winner,
     peer.state.gameState.gameStatus,
+    peer.state.status,
     localSymbol,
     recordWin,
     recordLoss,
+    writeSession,
   ]);
+  return resultRecordedRef;
 }
 
 function usePendingPlayerSettings(
