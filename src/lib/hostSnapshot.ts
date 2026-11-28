@@ -1,7 +1,7 @@
 import { GAME_RULES, GameStatus, PlayerSymbol } from "@/game/constants";
 import type { GameState } from "@/game/logic";
 import { ROOM_ID_PATTERN } from "@/lib/roomId";
-import { getBrowserStorage } from "@/lib/storage";
+import { getBrowserSessionStorage } from "@/lib/storage";
 
 export interface HostSnapshot {
   version: 1;
@@ -63,7 +63,7 @@ const isHostSnapshot = (value: unknown): value is HostSnapshot => {
 
 export function saveHostSnapshot(
   snapshot: HostSnapshot,
-  storage: Storage | null = getBrowserStorage(),
+  storage: Storage | null = getBrowserSessionStorage(),
 ): void {
   if (!storage) return;
   try {
@@ -74,7 +74,7 @@ export function saveHostSnapshot(
 }
 
 export function loadHostSnapshot(
-  storage: Storage | null = getBrowserStorage(),
+  storage: Storage | null = getBrowserSessionStorage(),
 ): HostSnapshot | null {
   if (!storage) return null;
   let raw: unknown;
@@ -87,7 +87,7 @@ export function loadHostSnapshot(
 }
 
 export function clearHostSnapshot(
-  storage: Storage | null = getBrowserStorage(),
+  storage: Storage | null = getBrowserSessionStorage(),
 ): void {
   if (!storage) return;
   try {

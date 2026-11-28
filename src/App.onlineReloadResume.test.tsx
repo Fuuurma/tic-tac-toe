@@ -329,7 +329,23 @@ describe("host snapshot resume", () => {
   });
 
   it("boots to the lobby on a malformed snapshot", async () => {
-    window.localStorage.setItem(HOST_SNAPSHOT_STORAGE_KEY, "{not json");
+    window.sessionStorage.setItem(HOST_SNAPSHOT_STORAGE_KEY, "{not json");
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("radio", { name: "Online" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Exit online game" }),
+    ).toBeNull();
+  });
+
+  it("boots to the lobby when the snapshot only exists in localStorage", async () => {
+    window.localStorage.setItem(
+      HOST_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify(hostSnapshotFixture()),
+    );
 
     render(<App />);
 

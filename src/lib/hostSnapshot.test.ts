@@ -1,3 +1,5 @@
+"@vitest-environment jsdom";
+
 import { describe, expect, it } from "vitest";
 import { Color, GameModes, PlayerSymbol } from "@/game/constants";
 import { createInitialGameState, makeMove, type GameState } from "@/game/logic";
@@ -190,5 +192,34 @@ describe("hostSnapshot", () => {
 
   it("load returns null when storage reads throw", () => {
     expect(loadHostSnapshot(throwingStorage())).toBeNull();
+  });
+
+  it("uses window.sessionStorage by default, never localStorage", () => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    const snapshot = snapshotFixture();
+
+    saveHostSnapshot(snapshot);
+
+    expect(
+      window.sessionStorage.getItem(HOST_SNAPSHOT_STORAGE_KEY),
+    ).not.toBeNull();
+    expect(window.localStorage.getItem(HOST_SNAPSHOT_STORAGE_KEY)).toBeNull();
+    expect(loadHostSnapshot()).toEqual(snapshot);
+
+    clearHostSnapshot();
+    expect(loadHostSnapshot()).toBeNull();
+    expect(window.sessionStorage.getItem(HOST_SNAPSHOT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("ignores a snapshot that only exists in localStorage", () => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    window.localStorage.setItem(
+      HOST_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify(snapshotFixture()),
+    );
+
+    expect(loadHostSnapshot()).toBeNull();
   });
 });

@@ -18,6 +18,11 @@ import {
   readOnlineSession,
   type OnlineSession,
 } from "@/lib/onlineSession";
+import {
+  loadHostSnapshot,
+  saveHostSnapshot,
+  type HostSnapshot,
+} from "@/lib/hostSnapshot";
 
 const mocks = vi.hoisted(() => ({
   usePeerRoom: vi.fn(),
@@ -139,7 +144,15 @@ const store = (session: OnlineSession): void => {
   window.sessionStorage.setItem(ONLINE_SESSION_KEY, JSON.stringify(session));
 };
 
+const hostSnapshotFixture = (roomId = "OLDROOM1"): HostSnapshot => ({
+  version: 1,
+  roomId,
+  hostSymbol: PlayerSymbol.X,
+  gameState: liveGame(),
+});
+
 beforeEach(() => {
+  window.localStorage.clear();
   window.sessionStorage.clear();
   mocks.recordWin.mockClear();
   mocks.recordLoss.mockClear();
@@ -283,5 +296,80 @@ describe("OnlineGameSurface reload resume", () => {
     expect(peer.leave).toHaveBeenCalledTimes(1);
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(readOnlineSession()).toBeNull();
+  });
+
+  it("clears the stored host snapshot on a terminal disconnect", () => {
+    const peer = makePeer("host", {
+      status: "connected",
+      gameState: liveGame(),
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const surfaceConfig = {
+      ...config,
+      onlineAction: "create" as const,
+      onlineRoomId: "ROOM42",
+      resumeRole: "host" as const,
+    };
+
+    const view = render(
+      <OnlineGameSurface config={surfaceConfig} onExit={vi.fn()} />,
+    );
+    expect(loadHostSnapshot()).not.toBeNull();
+
+    peer.state = {
+      ...peer.state,
+      status: "disconnected",
+      canRetryReconnect: false,
+    };
+    view.rerender(<OnlineGameSurface config={surfaceConfig} onExit={vi.fn()} />);
+    expect(loadHostSnapshot()).toBeNull();
+
+    peer.state = { ...peer.state, gameState: { ...peer.state.gameState } };
+    view.rerender(<OnlineGameSurface config={surfaceConfig} onExit={vi.fn()} />);
+    expect(loadHostSnapshot()).toBeNull();
+  });
+
+  it("clears the stored host snapshot on a connection error", () => {
+    const peer = makePeer("host", {
+      status: "connected",
+      gameState: liveGame(),
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+    const surfaceConfig = {
+      ...config,
+      onlineAction: "create" as const,
+      onlineRoomId: "ROOM42",
+      resumeRole: "host" as const,
+    };
+
+    const view = render(
+      <OnlineGameSurface config={surfaceConfig} onExit={vi.fn()} />,
+    );
+    expect(loadHostSnapshot()).not.toBeNull();
+
+    peer.state = { ...peer.state, status: "error" };
+    view.rerender(<OnlineGameSurface config={surfaceConfig} onExit={vi.fn()} />);
+
+    expect(loadHostSnapshot()).toBeNull();
+  });
+
+  it("ignores a stored snapshot when a fresh room is created from the lobby", () => {
+    saveHostSnapshot(hostSnapshotFixture());
+    const peer = makePeer("host", {
+      hostSymbol: null,
+      gameState: liveGame(),
+    });
+    mocks.usePeerRoom.mockReturnValue(peer);
+
+    render(
+      <OnlineGameSurface
+        config={{ ...config, onlineAction: "create", onlineRoomId: "" }}
+        onExit={vi.fn()}
+      />,
+    );
+
+    expect(peer.startAsHost).toHaveBeenCalledTimes(1);
+    expect(peer.startAsHost).toHaveBeenCalledWith(undefined);
+    expect(loadHostSnapshot()).toBeNull();
   });
 });

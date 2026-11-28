@@ -115,18 +115,15 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
       joinAsGuest(config.onlineRoomId);
     } else {
       const snapshot =
-        config.onlineAction === "create" ? loadHostSnapshot() : null;
-      if (
-        snapshot &&
-        (!config.onlineRoomId || config.onlineRoomId === snapshot.roomId)
-      ) {
-        startAsHost(
-          config.onlineRoomId || snapshot.roomId,
-          undefined,
-          undefined,
-          snapshot,
-        );
+        config.onlineAction === "create" && config.resumeRole === "host"
+          ? loadHostSnapshot()
+          : null;
+      if (snapshot && config.onlineRoomId === snapshot.roomId) {
+        startAsHost(config.onlineRoomId, undefined, undefined, snapshot);
       } else {
+        if (config.onlineAction === "create" && config.resumeRole !== "host") {
+          clearHostSnapshot();
+        }
         startAsHost(config.onlineRoomId || undefined);
       }
     }
@@ -243,7 +240,13 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     ) {
       return;
     }
-    if (peer.state.gameState.gameStatus === GameStatus.COMPLETED) {
+    const terminal =
+      sessionStatus === "error" ||
+      (sessionStatus === "disconnected" && !sessionCanRetry);
+    if (
+      terminal ||
+      peer.state.gameState.gameStatus === GameStatus.COMPLETED
+    ) {
       clearHostSnapshot();
       return;
     }
@@ -260,6 +263,8 @@ export function OnlineGameSurface({ config, onExit }: OnlineGameSurfaceProps) {
     peer.state.role,
     peer.state.hostSymbol,
     config.onlineAction,
+    sessionStatus,
+    sessionCanRetry,
   ]);
   const shareUrl = roomShareUrl(
     typeof window !== "undefined" ? window.location.origin : "",

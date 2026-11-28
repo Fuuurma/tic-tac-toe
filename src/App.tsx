@@ -37,7 +37,11 @@ import {
   type OnlineSession,
 } from "@/lib/onlineSession";
 import { ONLINE_UNAVAILABLE } from "@/lib/matchmaking";
-import { loadHostSnapshot, type HostSnapshot } from "@/lib/hostSnapshot";
+import {
+  clearHostSnapshot,
+  loadHostSnapshot,
+  type HostSnapshot,
+} from "@/lib/hostSnapshot";
 import { getOrCreateGuestIdentity, saveDisplayName } from "@/lib/identity";
 import { shouldShowOnboarding } from "@/lib/onboarding";
 import { loadPreferences, savePreferences } from "@/lib/preferences";
@@ -86,6 +90,7 @@ function resumedHostGameSetup(snapshot: HostSnapshot): GameSetup {
     opponentType: PlayerTypes.HUMAN,
     onlineRoomId: snapshot.roomId,
     onlineAction: "create",
+    resumeRole: "host",
   };
 }
 
@@ -153,6 +158,7 @@ export default function App() {
 
   const handleExit = () => {
     clearOnlineSession();
+    clearHostSnapshot();
     setFocusLobbyStart(true);
     setView("lobby");
     setConfig(null);
